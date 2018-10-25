@@ -213,32 +213,3 @@ class Dag:
     def print(self):
         self.__dag.printDAG()
 
-
-
-
-
-print('-----------------------------------------------------------------------')
-d = Dag("someUsualDBBBBBG")
-
-t1 = Transaction("String9")
-t2 = Transaction("String10")
-
-d.addNode(t1)
-d.addNode(t2)
-d.addEdge(t1, t2)
-
-t3 = Transaction("String11")
-t4 = Transaction("String12")
-#d.addEdge(t3, t4)
-
-#d.addEdge(t3, t1)
-#d.addEdge(t4, t2)
-d.print()
-print('-----------------------------------------------------------------------')
-#d.saveDAG()
-d.loadDAG()
-d.print()
-print('-----------------------------------------------------------------------')
-
-
-

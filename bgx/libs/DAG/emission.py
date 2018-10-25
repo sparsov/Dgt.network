@@ -16,10 +16,9 @@
  # Author: Mikhail Kashchenko
 
 
-import ecdsa
-import json
 import time
 import services
+import inspect
 
 
 # Prototype for a Token class.
@@ -27,38 +26,49 @@ import services
 
 class Token:
 
-    def __init__(self, name, symbol, companyID, groupCode, unique, signingKey, seed = 0):
+    def __init__(self, name, symbol, company_id, group_code, unique, digital_signature, seed = 0):
         services.BGXlog.logInfo('Producing token')
         self.name = name
         self.symbol = symbol
-        self.companyID = companyID
-        self.GroupCode = groupCode
+        self.company_id = company_id
+        self.group_code = group_code
         self.granularity = 1
         self.decimals = 18
         self.unique = unique
 
-        imprint = name + symbol + companyID + groupCode
+        if not isinstance(digital_signature, services.BGXCrypto.DigitalSignature):
+            services.BGXlog.logError('Wrong digital signature class as input in token creation')
+            # raise something
+            return False
 
-        if self.unique == True:
+        imprint = name + symbol + company_id + group_code
+
+        if self.unique:
             self.TokenId = services.BGXCrypto.intHash(imprint + str(seed))
-            imprint += str(self.TokenId)
 
-        self.imprint = imprint
-        self.sign = str(signingKey.sign(imprint.encode('utf-8')))
+        self.sign = digital_signature.sign(self.getImprint())
 
     def __str__(self):
         return self.toJSON()
+
+    def verifyToken(self, digital_signature):
+        return digital_signature.verify(self.sign, self.getImprint())
 
     def getSign(self):
         return self.sign
 
     def getImprint(self):
-        return self.imprint
+        imprint = self.name + self.symbol + self.company_id + self.group_code
+        if self.unique:
+            imprint += str(self.TokenId)
+        return imprint
 
-    def toJSON(self):
-        return json.dumps(self.__dict__)
+    # TODO: implement
 
-    # TODO: реализовать
+    #def toJSON(self):
+        #return json.dumps(self.__dict__)
+
+    # TODO: implement
 
     def fromJSON(self, data):
         return True
@@ -69,39 +79,38 @@ class Token:
 
 class EmissionMechanism:
 
-    # TODO: реализовать
+    # TODO: implement
 
     def checkEthereum():
         return True
 
-    def releaseTokens(name, symbol, companyID, unique, signingKey, tokensAmount):
+    # TODO: implement
+
+    def getProvedHashOfClass():
+        return True
+
+    # TODO: implement
+
+    def checkHashOfClass():
+        lines = inspect.getsource(EmissionMechanism)
+        hash = services.BGXCrypto.intHash(lines)
+        return True
+
+    def releaseTokens(name, symbol, company_id, unique, signing_key, tokens_amount):
         services.BGXlog.logInfo('Emission in progress')
         seed = str(time.time())
-        imprint = name + symbol + companyID + seed
-        groupCode = str(services.BGXCrypto.intHash(imprint))
+        imprint = name + symbol + company_id + seed
+        group_code = str(services.BGXCrypto.intHash(imprint))
 
         if not EmissionMechanism.checkEthereum():
-            services.BGXlog.logError('Fail! Not enough tokens: ' + companyID)
+            services.BGXlog.logError('Fail! Not enough tokens: ' + company_id)
             # raise something
             return False
 
         tokens = []
-        for tokenNumber in range(tokensAmount):
-            token = Token(name, symbol, companyID, groupCode, unique, signingKey, tokenNumber)
+        for tokenNumber in range(tokens_amount):
+            token = Token(name, symbol, company_id, group_code, unique, signing_key, tokenNumber)
             tokens.append(token)
 
         return tokens
-
-
-
-
-print('-----------------------------------------------------------------------')
-sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-vk = sk.get_verifying_key()
-t = Token("BGX Token", "BGT", "id", "code", 1, sk)
-tokens = EmissionMechanism.releaseTokens("BGX Token", "BGT", "id", 1, sk, 22)
-
-for token in tokens:
-    print(token)
-print('-----------------------------------------------------------------------')
 

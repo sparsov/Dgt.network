@@ -18,6 +18,7 @@
 
 import logging
 import hashlib
+import ecdsa
 
 
 # Namespace for logger function
@@ -37,9 +38,32 @@ class BGXCrypto:
 
     def strHash(str):
         return hashlib.sha256(str.encode('utf-8')).hexdigest()
+
     def intHash(str):
         return int(BGXCrypto.strHash(str), 16)
 
+    class DigitalSignature:
+
+        def __init__(self, verifying_key=None):
+            if verifying_key is None:
+                self._signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
+                self._verifying_key = self._signing_key.get_verifying_key()
+            else:
+                self._signing_key = None
+                self._verifying_key = verifying_key
+
+        def sign(self, message):
+            if self._signing_key is None:
+                BGXlog.logError('Fail! Can not sign this')
+                # raise something
+                return False
+            return self._signing_key.sign(str(message).encode('utf-8'))
+
+        def verify(self, sign, message):
+            return self._verifying_key.verify(sign, str(message).encode('utf-8'))
+
+        def getVerifyingKey(self):
+            return self._verifying_key
 
 # Namespace for general configuration
 
