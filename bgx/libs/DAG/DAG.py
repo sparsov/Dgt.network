@@ -16,9 +16,11 @@
  # Author: Mikhail Kashchenko
 
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import lmdb
 import services
+import json
 
 
 # Prototype for a transection class.
@@ -38,7 +40,8 @@ class Transaction:
         return services.BGXCrypto.intHash(self.__value)
 
     def __str__(self):
-        return self.__key + " | " + self.__value
+        return self.__value
+        #return self.__key + " | " + self.__value
 
     def key(self):
         return self.__key
@@ -53,7 +56,8 @@ class Transaction:
             or not isinstance(pair[1], Transaction):
             return False
         key = services.BGXCrypto.strHash(pair[0].value() + pair[1].value())
-        value = pair[0].key() + "->" + pair[1].key()
+        data = {'type' : 'edge', 'from' : pair[0].value(), 'to' : pair[1].value()}
+        value = json.dumps(data)
         return tuple((key, value))
 
 
@@ -63,18 +67,18 @@ class Dag:
 
     class __DataBase:
 
-        def __init__(self, dbName):
+        def __init__(self, db_name):
             self.db = None
-            dbPath = services.BGXConf.DEFAULT_STORAGE_PATH + 'db_' + dbName
-            services.BGXlog.logInfo('Connection to ' + dbPath)
+            db_path = services.BGXConf.DEFAULT_STORAGE_PATH + 'db_' + db_name
+            services.BGXlog.logInfo('Connection to ' + db_path)
             retry_count = 0
             while self.db is None and retry_count \
                 < services.BGXConf.MAX_RETRY_CREATE_DB:
-                self.db = lmdb.open(dbPath, create=True)
-                dbPath = dbPath + str(retry_count)
+                self.db = lmdb.open(db_path, create=True)
+                db_path = db_path + str(retry_count)
                 retry_count += 1
             if self.db is None:
-                services.BGXlog.logError('Fail! Connection to ' + dbPath)
+                services.BGXlog.logError('Fail! Connection to ' + db_path)
                 # raise something
 
         def loadGraph(self):
@@ -103,25 +107,28 @@ class Dag:
         def __str__(self):
             res = ''
             for node in self.sort():
-                res += 'node (' + node.__str__() + '), '
-            res += 'end'
+                res += 'node (' + node.__str__() + '), \n'
+            for edge in  self.graph.edges():
+                res += 'edge (' + str(edge[0]) + ' -> ' + str(edge[1]) + '), \n'
             return res
 
         def addNode(self, transaction):
             services.BGXlog.logInfo('Adding node')
             if not isinstance(transaction, Transaction):
+                # raise something
                 return False
             else:
                 self.graph.add_node(transaction)
 
-        def addEdge(self, fromNode, toNode):
+        def addEdge(self, from_node, to_node):
             services.BGXlog.logInfo('Adding edge')
-            if isinstance(fromNode, Transaction) == False \
-                or isinstance(toNode, Transaction) == False:
+            if isinstance(from_node, Transaction) == False \
+                or isinstance(to_node, Transaction) == False:
+                # raise something
                 return False
-            self.graph.add_edge(fromNode, toNode)
+            self.graph.add_edge(from_node, to_node)
             if not nx.algorithms.is_directed_acyclic_graph(self.graph):
-                self.graph.remove_edge(fromNode, toNode)
+                self.graph.remove_edge(from_node, to_node)
                 return False
 
         def findTransaction(self, transaction):
@@ -132,25 +139,45 @@ class Dag:
             services.BGXlog.logInfo('Sorting DAG')
             return nx.algorithms.topological_sort(self.graph)
 
-        # TODO: сгружать ребра в БД
-
         def toKeyValueList(self):
             services.BGXlog.logInfo('Translating DAG to key-value pairs')
-            list = []
+            db_list = []
             for node in self.sort():
-                list.append(tuple((node.key(), node.value())))
-            #for edge in nx.to_edgelist(self.graph):
-            #    list.append(Transaction.hashFromTuple(edge))
-            return list
-
-        # TODO: добавить проверку хэша у нод, загрузку ребер
+                data = {'type': 'node', 'value': node.value()}
+                value = json.dumps(data)
+                db_list.append(tuple((node.key(), value)))
+            for edge in nx.to_edgelist(self.graph):
+                db_list.append(Transaction.hashFromTuple(edge))
+            return db_list
 
         def loadFromKeyValueList(self, list):
             services.BGXlog.logInfo('Loading DAG from key-value pairs')
             self.graph.clear()
             for pair in list:
-                transaction = Transaction(pair[1])
-                self.graph.add_node(transaction)
+                data = json.loads(pair[1])
+                if data['type'] == 'node':
+                    content = data['value']
+                    transaction = Transaction(content)
+                    self.addNode(transaction)
+                elif data['type'] == 'edge':
+                    from_node = Transaction(data['from'])
+                    to_node = Transaction(data["to"])
+                    self.addEdge(from_node, to_node)
+                else:
+                    services.BGXlog.logError('Fail! Something wrong in DB' )
+                    # raise something
+
+        def printDAG(self):
+            node_pos = dict()
+            pos = 3
+            eps = -2
+            for node in self.sort():
+                node_pos[node] = [pos, pos + eps]
+                eps *= -1
+                pos += 1
+
+            nx.draw_networkx(self.graph, pos=node_pos)
+            plt.show()
 
     __dag = None
     __db = None
@@ -166,8 +193,8 @@ class Dag:
     def addNode(self, transaction):
         return Dag.__dag.addNode(transaction)
 
-    def addEdge(self, fromNode, toNode):
-        return Dag.__dag.addEdge(fromNode, toNode)
+    def addEdge(self, from_node, to_node):
+        return Dag.__dag.addEdge(from_node, to_node)
 
     def findTransaction(self, transaction):
         return Dag.__dag.findTransaction(transaction)
@@ -184,14 +211,14 @@ class Dag:
         self.__dag.loadFromKeyValueList(list)
 
     def print(self):
-        for node in self.sort():
-            print(node)
+        self.__dag.printDAG()
+
 
 
 
 
 print('-----------------------------------------------------------------------')
-d = Dag("someUsualDBB")
+d = Dag("someUsualDBBBBBG")
 
 t1 = Transaction("String9")
 t2 = Transaction("String10")
@@ -202,12 +229,16 @@ d.addEdge(t1, t2)
 
 t3 = Transaction("String11")
 t4 = Transaction("String12")
-d.addEdge(t3, t4)
+#d.addEdge(t3, t4)
 
+#d.addEdge(t3, t1)
+#d.addEdge(t4, t2)
 d.print()
 print('-----------------------------------------------------------------------')
-d.saveDAG()
+#d.saveDAG()
 d.loadDAG()
 d.print()
 print('-----------------------------------------------------------------------')
+
+
 
