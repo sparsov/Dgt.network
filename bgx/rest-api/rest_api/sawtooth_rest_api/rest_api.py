@@ -104,7 +104,7 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     handler = RouteHandler(loop, connection, timeout, registry)
 
-    app.router.add_post('/wallets/{public_key_hashed}', handler.post_wallet)
+    app.router.add_post('/wallets', handler.post_wallet)
     app.router.add_post('/transactions/convert', handler.post_transaction_convert)
     app.router.add_post('/transactions', handler.post_transaction)
     app.router.add_get('/wallets/{public_key_hashed}', handler.get_wallet)
