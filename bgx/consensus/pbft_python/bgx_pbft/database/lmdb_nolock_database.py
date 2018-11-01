@@ -17,7 +17,7 @@ import os
 import lmdb
 import cbor
 
-from sawtooth_bgt.database import database
+from bgx_pbft.database import database
 
 
 class LMDBNoLockDatabase(database.Database):

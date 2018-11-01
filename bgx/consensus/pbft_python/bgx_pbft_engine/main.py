@@ -14,6 +14,7 @@
 # ------------------------------------------------------------------------------
 
 import sys
+import os
 import argparse
 import logging
 import pkg_resources
@@ -22,12 +23,14 @@ from sawtooth_sdk.processor.log import init_console_logging
 from sawtooth_sdk.processor.log import log_configuration
 from sawtooth_sdk.processor.config import get_log_config
 from sawtooth_sdk.processor.config import get_log_dir
+from sawtooth_sdk.processor.config import get_config_dir
 
 from sawtooth_sdk.consensus.zmq_driver import ZmqDriver
 from bgx_pbft_engine.engine import PbftEngine
 
 from bgx_pbft.config.path import load_path_config
 from bgx_pbft.exceptions import LocalConfigurationError
+from bgx_pbft_engine.config.pbft import PbftConfig,load_default_pbft_config,load_toml_pbft_config,merge_pbft_config
 
 DISTRIBUTION_NAME = 'bgx-pbft'
 
@@ -67,6 +70,17 @@ def parse_args(args):
 
     return parser.parse_args(args)
 
+def load_pbft_config(first_config):
+    default_pbft_config = load_default_pbft_config()
+    conf_file = os.path.join(get_config_dir(), 'pbft.toml')
+
+    toml_config = load_toml_pbft_config(conf_file)
+
+    return merge_pbft_config(configs=[first_config, toml_config, default_pbft_config])
+
+def create_pbft_config(args):
+    return PbftConfig(node=args['node'] if args is not None and 'node' in args else None)
+
 
 def main(args=None):
     try:
@@ -80,6 +94,9 @@ def main(args=None):
     opts = parse_args(args)
 
     try:
+        arg_config = create_pbft_config(opts)
+        pbft_config = load_pbft_config(arg_config)
+
         log_config = get_log_config('bgx-pbft-engine-log-config.toml')
         if log_config is None:
             log_config = get_log_config('bgx-pbft-engine-log-config.yaml')
@@ -97,7 +114,8 @@ def main(args=None):
         driver = ZmqDriver(
             PbftEngine(
                 path_config=path_config,
-                component_endpoint=opts.component))
+                component_endpoint=opts.component,
+                pbft_config=pbft_config))
         LOGGER.debug('Start driver=%s endpoint=%s component=%s',driver,opts.connect,opts.component)
         driver.start(endpoint=opts.connect)
 

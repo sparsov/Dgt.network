@@ -25,15 +25,23 @@ from sawtooth_sdk.protobuf.validator_pb2 import Message
 from bgx_pbft_engine.oracle import PbftOracle, PbftBlock
 from bgx_pbft_engine.pending import PendingForks
 
+from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusPeerMessage
+from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo 
+from bgx_pbft_engine.config.pbft import PbftConfig
+
+from bgx_pbft.state.settings_view import SettingsView
 
 LOGGER = logging.getLogger(__name__)
-
+PBFT_NAME = 'pbft' 
+PBFT_VER  = '1.0'
+PRE_PREPARE_MSG = 'PrePrepare'
 
 class PbftEngine(Engine):
-    def __init__(self, path_config, component_endpoint):
+    def __init__(self, path_config, component_endpoint,pbft_config):
         # components
         self._path_config = path_config
         self._component_endpoint = component_endpoint
+        self._pbft_config = pbft_config 
         self._service = None
         self._oracle = None
 
@@ -44,15 +52,15 @@ class PbftEngine(Engine):
         self._committing = False
 
         self._pending_forks_to_resolve = PendingForks()
-        LOGGER.debug('PbftEngine: init done')
+        LOGGER.debug('PbftEngine: init done pbft=%s',self._pbft_config)
 
     def name(self):
         LOGGER.debug('PbftEngine: ask name')
-        return 'pbft'
+        return PBFT_NAME
 
     def version(self):
         LOGGER.debug('PbftEngine: ask version')
-        return '0.1'
+        return PBFT_VER
 
     def stop(self):
         self._exit = True
@@ -61,7 +69,7 @@ class PbftEngine(Engine):
         LOGGER.debug('PbftEngine: _initialize_block')
         chain_head = self._get_chain_head()
         LOGGER.debug('PbftEngine: _initialize_block ID=%s chain_head=%s',chain_head.block_id,chain_head)
-        #initialize = True #self._oracle.initialize_block(chain_head)
+        initialize = self._oracle.initialize_block(chain_head)
 
         #if initialize:
         try:
@@ -73,6 +81,18 @@ class PbftEngine(Engine):
         except exceptions.InvalidState :
             LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
         return True
+
+    def _pre_prepare(self):
+        # broadcast 
+        payload = PbftMessageInfo(
+                    msg_type = PRE_PREPARE_MSG,
+                    view     = 0,
+                    seq_num  = 1,
+                    signer_id = self._oracle.get_validator_id().encode()
+            ) 
+
+        LOGGER.debug('broadcast peerMess=(%s)',payload)
+        self._service.broadcast(PRE_PREPARE_MSG,payload.SerializeToString()) #b'payload')
 
     def _check_consensus(self, block):
         return True
@@ -97,9 +117,11 @@ class PbftEngine(Engine):
         self._service.fail_block(block_id)
 
     def _get_chain_head(self):
+        LOGGER.debug('_get_chain_head ..')
         return PbftBlock(self._service.get_chain_head())
 
     def _get_block(self, block_id):
+        LOGGER.debug('_get_block id=%s',block_id)
         return PbftBlock(self._service.get_blocks([block_id])[block_id])
 
     def _commit_block(self, block_id):
@@ -170,14 +192,15 @@ class PbftEngine(Engine):
             LOGGER.info('Finalized %s with ',block_id.hex()) #json.loads(consensus.decode())
             self._building = True
             # broadcast 
-            LOGGER.debug('broadcast ...')
-            self._service.broadcast('message_type',b'payload')
             return block_id
         except exceptions.BlockNotReady:
             LOGGER.debug('Block not ready to be finalized')
             return None
         except exceptions.InvalidState:
             LOGGER.warning('block cannot be finalized')
+            return None
+        except Exception as err:
+            LOGGER.warning("error=%s",err)
             return None
 
 
@@ -207,6 +230,7 @@ class PbftEngine(Engine):
             Message.CONSENSUS_NOTIFY_BLOCK_COMMIT:self._handle_committed_block,
             Message.CONSENSUS_NOTIFY_PEER_CONNECTED:self._handle_peer_connected,
             Message.CONSENSUS_NOTIFY_PEER_MESSAGE:self._handle_peer_message,
+            Message.CONSENSUS_BROADCAST_REQUEST  :self._handle_broadcast_request
             #CONSENSUS_NOTIFY_PEER_DISCONNECTED 
         }
         sum_cnt = 0
@@ -273,8 +297,8 @@ class PbftEngine(Engine):
                     self._building = False
 
     def _handle_new_block(self, block):
-        block = PbftBlock(block)
         LOGGER.info('handle_new_block:Received %s', block)
+        block = PbftBlock(block)
 
         if self._check_consensus(block):
             LOGGER.info('Passed consensus check: %s', block.block_id.hex())
@@ -327,10 +351,18 @@ class PbftEngine(Engine):
         self._process_pending_forks()
 
     def _handle_peer_connected(self, block):
+        """
+        Messages about new peers
+        """
         #block = PbftBlock(block)
-        LOGGER.info('_handle_peer_connected:Received %s', block)
+        LOGGER.info('_handle_peer_connected: Received %s', block)
 
     def _handle_peer_message(self, block):
+        """
+        we have got here messages which were sent for consensus via CONSENSUS_BROADCAST_REQUEST 
+        """
         #block = PbftBlock(block)
-        LOGGER.info('_handle_peer_message:Received %s', block)
+        LOGGER.info('_handle_peer_message: Received %s', block)
 
+    def _handle_broadcast_request(self, block):
+        LOGGER.info('_handle_broadcast_request: Received %s', block)

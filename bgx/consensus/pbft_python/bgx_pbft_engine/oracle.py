@@ -32,10 +32,11 @@ from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
 from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusBlock
 from sawtooth_sdk.protobuf.validator_pb2 import Message
 
-#from sawtooth_bgt.bgt_consensus.bgt_block_publisher import BgtBlockPublisher
-#from sawtooth_bgt.bgt_consensus.bgt_block_verifier import BgtBlockVerifier
-#from sawtooth_bgt.bgt_consensus.bgt_fork_resolver import BgtForkResolver
+from bgx_pbft.consensus.pbft_block_publisher import PbftBlockPublisher
+#from bgx_pbft.consensus.pbft_block_verifier import BgtBlockVerifier
+#from bgx_pbft.consensus.pbft_fork_resolver import BgtForkResolver
 
+from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,11 +49,12 @@ class PbftOracle:
                  config_dir, data_dir, key_dir):
         self._config_dir = config_dir
         self._data_dir = data_dir
+        self._service = service
         LOGGER.debug('PbftOracle: Stream key_dir=%s',key_dir)
         self._signer = _load_identity_signer(key_dir, 'validator')
         self._validator_id = self._signer.get_public_key().as_hex()
 
-        LOGGER.debug('PbftOracle: Stream component_endpoint=%s',component_endpoint)
+        LOGGER.debug('PbftOracle: Stream component_endpoint=%s ',component_endpoint)
         stream = Stream(component_endpoint)
 
         self._block_cache = _BlockCacheProxy(service, stream)
@@ -60,16 +62,17 @@ class PbftOracle:
 
         self._batch_publisher = _BatchPublisherProxy(stream, self._signer)
         self._publisher = None
-        LOGGER.debug('PbftOracle: init DONE')
+        LOGGER.debug('PbftOracle: _validator_id=%s init DONE',self._validator_id)
+
+    def get_validator_id(self):
+        return self._validator_id 
 
     def initialize_block(self, previous_block):
-        pass
-        """
         block_header = NewBlockHeader(
             previous_block,
             self._signer.get_public_key().as_hex())
 
-        self._publisher = BgtBlockPublisher(
+        self._publisher = PbftBlockPublisher(
             block_cache=self._block_cache,
             state_view_factory=self._state_view_factory,
             batch_publisher=self._batch_publisher,
@@ -78,7 +81,6 @@ class PbftOracle:
             validator_id=self._validator_id)
 
         return self._publisher.initialize_block(block_header)
-        """
 
     def check_publish_block(self, block):
         pass
@@ -110,11 +112,15 @@ class PbftOracle:
         elif new_fork_head.block_num < cur_fork_head.block_num :
             #
             chain_block = cur_fork_head
+            LOGGER.debug('PbftOracle: new_fork_head.block_num=%s < cur_fork_head.block_num=%s',new_fork_head.block_num,cur_fork_head.block_num)
+            num = 0
             while(True): 
-                chain_block = PbftBlock(self._service.get_blocks([chain_block.block_id])[chain_block.block_id]) 
-                if chain_block.block_num == new_fork_head.block_num :
+                chain_block = PbftBlock(self._service.get_blocks([chain_block.previous_id])[chain_block.previous_id]) 
+                LOGGER.debug('PbftOracle: while chain_block.block_num=%s == new_fork_head.block_num=%s',chain_block.block_num,new_fork_head.block_num) 
+                if chain_block.block_num == new_fork_head.block_num or num > 20:
                     LOGGER.debug('PbftOracle: found block')
                     break
+                num += 1 
             if new_fork_head.block_id > chain_block.block_id:
                 LOGGER.debug('PbftOracle: switch to new forks')
                 return True    
@@ -125,7 +131,7 @@ class PbftOracle:
 class PbftBlock:
     def __init__(self, block):
         # fields that come with consensus blocks
-        LOGGER.debug('PbftBlock: block=%s',block)
+        LOGGER.debug('PbftBlock: init block=%s',block)
         self.block_id = block.block_id
         self.previous_id = block.previous_id
         self.signer_id = block.signer_id
