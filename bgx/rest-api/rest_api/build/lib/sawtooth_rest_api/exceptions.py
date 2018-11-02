@@ -335,11 +335,11 @@ class InvalidSignature(_ApiError):
     title = 'Signature is invalid'
     message = "Sent Signed Payload is invalid"
 
-class PublicKeyNotFound(_ApiError):
+class AddressNotFound(_ApiError):
     api_code = 87
     status_code = 500
-    title = 'Public Key Not Found'
-    message = "Public key for specified public_key_hashed not found"
+    title = 'Wallet Address Not Found'
+    message = ""
 
 class WalletNotFound(_ApiError):
     api_code = 90
@@ -351,4 +351,10 @@ class NotEnoughFunds(_ApiError):
     api_code = 91
     status_code = 400
     title = "Not enough funds in user's wallet"
+    message = ''
+
+class NegativePayload(_ApiError):
+    api_code = 92
+    status_code = 400
+    title = "Transaction Payload Should Not Be Negative"
     message = ''
