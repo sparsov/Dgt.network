@@ -334,13 +334,13 @@ class Completer:
                 len(self._incomplete_blocks))
 
     def add_batch(self, batch):
-        LOGGER.debug("journal:add_batch: ...")
+        LOGGER.debug("Completer::add_batch: ...")
         with self.lock:
             if batch.header_signature in self._batch_cache:
                 LOGGER.debug("journal:add_batch: already in cache")
                 return
             if self._complete_batch(batch):
-                LOGGER.debug("journal:add_batch: completed on received %s",self._on_batch_received)
+                LOGGER.debug("Completer::add_batch: completed on received %s",self._on_batch_received)
                 self._batch_cache[batch.header_signature] = batch
                 self._add_seen_txns(batch)
                 self._on_batch_received(batch)
@@ -354,6 +354,7 @@ class Completer:
                         if txn.header_signature in self._requested:
                             del self._requested[txn.header_signature]
                         self._process_incomplete_batches(txn.header_signature)
+                LOGGER.debug("Completer::add_batch: DONE")
             self._incomplete_batches_length.set_value(
                 len(self._incomplete_batches))
 
@@ -402,13 +403,18 @@ class CompleterBatchListBroadcastHandler(Handler):
         self._gossip = gossip
 
     def handle(self, connection_id, message_content):
-        LOGGER.debug("CompleterBatchListBroadcastHandler:handle .. ")
+        LOGGER.debug("CompleterBatchListBroadcastHandler:handle num batches=%d...",len(message_content.batches))
         for batch in message_content.batches:
             if batch.trace:
                 LOGGER.debug("TRACE %s: %s", batch.header_signature,
                              self.__class__.__name__)
             self._completer.add_batch(batch)
+            LOGGER.debug("CompleterBatchListBroadcastHandler: broadcast batch ... ")
+            """
+            Send transaction to all rest peers
+            """
             self._gossip.broadcast_batch(batch)
+            LOGGER.debug("CompleterBatchListBroadcastHandler: broadcast batch DONE ")
         return HandlerResult(status=HandlerStatus.PASS)
 
 
@@ -420,8 +426,10 @@ class CompleterGossipHandler(Handler):
         obj, tag, _ = message_content
 
         if tag == network_pb2.GossipMessage.BLOCK:
+            LOGGER.debug("CompleterGossipHandler: handle BLOCK")
             self._completer.add_block(obj)
         elif tag == network_pb2.GossipMessage.BATCH:
+            LOGGER.debug("CompleterGossipHandler: handle BATCH")
             self._completer.add_batch(obj)
         return HandlerResult(status=HandlerStatus.PASS)
 
@@ -432,6 +440,7 @@ class CompleterGossipBlockResponseHandler(Handler):
 
     def handle(self, connection_id, message_content):
         block, _ = message_content
+        LOGGER.debug("CompleterGossipBlockResponseHandler: handle BLOCK")
         self._completer.add_block(block)
 
         return HandlerResult(status=HandlerStatus.PASS)
@@ -443,6 +452,7 @@ class CompleterGossipBatchResponseHandler(Handler):
 
     def handle(self, connection_id, message_content):
         batch, _ = message_content
+        LOGGER.debug("CompleterGossipBatchResponseHandler: handle BATCH")
         self._completer.add_batch(batch)
 
         return HandlerResult(status=HandlerStatus.PASS)

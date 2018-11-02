@@ -238,10 +238,17 @@ class GossipBroadcastHandler(Handler):
             return HandlerResult(status=HandlerStatus.PASS)
 
         if tag == GossipMessage.BATCH:
+            """
+            At this point we have got transactions which were spreaded to peers which implements this famile 
+            """
             # If we already have this batch, don't forward it
+            LOGGER.debug("GossipBroadcastHandler:handle BATCH !!!")
             if not self._completer.get_batch(obj.header_signature):
                 self._gossip.broadcast_batch(obj, exclude, time_to_live=ttl)
+            else:
+                LOGGER.debug("GossipBroadcastHandler:handle BATCH IGNORE(already have this batch) !!!")
         elif tag == GossipMessage.BLOCK:
+            LOGGER.debug("GossipBroadcastHandler:handle BLOCK !!!")
             # If we already have this block, don't forward it
             if not self._completer.get_block(obj.header_signature):
                 self._gossip.broadcast_block(obj, exclude, time_to_live=ttl)

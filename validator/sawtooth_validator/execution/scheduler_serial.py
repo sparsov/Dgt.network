@@ -125,7 +125,7 @@ class SerialScheduler(Scheduler):
             self._condition.notify_all()
 
     def add_batch(self, batch, state_hash=None, required=False):
-        LOGGER.debug("scheduler.serial:add_batch.")
+        LOGGER.debug("SerialScheduler::add_batch=(%s) transactions=%s.",batch,len(batch.transactions))
         with self._condition:
             if self._final:
                 raise SchedulerError("Scheduler is finalized. Cannot take"

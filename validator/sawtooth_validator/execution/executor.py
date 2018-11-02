@@ -190,7 +190,7 @@ class TransactionExecutorThread:
             processor_type = ProcessorType(
                 header.family_name,
                 header.family_version)
-
+            LOGGER.debug("_execute_schedule family_name=%s",header.family_name)
             config = self._settings_view_factory.create_settings_view(
                 txn_info.state_hash)
 
@@ -227,7 +227,9 @@ class TransactionExecutorThread:
                              txn.header_signature,
                              processor_type.name,
                              processor_type.version)
-
+                """
+                AT THIS POINT   WE CAN REJECT TRANSACTION OR SEND it TO PEER WHICH UNDERSTAND THIS FAMILY.
+                """
                 self._fail_transaction(txn.header_signature)
                 continue
 
@@ -316,7 +318,7 @@ class TransactionExecutorThread:
                              "waiting for available processor",
                              content.signature)
             return
-
+        LOGGER.debug("TransactionExecutorThread:_execute processor_type=%s",processor_type)
         self._send_and_process_result(
             content, processor.connection_id, signature)
 

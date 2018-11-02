@@ -256,6 +256,7 @@ def execute_batches(
     context_manager,
     batches
 ):
+    LOGGER.debug("execute_batches ...")
     scheduler = transaction_executor.create_scheduler(
         previous_state_root,
         always_persist=True)

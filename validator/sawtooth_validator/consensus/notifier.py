@@ -45,7 +45,7 @@ class ConsensusNotifier:
 
     def notify_peer_connected(self, peer_id):
         """A new peer was added"""
-        LOGGER.debug('ConsensusNotifier: notify_peer_connected')
+        LOGGER.debug('ConsensusNotifier: notify_peer_connected peer_id=%s',peer_id)
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,
             consensus_pb2.ConsensusNotifyPeerConnected(
@@ -62,7 +62,7 @@ class ConsensusNotifier:
 
     def notify_peer_message(self, message, sender_id):
         """A new message was received from a peer"""
-        LOGGER.debug('ConsensusNotifier: notify_peer_message')
+        LOGGER.debug('ConsensusNotifier: notify_peer_message sender_id=%s',sender_id)
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_MESSAGE,
             consensus_pb2.ConsensusNotifyPeerMessage(
@@ -71,7 +71,7 @@ class ConsensusNotifier:
 
     def notify_block_new(self, block):
         """A new block was received and passed initial consensus validation"""
-        LOGGER.debug('ConsensusNotifier: notify_block_new')
+        LOGGER.debug('ConsensusNotifier: notify_block_new block=%s',block)
         summary = hashlib.sha256()
         for batch in block.batches:
             summary.update(batch.header_signature.encode())

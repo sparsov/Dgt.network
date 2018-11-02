@@ -309,7 +309,7 @@ class Gossip:
             content_type=GossipMessage.BATCH,
             content=batch.SerializeToString(),
             time_to_live=time_to_live)
-
+        LOGGER.debug("Gossip::broadcast_batch ...") 
         self.broadcast(
             gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
@@ -887,13 +887,13 @@ class ConnectionManager(InstrumentedThread):
                              connection_id)
                 self._remove_temporary_connection(connection_id)
             elif ack.status == ack.OK:
-                LOGGER.debug("Peering request to %s was successful",
-                             connection_id)
+                LOGGER.debug("Peering request to %s was successful endpoint=%s",connection_id,endpoint)
                 if endpoint:
                     try:
                         self._gossip.register_peer(connection_id, endpoint)
                         self._connection_statuses[connection_id] = \
                             PeerStatus.PEER
+                        LOGGER.debug("Peering register_peer send_block_request")
                         self._gossip.send_block_request("HEAD", connection_id)
                     except PeeringException as e:
                         # Remove unsuccessful peer
@@ -957,7 +957,7 @@ class ConnectionManager(InstrumentedThread):
                 del self._temp_endpoints[endpoint]
 
     def _connect_success_peering(self, connection_id, endpoint):
-        LOGGER.debug("Connection to %s succeeded", connection_id)
+        LOGGER.debug("Connection to %s succeeded endpoint=%s", connection_id,endpoint)
 
         register_request = PeerRegisterRequest(
             endpoint=self._endpoint,
