@@ -99,6 +99,9 @@ def _get_state(context, address, value_type):
 
 
 def _get_address(key):
+    """
+    get merkle address into topology space for 'key'
+    """
     address = VAL_REG_NAMESPACE + hashlib.sha256(key.encode()).hexdigest()
     return address
 
@@ -115,7 +118,7 @@ def _update_validator_state(context,
                             validator_id,
                             anti_sybil_id,
                             validator_info):
-
+    LOGGER.debug('_update_validator_state ....')
     validator_map = _get_validator_map(context)
     updated_map = BgxValidatorMap()
     # Clean out old entries in BgxValidatorInfo and BgxValidatorMap
@@ -124,6 +127,7 @@ def _update_validator_state(context,
     # Use any such entry to find the associated validator id.
     # Use that validator id as the key to remove the BgxValidatorInfo from the
     # registry
+    LOGGER.debug('_update_validator_state validator_map.entries')
     for entry in validator_map.entries:
         if anti_sybil_id == entry.key:
             validator_info_address = _get_address(entry.value)
@@ -229,64 +233,53 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
 
         # Try to get the report key from the configuration setting.  If it
         # is not there or we cannot parse it, fail verification.
+        LOGGER.debug('get the report key from the configuration setting')
+        """
         try:
-            report_public_key_pem = \
-                _get_config_setting(
-                    context=context,
-                    key='sawtooth.poet.report_public_key_pem')
-            report_public_key = \
-                serialization.load_pem_public_key(
+            report_public_key_pem = _get_config_setting(context=context,key='sawtooth.poet.report_public_key_pem')
+            report_public_key = serialization.load_pem_public_key(
                     report_public_key_pem.encode(),
                     backend=backends.default_backend())
         except KeyError:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Report public key configuration setting '
                     '(sawtooth.poet.report_public_key_pem) not found.')
         except (TypeError, ValueError) as error:
             raise ValueError('Failed to parse public key: {}'.format(error))
-
+        """
         # Retrieve the valid enclave measurement values, converting the comma-
         # delimited list. If it is not there, or fails to parse correctly,
         # fail verification.
+        LOGGER.debug('get enclave measurement from the configuration setting')
+        """
         try:
-            valid_measurements = \
-                _get_config_setting(
-                    context=context,
-                    key='sawtooth.poet.valid_enclave_measurements')
-            valid_enclave_mesaurements = \
-                [bytes.fromhex(m) for m in valid_measurements.split(',')]
+            valid_measurements = _get_config_setting(context=context,key='sawtooth.poet.valid_enclave_measurements')
+            valid_enclave_mesaurements = [bytes.fromhex(m) for m in valid_measurements.split(',')]
         except KeyError:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Valid enclave measurements configuration setting '
                     '(sawtooth.poet.valid_enclave_measurements) not found.')
         except ValueError as error:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Failed to parse enclave measurement: {}'.format(
                         valid_measurements))
-
+        """
         # Retrieve the valid enclave basename value. If it is not there, or
         # fails to parse correctly, fail verification.
+        LOGGER.debug('get enclave basename from the configuration setting')
+        """
         try:
-            valid_basenames = \
-                _get_config_setting(
-                    context=context,
-                    key='sawtooth.poet.valid_enclave_basenames')
-            valid_enclave_basenames = \
-                [bytes.fromhex(b) for b in valid_basenames.split(',')]
+            valid_basenames = _get_config_setting(context=context,key='sawtooth.poet.valid_enclave_basenames')
+            valid_enclave_basenames = [bytes.fromhex(b) for b in valid_basenames.split(',')]
         except KeyError:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Valid enclave basenames configuration setting '
                     '(sawtooth.poet.valid_enclave_basenames) not found.')
         except ValueError:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Failed to parse enclave basename: {}'.format(
                         valid_basenames))
-
+        
         try:
             report_public_key.verify(
                 base64.b64decode(signature.encode()),
@@ -295,8 +288,9 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
                 hashes.SHA256())
         except InvalidSignature:
             raise ValueError('Verification report signature is invalid')
-
+        """
         verification_report_dict = json.loads(verification_report)
+        LOGGER.debug('before verification_report_dict')
 
         # Verify that the verification report contains an ID field
         if 'id' not in verification_report_dict:
@@ -306,23 +300,21 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
         # that it matches the anti-Sybil ID
         epid_pseudonym = verification_report_dict.get('epidPseudonym')
         if epid_pseudonym is None:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Verification report does not contain an EPID pseudonym')
 
         if epid_pseudonym != signup_info.anti_sybil_id:
-            raise \
-                ValueError(
+            raise ValueError(
                     'The anti-Sybil ID in the verification report [{0}] does '
                     'not match the one contained in the signup information '
                     '[{1}]'.format(
                         epid_pseudonym,
                         signup_info.anti_sybil_id))
 
+        """
         # Verify that the verification report contains a PSE manifest status
         # and it is OK
-        pse_manifest_status = \
-            verification_report_dict.get('pseManifestStatus')
+        pse_manifest_status = verification_report_dict.get('pseManifestStatus')
         if pse_manifest_status is None:
             raise \
                 ValueError(
@@ -334,48 +326,42 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
                                ' hardware, pseManifestStatus: %s',
                                pse_manifest_status)
             else:
-                raise \
-                    ValueError(
+                raise ValueError(
                         'PSE manifest status is {} (i.e., not OK)'.format(
                             pse_manifest_status))
 
         # Verify that the verification report contains a PSE manifest hash
-        pse_manifest_hash = \
-            verification_report_dict.get('pseManifestHash')
+        pse_manifest_hash = verification_report_dict.get('pseManifestHash')
         if pse_manifest_hash is None:
-            raise \
-                ValueError(
-                    'Verification report does not contain a PSE manifest '
-                    'hash')
+            raise ValueError('Verification report does not contain a PSE manifest hash')
+        """
+        LOGGER.debug('before evidence_payload')
 
         # Verify that the proof data contains evidence payload
         evidence_payload = proof_data_dict.get('evidence_payload')
         if evidence_payload is None:
             raise ValueError('Evidence payload is missing from proof data')
-
+        """
         # Verify that the evidence payload contains a PSE manifest and then
         # use it to make sure that the PSE manifest hash is what we expect
         pse_manifest = evidence_payload.get('pse_manifest')
         if pse_manifest is None:
             raise ValueError('Evidence payload does not include PSE manifest')
 
-        expected_pse_manifest_hash = \
-            hashlib.sha256(
-                base64.b64decode(pse_manifest.encode())).hexdigest()
+        expected_pse_manifest_hash = hashlib.sha256(base64.b64decode(pse_manifest.encode())).hexdigest()
         if pse_manifest_hash.upper() != expected_pse_manifest_hash.upper():
-            raise \
-                ValueError(
+            raise ValueError(
                     'PSE manifest hash {0} does not match {1}'.format(
                         pse_manifest_hash,
                         expected_pse_manifest_hash))
-
+        """
         # Verify that the verification report contains an enclave quote and
         # that its status is OK
-        enclave_quote_status = \
-            verification_report_dict.get('isvEnclaveQuoteStatus')
+        LOGGER.debug('before isvEnclaveQuoteStatus')
+        """
+        enclave_quote_status = verification_report_dict.get('isvEnclaveQuoteStatus')
         if enclave_quote_status is None:
-            raise \
-                ValueError(
+            raise ValueError(
                     'Verification report does not contain an enclave quote '
                     'status')
         if enclave_quote_status.upper() != 'OK':
@@ -392,9 +378,7 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
         # Verify that the verification report contains an enclave quote
         enclave_quote = verification_report_dict.get('isvEnclaveQuoteBody')
         if enclave_quote is None:
-            raise \
-                ValueError(
-                    'Verification report does not contain an enclave quote')
+            raise ValueError('Verification report does not contain an enclave quote')
 
         # The ISV enclave quote body is base 64 encoded, so decode it and then
         # create an SGX quote structure from it so we can inspect
@@ -445,15 +429,14 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
                     'enclave basenames [{}]'.format(
                         sgx_quote.basename.name.hex(),
                         valid_basenames))
-
+        """
         # Verify that the nonce in the verification report matches the nonce
         # in the transaction payload submitted
+        LOGGER.debug('before nonce')
         nonce = verification_report_dict.get('nonce', '')
         if nonce != val_reg_payload.signup_info.nonce:
-            raise \
-                ValueError(
-                    'AVR nonce [{0}] does not match signup info nonce '
-                    '[{1}]'.format(
+            raise ValueError(
+                    'AVR nonce [{0}] does not match signup info nonce [{1}]'.format(
                         nonce,
                         val_reg_payload.signup_info.nonce))
 
@@ -474,8 +457,7 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
         validator_id = val_reg_payload.id
         if validator_id != public_key:
             raise InvalidTransaction(
-                'Signature mismatch on validator registration with validator'
-                ' {} signed by {}'.format(validator_id, public_key))
+                'Signature mismatch on validator registration with validator {} signed by {}'.format(validator_id, public_key))
 
         public_key_hash = hashlib.sha256(public_key.encode()).hexdigest()
         signup_info = val_reg_payload.signup_info

@@ -166,20 +166,17 @@ class _PbftEnclaveSimulator:
             # Create a fake PSE manifest.  A base64 encoding of the
             # originator public key hash should suffice.
             pse_manifest = base64.b64encode(originator_public_key_hash.encode())
-
+            """
             timestamp = datetime.datetime.now().isoformat()
 
             # Fake our "proof" data.
             verification_report = {
                 'epidPseudonym': cls._anti_sybil_id,
-                'id': base64.b64encode(
-                    hashlib.sha256(
-                        timestamp.encode()).hexdigest().encode()).decode(),
+                'id': base64.b64encode(hashlib.sha256(timestamp.encode()).hexdigest().encode()).decode(),
                 'isvEnclaveQuoteStatus': 'OK',
-                'isvEnclaveQuoteBody': base64.b64encode(sgx_quote).decode(), # base64.b64encode(sgx_quote.serialize_to_bytes()).decode(),
+                #'isvEnclaveQuoteBody': base64.b64encode(sgx_quote).decode(), # base64.b64encode(sgx_quote.serialize_to_bytes()).decode(),
                 'pseManifestStatus': 'OK',
-                'pseManifestHash':
-                    hashlib.sha256(base64.b64decode(pse_manifest)).hexdigest(),
+                #'pseManifestHash': hashlib.sha256(base64.b64decode(pse_manifest)).hexdigest(),
                 'nonce': nonce,
                 'timestamp': timestamp
             }
@@ -187,24 +184,23 @@ class _PbftEnclaveSimulator:
             # Serialize the verification report, sign it, and then put
             # in the proof data
             verification_report_json = dict2json(verification_report)
-            signature = \
-                cls._report_private_key.sign(
+            signature = cls._report_private_key.sign(
                     verification_report_json.encode(),
                     padding.PKCS1v15(),
                     hashes.SHA256())
 
             proof_data_dict = {
                 'evidence_payload': {
-                    'pse_manifest': pse_manifest.decode()
+                    'pse_manifest': '', #pse_manifest.decode()
                 },
                 'verification_report': verification_report_json,
                 'signature': base64.b64encode(signature).decode()
             }
             proof_data = dict2json(proof_data_dict)
-            """
+            
             return EnclaveSignupInfo(
                     pbft_public_key=signup_data['pbft_public_key'],
-                    proof_data="{}",
+                    proof_data=proof_data,
                     anti_sybil_id=cls._anti_sybil_id,
                     sealed_signup_data=sealed_signup_data)
 
@@ -234,7 +230,7 @@ class _PbftEnclaveSimulator:
         # data we need
         signup_data = \
             json2dict(base64.b64decode(sealed_signup_data.encode()).decode())
-        return signup_data.get('bgt_public_key')
+        return signup_data.get('pbft_public_key')
 
     @classmethod
     def release_signup_data(cls, sealed_signup_data):
@@ -261,20 +257,19 @@ class _PbftEnclaveSimulator:
             signup_data = \
                 json2dict(
                     base64.b64decode(sealed_signup_data.encode()).decode())
-            bgt_private_key = signup_data['bgt_private_key']
+            pbft_private_key = signup_data['pbft_private_key']
 
-            if bgt_private_key is None:
+            if pbft_private_key is None:
                 raise \
                     ValueError(
-                        'Invalid signup data. No bgt private key.')
+                        'Invalid signup data. No pbft private key.')
 
             try:
-                bgt_private_key = Secp256k1PrivateKey.from_hex(
-                    bgt_private_key)
+                pbft_private_key = Secp256k1PrivateKey.from_hex(pbft_private_key)
             except ParseError:
                 raise \
                     ValueError(
-                        'Invalid signup data. Badly formatted bgt key(s).')
+                        'Invalid signup data. Badly formatted pbft key(s).')
 
             # In a TEE implementation we would increment the HW counter here.
             # We can't usefully simulate a HW counter though.
@@ -282,8 +277,7 @@ class _PbftEnclaveSimulator:
             # Create some value from the cert ID.  We are just going to use
             # the seal key to sign the cert ID.  We will then use the
             # low-order 64 bits to change that to a number [0, 1]
-            tag = \
-                base64.b64decode(
+            tag = base64.b64decode(
                     cls._context.sign(
                         previous_certificate_id.encode(),
                         cls._seal_private_key))
@@ -291,8 +285,7 @@ class _PbftEnclaveSimulator:
             tagd = float(struct.unpack('Q', tag[-8:])[0]) / (2**64 - 1)
 
             # Now compute the duration with a minimum wait time guaranteed
-            duration = \
-                _BgtEnclaveSimulator.MINIMUM_WAIT_TIME \
+            duration = _PbftEnclaveSimulator.MINIMUM_WAIT_TIME \
                 - local_mean * math.log(tagd)
 
             # Create and sign the wait timer
@@ -305,7 +298,7 @@ class _PbftEnclaveSimulator:
             wait_timer.signature = \
                 cls._context.sign(
                     wait_timer.serialize().encode(),
-                    bgt_private_key)
+                    pbft_private_key)
 
             return wait_timer
 
@@ -328,22 +321,21 @@ class _PbftEnclaveSimulator:
             signup_data = \
                 json2dict(
                     base64.b64decode(sealed_signup_data.encode()).decode())
-            bgt_private_key = signup_data['bgt_private_key']
-            bgt_public_key = signup_data['bgt_public_key']
+            pbft_private_key = signup_data['pbft_private_key']
+            pbft_public_key = signup_data['pbft_public_key']
 
-            if bgt_private_key is None or bgt_public_key is None:
+            if pbft_private_key is None or pbft_public_key is None:
                 raise \
                     ValueError(
                         'Invalid signup data. No bgt key(s).')
 
             try:
-                bgt_public_key = Secp256k1PublicKey.from_hex(bgt_public_key)
-                bgt_private_key = Secp256k1PrivateKey.from_hex(
-                    bgt_private_key)
+                pbft_public_key = Secp256k1PublicKey.from_hex(pbft_public_key)
+                pbft_private_key = Secp256k1PrivateKey.from_hex(pbft_private_key)
             except ParseError:
                 raise \
                     ValueError(
-                        'Invalid signup data. Badly formatted bgt key(s).')
+                        'Invalid signup data. Badly formatted pbft key(s).')
 
             # Several criteria need to be met before we can create a wait
             # certificate:
@@ -367,13 +359,12 @@ class _PbftEnclaveSimulator:
                     not cls._context.verify(
                         wait_timer.signature,
                         wait_timer.serialize().encode(),
-                        bgt_public_key):
+                        pbft_public_key):
                 raise \
                     ValueError(
                         'Validator is not using the current wait timer')
 
-            is_not_genesis_block = \
-                (wait_timer.previous_certificate_id != NULL_BLOCK_IDENTIFIER)
+            is_not_genesis_block = (wait_timer.previous_certificate_id != NULL_BLOCK_IDENTIFIER)
 
             now = time.time()
             expire_time = \
@@ -419,7 +410,7 @@ class _PbftEnclaveSimulator:
             wait_certificate.signature = \
                 cls._context.sign(
                     wait_certificate.serialize().encode(),
-                    bgt_private_key)
+                    pbft_private_key)
 
             # In a TEE implementation we would increment the HW counter here
             # to prevent replay.
@@ -435,23 +426,23 @@ class _PbftEnclaveSimulator:
                 signature=signature)
 
     @classmethod
-    def verify_wait_certificate(cls, certificate, bgt_public_key):
+    def verify_wait_certificate(cls, certificate, pbft_public_key):
         # Since the signing module uses a hex-encoded string as the canonical
         # format for public keys and we should be handed a public key that was
         # part of signup information created by us, don't bother decoding
         # the public key.
         try:
-            bgt_public_key = Secp256k1PublicKey.from_hex(bgt_public_key)
+            pbft_public_key = Secp256k1PublicKey.from_hex(pbft_public_key)
         except ParseError:
             raise \
                 ValueError(
-                    'Invalid signup data. Badly formatted bgt key(s).')
+                    'Invalid signup data. Badly formatted pbft key(s).')
 
         if not \
             cls._context.verify(
                 certificate.signature,
                 certificate.serialize().encode(),
-                bgt_public_key):
+                pbft_public_key):
             raise ValueError('Wait certificate signature does not match')
 
 

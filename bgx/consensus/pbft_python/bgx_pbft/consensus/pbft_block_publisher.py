@@ -149,7 +149,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 validator_id=self._validator_id)
         self._wait_timer = None
 
-    def _register_signup_information(self, block_header, pbft_enclave_module):
+    def _create_proposal(self, block_header, pbft_enclave_module):
         # Create signup information for this validator, putting the block ID
         # of the block previous to the block referenced by block_header in the
         # nonce.  Block ID is better than wait certificate ID for testing
@@ -207,6 +207,91 @@ class PbftBlockPublisher(BlockPublisherInterface):
         LOGGER.info(
             'Save key state PPK=%s',
             signup_info.pbft_public_key[:8])
+        self._pbft_key_state_store[signup_info.pbft_public_key] = PbftKeyState(
+                sealed_signup_data=signup_info.sealed_signup_data,
+                has_been_refreshed=False,
+                signup_nonce=nonce)
+        self._pbft_key_state_store.active_key = signup_info.pbft_public_key
+
+
+    def _register_signup_information(self, block_header, pbft_enclave_module):
+        # Create signup information for this validator, putting the block ID
+        # of the block previous to the block referenced by block_header in the
+        # nonce.  Block ID is better than wait certificate ID for testing
+        # freshness as we need to account for non-BGT blocks.
+        public_key_hash = hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
+        nonce = SignupInfo.block_id_to_nonce(block_header.previous_block_id)
+        signup_info = SignupInfo.create_signup_info(
+                pbft_enclave_module=pbft_enclave_module,
+                originator_public_key_hash=public_key_hash,
+                nonce=nonce)
+
+        # Create the validator registry payload
+        payload = vr_pb.BgxValidatorRegistryPayload(
+                verb='register',
+                name='validator-{}'.format(block_header.signer_public_key[:8]),
+                id=block_header.signer_public_key,
+                signup_info=vr_pb.BgxSignUpInfo(
+                    pbft_public_key=signup_info.pbft_public_key,
+                    proof_data=signup_info.proof_data,
+                    anti_sybil_id=signup_info.anti_sybil_id,
+                    nonce=nonce),
+            )
+        serialized = payload.SerializeToString()
+
+        # Create the address that will be used to look up this validator
+        # registry transaction.  Seems like a potential for refactoring..
+        validator_entry_address = PbftBlockPublisher._validator_registry_namespace + hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
+
+        # Create a transaction header and transaction for the validator
+        # registry update amd then hand it off to the batch publisher to
+        # send out.
+        output_addresses = [validator_entry_address,PbftBlockPublisher._validator_map_address]
+        input_addresses = output_addresses + \
+            [SettingsView.setting_address('sawtooth.bgt.report_public_key_pem'),
+             SettingsView.setting_address('sawtooth.bgt.valid_enclave_measurements'),
+             SettingsView.setting_address('sawtooth.bgt.valid_enclave_basenames')
+            ]
+
+        header = \
+            txn_pb.TransactionHeader(
+                signer_public_key=block_header.signer_public_key,
+                family_name='bgx_validator_registry',
+                family_version='1.0',
+                inputs=input_addresses,
+                outputs=output_addresses,
+                dependencies=[],
+                payload_sha512=hashlib.sha512(serialized).hexdigest(),
+                batcher_public_key=block_header.signer_public_key,
+                nonce=hex(random.randint(0, 2**64))).SerializeToString()
+
+        signature = self._batch_publisher.identity_signer.sign(header)
+
+        transaction = txn_pb.Transaction(
+                header=header,
+                payload=serialized,
+                header_signature=signature)
+
+        LOGGER.info(
+            'Register Validator Name=%s, ID=%s...%s, PBFT public key=%s...%s, '
+            'Nonce=%s',
+            payload.name,
+            payload.id[:8],
+            payload.id[-8:],
+            payload.signup_info.pbft_public_key[:8],
+            payload.signup_info.pbft_public_key[-8:],
+            nonce)
+
+        self._batch_publisher.send([transaction])
+
+        # Store the key state so that we can look it up later if need be and
+        # set the new key as our active key
+        LOGGER.info(
+            'Save key state PPK=%s...%s => SSD=%s...%s',
+            signup_info.pbft_public_key[:8],
+            signup_info.pbft_public_key[-8:],
+            signup_info.sealed_signup_data[:8],
+            signup_info.sealed_signup_data[-8:])
         self._pbft_key_state_store[signup_info.pbft_public_key] = PbftKeyState(
                 sealed_signup_data=signup_info.sealed_signup_data,
                 has_been_refreshed=False,
@@ -375,16 +460,14 @@ class PbftBlockPublisher(BlockPublisherInterface):
 
         # If the PBFT public key in the validator registry is not the active
         # one, then we need to switch the active key in the key state store.
-        if validator_info.signup_info.pbft_public_key != \
-                active_pbft_public_key:
+        if validator_info.signup_info.pbft_public_key != active_pbft_public_key:
             active_pbft_public_key = validator_info.signup_info.pbft_public_key
             self._pbft_key_state_store.active_key = active_pbft_public_key
 
         # Ensure that the enclave is using the appropriate keys
         try:
-            unsealed_pbft_public_key = \
-                SignupInfo.unseal_signup_data(
-                    pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module,
+            unsealed_pbft_public_key = SignupInfo.unseal_signup_data(
+                    pbft_enclave_module=pbft_enclave_module,
                     sealed_signup_data=pbft_key_state.sealed_signup_data)
         except SystemError:
             # Signup data is unuseable
@@ -394,7 +477,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 active_pbft_public_key[-8:])
             self._pbft_key_state_store.active_key = None
             return False
-
+        LOGGER.debug("unsealed_pbft_public_key=%s ~ %s",unsealed_pbft_public_key,active_pbft_public_key)
         assert active_pbft_public_key == unsealed_pbft_public_key
 
         LOGGER.debug(
@@ -406,8 +489,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
             pbft_key_state.sealed_signup_data[:8],
             pbft_key_state.sealed_signup_data[-8:])
 
-        consensus_state = \
-            ConsensusState.consensus_state_for_block_id(
+        consensus_state = ConsensusState.consensus_state_for_block_id(
                 block_id=block_header.previous_block_id,
                 block_cache=self._block_cache,
                 state_view_factory=self._state_view_factory,
@@ -507,16 +589,19 @@ class PbftBlockPublisher(BlockPublisherInterface):
             utils.get_previous_certificate_id(
                 block_header=block_header,
                 block_cache=self._block_cache,
-                pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module
+                pbft_enclave_module=pbft_enclave_module
                 )
+        """
         wait_timer = \
             WaitTimer.create_wait_timer(
-                pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module,
+                pbft_enclave_module=pbft_enclave_module,
                 sealed_signup_data=sealed_signup_data,
                 validator_address=block_header.signer_public_key,
                 previous_certificate_id=previous_certificate_id,
                 consensus_state=consensus_state,
                 pbft_settings_view=pbft_settings_view)
+        """
+        wait_timer =None
 
         # NOTE - we do the zTest after we create the wait timer because we
         # need its population estimate to see if this block would be accepted
@@ -526,14 +611,14 @@ class PbftBlockPublisher(BlockPublisherInterface):
         # if it would result in us winning more frequently than statistically
         # expected.  If so, then refuse to initialize the block because other
         # validators will not accept anyway.
+        """
         if consensus_state.validator_is_claiming_too_frequently(
                 validator_info=validator_info,
                 previous_block_id=block_header.previous_block_id,
                 pbft_settings_view=pbft_settings_view,
-                population_estimate=wait_timer.population_estimate(
-                    pbft_settings_view=pbft_settings_view),
+                population_estimate=wait_timer.population_estimate(pbft_settings_view=pbft_settings_view),
                 block_cache=self._block_cache,
-                pbft_enclave_module=None):
+                pbft_enclave_module=pbft_enclave_module):
             LOGGER.info(
                 'Reject building on block %s: '
                 'Validator (signing public key: %s) is claiming blocks '
@@ -541,7 +626,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 block_header.previous_block_id[:8],
                 block_header.signer_public_key)
             return False
-
+        """
         # At this point, we know that if we are able to claim the block we are
         # initializing, we will not be prevented from doing so because of PBFT
         # policies.
@@ -582,17 +667,14 @@ class PbftBlockPublisher(BlockPublisherInterface):
         if isinstance(block_header, bytes):
             # Using the current chain head, we need to create a state
             # view so we can create a PBFT enclave.
-            state_view = \
-                BlockWrapper.state_view_for_block(
+            state_view = BlockWrapper.state_view_for_block(
                     block_wrapper=self._block_cache.block_store.chain_head,
                     state_view_factory=self._state_view_factory)
-            """
-            pbft_enclave_module = \
-                factory.BgtEnclaveFactory.get_pbft_enclave_module(
+            
+            pbft_enclave_module = factory.PbftEnclaveFactory.get_pbft_enclave_module(
                     state_view=state_view,
                     config_dir=self._config_dir,
                     data_dir=self._data_dir)
-            """
             # We need to create a wait certificate for the block and
             # then serialize that into the block header consensus field.
             active_key = self._pbft_key_state_store.active_key
@@ -601,7 +683,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
             try:
                 wait_certificate = \
                     WaitCertificate.create_wait_certificate(
-                        pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module,
+                        pbft_enclave_module=pbft_enclave_module,
                         sealed_signup_data=sealed_signup_data,
                         wait_timer=self._wait_timer,
                         block_hash=block_header)
@@ -623,31 +705,27 @@ class PbftBlockPublisher(BlockPublisherInterface):
 
         # Using the current chain head, we need to create a state view so we
         # can create a PBFT enclave.
-        state_view = \
-            BlockWrapper.state_view_for_block(
+        state_view = BlockWrapper.state_view_for_block(
                 block_wrapper=self._block_cache.block_store.chain_head,
                 state_view_factory=self._state_view_factory)
-        """ 
-        pbft_enclave_module = \
-            factory.BgtEnclaveFactory.get_pbft_enclave_module(
+         
+        pbft_enclave_module = factory.PbftEnclaveFactory.get_pbft_enclave_module(
                 state_view=state_view,
                 config_dir=self._config_dir,
                 data_dir=self._data_dir)
-        """
+        
         # We need to create a wait certificate for the block and then serialize
         # that into the block header consensus field.
         active_key = self._pbft_key_state_store.active_key
         pbft_key_state = self._pbft_key_state_store[active_key]
         sealed_signup_data = pbft_key_state.sealed_signup_data
         try:
-            wait_certificate = \
-                WaitCertificate.create_wait_certificate(
-                    pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module,
+            wait_certificate = WaitCertificate.create_wait_certificate(
+                    pbft_enclave_module=pbft_enclave_module,
                     sealed_signup_data=sealed_signup_data,
                     wait_timer=self._wait_timer,
                     block_hash=block_hash)
-            block_header.consensus = \
-                json.dumps(wait_certificate.dump()).encode()
+            block_header.consensus = json.dumps(wait_certificate.dump()).encode()
         except ValueError as ve:
             LOGGER.error('Failed to create wait certificate: %s', ve)
             return False

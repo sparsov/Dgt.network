@@ -694,8 +694,7 @@ class ConsensusState:
                 otherwise
         """
         key_block_claim_limit = pbft_settings_view.key_block_claim_limit
-        validator_state = \
-            self.get_validator_state(validator_info=validator_info)
+        validator_state = self.get_validator_state(validator_info=validator_info)
 
         if validator_state.pbft_public_key == \
                 validator_info.signup_info.pbft_public_key:
@@ -767,8 +766,8 @@ class ConsensusState:
         # the number of validators, at this point no validators would be
         # able to claim a block.
         number_of_validators = len(validator_registry_view.get_validators())
-        block_claim_delay = \
-            min(pbft_settings_view.block_claim_delay, number_of_validators - 1)
+        LOGGER.debug('number_of_validators=%s',number_of_validators)
+        block_claim_delay = min(pbft_settings_view.block_claim_delay, number_of_validators - 1)
 
         # While a validator network is starting up, we need to be careful
         # about applying the block claim delay because if we are too
@@ -789,8 +788,7 @@ class ConsensusState:
         # Figure out the block in which the current validator information
         # was committed.
         try:
-            commit_block = \
-                block_store.get_block_by_transaction_id(
+            commit_block = block_store.get_block_by_transaction_id(
                     validator_info.transaction_id)
         except ValueError:
             LOGGER.info(
@@ -803,8 +801,7 @@ class ConsensusState:
                 validator_info.transaction_id)
             return False
 
-        blocks_claimed_since_registration = \
-            block_number - commit_block.block_num - 1
+        blocks_claimed_since_registration = block_number - commit_block.block_num - 1
 
         if block_claim_delay > blocks_claimed_since_registration:
             LOGGER.info(
@@ -861,8 +858,7 @@ class ConsensusState:
         # (i.e., we have not progressed past the blocks for which the local
         # mean is calculated as a fixed ratio of the target to initial wait),
         # simply short-circuit the test an allow the block to be claimed.
-        if self.total_block_claim_count < \
-                pbft_settings_view.population_estimate_sample_size:
+        if self.total_block_claim_count < pbft_settings_view.population_estimate_sample_size:
             return False
 
         # Build up the population estimate list for the block chain and then
@@ -908,8 +904,7 @@ class ConsensusState:
             # frequently.
             if estimate_info.validator_id == validator_info.id:
                 observed_wins += 1
-                if observed_wins > minimum_win_count and \
-                        observed_wins > expected_wins:
+                if observed_wins > minimum_win_count and observed_wins > expected_wins:
                     probability = expected_wins / block_count
                     standard_deviation = \
                         math.sqrt(

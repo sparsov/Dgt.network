@@ -44,6 +44,9 @@ class PbftSettingsView:
 
         self._max_log_size = None
         self._enclave_module_name = None
+        self._signup_commit_maximum_delay = 2
+        self._key_block_claim_limit = 2
+        self._block_claim_delay = 2
 
     def _get_config_setting(self,
                             name,
@@ -120,4 +123,14 @@ class PbftSettingsView:
 
         return self._enclave_module_name
 
+    @property
+    def signup_commit_maximum_delay(self):
+        return self._signup_commit_maximum_delay
 
+    @property
+    def key_block_claim_limit(self):
+        return self._key_block_claim_limit
+
+    @property
+    def block_claim_delay(self):
+        return self._block_claim_delay

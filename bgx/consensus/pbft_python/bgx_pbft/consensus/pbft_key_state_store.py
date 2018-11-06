@@ -27,8 +27,7 @@ from bgx_pbft.database.lmdb_nolock_database import LMDBNoLockDatabase
 
 LOGGER = logging.getLogger(__name__)
 
-PbftKeyState = \
-    namedtuple(
+PbftKeyState = namedtuple(
         'PbftKeyState',
         ['sealed_signup_data', 'has_been_refreshed', 'signup_nonce'])
 """ Instead of creating a full-fledged class, let's use a named tuple for

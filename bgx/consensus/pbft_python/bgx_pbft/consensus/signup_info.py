@@ -22,7 +22,7 @@ class SignupInfo:
     """Encapsulates authorization data for network enrollment policies
 
     Attributes:
-        bgt_public_key (str): Encoded public key corresponding to private
+        pbft_public_key (str): Encoded public key corresponding to private
             key used by PBFT to sign wait certificates.
         proof_data (str): Information that can be used internally to verify
             the validity of the signup information.
@@ -58,7 +58,7 @@ class SignupInfo:
         validator network.
 
         Args:
-            bgt_enclave_module (module): The module that implements the
+            pbft_enclave_module (module): The module that implements the
                 underlying PBFT enclave.
             originator_public_key_hash (str): A string representing SHA256
                 hash (i.e., hashlib.sha256(OPK).hexdigest()) of the
@@ -88,7 +88,7 @@ class SignupInfo:
         return signup_info
 
     @classmethod
-    def signup_info_from_serialized(cls, bgt_enclave_module, serialized):
+    def signup_info_from_serialized(cls, pbft_enclave_module, serialized):
         """
         Converts serialized signup info into an object.
 
@@ -101,13 +101,13 @@ class SignupInfo:
             SignupInfo: A signup info object.
         """
         enclave_signup_info = \
-            bgt_enclave_module.deserialize_signup_info(serialized)
+            pbft_enclave_module.deserialize_signup_info(serialized)
 
         return cls(enclave_signup_info)
 
     @classmethod
     def unseal_signup_data(cls,
-                           bgt_enclave_module,
+                           pbft_enclave_module,
                            sealed_signup_data):
         """
         Takes sealed data from a previous call to create_signup_info and
@@ -124,11 +124,11 @@ class SignupInfo:
             The encoded PBFT public key corresponding to private key used by
             PBFT to sign wait certificates.
         """
-        return bgt_enclave_module.unseal_signup_data(sealed_signup_data)
+        return pbft_enclave_module.unseal_signup_data(sealed_signup_data)
 
     @classmethod
     def release_signup_data(cls,
-                            bgt_enclave_module,
+                            pbft_enclave_module,
                             sealed_signup_data):
         """
         Takes sealed data from a previous call to create_signup_info and
@@ -145,7 +145,7 @@ class SignupInfo:
             The encoded PBFT public key corresponding to private key used by
             PBFT to sign wait certificates.
         """
-        return bgt_enclave_module.release_signup_data(sealed_signup_data)
+        return pbft_enclave_module.release_signup_data(sealed_signup_data)
 
     def __init__(self, enclave_signup_info):
         LOGGER.debug("SignupInfo::__init__ %s",enclave_signup_info)
@@ -162,7 +162,7 @@ class SignupInfo:
     def __str__(self):
         return \
             'SIGNUP_INFO: PPK={0}, PD={1}, ASID={2}'.format(
-                self.bgt_public_key,
+                self.pbft_public_key,
                 self.proof_data,
                 self.anti_sybil_id)
 

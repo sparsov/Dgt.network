@@ -71,8 +71,7 @@ class PbftBlockVerifier(BlockVerifierInterface):
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._validator_id = validator_id
-        self._consensus_state_store = \
-            ConsensusStateStore(
+        self._consensus_state_store = ConsensusStateStore(
                 data_dir=self._data_dir,
                 validator_id=self._validator_id)
 
@@ -131,8 +130,7 @@ class PbftBlockVerifier(BlockVerifierInterface):
 
         # For the candidate block, reconstitute the wait certificate
         # and verify that it is valid
-        wait_certificate = \
-            utils.deserialize_wait_certificate(
+        wait_certificate = utils.deserialize_wait_certificate(
                 block=block_wrapper,
                 bgt_enclave_module=bgt_enclave_module)
         if wait_certificate is None:
