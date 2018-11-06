@@ -195,7 +195,7 @@ def _get_config_setting(context, key):
     raise KeyError('Setting for {} not found'.format(key))
 
 
-class ValidatorRegistryTransactionHandler(TransactionHandler):
+class BgxValidatorRegistryTransactionHandler(TransactionHandler):
     def __init__(self):
         pass
 

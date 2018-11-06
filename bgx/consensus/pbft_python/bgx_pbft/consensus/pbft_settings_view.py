@@ -107,7 +107,7 @@ class PbftSettingsView:
         valid, otherwise return the default.
 
         The enclave module name is the name of the Python module containing the
-        implementation of the underlying BGT enclave.
+        implementation of the underlying PBFT enclave.
         """
         if self._enclave_module_name is None:
             self._enclave_module_name = \

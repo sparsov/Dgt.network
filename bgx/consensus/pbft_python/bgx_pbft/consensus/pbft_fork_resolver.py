@@ -109,15 +109,15 @@ class BgtForkResolver(ForkResolverInterface):
                 block=new_fork_head,
                 bgt_enclave_module=bgt_enclave_module)
 
-        # If we ever get a new fork head that is not a BGT block, then bail
+        # If we ever get a new fork head that is not a PBFT block, then bail
         # out.  This should never happen, but defensively protect against it.
         if new_fork_wait_certificate is None:
             raise \
                 TypeError(
-                    'New fork head {} is not a BGT block'.format(
+                    'New fork head {} is not a PBFT block'.format(
                         new_fork_head.identifier[:8]))
 
-        # Criterion #1: If the current fork head is not BGT, then check to see
+        # Criterion #1: If the current fork head is not PBFT, then check to see
         # if the new fork head is building on top of it.  That would be okay.
         # However if not, then we don't have a good deterministic way of
         # choosing a winner.  Again, the latter should never happen, but
@@ -126,14 +126,14 @@ class BgtForkResolver(ForkResolverInterface):
             if new_fork_head.previous_block_id == cur_fork_head.identifier:
                 LOGGER.info(
                     'Choose new fork %s over current fork %s: '
-                    'New fork head switches consensus to BGT',
+                    'New fork head switches consensus to PBFT',
                     new_fork_head.header_signature[:8],
                     cur_fork_head.header_signature[:8])
                 chosen_fork_head = new_fork_head
             else:
                 raise \
                     TypeError(
-                        'Trying to compare a BGT block {} to a non-BGT '
+                        'Trying to compare a PBFT block {} to a non-PBFT '
                         'block {} that is not the direct predecessor'.format(
                             new_fork_head.identifier[:8],
                             cur_fork_head.identifier[:8]))
@@ -245,12 +245,12 @@ class BgtForkResolver(ForkResolverInterface):
                 chosen_fork_head = new_fork_head
 
         # Now that we have chosen a fork for the chain head, if we chose the
-        # new fork and it is a BGT block (i.e., it has a wait certificate),
+        # new fork and it is a PBFT block (i.e., it has a wait certificate),
         # we need to create consensus state store information for the new
         # fork's chain head.
         if chosen_fork_head == new_fork_head:
             # Get the state view for the previous block in the chain so we can
-            # create a BGT enclave
+            # create a PBFT enclave
             previous_block = None
             try:
                 previous_block = \
@@ -297,8 +297,8 @@ class BgtForkResolver(ForkResolverInterface):
                     consensus_state.total_block_claim_count)
             except KeyError:
                 # This _should_ never happen.  The new potential fork head
-                # has to have been a BGT block and for it to be verified
-                # by the BGT block verifier, it must have been signed by
+                # has to have been a PBFT block and for it to be verified
+                # by the PBFT block verifier, it must have been signed by
                 # validator in the validator registry.  If not found, we
                 # are going to just stick with the current fork head.
                 LOGGER.error(

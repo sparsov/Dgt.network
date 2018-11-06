@@ -25,7 +25,7 @@ from sawtooth_sdk.processor.config import get_log_config
 from sawtooth_sdk.processor.config import get_log_dir
 
 from sawtooth_sdk.processor.core import TransactionProcessor
-from validator_registry.processor.handler import ValidatorRegistryTransactionHandler
+from validator_registry.processor.handler import BgxValidatorRegistryTransactionHandler
 
 
 DISTRIBUTION_NAME = 'bgx-pbft-families'
@@ -122,7 +122,7 @@ def main(args=None):
         # The prefix should eventually be looked up from the
         # validator's namespace registry.
         
-        handler = ValidatorRegistryTransactionHandler()
+        handler = BgxValidatorRegistryTransactionHandler()
 
         processor.add_handler(handler)
         

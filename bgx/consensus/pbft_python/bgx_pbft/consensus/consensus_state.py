@@ -43,8 +43,8 @@ the validator state.  The validator state represents the state for a single
 validator at a point in time.  A validator state object contains:
 
 key_block_claim_count (int): The number of blocks that the validator has
-claimed using the current BGT public key
-pbft_public_key (str): The current BGT public key for the validator
+claimed using the current PBFT public key
+pbft_public_key (str): The current PBFT public key for the validator
 total_block_claim_count (int): The total number of the blocks that the
     validator has claimed
 """
@@ -56,8 +56,8 @@ class ConsensusState:
     the block chain).
 
     Attributes:
-        aggregate_local_mean (float): The sum of the local means for the BGT
-            blocks since the last non-BGT block
+        aggregate_local_mean (float): The sum of the local means for the PBFT
+            blocks since the last non-PBFT block
         total_block_claim_count (int): The number of blocks that have been
             claimed by all validators
     """
@@ -74,11 +74,11 @@ class ConsensusState:
     the block info.  The block info represents the information we need to
     create consensus state.  A block info object contains:
 
-    wait_certificate (WaitCertificate): The BGT wait certificate object for
+    wait_certificate (WaitCertificate): The PBFT wait certificate object for
         the block
-    validator_info (ValidatorInfo): The validator registry information for the
+    validator_info (BgxValidatorInfo): The validator registry information for the
         validator that claimed the block
-    pbft_settings_view (BgtSettingsView): The BGT settings view associated
+    pbft_settings_view (BgtSettingsView): The PBFT settings view associated
         with the block
     """
 
@@ -123,7 +123,7 @@ class ConsensusState:
                                      block_cache,
                                      state_view_factory,
                                      consensus_state_store,
-                                     bgt_enclave_module):
+                                     pbft_enclave_module):
         """Returns the consensus state for the block referenced by block ID,
             creating it from the consensus state history if necessary.
 
@@ -136,7 +136,7 @@ class ConsensusState:
             consensus_state_store (ConsensusStateStore): The consensus state
                 store that is used to store interim consensus state created
                 up to resulting consensus state
-            bgt_enclave_module (module): The BGT enclave module
+            pbft_enclave_module (module): The PBFT enclave module
 
         Returns:
             ConsensusState object representing the consensus state for the
@@ -167,10 +167,9 @@ class ConsensusState:
                 break
 
             wait_certificate = utils.deserialize_wait_certificate(
-                    block=block,
-                    bgt_enclave_module=bgt_enclave_module)
+                    block=block,pbft_enclave_module=pbft_enclave_module)
 
-            # If this is a BGT block (i.e., it has a wait certificate), get
+            # If this is a PBFT block (i.e., it has a wait certificate), get
             # the validator info for the validator that signed this block and
             # add the block information we will need to set validator state in
             # the block's consensus state.
@@ -192,8 +191,8 @@ class ConsensusState:
                         validator_info=validator_info,
                         pbft_settings_view=BgtSettingsView(state_view))
 
-            # Otherwise, this is a non-BGT block.  If we don't have any blocks
-            # yet or the last block we processed was a BGT block, put a
+            # Otherwise, this is a non-PBFT block.  If we don't have any blocks
+            # yet or the last block we processed was a PBFT block, put a
             # placeholder in the list so that when we get to it we know that we
             # need to reset the statistics.
             elif not blocks or previous_wait_certificate is not None:
@@ -215,13 +214,13 @@ class ConsensusState:
 
         # Now, walk through the blocks for which we were supposed to create
         # consensus state, from oldest to newest (i.e., in the reverse order in
-        # which they were added), and store state for BGT blocks so that the
+        # which they were added), and store state for PBFT blocks so that the
         # next time we don't have to walk so far back through the block chain.
         for current_id, block_info in reversed(blocks.items()):
-            # If the block was not a BGT block (i.e., didn't have a wait
+            # If the block was not a PBFT block (i.e., didn't have a wait
             # certificate), reset the consensus state statistics.  We are not
             # going to store this in the consensus state store, but we will use
-            # it as the starting for the next BGT block.
+            # it as the starting for the next PBFT block.
             if block_info.wait_certificate is None:
                 consensus_state = ConsensusState()
 
@@ -331,16 +330,16 @@ class ConsensusState:
                                         block_id,
                                         pbft_settings_view,
                                         block_cache,
-                                        bgt_enclave_module):
+                                        pbft_enclave_module):
         """Starting at the block provided, walk back the blocks and collect the
         population estimates.
 
         Args:
             block_id (str): The ID of the block to start with
-            pbft_settings_view (BgtSettingsView): The current BGT settings
+            pbft_settings_view (BgtSettingsView): The current PBFT settings
                 view
             block_cache (BlockCache): The block store cache
-            bgt_enclave_module (module): The BGT enclave module
+            pbft_enclave_module (module): The PBFT enclave module
 
         Returns:
             deque: The list, in order of most-recent block to least-recent
@@ -355,8 +354,8 @@ class ConsensusState:
         # Then add the value to the population estimate list.
         #
         # Note that since we know the total block claim count from the
-        # consensus state object, we don't have to worry about non-BGT blocks.
-        # Using that value and the fixed duration block count from the BGT
+        # consensus state object, we don't have to worry about non-PBFT blocks.
+        # Using that value and the fixed duration block count from the PBFT
         # settings view, we know now many blocks to get.
         number_of_blocks = \
             self.total_block_claim_count - \
@@ -370,7 +369,7 @@ class ConsensusState:
                     wait_certificate = \
                         utils.deserialize_wait_certificate(
                             block=block,
-                            bgt_enclave_module=bgt_enclave_module)
+                            pbft_enclave_module=pbft_enclave_module)
                     population_estimate = \
                         wait_certificate.population_estimate(
                             pbft_settings_view=pbft_settings_view)
@@ -408,7 +407,7 @@ class ConsensusState:
         http://en.wikipedia.org/wiki/Exponential_distribution
 
         Args:
-            pbft_settings_view (BgtSettingsView): The current BGT settings
+            pbft_settings_view (BgtSettingsView): The current PBFT settings
                 view
 
         Returns:
@@ -434,7 +433,7 @@ class ConsensusState:
         the certificate history (once bootstrapping period has passed).
 
         Args:
-            pbft_settings_view (BgtSettingsView): The current BGT settings
+            pbft_settings_view (BgtSettingsView): The current PBFT settings
                 view
 
         Returns:
@@ -474,7 +473,7 @@ class ConsensusState:
     def get_validator_state(self, validator_info):
         """Return the validator state for a particular validator
         Args:
-            validator_info (ValidatorInfo): The validator information for the
+            validator_info (BgxValidatorInfo): The validator information for the
                 validator for which validator or state information is being
                 requested
         Returns:
@@ -505,10 +504,10 @@ class ConsensusState:
         object, update its state based upon it claiming a block.
 
         Args:
-            validator_info (ValidatorInfo): Information about the validator
+            validator_info (BgxValidatorInfo): Information about the validator
             wait_certificate (WaitCertificate): The wait certificate
                 associated with the block being claimed
-            pbft_settings_view (BgtSettingsView): The current BGT settings
+            pbft_settings_view (BgtSettingsView): The current PBFT settings
                 view
 
         Returns:
@@ -540,7 +539,7 @@ class ConsensusState:
         total_block_claim_count = \
             validator_state.total_block_claim_count + 1
 
-        # If the BGT public keys match, then we are doing a simple statistics
+        # If the PBFT public keys match, then we are doing a simple statistics
         # update
         if validator_info.signup_info.pbft_public_key == \
                 validator_state.pbft_public_key:
@@ -591,6 +590,7 @@ class ConsensusState:
         # and signup_commit_maximum_delay, but then we can't individually
         # control this timeout behavior. Consider behavior as a new node joins
         # an old network.
+        return False
         depth = pbft_settings_view.registration_retry_delay
 
         i = 0
@@ -608,12 +608,12 @@ class ConsensusState:
                                                 pbft_settings_view,
                                                 block_cache):
         """Determines if a validator's registry transaction committing it
-        current BGT keys, etc., was committed too late - i.e., the number of
+        current PBFT keys, etc., was committed too late - i.e., the number of
         blocks between when the transaction was submitted and when it was
         committed is greater than signup commit maximum delay.
 
         Args:
-            validator_info (ValidatorInfo): The current validator information
+            validator_info (BgxValidatorInfo): The current validator information
             pbft_settings_view (BgtSettingsView): The current Bgt config view
             block_cache (BlockCache): The block store cache
 
@@ -684,13 +684,13 @@ class ConsensusState:
                                           validator_info,
                                           pbft_settings_view):
         """Determines if a validator has already claimed the maximum number of
-        blocks allowed with its BGT key pair.
+        blocks allowed with its PBFT key pair.
         Args:
-            validator_info (ValidatorInfo): The current validator information
+            validator_info (BgxValidatorInfo): The current validator information
             pbft_settings_view (BgtSettingsView): The current Bgt config view
         Returns:
             bool: True if the validator has already claimed the maximum
-                number of blocks with its current BGT key pair, False
+                number of blocks with its current PBFT key pair, False
                 otherwise
         """
         key_block_claim_limit = pbft_settings_view.key_block_claim_limit
@@ -702,7 +702,7 @@ class ConsensusState:
             if validator_state.key_block_claim_count >= key_block_claim_limit:
                 LOGGER.info(
                     'Validator %s (ID=%s...%s): Reached block claim limit '
-                    'for BGT keys %d >= %d',
+                    'for PBFT keys %d >= %d',
                     validator_info.name,
                     validator_info.id[:8],
                     validator_info.id[-8:],
@@ -739,12 +739,12 @@ class ConsensusState:
         block containing its validator registry transaction was committed to
         the chain and trying to claim a block).
         Args:
-            validator_info (ValidatorInfo): The current validator information
+            validator_info (BgxValidatorInfo): The current validator information
             block_number (int): The block number of the block that the
                 validator is attempting to claim
             validator_registry_view (ValidatorRegistry): The current validator
                 registry view
-            pbft_settings_view (BgtSettingsView): The current BGT settings
+            pbft_settings_view (BgtSettingsView): The current PBFT settings
                 view
             block_store (BlockStore): The block store
         Returns:
@@ -835,22 +835,22 @@ class ConsensusState:
                                              pbft_settings_view,
                                              population_estimate,
                                              block_cache,
-                                             bgt_enclave_module):
+                                             pbft_enclave_module):
         """Determine if allowing the validator to claim a block would allow it
         to claim blocks more frequently that statistically expected (i.e,
         zTest).
 
         Args:
-            validator_info (ValidatorInfo): The current validator information
+            validator_info (BgxValidatorInfo): The current validator information
             previous_block_id (str): The ID of the block that is the immediate
                 predecessor of the block that the validator is attempting to
                 claim
-            pbft_settings_view (BgtSettingsView): The current BGT settings
+            pbft_settings_view (BgtSettingsView): The current PBFT settings
                 view
             population_estimate (float): The population estimate for the
                 candidate block
             block_cache (BlockCache): The block store cache
-            bgt_enclave_module (module): The BGT enclave module
+            pbft_enclave_module (module): The PBFT enclave module
 
         Returns:
             True if allowing the validator to claim the block would result in
@@ -874,7 +874,7 @@ class ConsensusState:
                 block_id=previous_block_id,
                 pbft_settings_view=pbft_settings_view,
                 block_cache=block_cache,
-                bgt_enclave_module=bgt_enclave_module)
+                pbft_enclave_module=pbft_enclave_module)
         population_estimate_list.appendleft(
             ConsensusState._EstimateInfo(
                 population_estimate=population_estimate,

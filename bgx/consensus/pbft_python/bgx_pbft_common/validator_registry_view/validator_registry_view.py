@@ -14,7 +14,7 @@
 # ------------------------------------------------------------------------------
 import hashlib
 
-from bgx_pbft_common.protobuf.validator_registry_pb2 import ValidatorInfo
+from bgx_pbft_common.protobuf.bgx_validator_registry_pb2 import BgxValidatorInfo
 
 
 _NAMESPACE = hashlib.sha256('validator_registry'.encode()).hexdigest()[0:6]
@@ -41,11 +41,11 @@ class ValidatorRegistryView:
 
     def get_validators(self):
         """Gets a dict of validator infos for all validators known to the
-        registry. The dict is a mapping of validator id to ValidatorInfo.
+        registry. The dict is a mapping of validator id to BgxValidatorInfo.
 
         Returns:
-            dict:(str, `ValidatorInfo`): A dict of validator id to
-                `ValidatorInfo` objects.
+            dict:(str, `BgxValidatorInfo`): A dict of validator id to
+                `BgxValidatorInfo` objects.
         """
         validator_map_addr = ValidatorRegistryView._to_address('validator_map')
         leaves = self._state_view.leaves(_NAMESPACE)
@@ -80,7 +80,7 @@ class ValidatorRegistryView:
             validator_id (str): The ID of the validator in question.
 
         Returns:
-            :obj:`ValidatorInfo`: The validator info.
+            :obj:`BgxValidatorInfo`: The validator info.
 
         Raises:
             KeyError: If no validator info exists for the given ID.
@@ -97,7 +97,7 @@ class ValidatorRegistryView:
 
     @staticmethod
     def _parse_validator_info(state_data):
-        validator_info = ValidatorInfo()
+        validator_info = BgxValidatorInfo()
         validator_info.ParseFromString(state_data)
 
         return validator_info

@@ -35,12 +35,12 @@ def block_id_is_genesis(block_id):
     return block_id == NULL_BLOCK_IDENTIFIER
 
 
-def deserialize_wait_certificate(block, bgt_enclave_module):
+def deserialize_wait_certificate(block, pbft_enclave_module):
     """Deserializes the wait certificate associated with the block.
 
     Args:
         block (Block or BlockWrapper): The block that has the wait certificate
-        bgt_enclave_module (module): The BGT enclave module
+        pbft_enclave_module (module): The PBFT enclave module
 
     Returns:
         WaitCertificate: The reconstituted wait certificate associated
@@ -58,7 +58,7 @@ def deserialize_wait_certificate(block, bgt_enclave_module):
                 json.loads(block.header.consensus.decode())
             wait_certificate = \
                 WaitCertificate.wait_certificate_from_serialized(
-                    bgt_enclave_module=None,#bgt_enclave_module=bgt_enclave_module,
+                    pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module,
                     serialized=wait_certificate_dict['SerializedCertificate'],
                     signature=wait_certificate_dict['Signature'])
         except (json.decoder.JSONDecodeError, KeyError):
@@ -69,7 +69,7 @@ def deserialize_wait_certificate(block, bgt_enclave_module):
 
 def get_previous_certificate_id(block_header,
                                 block_cache,
-                                bgt_enclave_module):
+                                pbft_enclave_module):
     """Returns the wait certificate ID for the block immediately preceding the
     block represented by block_header.
 
@@ -77,7 +77,7 @@ def get_previous_certificate_id(block_header,
         block_header (BlockHeader): The header for the block
         block_cache (BlockCache): The cache of blocks that are predecessors
             to the block represented by block_header
-        bgt_enclave_module (module): The BGT enclave module
+        pbft_enclave_module (module): The PBFT enclave module
 
     Returns:
         str: The ID of the wait certificate for the block immediately
@@ -86,11 +86,8 @@ def get_previous_certificate_id(block_header,
     wait_certificate = None
 
     if not block_id_is_genesis(block_header.previous_block_id):
-        wait_certificate = \
-            deserialize_wait_certificate(
-                block=block_cache[block_header.previous_block_id],
-                bgt_enclave_module=None,#bgt_enclave_module=bgt_enclave_module
-                )
+        wait_certificate = deserialize_wait_certificate(
+                block=block_cache[block_header.previous_block_id],pbft_enclave_module=pbft_enclave_module)
 
     return \
         NULL_BLOCK_IDENTIFIER if wait_certificate is None \

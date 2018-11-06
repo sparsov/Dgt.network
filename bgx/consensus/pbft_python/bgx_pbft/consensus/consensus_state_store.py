@@ -22,8 +22,7 @@ from collections.abc import MutableMapping
 
 from bgx_pbft.consensus.consensus_state import ConsensusState
 
-from bgx_pbft.database.lmdb_nolock_database \
-    import LMDBNoLockDatabase
+from bgx_pbft.database.lmdb_nolock_database import LMDBNoLockDatabase
 
 LOGGER = logging.getLogger(__name__)
 

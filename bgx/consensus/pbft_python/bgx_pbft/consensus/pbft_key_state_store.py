@@ -165,7 +165,7 @@ class PbftKeyStateStore(MutableMapping):
             KeyError if the PBFT public key is not in the store
             ValueError if the key state object is not valid
         """
-        # Get the BGT key state from the underlying LMDB.  The only catch is
+        # Get the PBFT key state from the underlying LMDB.  The only catch is
         # that the data was stored using cbor.dumps().  When this happens, it
         # gets stored as a list not a namedtuple.  When re-creating the bgt
         # key state we are going to leverage the namedtuple's _make method.

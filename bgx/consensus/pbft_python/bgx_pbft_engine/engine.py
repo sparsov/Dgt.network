@@ -101,8 +101,8 @@ class PbftEngine(Engine):
     def _switch_forks(self, current_head, new_head):
         try:
             switch = self._oracle.switch_forks(current_head, new_head)
-        # The BGT fork resolver raises TypeErrors in certain cases,
-        # e.g. when it encounters non-BGT blocks.
+        # The PBFT fork resolver raises TypeErrors in certain cases,
+        # e.g. when it encounters non-PBFT blocks.
         except TypeError as err:
             switch = False
             LOGGER.warning('PBFT fork resolution error: %s', err)
@@ -259,6 +259,7 @@ class PbftEngine(Engine):
                 if not self._published:
                     #self._service.initialize_block()
                     self._initialize_block()
+                    LOGGER.debug('PbftEngine:_initialize_block DONE')
                     self._published = True
                 elif not self._building:
                     sum_cnt += 1

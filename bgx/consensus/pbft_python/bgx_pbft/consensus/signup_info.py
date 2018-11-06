@@ -23,13 +23,13 @@ class SignupInfo:
 
     Attributes:
         bgt_public_key (str): Encoded public key corresponding to private
-            key used by BGT to sign wait certificates.
+            key used by PBFT to sign wait certificates.
         proof_data (str): Information that can be used internally to verify
             the validity of the signup information.
         anti_sybil_id (str): A string corresponding to the anti-Sybil ID for
             the enclave that generated the signup information.
         sealed_signup_data (str): A base 64 string representing data that can
-            be persisted and presented at a later time to restore the BGT
+            be persisted and presented at a later time to restore the PBFT
             enclave.
     """
 
@@ -54,12 +54,12 @@ class SignupInfo:
                            originator_public_key_hash,
                            nonce):
         """
-        Creates signup information a BGT 1 validator uses to join the
+        Creates signup information a PBFT 1 validator uses to join the
         validator network.
 
         Args:
             bgt_enclave_module (module): The module that implements the
-                underlying BGT enclave.
+                underlying PBFT enclave.
             originator_public_key_hash (str): A string representing SHA256
                 hash (i.e., hashlib.sha256(OPK).hexdigest()) of the
                 originator's public key
@@ -94,7 +94,7 @@ class SignupInfo:
 
         Args:
             bgt_enclave_module (module): The module that implements the
-                underlying BGT enclave.
+                underlying PBFT enclave.
             serialized (str): The serialized signup info
 
         Returns:
@@ -111,18 +111,18 @@ class SignupInfo:
                            sealed_signup_data):
         """
         Takes sealed data from a previous call to create_signup_info and
-        re-establishes the BGT 1 enclave state.
+        re-establishes the PBFT 1 enclave state.
 
         Args:
             bgt_enclave_module (module): The module that implements the
-                underlying BGT enclave.
+                underlying PBFT enclave.
             sealed_signup_data: The sealed signup data that was previously
                 returned as part of the signup info returned from
                 create_signup_info.
 
         Returns:
-            The encoded BGT public key corresponding to private key used by
-            BGT to sign wait certificates.
+            The encoded PBFT public key corresponding to private key used by
+            PBFT to sign wait certificates.
         """
         return bgt_enclave_module.unseal_signup_data(sealed_signup_data)
 
@@ -136,14 +136,14 @@ class SignupInfo:
 
         Args:
             bgt_enclave_module (module): The module that implements the
-                underlying BGT enclave.
+                underlying PBFT enclave.
             sealed_signup_data: The sealed signup data that was previously
                 returned as part of the signup info returned from
                 create_signup_info.
 
         Returns:
-            The encoded BGT public key corresponding to private key used by
-            BGT to sign wait certificates.
+            The encoded PBFT public key corresponding to private key used by
+            PBFT to sign wait certificates.
         """
         return bgt_enclave_module.release_signup_data(sealed_signup_data)
 

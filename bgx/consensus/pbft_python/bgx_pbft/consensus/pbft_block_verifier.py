@@ -121,7 +121,7 @@ class PbftBlockVerifier(BlockVerifierInterface):
             return False
 
         LOGGER.debug(
-            'Block Signer Name=%s, ID=%s...%s, BGT public key='
+            'Block Signer Name=%s, ID=%s...%s, PBFT public key='
             '%s...%s',
             validator_info.name,
             validator_info.id[:8],
@@ -138,14 +138,14 @@ class PbftBlockVerifier(BlockVerifierInterface):
         if wait_certificate is None:
             LOGGER.error(
                 'Block %s rejected: Block from validator %s (ID=%s...%s) was '
-                'not created by BGT consensus module',
+                'not created by PBFT consensus module',
                 block_wrapper.identifier[:8],
                 validator_info.name,
                 validator_info.id[:8],
                 validator_info.id[-8:])
             return False
 
-        # Get the consensus state and BGT configuration view for the block
+        # Get the consensus state and PBFT configuration view for the block
         # that is being built upon
         consensus_state = ConsensusState.consensus_state_for_block_id(
                 block_id=block_wrapper.previous_block_id,
@@ -187,7 +187,7 @@ class PbftBlockVerifier(BlockVerifierInterface):
             return False
 
         # Reject the block if the validator has already claimed the key block
-        # limit for its current BGT key pair.
+        # limit for its current PBFT key pair.
         if consensus_state.validator_has_claimed_block_limit(
                 validator_info=validator_info,
                 bgt_settings_view=bgt_settings_view):

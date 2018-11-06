@@ -44,7 +44,7 @@ class PbftEnclaveFactory:
             data_dir (str): path to location where data for the
                 bgt enclave module can be found.
         Returns:
-            module: The configured PBFT enclave module, or the BGT enclave
+            module: The configured PBFT enclave module, or the PBFT enclave
                 simulator module if none configured.
 
         Raises:
@@ -53,16 +53,16 @@ class PbftEnclaveFactory:
         """
 
         with cls._lock:
-            # We are only going to load the BGT enclave if we haven't already
+            # We are only going to load the PBFT enclave if we haven't already
             # done so.  Otherwise, we are just going to return the previously-
             # loaded enclave module.
             if cls._pbft_enclave_module is None:
-                # Get the configured BGT enclave module name.
+                # Get the configured PBFT enclave module name.
                 pbft_settings_view = PbftSettingsView(state_view)
                 module_name = pbft_settings_view.enclave_module_name
 
                 LOGGER.info(
-                    'Load BGT enclave module: %s; '
+                    'Load PBFT enclave module: %s; '
                     'Max log size: %f; ',
                     module_name,
                     pbft_settings_view.pbft_max_log_size

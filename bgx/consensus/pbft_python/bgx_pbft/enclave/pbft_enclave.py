@@ -125,7 +125,7 @@ class _PbftEnclaveSimulator:
         # Otherwise, we are going to fall back on trying to create one that is
         # unique.
         validator_id = datetime.datetime.now().isoformat()
-        LOGGER.debug('BGT enclave simulator creating anti-Sybil ID from: %s',validator_id)
+        LOGGER.debug('PBFT enclave simulator creating anti-Sybil ID from: %s',validator_id)
 
         # Create an anti-Sybil ID that is unique for this validator
         cls._anti_sybil_id = hashlib.sha256(validator_id.encode()).hexdigest()
@@ -147,7 +147,7 @@ class _PbftEnclaveSimulator:
                            originator_public_key_hash,
                            nonce):
         with cls._lock:
-            # First we need to create a public/private key pair for the BGT
+            # First we need to create a public/private key pair for the PBFT
             # enclave to use.
             # Counter ID is a placeholder for a hardware counter in a TEE.
             pbft_private_key = Secp256k1PrivateKey.new_random()
@@ -224,7 +224,7 @@ class _PbftEnclaveSimulator:
                 create_signup_info
 
         Returns:
-            A string The hex encoded BGT public key that was extracted from
+            A string The hex encoded PBFT public key that was extracted from
             the sealed data
         """
 
@@ -410,7 +410,7 @@ class _PbftEnclaveSimulator:
             nonce = hashlib.sha256(random_string.encode()).hexdigest()
 
             # First create a new enclave wait certificate using the data
-            # provided and then sign the certificate with the BGT private key
+            # provided and then sign the certificate with the PBFT private key
             wait_certificate = \
                 EnclaveWaitCertificate.wait_certificate_with_wait_timer(
                     wait_timer=wait_timer,

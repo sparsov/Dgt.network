@@ -42,7 +42,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class PbftOracle:
-    '''This is a wrapper around the BGT structures (publisher,
+    '''This is a wrapper around the PBFT structures (publisher,
     verifier, fork resolver) and their attendant proxies.
     '''
     def __init__(self, service, component_endpoint,

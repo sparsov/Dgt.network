@@ -26,13 +26,13 @@ class EnclaveSignupInfo:
 
     Attributes:
         bgt_public_key (str): Encoded public key corresponding to private
-            key used by BGT to sign wait certificates.
+            key used by PBFT to sign wait certificates.
         proof_data (str): Information that can be used internally to verify
             the validity of the signup information.
         anti_sybil_id (str): A string corresponding to the anti-Sybil ID for
             the enclave that generated the signup information.
         sealed_signup_data (str): A base 64 string representing data that can
-            be persisted and presented at a later time to restore the BGT
+            be persisted and presented at a later time to restore the PBFT
             enclave.
     """
 
