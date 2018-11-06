@@ -46,12 +46,12 @@ from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
 
 from datetime import datetime
-import chilkat
 # pylint: disable=too-many-lines
 
 DEFAULT_TIMEOUT = 300
 LOGGER = logging.getLogger(__name__)
 
+import sawtooth_rest_api.utils as rest_api_utils
 # BGX
 # Transaction scheme
 # TRANSACTION_SCHEME = {
@@ -64,150 +64,55 @@ LOGGER = logging.getLogger(__name__)
 #     'extra': string
 # }
 
-# Unlock chilkat library
-chilkat.CkGlobal().UnlockBundle("Anything for 30-day trial")
-
-NODE_PUBLIC_KEY = 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABAECfXHrRBEo50pR/r88eBXlfREDUU95tAubx7JoDtXA+wvU+xtFLSRfceUd0JWgjOeysS/zq8ktlUwk7jxNBdY='
-
-USERS_KEYS = [
-    {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCAaLUY/S9zYzSc0RxxPd3Aj47sZkQoTjo5rst2U4Ylw+aAKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABNOT8Oz31n93/eGsooJvZhnwwQr7tqRYOdotxJ9Ku9Fsq/OgK/pVKILjsuVRy9pJL525ns7/0k/ephS4nlkS3xw='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCBrl/omw6xWvjvmqocvAIuGMl78UBci3Hl7e7MOwj6+rqAKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABB9mxRPAFV0Uf5ZCRmkhDgf9IF+9MX5NW3JaOjc1fqmUJflVSA301OkjJsRmRPg/627514JK0nmdB20kFT/7y1g='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCBivZHDbEgJzHt4ZkjNbdExzLQAbDAA/ieCmnD3MfSM96AKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABNPXzQdoyc/BqtDx8aOZAeDNaIPDwXhBEpCe1ysOT7Cc4Fo+fG0DTcJRTJz9xiJ0TsKuGJockHMOzNQOm8nlyl0='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCAq/0z6PUQEY7COfo+UPH2SX8mzvg0E547NxS+LrwnTn6AKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABFyxmP00ixe/LWqdP08mzaLk81kV++0+Ympm2aRW4WBkD6Nkp7JLAHTXlEY4zJm3xnBXwS5ShafWGIq1qK6smLA='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCAQE/3N40yAGQNHAqWD686CVnTyYYDHlhd3W8xcqLhWH6AKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABM7aeFWclnSQ8XIepC+59guIp7yPiRMoQT92E9p6aYHLY0MQ3AQj4p7VLZfAdv/Ag+N9t009sDK0cIEAZQ2rW8Q='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCBsqGWFDGSpRsa29nb8YksP7I/+Lbt9AvJvzviyb/mSn6AKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABMSFylbwbIk0eBB0hpnn22kSuFjJn38AlYDHBvymY/LIeTu4iFbB0uJh/iyf3jX9Oc6/llm8s8GcMFxH0SewCMQ='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCA1v095NsknXVtckrQKfbRITrQFFQTYz4lDi5op5Mm5UKAKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABDV3sRXm1io8gshJWATV8lDM0KJRg0tRyvFJACtcMpqsrn5I1G7SS0uJ1NQ6orJI2NPzsEJdyyz7ogzs5p4UVnI='
-    }
-]
-USERS_PUBLIC_KEYS = [keys['public_key'] for keys in USERS_KEYS]
-USERS_PRIVATE_KEYS = [keys['private_key'] for keys in USERS_KEYS]
-
-USERS_ETHER_KEYS = [
-    {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCBJ654i4eRACJT7K+Ey5FEGX8fQ/cTBvWc4xEpO6HdytaAKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABAGIektFnctcrKcJGWbHDX3NkL5PItfTTUkvY3VRbTAHFcBYx7uydzGmbmE5y4QDWNd3zuz1sd05i5SUZ58tTyw='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCCcavJYmrupMiuriWcCZ+kAmXHNKChyffuetYEcyVEZSqAKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABIW7SD5V0XummRyb3Jn5PH4eBnyFWlqUD/JNeH51jKAlMwLvSaqDw70MjxRqrVy+y3+4d4jUCl76YK8jWMXmdAg='
-    }, {
-      'private_key': 'ME0CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEMzAxAgEBBCD4JFqnl3uZjG23UD++4tscN0s41q6C+CjcOWRete3376AKBggqhkjOPQMBBw==',
-      'public_key': 'MIIBSzCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAABAAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMVAMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABO0pWlAs2ohboeZNLcYVXo86i0b3FJckG7C4MoGGxSyrm2wxPMPv6gGDJKANbPqK8Ox9HUvJ7JHNsJ77kJNZR3U='
-    }
-]
-USERS_ETHER_PUBLIC_KEYS = [keys['public_key'] for keys in USERS_ETHER_KEYS]
-USERS_ETHER_PRIVATE_KEYS = [keys['private_key'] for keys in USERS_ETHER_KEYS]
-
-class crypt_SHA256_base64url():
-    def __init__(self):
-        self.crypt = chilkat.CkCrypt2()
-        self.crypt.put_HashAlgorithm("SHA256")
-        self.crypt.put_Charset("utf-8")
-        self.crypt.put_EncodingMode("base64url")
-
-    def get_key_hashed(self, public_key):
-        return self.crypt.hashStringENC(public_key)
-
-crypt_SHA256_base64url = crypt_SHA256_base64url()
-KEYS_HASH_TABLE = {}
-for key in USERS_PUBLIC_KEYS + USERS_ETHER_PUBLIC_KEYS:
-    KEYS_HASH_TABLE[crypt_SHA256_base64url.get_key_hashed(key)] = key
-
-
-### generate 10 keys pairs
-# keys = []
-# fortuna = chilkat.CkPrng()
-# entropy = fortuna.getEntropy(32,"base64")
-# fortuna.AddEntropy(entropy,"base64")
-# ecc = chilkat.CkEcc()
-# for i in range(10):
-#     privKey = ecc.GenEccKey("secp256r1", fortuna)
-#     pubKey = privKey.GetPublicKey()
-#     keys.append({
-#         'private_key': privKey.getPkcs8ENC('base64'),
-#         'public_key': pubKey.getPkcs8ENC('base64')
-#     })
-#
-### private key from string
-# b = chilkat.CkByteData()
-# b.appendEncoded(privateKeyStr, 'base64')
-# v = chilkat.CkPrivateKey()
-# v.LoadPkcs8(b)
-#
-### public key from string
-# v = chilkat.CkPublicKey()
-# v.LoadFromString(pubKeyStr)
-#
-### sign with private key
-# ecdsa = chilkat.CkEcc()
-# crypt = chilkat.CkCrypt2()
-# crypt.put_HashAlgorithm("SHA256")
-# crypt.put_Charset("utf-8")
-# crypt.put_EncodingMode("base64")
-#
-# #  Hash a payload_from string
-# sha256_hash = crypt.hashStringENC(json.dumps({
-#     "public_key": "HKJEk_ov0wgRsmi6_o8pL9pSEBbIHvgmLGto7LaT3fM",
-#     "tx_payload": 10,
-#     "coin_code": "dec"
-# }, sort_keys=True))
-# prng = chilkat.CkPrng()
-# ecdsaSigBase64 = ecdsa.signHashENC(sha256_hash,"base64",privKey,prng)
-###
-
-GLOBAL_STATE = {
-    'wallets': {
-        # node's wallet works in bgt and dec(ether)
-        NODE_PUBLIC_KEY: {
-            'dec': 100,
-            'bgt': 100000
-        },
-        # users' wallets
-        USERS_ETHER_PUBLIC_KEYS[0]: {'dec': 20},
-        USERS_ETHER_PUBLIC_KEYS[1]: {'dec': 50},
-        USERS_ETHER_PUBLIC_KEYS[2]: {'dec': 80},
-        USERS_PUBLIC_KEYS[0]: {'bgt': 100},
-        USERS_PUBLIC_KEYS[1]: {'bgt': 200},
-        USERS_PUBLIC_KEYS[2]: {'bgt': 300},
-        USERS_PUBLIC_KEYS[3]: {'bgt': 400},
-        USERS_PUBLIC_KEYS[4]: {'bgt': 500},
-        USERS_PUBLIC_KEYS[5]: {'bgt': 600},
-        USERS_PUBLIC_KEYS[6]: {'bgt': 700},
-    },
-    'transactions': [],
+WALLETS = {}
+PUB_KEYS_BY_ADDRESSES = {}
+NODE_CREDENTIALS = {}
+TRANSACTIONS = []
+TRANSACTION_FEE = 0.1
+COINS_RATIO = {
+    'bgt': 1,
+    'dec': 100
 }
+with open('../startup_global_state.json') as file:
+    file_data = json.load(file)
+    users = file_data['users']
+    node = file_data['node']
+    WALLETS[node['address']] = node['wallet']
+    del node['wallet']
+    PUB_KEYS_BY_ADDRESSES[node['address']] = node['public_key']
+    NODE_CREDENTIALS = node
+    for user in users:
+        WALLETS[user['address']] = user['wallet']
+        PUB_KEYS_BY_ADDRESSES[user['address']] = user['public_key']
 
-def append_transaction(key_from, key_to, tx_payload, currency, extra):
-    if (not GLOBAL_STATE['wallets'][key_from][currency]) \
+
+def append_transaction(address_from, address_to, tx_payload, currency, extra):
+    if float(tx_payload) < 0:
+        raise errors.NegativePayload()
+    if (not WALLETS[address_from][currency]) \
             or\
-       (GLOBAL_STATE['wallets'][key_from][currency] < tx_payload):
+       (WALLETS[address_from][currency] < tx_payload):
         return False
-    if key_to not in GLOBAL_STATE['wallets']:
-        GLOBAL_STATE['wallets'][key_to] = {}
-    if currency not in GLOBAL_STATE['wallets'][key_to]:
-        GLOBAL_STATE['wallets'][key_to][currency] = 0
-    GLOBAL_STATE['wallets'][key_from][currency] -= tx_payload
-    GLOBAL_STATE['wallets'][key_to][currency] += tx_payload
-    GLOBAL_STATE['transactions'].append({
+    if address_to not in WALLETS:
+        WALLETS[address_to] = {
+            currency: 0
+        }
+    if currency not in WALLETS[address_to]:
+        WALLETS[address_to][currency] = 0
+    if currency not in WALLETS[NODE_CREDENTIALS['address']]:
+        WALLETS[NODE_CREDENTIALS['address']][currency] = 0
+
+    WALLETS[address_from][currency] -= tx_payload
+    WALLETS[address_to][currency] += (tx_payload * (1 - TRANSACTION_FEE))
+    WALLETS[NODE_CREDENTIALS['address']][currency] += tx_payload * TRANSACTION_FEE
+    TRANSACTIONS.append({
         'timestamp': datetime.now().__str__(),
         'status': True,
         'tx_payload': tx_payload,
         'currency': currency,
-        'key_from': key_from,
-        'key_to': key_to,
+        'address_from': address_from,
+        'address_to': address_to,
+        'fee': TRANSACTION_FEE,
         'extra': extra
     })
     return True
@@ -603,33 +508,43 @@ class RouteHandler:
             )
             raise errors.NoMandatoryHeader()
         public_key = request.headers['public_key']
-        public_key_hashed = request.match_info.get('public_key_hashed', '')
 
-        if crypt_SHA256_base64url.get_key_hashed(public_key) != public_key_hashed:
-            raise errors.InvalidPublicKey()
-
-        if public_key in GLOBAL_STATE['wallets']:
+        user_address = rest_api_utils.eth_address_from_pub_key(public_key)
+        if user_address in WALLETS:
             return self._wrap_response(
                 request,
                 metadata={
-                    'wallet': {
-                        public_key: GLOBAL_STATE['wallets'][public_key]
+                    user_address: {
+                        'wallet': WALLETS[user_address]
                     }
                 },
                 status=200)
 
-        append_transaction(NODE_PUBLIC_KEY, public_key, 33.0, 'bgt', 'Wallet creation gift')
-
-        KEYS_HASH_TABLE[public_key_hashed] = public_key
+        WALLETS[user_address] = {}
+        PUB_KEYS_BY_ADDRESSES[user_address] = public_key
 
         return self._wrap_response(
             request,
             metadata={
-                'wallet': {
-                    public_key: {
-                        'bgt': 33.0
-                    }
+                user_address: {
+                    'wallet': {}
                 }
+            },
+            status=200)
+
+    async def get_fee(self, request):
+        body = await request.json()
+
+        if 'data' not in body or 'payload' not in body['data']:
+            raise errors.NoTransactionPayload()
+
+        payload = body['data']['payload']
+
+        return self._wrap_response(
+            request,
+            metadata={
+                'fee': TRANSACTION_FEE,
+                'payload': payload
             },
             status=200)
 
@@ -640,212 +555,168 @@ class RouteHandler:
     async def post_transaction_convert(self, request):
         body = await request.json()
 
-        if 'payload' not in body:
+        if 'data' not in body:
             raise errors.NoTransactionPayload()
 
-        payload = body['payload']
+        data = body['data']
         try:
-            payload_from = payload['payload_from']
-            payload_to = payload['payload_to']
-            signed_payload_from = payload['signed_payload_from']
-            signed_payload_to = payload['signed_payload_to']
+            payload = data['payload']
+            signed_payload = data['signed_payload']
+            address_from = payload['address_from']
+            address_to = payload['address_to']
+            coin_code_from = payload['coin_code_from']
+            coin_code_to = payload['coin_code_to']
         except KeyError:
             raise errors.BadTransactionPayload()
 
-        if payload_from['public_key_hashed'] not in KEYS_HASH_TABLE:
-            raise errors.PublicKeyNotFound()
+        if address_from not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
         else:
-            from_public_key = KEYS_HASH_TABLE[payload_from['public_key_hashed']]
+            public_key_from = PUB_KEYS_BY_ADDRESSES[address_from]
 
-        if payload_to['public_key_hashed'] not in KEYS_HASH_TABLE:
-            raise errors.PublicKeyNotFound()
-        else:
-            to_public_key = KEYS_HASH_TABLE[payload_to['public_key_hashed']]
+        if address_to not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
 
-        if from_public_key not in GLOBAL_STATE['wallets']:
+        if address_from not in WALLETS:
             LOGGER.debug(
                 'Wallet not found',
-                from_public_key,
+                address_from,
             )
             raise errors.WalletNotFound()
-        elif payload_from['coin_code'] not in GLOBAL_STATE['wallets'][from_public_key]:
+        elif coin_code_from not in WALLETS[address_from]:
             LOGGER.debug(
                 "Not enough funds in user's wallet",
-                from_public_key,
+                address_from,
             )
             raise errors.NotEnoughFunds()
-        elif GLOBAL_STATE['wallets'][from_public_key][payload_from['coin_code']] < payload_from['tx_payload']:
+        elif WALLETS[address_from][coin_code_from] < payload['tx_payload_from']:
             LOGGER.debug(
                 "Not enough funds in user's wallet",
-                from_public_key,
+                address_from,
             )
             raise errors.NotEnoughFunds()
 
-        if to_public_key not in GLOBAL_STATE['wallets']:
+        if address_to not in WALLETS:
             LOGGER.debug(
                 'Wallet not found',
-                from_public_key,
+                address_to,
             )
             raise errors.WalletNotFound()
 
-        # Verification of signed hashes
-        ecdsa = chilkat.CkEcc()
-        crypt = chilkat.CkCrypt2()
-        crypt.put_HashAlgorithm("SHA256")
-        crypt.put_Charset("utf-8")
-        crypt.put_EncodingMode("base64")
-
-        #  Hash a payload_from string
-        sha256_hash = crypt.hashStringENC(json.dumps(payload_from, sort_keys=True))
-
-        ck_public_key = chilkat.CkPublicKey()
-        success = ck_public_key.LoadFromString(from_public_key)
-        if not success:
-            print(ck_public_key.lastErrorText())
-            raise errors.InvalidPublicKey()
-
-        result = ecdsa.VerifyHashENC(sha256_hash, signed_payload_from, "base64", ck_public_key)
-        if result != 1:
-            raise errors.InvalidSignature()
-
-        #  Hash a payload_to string
-        sha256_hash = crypt.hashStringENC(json.dumps(payload_to, sort_keys=True))
-
-        success = ck_public_key.LoadFromString(to_public_key)
-        if not success:
-            print(ck_public_key.lastErrorText())
-            raise errors.InvalidPublicKey()
-
-        result = ecdsa.VerifyHashENC(sha256_hash, signed_payload_to, "base64", ck_public_key)
+        # Verification of signed hash
+        result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
         if result != 1:
             raise errors.InvalidSignature()
 
         # Execute transaction
         append_transaction(
-            from_public_key,
-            NODE_PUBLIC_KEY,
-            payload_from['tx_payload'],
-            payload_from['coin_code'],
+            address_from,
+            NODE_CREDENTIALS['address'],
+            payload['tx_payload_from'],
+            coin_code_from,
             'First step of convertation'
         )
 
         append_transaction(
-            NODE_PUBLIC_KEY,
-            to_public_key,
-            payload_from['tx_payload'] * 100,
-            payload_to['coin_code'],
+            NODE_CREDENTIALS['address'],
+            address_to,
+            (float(payload['tx_payload_from']) / COINS_RATIO[coin_code_to]) * COINS_RATIO[coin_code_from],
+            coin_code_to,
             'Second step of convertation'
         )
 
         return self._wrap_response(
             request,
             metadata={
-                'wallet_from': GLOBAL_STATE['wallets'][from_public_key],
-                'wallet_to': GLOBAL_STATE['wallets'][to_public_key]
+                'wallet_from': WALLETS[address_from],
+                'wallet_to': WALLETS[address_to]
             },
             status=200)
-
 
     async def post_transaction(self, request):
         body = await request.json()
 
-        if 'payload' not in body:
+        if 'data' not in body:
             raise errors.NoTransactionPayload()
 
-        payload = body['payload']
+        data = body['data']
         try:
-            signed_payload = payload['signed_payload']
-            payload = payload['payload']
+            signed_payload = data['signed_payload']
+            payload = data['payload']
+            address_from = payload['address_from']
+            address_to = payload['address_to']
         except KeyError:
             raise errors.BadTransactionPayload()
 
-        if payload['public_key_hashed'] not in KEYS_HASH_TABLE:
-            raise errors.PublicKeyNotFound()
+        if address_from not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
         else:
-            public_key = KEYS_HASH_TABLE[payload['public_key_hashed']]
+            public_key_from = PUB_KEYS_BY_ADDRESSES[address_from]
 
-        if public_key not in GLOBAL_STATE['wallets']:
+        if address_from not in WALLETS:
             LOGGER.debug(
                 'Wallet not found',
-                public_key,
+                address_from,
             )
             raise errors.WalletNotFound()
-        elif payload['coin_code'] not in GLOBAL_STATE['wallets'][public_key]:
-            GLOBAL_STATE['wallets'][public_key][payload['coin_code']] = 0
+        elif payload['coin_code'] not in WALLETS[address_from]:
+            WALLETS[address_from][payload['coin_code']] = 0
             LOGGER.debug(
                 "Not enough funds in user's wallet",
-                public_key,
+                address_from,
             )
             raise errors.NotEnoughFunds()
-        elif GLOBAL_STATE['wallets'][public_key][payload['coin_code']] < payload['tx_payload']:
+        elif WALLETS[address_from][payload['coin_code']] < payload['tx_payload']:
             LOGGER.debug(
                 "Not enough funds in user's wallet",
-                public_key,
+                address_from,
             )
             raise errors.NotEnoughFunds()
 
         # Verification of signed hashes
-        ecdsa = chilkat.CkEcc()
-        crypt = chilkat.CkCrypt2()
-        crypt.put_HashAlgorithm("SHA256")
-        crypt.put_Charset("utf-8")
-        crypt.put_EncodingMode("base64")
-
-        #  Hash a payload_from string
-        sha256_hash = crypt.hashStringENC(json.dumps(payload, sort_keys=True))
-
-        ck_public_key = chilkat.CkPublicKey()
-        success = ck_public_key.LoadFromString(public_key)
-        if not success:
-            print(ck_public_key.lastErrorText())
-            raise errors.InvalidPublicKey()
-
-        result = ecdsa.VerifyHashENC(sha256_hash, signed_payload, "base64", ck_public_key)
+        result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
         if result != 1:
             raise errors.InvalidSignature()
 
         # Execute transaction
         append_transaction(
-            public_key,
-            NODE_PUBLIC_KEY,
+            address_from,
+            address_to,
             payload['tx_payload'],
             payload['coin_code'],
             'Regular transaction'
         )
 
-        retval = self._wrap_response(
+        return self._wrap_response(
             request,
-            metadata=GLOBAL_STATE['transactions'][-1],
+            metadata=TRANSACTIONS[-1],
             status=200)
-        return retval
 
     async def get_wallet(self, request):
-        public_key_hashed = request.match_info.get('public_key_hashed', '')
-        if public_key_hashed not in KEYS_HASH_TABLE:
-            raise errors.PublicKeyNotFound()
-        else:
-            public_key = KEYS_HASH_TABLE[public_key_hashed]
+        address = request.match_info.get('address', '')
+        if address not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
 
-        if public_key not in GLOBAL_STATE['wallets']:
+        print(address)
+        if address not in WALLETS:
             LOGGER.debug(
                 'Wallet not found',
-                public_key,
+                address,
             )
             raise errors.WalletNotFound()
 
-        retval = self._wrap_response(
+        return self._wrap_response(
             request,
             metadata={
-                'wallet': GLOBAL_STATE['wallets'][public_key]
+                'wallet': WALLETS[address]
             },
             status=200)
-        return retval
 
     async def get_global_wallet(self, request):
         return self._wrap_response(
             request,
             metadata={
-                'wallets': GLOBAL_STATE['wallets']
+                'wallets': WALLETS
             },
             status=200)
 
@@ -853,7 +724,7 @@ class RouteHandler:
         return self._wrap_response(
             request,
             metadata={
-                'transactions': GLOBAL_STATE['transactions']
+                'transactions': TRANSACTIONS
             },
             status=200)
 

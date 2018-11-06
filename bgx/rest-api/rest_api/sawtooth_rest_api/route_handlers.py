@@ -25,25 +25,25 @@ from aiohttp import web
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
 
-from rest_api.sawtooth_rest_api.protobuf.validator_pb2 import Message
+from sawtooth_rest_api.protobuf.validator_pb2 import Message
 
-import rest_api.sawtooth_rest_api.exceptions as errors
-from rest_api.sawtooth_rest_api import error_handlers
-from rest_api.sawtooth_rest_api.messaging import DisconnectError
-from rest_api.sawtooth_rest_api.messaging import SendBackoffTimeoutError
-from rest_api.sawtooth_rest_api.protobuf import client_transaction_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_list_control_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_batch_submit_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_state_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_block_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_batch_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_receipt_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_peers_pb2
-from rest_api.sawtooth_rest_api.protobuf import client_status_pb2
-from rest_api.sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
-from rest_api.sawtooth_rest_api.protobuf.batch_pb2 import BatchList
-from rest_api.sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
-from rest_api.sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
+import sawtooth_rest_api.exceptions as errors
+from sawtooth_rest_api import error_handlers
+from sawtooth_rest_api.messaging import DisconnectError
+from sawtooth_rest_api.messaging import SendBackoffTimeoutError
+from sawtooth_rest_api.protobuf import client_transaction_pb2
+from sawtooth_rest_api.protobuf import client_list_control_pb2
+from sawtooth_rest_api.protobuf import client_batch_submit_pb2
+from sawtooth_rest_api.protobuf import client_state_pb2
+from sawtooth_rest_api.protobuf import client_block_pb2
+from sawtooth_rest_api.protobuf import client_batch_pb2
+from sawtooth_rest_api.protobuf import client_receipt_pb2
+from sawtooth_rest_api.protobuf import client_peers_pb2
+from sawtooth_rest_api.protobuf import client_status_pb2
+from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
+from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
+from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
+from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
 
 from datetime import datetime
 # pylint: disable=too-many-lines
@@ -51,7 +51,7 @@ from datetime import datetime
 DEFAULT_TIMEOUT = 300
 LOGGER = logging.getLogger(__name__)
 
-import rest_api.sawtooth_rest_api.utils as rest_api_utils
+import sawtooth_rest_api.utils as rest_api_utils
 # BGX
 # Transaction scheme
 # TRANSACTION_SCHEME = {
@@ -73,7 +73,7 @@ COINS_RATIO = {
     'bgt': 1,
     'dec': 100
 }
-with open('./../../startup_global_state.json') as file:
+with open('../startup_global_state.json') as file:
     file_data = json.load(file)
     users = file_data['users']
     node = file_data['node']
@@ -514,8 +514,8 @@ class RouteHandler:
             return self._wrap_response(
                 request,
                 metadata={
-                    'wallet': {
-                        user_address: WALLETS[user_address]
+                    user_address: {
+                        'wallet': WALLETS[user_address]
                     }
                 },
                 status=200)
@@ -560,12 +560,12 @@ class RouteHandler:
 
         data = body['data']
         try:
-            payload_from = data['payload_from']
-            payload_to = data['payload_to']
-            signed_payload_from = data['signed_payload_from']
-            signed_payload_to = data['signed_payload_to']
-            address_from = payload_from['address_from']
-            address_to = payload_to['address_to']
+            payload = data['payload']
+            signed_payload = data['signed_payload']
+            address_from = payload['address_from']
+            address_to = payload['address_to']
+            coin_code_from = payload['coin_code_from']
+            coin_code_to = payload['coin_code_to']
         except KeyError:
             raise errors.BadTransactionPayload()
 
@@ -576,8 +576,6 @@ class RouteHandler:
 
         if address_to not in PUB_KEYS_BY_ADDRESSES:
             raise errors.AddressNotFound()
-        else:
-            public_key_to = PUB_KEYS_BY_ADDRESSES[address_to]
 
         if address_from not in WALLETS:
             LOGGER.debug(
@@ -585,13 +583,13 @@ class RouteHandler:
                 address_from,
             )
             raise errors.WalletNotFound()
-        elif payload_from['coin_code'] not in WALLETS[address_from]:
+        elif coin_code_from not in WALLETS[address_from]:
             LOGGER.debug(
                 "Not enough funds in user's wallet",
                 address_from,
             )
             raise errors.NotEnoughFunds()
-        elif WALLETS[address_from][payload_from['coin_code']] < payload_from['tx_payload']:
+        elif WALLETS[address_from][coin_code_from] < payload['tx_payload_from']:
             LOGGER.debug(
                 "Not enough funds in user's wallet",
                 address_from,
@@ -605,12 +603,8 @@ class RouteHandler:
             )
             raise errors.WalletNotFound()
 
-        # Verification of signed hashes
-        result = rest_api_utils.verify_signature(public_key_from, signed_payload_from, payload_from)
-        if result != 1:
-            raise errors.InvalidSignature()
-
-        result = rest_api_utils.verify_signature(public_key_to, signed_payload_to, payload_to)
+        # Verification of signed hash
+        result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
         if result != 1:
             raise errors.InvalidSignature()
 
@@ -618,16 +612,16 @@ class RouteHandler:
         append_transaction(
             address_from,
             NODE_CREDENTIALS['address'],
-            payload_from['tx_payload'],
-            payload_from['coin_code'],
+            payload['tx_payload_from'],
+            coin_code_from,
             'First step of convertation'
         )
 
         append_transaction(
             NODE_CREDENTIALS['address'],
             address_to,
-            (float(payload_from['tx_payload']) / COINS_RATIO[payload_to['coin_code']]) * COINS_RATIO[payload_from['coin_code']],
-            payload_to['coin_code'],
+            (float(payload['tx_payload_from']) / COINS_RATIO[coin_code_to]) * COINS_RATIO[coin_code_from],
+            coin_code_to,
             'Second step of convertation'
         )
 
@@ -702,9 +696,8 @@ class RouteHandler:
         address = request.match_info.get('address', '')
         if address not in PUB_KEYS_BY_ADDRESSES:
             raise errors.AddressNotFound()
-        else:
-            public_key = PUB_KEYS_BY_ADDRESSES[address]
 
+        print(address)
         if address not in WALLETS:
             LOGGER.debug(
                 'Wallet not found',

@@ -27,7 +27,6 @@ RUN apt-get install -y -q --allow-downgrades \
     git \
     python3 \
     python3-stdeb
-
 RUN apt-get install -y -q --allow-downgrades \
     python3-grpcio \
     python3-grpcio-tools \
@@ -42,6 +41,12 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-toml \
     python3-yaml \
     python3-zmq
+
+RUN apt-get update && apt-get install -y \
+    python3-pip
+
+RUN pip3 install pycryptodome \
+    ecdsa
 
 RUN mkdir /var/log/sawtooth
 
