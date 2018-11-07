@@ -18,7 +18,7 @@ services:
 
   settings-tp:
     build:
-      context: .
+      context: ../..
       dockerfile: families/settings/Dockerfile
       args:
         - http_proxy
@@ -30,7 +30,7 @@ services:
     environment:
     - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
     volumes:
-      - ./:/project/sawtooth-core
+      - ../..:/project/sawtooth-core
     container_name: sawtooth-settings-tp-bgx
     depends_on:
       - validator
@@ -46,7 +46,7 @@ services:
 
   bgt-tp-python:
     build:
-      context: .
+      context: ../..
       dockerfile: bgx/families/bgt_python/Dockerfile
       args:
         - http_proxy
@@ -58,7 +58,7 @@ services:
     networks:
     - network1
     volumes:
-      - ./:/project/sawtooth-core
+      - ../..:/project/sawtooth-core
     container_name: bgt-tp-python-bgx
     depends_on:
       - validator
@@ -76,7 +76,7 @@ services:
 
   client:
     build:
-      context: .
+      context: ../..
       dockerfile: docker/sawtooth-shell-bgx
       args:
         - http_proxy
@@ -88,7 +88,7 @@ services:
     environment:
     - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
     volumes:
-      - ./:/project/sawtooth-core
+      - ../..:/project/sawtooth-core
     container_name: sawtooth-shell-bgx
     depends_on:
       - validator
@@ -102,7 +102,7 @@ services:
 
   validator:
     build:
-      context: .
+      context: ../..
       dockerfile: validator/Dockerfile-bgx
       args:
         - http_proxy
@@ -114,7 +114,7 @@ services:
     environment:
     - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
     volumes:
-      - ./:/project/sawtooth-core
+      - ../..:/project/sawtooth-core
     container_name: sawtooth-validator-bgx
     expose:
       - 4004
@@ -152,7 +152,7 @@ services:
 
   rest-api:
     build:
-      context: .
+      context: ../..
       dockerfile: rest_api/Dockerfile
       args:
         - http_proxy
@@ -162,7 +162,7 @@ services:
     environment:
     - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
     volumes:
-      - ./:/project/sawtooth-core
+      - ../..:/project/sawtooth-core
     container_name: sawtooth-rest-api-bgx
     networks:
     - network1
@@ -182,7 +182,7 @@ services:
 
   devmode-python:
     build:
-      context: .
+      context: ../..
       dockerfile: bgx/consensus/devmode_python/Dockerfile-bgx
       args:
         - http_proxy
@@ -194,7 +194,7 @@ services:
     environment:
     - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
     volumes:
-      - ./:/project/sawtooth-core
+      - ../..:/project/sawtooth-core
     container_name: sawtooth-devmode-python-bgx
     depends_on:
       - validator

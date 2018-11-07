@@ -359,6 +359,7 @@ class ContextManager:
                 if not self.address_is_valid(address=add):
                     raise AuthorizationException(address=add)
                 add_value_dict[add] = val
+        LOGGER.debug("ContextManager::set set_direct(%s)",len(add_value_dict))
         context.set_direct(add_value_dict)
         return True
 

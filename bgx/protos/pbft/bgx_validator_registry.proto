@@ -25,13 +25,14 @@ message BgxValidatorInfo {
     // The validator's public key (currently using signer_public_key as this is
     // stored in the transaction header)
     string id = 2;
-
+    // validator node type
+    string node = 3;
     // This is the protocol buffer described below.
-    BgxSignUpInfo signup_info = 3;
+    BgxSignUpInfo signup_info = 4;
 
     // The header signature for the ValidatorRegistryPayload transaction. This
     // will be used to look up the block the ValidatorInfo was committed on.
-    string transaction_id = 4;
+    string transaction_id = 5;
 }
 
 message BgxSignUpInfo {
@@ -76,8 +77,9 @@ message BgxValidatorRegistryPayload {
     // Validator's public key (currently using signer_public_key as this is
     // stored in the transaction header)
     string id = 3;
-
+    // validator node type
+    string node = 4;
     // This is the protocol buffer described above.
-    BgxSignUpInfo signup_info = 4;
+    BgxSignUpInfo signup_info = 5;
 
 }
