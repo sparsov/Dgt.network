@@ -18,7 +18,7 @@ services:
 
   settings-tp:
     build:
-      context: .
+      context: ../..
       dockerfile: families/settings/Dockerfile-installed
       args:
         - http_proxy
@@ -32,7 +32,7 @@ services:
 
   validator:
     build:
-      context: .
+      context: ../..
       dockerfile: validator/Dockerfile-installed
       args:
         - http_proxy
@@ -58,7 +58,7 @@ services:
 
   rest-api:
     build:
-      context: .
+      context: ../..
       dockerfile: rest_api/Dockerfile-installed
       args:
         - http_proxy
@@ -74,7 +74,7 @@ services:
 
   shell:
     build:
-      context: .
+      context: ../..
       dockerfile: ci/sawtooth-shell-installed
       args:
         - http_proxy
@@ -91,7 +91,7 @@ services:
 
   admin-tools:
     build:
-      context: .
+      context: ../..
       dockerfile: adm/Dockerfile-installed
       args:
         - http_proxy
@@ -102,7 +102,7 @@ services:
 
   sawtooth-cli:
     build:
-      context: .
+      context: ../..
       dockerfile: cli/Dockerfile-installed
       args:
         - http_proxy
@@ -113,7 +113,7 @@ services:
 
   block-info-tp:
     build:
-      context: .
+      context: ../..
       dockerfile: families/block_info/Dockerfile-installed
       args:
         - http_proxy
@@ -124,7 +124,7 @@ services:
 
   identity-tp:
     build:
-      context: .
+      context: ../..
       dockerfile: families/identity/Dockerfile-installed
       args:
         - http_proxy
@@ -135,7 +135,7 @@ services:
 
   python-sdk:
     build:
-      context: .
+      context: ../..
       dockerfile: sdk/python/Dockerfile-installed
       args:
         - http_proxy
@@ -146,7 +146,7 @@ services:
 
   signing:
     build:
-      context: .
+      context: ../..
       dockerfile: signing/Dockerfile-installed
       args:
         - http_proxy
@@ -158,7 +158,7 @@ services:
 
 #  integration:
 #    build:
-#      context: .
+#      context: ../..
 #      dockerfile: integration/Dockerfile-installed
 #      args:
 #        - http_proxy
@@ -170,7 +170,7 @@ services:
 
   sawtooth-meta:
     build:
-      context: .
+      context: ../..
       dockerfile: ci/sawtooth-meta
     image: sawtooth-meta:${ISOLATION_ID}
     container_name: sawtooth-meta
