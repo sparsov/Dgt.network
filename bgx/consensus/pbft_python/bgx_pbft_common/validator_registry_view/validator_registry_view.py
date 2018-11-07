@@ -15,7 +15,9 @@
 import hashlib
 
 from bgx_pbft_common.protobuf.bgx_validator_registry_pb2 import BgxValidatorInfo
+import logging
 
+LOGGER = logging.getLogger(__name__)
 
 _NAMESPACE = hashlib.sha256('validator_registry'.encode()).hexdigest()[0:6]
 
@@ -54,6 +56,7 @@ class ValidatorRegistryView:
             for address, state_data in leaves
             if address != validator_map_addr
         ]
+        LOGGER.debug("get_validators(%s)",infos)
         return {info.id: info for info in infos}
 
     def has_validator_info(self, validator_id):
@@ -99,5 +102,6 @@ class ValidatorRegistryView:
     def _parse_validator_info(state_data):
         validator_info = BgxValidatorInfo()
         validator_info.ParseFromString(state_data)
+        LOGGER.debug("BgxValidatorInfo(%s)",validator_info)
 
         return validator_info

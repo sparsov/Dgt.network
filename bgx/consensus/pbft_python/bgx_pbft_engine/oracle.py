@@ -67,7 +67,7 @@ class PbftOracle:
     def get_validator_id(self):
         return self._validator_id 
 
-    def initialize_block(self, previous_block):
+    def initialize_block(self, previous_block,node):
         block_header = NewBlockHeader(
             previous_block,
             self._signer.get_public_key().as_hex())
@@ -78,20 +78,24 @@ class PbftOracle:
             batch_publisher=self._batch_publisher,
             data_dir=self._data_dir,
             config_dir=self._config_dir,
-            validator_id=self._validator_id)
+            validator_id=self._validator_id,
+            node = node
+            )
 
         return self._publisher.initialize_block(block_header)
 
     def check_publish_block(self, block):
-        pass
+        LOGGER.debug('PbftOracle:check_publish_block...')
         #return self._publisher.check_publish_block(block)
 
     def finalize_block(self, block):
+        LOGGER.debug('PbftOracle:finalize_block...')
         pass
         #return self._publisher.finalize_block(block)
 
     def verify_block(self, block):
-        pass
+        LOGGER.debug('PbftOracle:verify_block...')
+        
         """
         verifier = BgtBlockVerifier(
             block_cache=self._block_cache,

@@ -65,8 +65,7 @@ class ConsensusState:
     # MINIMUM_WAIT_TIME must match the constants in the enclaves
     MINIMUM_WAIT_TIME = 1.0
 
-    _BlockInfo = \
-        collections.namedtuple(
+    _BlockInfo = collections.namedtuple(
             '_BlockInfo',
             ['wait_certificate', 'validator_info', 'pbft_settings_view'])
 
@@ -82,8 +81,7 @@ class ConsensusState:
         with the block
     """
 
-    _PopulationSample = \
-        collections.namedtuple(
+    _PopulationSample = collections.namedtuple(
             '_PopulationSample', ['duration', 'local_mean'])
 
     """ Instead of creating a full-fledged class, let's use a named tuple for
@@ -185,8 +183,7 @@ class ConsensusState:
                     current_id[:8],
                     current_id[-8:])
 
-                blocks[current_id] = \
-                    ConsensusState._BlockInfo(
+                blocks[current_id] = ConsensusState._BlockInfo(
                         wait_certificate=wait_certificate,
                         validator_info=validator_info,
                         pbft_settings_view=BgtSettingsView(state_view))
@@ -318,9 +315,7 @@ class ConsensusState:
         """
         block = None
         try:
-            block = \
-                None if utils.block_id_is_genesis(block_id) else \
-                block_cache[block_id]
+            block = None if utils.block_id_is_genesis(block_id) else block_cache[block_id]
         except KeyError:
             LOGGER.error('Failed to retrieve block: %s', block_id[:8])
 
@@ -357,9 +352,7 @@ class ConsensusState:
         # consensus state object, we don't have to worry about non-PBFT blocks.
         # Using that value and the fixed duration block count from the PBFT
         # settings view, we know now many blocks to get.
-        number_of_blocks = \
-            self.total_block_claim_count - \
-            pbft_settings_view.population_estimate_sample_size
+        number_of_blocks = self.total_block_claim_count - pbft_settings_view.population_estimate_sample_size
         with ConsensusState._population_estimate_cache_lock:
             for _ in range(number_of_blocks):
                 population_cache_entry = \

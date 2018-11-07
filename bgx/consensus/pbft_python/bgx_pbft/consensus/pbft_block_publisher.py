@@ -106,7 +106,8 @@ class PbftBlockPublisher(BlockPublisherInterface):
                  batch_publisher,
                  data_dir,
                  config_dir,
-                 validator_id):
+                 validator_id,
+                 node):
         """Initialize the object, is passed (read-only) state access objects.
             Args:
                 block_cache (BlockCache): Dict interface to the block cache.
@@ -141,6 +142,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._validator_id = validator_id
+        self._node = node
         self._consensus_state_store = ConsensusStateStore(
                 data_dir=self._data_dir,
                 validator_id=self._validator_id)
@@ -150,17 +152,12 @@ class PbftBlockPublisher(BlockPublisherInterface):
         self._wait_timer = None
 
     def _create_proposal(self, block_header, pbft_enclave_module):
-        # Create signup information for this validator, putting the block ID
-        # of the block previous to the block referenced by block_header in the
-        # nonce.  Block ID is better than wait certificate ID for testing
-        # freshness as we need to account for non-PBFT blocks.
+        """
+        proposal request
+        """
         public_key_hash = hashlib.sha256(
                 block_header.signer_public_key.encode()).hexdigest()
         nonce = SignupInfo.block_id_to_nonce(block_header.previous_block_id)
-        signup_info = SignupInfo.create_signup_info(
-                pbft_enclave_module=pbft_enclave_module,
-                originator_public_key_hash=public_key_hash,
-                nonce=nonce)
 
         setting = 'sawtooth.consensus.pbft.max_log_size'
         if False:
@@ -193,8 +190,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 payload=serialized,
                 header_signature=signature)
 
-        LOGGER.info(
-            'Register Validator action=%s,Nonce=%s',
+        LOGGER.info('payload action=%s nonce=%s',
             payload.action,
             nonce)
 
@@ -202,16 +198,6 @@ class PbftBlockPublisher(BlockPublisherInterface):
         else:
             # get setting
             pass
-        # Store the key state so that we can look it up later if need be and
-        # set the new key as our active key
-        LOGGER.info(
-            'Save key state PPK=%s',
-            signup_info.pbft_public_key[:8])
-        self._pbft_key_state_store[signup_info.pbft_public_key] = PbftKeyState(
-                sealed_signup_data=signup_info.sealed_signup_data,
-                has_been_refreshed=False,
-                signup_nonce=nonce)
-        self._pbft_key_state_store.active_key = signup_info.pbft_public_key
 
 
     def _register_signup_information(self, block_header, pbft_enclave_module):
@@ -219,6 +205,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
         # of the block previous to the block referenced by block_header in the
         # nonce.  Block ID is better than wait certificate ID for testing
         # freshness as we need to account for non-BGT blocks.
+        LOGGER.debug('_register_signup_information: REGISTER...')
         public_key_hash = hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
         nonce = SignupInfo.block_id_to_nonce(block_header.previous_block_id)
         signup_info = SignupInfo.create_signup_info(
@@ -231,6 +218,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 verb='register',
                 name='validator-{}'.format(block_header.signer_public_key[:8]),
                 id=block_header.signer_public_key,
+                node = self._node,
                 signup_info=vr_pb.BgxSignUpInfo(
                     pbft_public_key=signup_info.pbft_public_key,
                     proof_data=signup_info.proof_data,
@@ -297,6 +285,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 has_been_refreshed=False,
                 signup_nonce=nonce)
         self._pbft_key_state_store.active_key = signup_info.pbft_public_key
+        LOGGER.debug('_register_signup_information: REGISTER DONE')
 
     def _handle_registration_timeout(self, block_header, pbft_enclave_module,
                                      state_view, signup_nonce,
@@ -342,9 +331,9 @@ class PbftBlockPublisher(BlockPublisherInterface):
         # doing all of the checking again, simply short-circuit the failure so
         # that the validator can go do something more useful.
         if block_header.previous_block_id == PbftBlockPublisher._previous_block_id:
+            LOGGER.debug("block_header.previous_block_id == PbftBlockPublisher._previous_block_id TRUE")
             return False
         PbftBlockPublisher._previous_block_id = block_header.previous_block_id
-        #return True # fake
         # Using the current chain head, we need to create a state view so we
         # can create a PBFT enclave.
         state_view = BlockWrapper.state_view_for_block(
@@ -364,7 +353,6 @@ class PbftBlockPublisher(BlockPublisherInterface):
         try:
             validator_id = block_header.signer_public_key
             validator_info = validator_registry_view.get_validator_info(validator_id=validator_id)
-            LOGGER.debug("validator_info=%s",validator_info)
         except KeyError:
             pass
 
@@ -390,7 +378,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                                    'corrupt active key [%s] clearing '
                                    'key.', active_pbft_public_key)
                     return False
-
+                LOGGER.debug('Check if we need to give up on this registration attempt')
                 self._handle_registration_timeout(
                     block_header=block_header,
                     pbft_enclave_module=pbft_enclave_module,
@@ -398,6 +386,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                     signup_nonce=nonce,
                     pbft_public_key=active_pbft_public_key
                 )
+            LOGGER.debug("validator_info NONE")
             return False
 
         # Retrieve the key state corresponding to the PBFT public key in our
@@ -413,10 +402,10 @@ class PbftBlockPublisher(BlockPublisherInterface):
         # other validators think we should be using, then we need to create
         # new signup information as we have no way whatsoever to publish
         # blocks that other validators will accept.
+        LOGGER.debug("check pbft_key_state=%s",pbft_key_state)
         if pbft_key_state is None:
             LOGGER.debug(
-                'PBFT public key %s...%s in validator registry not found in '
-                'key state store.  Sign up again',
+                'PBFT public key %s...%s in validator registry not found in key state store.  Sign up again',
                 validator_info.signup_info.pbft_public_key[:8],
                 validator_info.signup_info.pbft_public_key[-8:])
             self._register_signup_information(
@@ -511,7 +500,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 block_header.previous_block_id[:8])
             self._register_signup_information(
                 block_header=block_header,
-                pbft_enclave_module=None,#pbft_enclave_module=pbft_enclave_module
+                pbft_enclave_module=pbft_enclave_module
                 )
             return False
 
@@ -681,8 +670,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
             pbft_key_state = self._pbft_key_state_store[active_key]
             sealed_signup_data = pbft_key_state.sealed_signup_data
             try:
-                wait_certificate = \
-                    WaitCertificate.create_wait_certificate(
+                wait_certificate = WaitCertificate.create_wait_certificate(
                         pbft_enclave_module=pbft_enclave_module,
                         sealed_signup_data=sealed_signup_data,
                         wait_timer=self._wait_timer,

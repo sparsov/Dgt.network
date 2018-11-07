@@ -51,6 +51,7 @@ class PbftEngine(Engine):
         self._building = False
         self._committing = False
 
+        self._node = self._pbft_config.node
         self._pending_forks_to_resolve = PendingForks()
         LOGGER.debug('PbftEngine: init done pbft=%s',self._pbft_config)
 
@@ -68,11 +69,10 @@ class PbftEngine(Engine):
     def _initialize_block(self):
         LOGGER.debug('PbftEngine: _initialize_block')
         chain_head = self._get_chain_head()
-        LOGGER.debug('PbftEngine: _initialize_block ID=%s chain_head=%s',chain_head.block_id,chain_head)
-        initialize = self._oracle.initialize_block(chain_head)
-
-        #if initialize:
-        try:
+        initialize = self._oracle.initialize_block(chain_head,self._node)
+        LOGGER.debug('PbftEngine: _initialize_block initialize=%s ID=%s chain_head=%s',initialize,chain_head.block_id,chain_head)
+        if initialize:
+            try:
             self._service.initialize_block(previous_id=chain_head.block_id)
             LOGGER.debug('PbftEngine: _initialize_block DONE')
         except exceptions.UnknownBlock:
@@ -80,7 +80,7 @@ class PbftEngine(Engine):
             #return False
         except exceptions.InvalidState :
             LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
-        return True
+        return initialize
 
     def _pre_prepare(self):
         # broadcast 
@@ -147,8 +147,6 @@ class PbftEngine(Engine):
             return None
 
     def _finalize_block(self):
-        pass
-        """
         summary = self._summarize_block()
 
         if summary is None:
@@ -163,9 +161,7 @@ class PbftEngine(Engine):
         try:
             block_id = self._service.finalize_block(consensus)
             LOGGER.info(
-                'Finalized %s with %s',
-                block_id.hex(),
-                json.loads(consensus.decode()))
+                'Finalized %s with %s',block_id.hex(),json.loads(consensus.decode()))
             return block_id
         except exceptions.BlockNotReady:
             LOGGER.debug('Block not ready to be finalized')
@@ -173,7 +169,7 @@ class PbftEngine(Engine):
         except exceptions.InvalidState:
             LOGGER.warning('block cannot be finalized')
             return None
-        """    
+           
 
     def _my_finalize_block(self):
         summary = self._summarize_block()
@@ -255,18 +251,19 @@ class PbftEngine(Engine):
                 if self._exit:
                     break
 
-                #self._try_to_publish()
+                self._try_to_publish()
+                """
                 if not self._published:
                     #self._service.initialize_block()
-                    self._initialize_block()
-                    LOGGER.debug('PbftEngine:_initialize_block DONE')
-                    self._published = True
+                    if self._initialize_block() :
+                        LOGGER.debug('PbftEngine:_initialize_block DONE')
+                        self._published = True
                 elif not self._building:
                     sum_cnt += 1
                     if sum_cnt > 10:
                         sum_cnt = 0
                         self._my_finalize_block()
-                        
+                """        
             
 
             except Exception:  # pylint: disable=broad-except

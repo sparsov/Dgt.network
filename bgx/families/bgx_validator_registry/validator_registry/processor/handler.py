@@ -45,7 +45,7 @@ VAL_REG_NAMESPACE = hashlib.sha256("validator_registry".encode()).hexdigest()[0:
 _CONFIG_NAMESPACE = '000000'
 _CONFIG_MAX_KEY_PARTS = 4
 _CONFIG_ADDRESS_PART_SIZE = 16
-
+_NODE_TYPES = ['leader','aux','plink','arbiter']
 
 def _config_short_hash(byte_str):
     # Computes the SHA 256 hash and truncates to be the length
@@ -446,6 +446,7 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
 
         val_reg_payload = BgxValidatorRegistryPayload()
         val_reg_payload.ParseFromString(transaction.payload)
+        LOGGER.debug('BgxValidatorRegistryPayload(%s)', val_reg_payload)
 
         # Check name
         validator_name = val_reg_payload.name
@@ -458,6 +459,9 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
         if validator_id != public_key:
             raise InvalidTransaction(
                 'Signature mismatch on validator registration with validator {} signed by {}'.format(validator_id, public_key))
+
+        if val_reg_payload.node not in _NODE_TYPES:
+            raise InvalidTransaction('Undefined validator Node type ({})'.format(val_reg_payload.node))
 
         public_key_hash = hashlib.sha256(public_key.encode()).hexdigest()
         signup_info = val_reg_payload.signup_info
@@ -478,6 +482,7 @@ class BgxValidatorRegistryTransactionHandler(TransactionHandler):
         validator_info = BgxValidatorInfo(
             name=validator_name,
             id=validator_id,
+            node=val_reg_payload.node,
             signup_info=val_reg_payload.signup_info,
             transaction_id=transaction.signature
         )
