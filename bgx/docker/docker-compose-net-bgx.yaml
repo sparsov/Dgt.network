@@ -140,7 +140,7 @@ services:
         sawtooth keygen my_key
         sawset genesis -k /root/.sawtooth/keys/my_key.priv
         #ls -l /var/lib/
-        sawadm genesis config-genesis.batch
+        rm -f ../data-bgx/data/* ../data-bgx/logs/*.log*;sawadm genesis config-genesis.batch
         sawtooth-validator -vv  \
             --endpoint tcp://validator:8800 \
             --bind component:tcp://eth0:4004 \
