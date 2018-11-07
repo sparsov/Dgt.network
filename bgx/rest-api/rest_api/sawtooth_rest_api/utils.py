@@ -125,9 +125,9 @@ def generate_startup_global_state():
         })
     print({'node': node_state, 'users': user_keys})
 
-print(sign_dict('MC4CAQEEIDYMTT252wXmqHo7Jru8Ou4H27FPcgLzK7EV8XTkHlrAoAcGBSuBBAAK', {
-			"address_from": "725658920183dbbea93bc72c6ce40e5575c35b62",
-			"address_to": "d19701f30661782ac30b11521148badcb7874534",
-			"tx_payload": 100,
-			"coin_code": "bgt"
+print(sign_dict('MC4CAQEEIMuRCt4I3fu7fox06HfwWC03fs9ATzBVxl4Hm752YlR5oAcGBSuBBAAK', {
+			"address_to": "28c64b3f4ccc21bc81010e92e7078104a4077522",
+			"tx_payload": 41,
+			"coin_code": "dec",
+			"reason": "any reason to add funds"
 		}))

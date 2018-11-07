@@ -23,7 +23,9 @@
 /adm/target/
 /adm/bin/
 
-/build/
+/bgx/**/__pycache__/
+
+/**/build/
 
 /cli/build/
 /cli/sawtooth_cli/protobuf/

@@ -92,7 +92,7 @@ def append_transaction(address_from, address_to, tx_payload, currency, extra):
     if (not WALLETS[address_from][currency]) \
             or\
        (WALLETS[address_from][currency] < tx_payload):
-        return False
+        raise errors.NotEnoughFunds()
     if address_to not in WALLETS:
         WALLETS[address_to] = {
             currency: 0
@@ -685,6 +685,52 @@ class RouteHandler:
             payload['tx_payload'],
             payload['coin_code'],
             'Regular transaction'
+        )
+
+        return self._wrap_response(
+            request,
+            metadata=TRANSACTIONS[-1],
+            status=200)
+
+    async def post_add_funds(self, request):
+        body = await request.json()
+
+        if 'data' not in body:
+            raise errors.NoTransactionPayload()
+
+        data = body['data']
+        try:
+            signed_payload = data['signed_payload']
+            payload = data['payload']
+            address_to = payload['address_to']
+            reason = payload['reason']
+        except KeyError:
+            raise errors.BadTransactionPayload()
+
+        if address_to not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
+        else:
+            public_key_to = PUB_KEYS_BY_ADDRESSES[address_to]
+
+        if address_to not in WALLETS:
+            LOGGER.debug(
+                'Wallet not found',
+                address_to,
+            )
+            raise errors.WalletNotFound()
+
+        # Verification of signed hashes
+        result = rest_api_utils.verify_signature(public_key_to, signed_payload, payload)
+        if result != 1:
+            raise errors.InvalidSignature()
+
+        # Execute transaction
+        append_transaction(
+            NODE_CREDENTIALS['address'],
+            address_to,
+            payload['tx_payload'],
+            payload['coin_code'],
+            {'comment': 'Adding funds', 'reason': reason}
         )
 
         return self._wrap_response(

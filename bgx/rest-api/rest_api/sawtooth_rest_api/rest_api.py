@@ -105,9 +105,10 @@ def start_rest_api(host, port, connection, timeout, registry,
     handler = RouteHandler(loop, connection, timeout, registry)
 
     app.router.add_post('/wallets', handler.post_wallet)
-    app.router.add_post('/transactions/convert', handler.post_transaction_convert)
     app.router.add_post('/fee', handler.get_fee)
     app.router.add_post('/transactions', handler.post_transaction)
+    app.router.add_post('/transactions/convert', handler.post_transaction_convert)
+    app.router.add_post('/transactions/add_funds', handler.post_add_funds)
     app.router.add_get('/wallets/{address}', handler.get_wallet)
     app.router.add_get('/global_wallet', handler.get_global_wallet)
     app.router.add_get('/global_transactions', handler.get_global_transactions)
