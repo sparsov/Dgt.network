@@ -34,7 +34,7 @@ services:
       - validator
     command: |
       bash -c "
-        bin/protogen
+        bgx/bin/protogen
         cd families/settings
         python3 setup.py clean --all
         python3 setup.py build
@@ -60,7 +60,7 @@ services:
       - validator
     command: |
       bash -c "
-        bin/protogen
+        bgx/bin/protogen
         cd bgx/families/bgt_python
         python3 setup.py clean --all
         python3 setup.py build
@@ -116,7 +116,7 @@ services:
     # cargo build --release sawadm keygen && sawtooth keygen my_key && sawset genesis -k /root/.sawtooth/keys/my_key.priv && sawadm genesis config-genesis.batch && 
     command: |
       bash -c "
-        bin/protogen
+        bgx/bin/protogen
         cd validator
         python3 setup.py clean --all
         python3 setup.py build
@@ -159,7 +159,7 @@ services:
       - validator
     command: |
       bash -c "
-        bin/protogen
+        bgx/bin/protogen
         cd rest_api
         python3 setup.py clean --all
         python3 setup.py build
@@ -186,7 +186,7 @@ services:
       - validator
     command: |
       bash -c "
-        bin/protogen
+        bgx/bin/protogen
         cd bgx/consensus/devmode_python
         python3 setup.py clean --all
         python3 setup.py build
