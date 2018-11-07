@@ -18,3 +18,8 @@ $ docker-compose -f bgx/docker/docker-compose-installed-bgx.yaml build validator
 
 To run a full validator node from the local source:
 $ docker-compose -f bgx/docker/docker-compose-net-bgx.yaml up
+
+For running shell-bgx run next bash cmd .
+$ docker exec -it sawtooth-shell-bgx bash
+For list created tokens run 
+# smart-bgt list  --url http://rest-api:8009
