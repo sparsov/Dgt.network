@@ -639,7 +639,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
         """
 
         # Only claim readiness if the wait timer has expired
-        return self._wait_timer.has_expired(now=time.time())
+        return True #self._wait_timer.has_expired(now=time.time())
 
     def finalize_block(self, block_header):
         """Finalize a block to be claimed. Provide any signatures and

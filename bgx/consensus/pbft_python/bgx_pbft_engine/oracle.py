@@ -86,12 +86,11 @@ class PbftOracle:
 
     def check_publish_block(self, block):
         LOGGER.debug('PbftOracle:check_publish_block...')
-        #return self._publisher.check_publish_block(block)
+        return self._publisher.check_publish_block(block)
 
     def finalize_block(self, block):
         LOGGER.debug('PbftOracle:finalize_block...')
-        pass
-        #return self._publisher.finalize_block(block)
+        return self._publisher.finalize_block(block)
 
     def verify_block(self, block):
         LOGGER.debug('PbftOracle:verify_block...')

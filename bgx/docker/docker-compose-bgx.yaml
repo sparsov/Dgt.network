@@ -26,9 +26,9 @@ services:
         - no_proxy
     image: sawtooth-settings-tp-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-settings-tp-bgx
     depends_on:
       - validator
@@ -52,9 +52,9 @@ services:
         - no_proxy
     image: bgt-tp-python-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: bgt-tp-python-bgx
     depends_on:
       - validator
@@ -64,7 +64,7 @@ services:
         cd bgx/families/bgt_python
         python3 setup.py clean --all
         python3 setup.py build
-        bgt-tp-python -vv -C tcp://validator:4004
+        ../../bin/bgt-tp-python -vv -C tcp://validator:4004
       "
     stop_signal: SIGKILL
 
@@ -78,9 +78,9 @@ services:
         - no_proxy
     image: sawtooth-shell-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-shell-bgx
     depends_on:
       - validator
@@ -102,9 +102,9 @@ services:
         - no_proxy
     image: sawtooth-validator-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-validator-bgx
     expose:
       - 4004
@@ -149,9 +149,9 @@ services:
         - no_proxy
     image: sawtooth-rest-api-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-rest-api-bgx
     ports:
       - "8008:8008"
@@ -178,9 +178,9 @@ services:
         - no_proxy
     image: sawtooth-devmode-python-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-devmode-python-bgx
     depends_on:
       - validator
@@ -190,6 +190,6 @@ services:
         cd bgx/consensus/devmode_python
         python3 setup.py clean --all
         python3 setup.py build
-        devmode-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
+        ../../bin/devmode-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
       "
     stop_signal: SIGKILL

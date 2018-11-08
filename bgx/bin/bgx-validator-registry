@@ -23,16 +23,11 @@ build_str = "lib.{}-{}.{}".format(
     sysconfig.get_platform(),
     sys.version_info.major, sys.version_info.minor)
 
-
-sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'bgx', 'families', 'bgx_validator_registry'))
-sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'sdk', 'python'))
-sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'signing'))
+TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx', 'families', 'bgx_validator_registry'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx', 'consensus', 'pbft_python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
 
 from validator_registry.processor.main import main
 

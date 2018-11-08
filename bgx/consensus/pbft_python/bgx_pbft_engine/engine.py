@@ -80,7 +80,7 @@ class PbftEngine(Engine):
             #return False
         except exceptions.InvalidState :
             LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
-        return initialize
+        return True #initialize
 
     def _pre_prepare(self):
         # broadcast 
@@ -251,8 +251,8 @@ class PbftEngine(Engine):
                 if self._exit:
                     break
 
-                self._try_to_publish()
-                """
+                #self._try_to_publish()
+                
                 if not self._published:
                     #self._service.initialize_block()
                     if self._initialize_block() :
@@ -263,7 +263,7 @@ class PbftEngine(Engine):
                     if sum_cnt > 10:
                         sum_cnt = 0
                         self._my_finalize_block()
-                """        
+                        
             
 
             except Exception:  # pylint: disable=broad-except
