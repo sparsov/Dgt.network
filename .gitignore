@@ -103,3 +103,10 @@
 /perf/intkey_workload/bin
 
 *.batch
+
+/bgx/consensus/pbft_python/bgx_pbft_common/protobuf
+/mydir
+*.vpj
+*.vpw
+*.vtg
+*.vpwhistu

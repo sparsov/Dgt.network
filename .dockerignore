@@ -119,3 +119,10 @@
 /perf/intkey_workload/bin
 
 *.batch
+
+/data-bgx
+/data-bgx2
+*.vpj
+*.vpw
+*.vtg
+*.vpwhistu
