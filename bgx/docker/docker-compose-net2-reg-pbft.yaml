@@ -28,9 +28,9 @@ services:
     networks: 
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-settings-tp-bgx2
     depends_on:
       - validator-2
@@ -54,11 +54,11 @@ services:
         - no_proxy
     image: bgt-tp-python-bgx2:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     networks:
     - network1
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: bgt-tp-python-bgx2
     depends_on:
       - validator-2
@@ -68,7 +68,7 @@ services:
         cd bgx/families/bgt_python
         python3 setup.py clean --all
         python3 setup.py build
-        bgt-tp-python -vv -C tcp://validator-2:4006
+        ../../bin/bgt-tp-python -vv -C tcp://validator-2:4006
       "
     stop_signal: SIGKILL
 
@@ -82,11 +82,11 @@ services:
         - no_proxy
     image: bgx-validator-registry2:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     networks:
     - network1
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: bgx-validator-registry2
     depends_on:
       - validator-2
@@ -96,7 +96,7 @@ services:
         cd bgx/families/bgx_validator_registry
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-validator-registry -vv -C tcp://validator-2:4006
+        ../../bin/bgx-validator-registry -vv -C tcp://validator-2:4006
       "
     stop_signal: SIGKILL
 
@@ -114,9 +114,9 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-shell-bgx2
     depends_on:
       - validator-2
@@ -140,9 +140,9 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-validator-bgx2
     expose:
       - 4006
@@ -188,9 +188,9 @@ services:
         - no_proxy
     image: sawtooth-rest-api-bgx2:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-rest-api-bgx2
     networks:
     - network1
@@ -220,9 +220,9 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx2
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-pbft-python-bgx2
     depends_on:
       - validator-2
@@ -232,7 +232,7 @@ services:
         cd bgx/consensus/pbft_python
         python3 setup.py clean --all
         python3 setup.py build
-        pbft-python -vv --connect tcp://validator-2:5051 --component tcp://validator-2:4006
+        ../../bin/pbft-python -vv --connect tcp://validator-2:5051 --component tcp://validator-2:4006
       "
     stop_signal: SIGKILL
 

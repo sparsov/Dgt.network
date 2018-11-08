@@ -28,9 +28,9 @@ services:
     networks: 
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-settings-tp-bgx
     depends_on:
       - validator
@@ -54,11 +54,11 @@ services:
         - no_proxy
     image: bgt-tp-python-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     networks:
     - network1
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: bgt-tp-python-bgx
     depends_on:
       - validator
@@ -82,11 +82,11 @@ services:
         - no_proxy
     image: bgx-validator-registry:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     networks:
     - network1
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: bgx-validator-registry
     depends_on:
       - validator
@@ -111,11 +111,11 @@ services:
 #        - no_proxy
 #    image: smart-bgt-tp-python-bgx:${ISOLATION_ID}
 #    environment:
-#    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+#    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
 #    networks:
 #    - network1
 #    volumes:
-#      - ../..:/project/sawtooth-core
+#      - ../..:/project/${BGX_TOP}
 #    container_name: smart-bgt-tp-python-bgx
 #    depends_on:
 #      - validator
@@ -143,9 +143,9 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-shell-bgx
     depends_on:
       - validator
@@ -169,9 +169,9 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-validator-bgx
     expose:
       - 4004
@@ -217,9 +217,9 @@ services:
         - no_proxy
     image: sawtooth-rest-api-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-rest-api-bgx
     networks:
     - network1
@@ -249,9 +249,9 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/sawtooth-core/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
-      - ../..:/project/sawtooth-core
+      - ../..:/project/${BGX_TOP}
     container_name: sawtooth-pbft-python-bgx
     depends_on:
       - validator
