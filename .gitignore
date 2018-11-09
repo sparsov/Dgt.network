@@ -108,6 +108,17 @@
 /bgx/consensus/pbft_python/bgx_pbft_common/protobuf
 /bgx/consensus/pbft_python/bgx_pbft/__pycache__/
 /mydir
+/bgx/consensus/devmode_python/sawtooth_bgt/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt/bgt_consensus/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt/config/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt/database/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt/journal/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt/journal/consensus/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt/state/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt_common/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt_common/validator_registry_view/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt_engine/__pycache__/
+/bgx/families/smart_bgt_python/smart_bgt/__pycache__/
 *.vpj
 *.vpw
 *.vtg
