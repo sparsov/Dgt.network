@@ -125,9 +125,18 @@ def generate_startup_global_state():
         })
     print({'node': node_state, 'users': user_keys})
 
-print(sign_dict('MC4CAQEEIMuRCt4I3fu7fox06HfwWC03fs9ATzBVxl4Hm752YlR5oAcGBSuBBAAK', {
-			"address_to": "28c64b3f4ccc21bc81010e92e7078104a4077522",
-			"tx_payload": 41,
-			"coin_code": "dec",
-			"reason": "any reason to add funds"
-		}))
+print(sign_dict('MC4CAQEEILNcUpk4Ez03Q5tTstifDv4Edc3A+UFOq9swX31metuzoAcGBSuBBAAK', {
+                        "address_to": "eb442acf33c0294d2541ac145a929e4ea98679f5",
+                        "tx_payload": 100,
+                        "coin_code": "bgt",
+                        "reason": "any reason to add funds"
+                }))
+print(verify_signature('MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEmJmaAf5EqvbfEWtJJRR8pOmlBrNETY0dyg+ArMzEBxF2HmgpSw2t8/2+PgveIROgVhJwxfIVDI7DiJjDjc0JRw==',
+                       'MEQCIAL8AS+SpsGQ95BS//oCaXVvlpioRmn5Zg0EQUoZxWZ/AiAJmdly8GuHEL0vsSEIM7h+pH8AM8PZ+zMe5Usftt/JYw==',
+                       {
+                           "address_to": "eb442acf33c0294d2541ac145a929e4ea98679f5",
+                           "tx_payload": 100,
+                           "coin_code": "bgt",
+                           "reason": "any reason to add funds"
+                       }
+                       ))
