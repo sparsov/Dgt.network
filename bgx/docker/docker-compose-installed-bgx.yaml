@@ -77,11 +77,12 @@ services:
   shell:
     build:
       context: ../..
-      dockerfile: ci/sawtooth-shell-installed
+      dockerfile: bgx/docker/ci/sawtooth-shell-installed
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-shell:${ISOLATION_ID}
     container_name: sawtooth-shell-bgx
     depends_on:
