@@ -214,7 +214,7 @@ services:
         cd bgx/consensus/devmode_python
         python3 setup.py clean --all
         python3 setup.py build
-        ../../bin/devmode-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
+        devmode-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
       "
     stop_signal: SIGKILL
 
