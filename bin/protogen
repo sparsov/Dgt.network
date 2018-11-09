@@ -63,8 +63,8 @@ def main(args=None):
     protoc(proto_dir, "families/block_info", "sawtooth_block_info/protobuf")
 
     # Generate bgt engine  protos
-    proto_dir = JOIN(TOP_DIR, "families/bgt_engine/protos")
-    protoc(proto_dir, "sdk/examples/devmode_python", "sawtooth_bgt_common/protobuf")
+    #proto_dir = JOIN(TOP_DIR, "families/bgt_engine/protos")
+    #protoc(proto_dir, "sdk/examples/devmode_python", "sawtooth_bgt_common/protobuf")
 
 
 def protoc(src_dir, base_dir, pkg, language="python"):
