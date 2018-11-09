@@ -84,8 +84,8 @@ CMD echo "\033[0;32m--- Building validator ---\n\033[0m" \
  && cp ./target/release/sawtooth-validator bin/sawtooth-validator \
  && cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so && echo "DONE"
 
-RUN echo "\033[0;32m--- Building validator ---\n\033[0m" \
- && ls -l;bin/protogen \
+CMD echo "\033[0;32m--- Building validator ---\n\033[0m" \
+ && ls -l;./bin/protogen \
  && cd validator \
  && if [ -d "debian" ]; then rm -rf debian; fi \
  && python3 setup.py clean --all \
