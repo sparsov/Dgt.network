@@ -73,13 +73,13 @@ class PbftEngine(Engine):
         LOGGER.debug('PbftEngine: _initialize_block initialize=%s ID=%s chain_head=%s',initialize,chain_head.block_id,chain_head)
         if initialize:
             try:
-            self._service.initialize_block(previous_id=chain_head.block_id)
-            LOGGER.debug('PbftEngine: _initialize_block DONE')
-        except exceptions.UnknownBlock:
-            LOGGER.debug('BgtEngine: _initialize_block ERROR UnknownBlock')
-            #return False
-        except exceptions.InvalidState :
-            LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
+                self._service.initialize_block(previous_id=chain_head.block_id)
+                LOGGER.debug('PbftEngine: _initialize_block DONE')
+            except exceptions.UnknownBlock:
+                LOGGER.debug('BgtEngine: _initialize_block ERROR UnknownBlock')
+                #return False
+            except exceptions.InvalidState :
+                LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
         return True #initialize
 
     def _pre_prepare(self):

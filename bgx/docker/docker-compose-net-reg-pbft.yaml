@@ -70,7 +70,7 @@ services:
         cd bgx/families/bgt_python
         python3 setup.py clean --all
         python3 setup.py build
-        ../../bin/bgt-tp-python -vv -C tcp://validator:4004
+        bgt-tp-python -vv -C tcp://validator:4004
       "
     stop_signal: SIGKILL
 
@@ -99,7 +99,7 @@ services:
         cd bgx/families/bgx_validator_registry
         python3 setup.py clean --all
         python3 setup.py build
-        ../../bin/bgx-validator-registry -vv -C tcp://validator:4004
+        bgx-validator-registry -vv -C tcp://validator:4004
       "
     stop_signal: SIGKILL
 
@@ -156,7 +156,7 @@ services:
       - validator
     command: |
       bash -c "
-        sawtooth keygen --force &&
+        ls -l;sawtooth keygen --force &&
         tail -f /dev/null
       "
     stop_signal: SIGKILL
@@ -191,7 +191,7 @@ services:
     command: |
       bash -c "
         bgx/bin/protogen
-        cd validator
+        ls -l ;cd validator
         python3 setup.py clean --all
         python3 setup.py build
         mkdir -p bin
@@ -270,7 +270,7 @@ services:
         cd bgx/consensus/pbft_python
         python3 setup.py clean --all
         python3 setup.py build
-        ../../bin/pbft-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
+        pbft-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
       "
     stop_signal: SIGKILL
 

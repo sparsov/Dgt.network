@@ -42,7 +42,7 @@ RUN apt-get install -y -q --allow-downgrades \
 
 RUN mkdir -p /var/log/sawtooth
 
-ENV PATH=$PATH:/project/$BGX_TOP/bin
+ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 

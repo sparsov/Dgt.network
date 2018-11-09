@@ -183,18 +183,18 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 batcher_public_key=block_header.signer_public_key,
                 nonce=hex(random.randint(0, 2**64))).SerializeToString()
 
-        signature = self._batch_publisher.identity_signer.sign(header)
+            signature = self._batch_publisher.identity_signer.sign(header)
 
-        transaction = txn_pb.Transaction(
-                header=header,
-                payload=serialized,
-                header_signature=signature)
+            transaction = txn_pb.Transaction(
+                    header=header,
+                    payload=serialized,
+                    header_signature=signature)
 
-        LOGGER.info('payload action=%s nonce=%s',
-            payload.action,
-            nonce)
+            LOGGER.info('payload action=%s nonce=%s',
+                payload.action,
+                nonce)
 
-        self._batch_publisher.send([transaction])
+            self._batch_publisher.send([transaction])
         else:
             # get setting
             pass

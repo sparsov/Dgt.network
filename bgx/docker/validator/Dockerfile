@@ -55,7 +55,7 @@ RUN curl https://sh.rustup.rs -sSf > /usr/bin/rustup-init \
  && chmod +x /usr/bin/rustup-init \
  && rustup-init -y
 
-ENV PATH=$PATH:/project/${BGX_TOP}/bin:/protoc3/bin:/project/${BGX_TOP}/bin:/root/.cargo/bin \
+ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/protoc3/bin:/project/$BGX_TOP/bin:/root/.cargo/bin \
     CARGO_INCREMENTAL=0
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
@@ -64,7 +64,7 @@ RUN mkdir -p /etc/sawtooth/keys
 RUN mkdir -p /var/lib/sawtooth
 RUN mkdir -p /var/log/sawtooth
 
-ENV PATH=$PATH:/project/$BGX_TOP/bin
+ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 
@@ -81,4 +81,4 @@ CMD echo "\033[0;32m--- Building validator $BGX_TOP ---\n\033[0m" \
  && mkdir lib \
  && cargo build --release \
  && cp ./target/release/sawtooth-validator bin/sawtooth-validator \
- && cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so
+ && cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so && echo "DONE"

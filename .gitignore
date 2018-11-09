@@ -104,6 +104,7 @@
 
 *.batch
 
+/bgx/consensus/pbft_python/build
 /bgx/consensus/pbft_python/bgx_pbft_common/protobuf
 /mydir
 *.vpj

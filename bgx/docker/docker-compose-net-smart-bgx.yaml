@@ -19,11 +19,12 @@ services:
   settings-tp:
     build:
       context: ../..
-      dockerfile: families/settings/Dockerfile
+      dockerfile: bgx/docker/settings/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-settings-tp-bgx:${ISOLATION_ID}
     networks: 
     - network1
@@ -53,6 +54,7 @@ services:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: smart-bgt-tp-python-bgx:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
@@ -78,11 +80,12 @@ services:
   client:
     build:
       context: ../..
-      dockerfile: docker/sawtooth-shell-bgx
+      dockerfile: bgx/docker/sawtooth-shell
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-shell-bgx:${ISOLATION_ID}
     networks:
     - network1
@@ -104,11 +107,12 @@ services:
   validator:
     build:
       context: ../..
-      dockerfile: validator/Dockerfile-bgx
+      dockerfile: bgx/docker/validator/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-validator-bgx:${ISOLATION_ID}
     networks:
     - network1
@@ -128,7 +132,7 @@ services:
     # cargo build --release sawadm keygen && sawtooth keygen my_key && sawset genesis -k /root/.sawtooth/keys/my_key.priv && sawadm genesis config-genesis.batch && 
     command: |
       bash -c "
-        bin/protogen
+        ls -l;bgx/bin/protogen
         cd validator
         python3 setup.py clean --all
         python3 setup.py build
@@ -154,11 +158,12 @@ services:
   rest-api:
     build:
       context: ../..
-      dockerfile: rest_api/Dockerfile
+      dockerfile: bgx/docker/rest_api/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-rest-api-bgx:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
@@ -184,11 +189,12 @@ services:
   devmode-python:
     build:
       context: ../..
-      dockerfile: bgx/consensus/devmode_python/Dockerfile-bgx
+      dockerfile: bgx/consensus/devmode_python/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-devmode-python-bgx:${ISOLATION_ID}
     networks:
     - network1
