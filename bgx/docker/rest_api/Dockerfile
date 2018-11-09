@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f sdk/examples/bgt_python/Dockerfile -t bgt-tp-python-local .
+# docker build -f rest_api/Dockerfile -t sawtooth-rest-api-local .
 
-# -------------=== bgt-tp-python build ===-------------
+# -------------=== rest_api build ===-------------
 
 FROM ubuntu:xenial
 ARG BGX_TOP
@@ -34,20 +34,23 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-protobuf
 
 RUN apt-get install -y -q --allow-downgrades \
-    python3-cbor \
+    python3-aiodns \
+    python3-aiohttp \
     python3-colorlog \
+    python3-cchardet\
+    python3-pyformance \
     python3-toml \
     python3-yaml \
     python3-zmq
 
-RUN mkdir -p /var/log/sawtooth
+RUN mkdir /var/log/sawtooth
 
 ENV PATH=$PATH:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building bgt-tp-python ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building rest_api ---\n\033[0m" \
  && bin/protogen \
- && cd sdk/examples/bgt_python \
+ && cd rest_api \
  && python3 setup.py clean --all \
  && python3 setup.py build

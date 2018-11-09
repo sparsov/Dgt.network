@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f sdk/examples/bgt_python/Dockerfile -t bgt-tp-python-local .
+# docker build -f families/settings/Dockerfile -t sawtooth-settings-tp-local .
 
-# -------------=== bgt-tp-python build ===-------------
+# -------------===  build ===-------------
 
 FROM ubuntu:xenial
 ARG BGX_TOP
@@ -34,7 +34,6 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-protobuf
 
 RUN apt-get install -y -q --allow-downgrades \
-    python3-cbor \
     python3-colorlog \
     python3-toml \
     python3-yaml \
@@ -46,8 +45,8 @@ ENV PATH=$PATH:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building bgt-tp-python ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building settings ---\n\033[0m" \
  && bin/protogen \
- && cd sdk/examples/bgt_python \
+ && cd families/settings \
  && python3 setup.py clean --all \
  && python3 setup.py build

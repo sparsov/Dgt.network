@@ -24,6 +24,7 @@ services:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-settings-tp:${ISOLATION_ID}
     container_name: sawtooth-settings-tp-default
     depends_on:
@@ -33,11 +34,12 @@ services:
   validator:
     build:
       context: ../..
-      dockerfile: validator/Dockerfile-installed
+      dockerfile: bgx/docker/validator/Dockerfile-installed
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-validator-bgx:${ISOLATION_ID}
     container_name: sawtooth-validator-bgx
     expose:

@@ -38,7 +38,7 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-colorlog \
     python3-toml \
     python3-yaml \
-    python3-zmq
+    python3-zmq python3-cryptography>-1.7.1
 
 RUN mkdir -p /var/log/sawtooth
 

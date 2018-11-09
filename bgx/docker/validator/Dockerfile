@@ -17,7 +17,7 @@
 # -------------===  build ===-------------
 
 FROM ubuntu:xenial
-
+ARG BGX_TOP
 RUN echo "deb http://repo.sawtooth.me/ubuntu/ci xenial universe" >> /etc/apt/sources.list \
  && (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8AA7AF1F1091A5FD \
  || apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 8AA7AF1F1091A5FD) \
@@ -64,11 +64,11 @@ RUN mkdir -p /etc/sawtooth/keys
 RUN mkdir -p /var/lib/sawtooth
 RUN mkdir -p /var/log/sawtooth
 
-ENV PATH=$PATH:/project/${BGX_TOP}/bin
+ENV PATH=$PATH:/project/$BGX_TOP/bin
 
-WORKDIR /project/${BGX_TOP}
+WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building validator ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building validator $BGX_TOP ---\n\033[0m" \
  && ./bin/protogen \
  && cd validator \
  && if [ -d "debian" ]; then rm -rf debian; fi \

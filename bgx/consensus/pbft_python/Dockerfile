@@ -17,7 +17,7 @@
 # -------------=== pbft engine build ===-------------
 
 FROM ubuntu:xenial
-
+ARG BGX_TOP
 RUN echo "deb [arch=amd64] http://repo.sawtooth.me/ubuntu/nightly xenial universe" >> /etc/apt/sources.list \
  && (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 44FC67F19B2466EA \
  || apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 44FC67F19B2466EA) \
@@ -36,13 +36,13 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-requests \
     python3-sawtooth-sdk \
     python3-toml \
-    python3-yaml
+    python3-yaml iputils-ping netcat net-tools
 
 RUN mkdir -p /var/log/sawtooth
 
-ENV PATH=$PATH:/project/sawtooth-core/bin 
+ENV PATH=$PATH:/project/$BGX_TOP/bin 
 
-WORKDIR /project/sawtooth-core
+WORKDIR /project/$BGX_TOP
 
 CMD echo "\033[0;32m--- Building pbft engine ---\n\033[0m" \
  && cd bgx/consensus/pbft_python \
