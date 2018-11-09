@@ -106,6 +106,7 @@
 
 /bgx/consensus/pbft_python/build
 /bgx/consensus/pbft_python/bgx_pbft_common/protobuf
+/bgx/consensus/pbft_python/bgx_pbft/__pycache__/
 /mydir
 *.vpj
 *.vpw
