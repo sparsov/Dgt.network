@@ -27,7 +27,7 @@ from sawtooth_sdk.processor.exceptions import InternalError
 LOGGER = logging.getLogger(__name__)
 
 
-VALID_VERBS = 'set', 'inc', 'dec'
+VALID_VERBS = 'set', 'inc', 'dec' , 'init'
 
 MIN_VALUE = 0
 MAX_VALUE = 4294967295
@@ -103,7 +103,7 @@ def _decode_transaction(transaction):
 
 def _validate_verb(verb):
     if verb not in VALID_VERBS:
-        raise InvalidTransaction('Verb must be "set", "inc", or "dec"')
+        raise InvalidTransaction('Verb must be "set", "inc", "init" or "dec"')
 
 
 def _validate_name(name):
@@ -151,6 +151,7 @@ def _do_smart_bgt(verb, name, value, state):
         'set': _do_set,
         'inc': _do_inc,
         'dec': _do_dec,
+        'init': _do_init
     }
     LOGGER.debug('_do_smart_bgt request....')
     try:
@@ -168,6 +169,22 @@ def _do_set(name, value, state):
     if name in state:
         raise InvalidTransaction(
             'Verb is "set", but already exists: Name: {n}, Value {v}'.format(
+                n=name,
+                v=state[name]))
+
+    updated = {k: v for k, v in state.items()}
+    updated[name] = value
+
+    return updated
+
+def _do_init(name, value, state):
+    msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
+    LOGGER.debug(msg)
+
+
+    if name in state:
+        raise InvalidTransaction(
+            'Verb is "init", but already exists: Name: {n}, Value {v}'.format(
                 n=name,
                 v=state[name]))
 

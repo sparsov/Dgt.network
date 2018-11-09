@@ -64,6 +64,9 @@ class SmartBgtClient:
     def set(self, name, value, wait=None):
         return self._send_transaction('set', name, value, wait=wait)
 
+    def init(self, name, value, wait=None):
+        return self._send_transaction('init', name, value, wait=wait)
+
     def inc(self, name, value, wait=None):
         return self._send_transaction('inc', name, value, wait=wait)
 
