@@ -69,8 +69,8 @@ ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building validator ---\n\033[0m" \
- && ls -l;./bgx/bin/protogen \
+RUN echo "\033[0;32m--- Building validator ---\n\033[0m" \
+ && ./bgx/bin/protogen \
  && cd validator;ls -l \
  && if [ -d "debian" ]; then rm -rf debian; fi \
  && python3 setup.py clean --all \
@@ -82,4 +82,4 @@ CMD echo "\033[0;32m--- Building validator ---\n\033[0m" \
  && mkdir lib \
  && cargo build --release \
  && cp ./target/release/sawtooth-validator bin/sawtooth-validator \
- && cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so && ls -l
+ && cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so && echo "DONE"
