@@ -138,9 +138,12 @@ services:
         python3 setup.py build
         mkdir -p bin
         mkdir -p lib
-        #cargo build --release
-        cp ./target/release/sawtooth-validator bin/sawtooth-validator
-        cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so
+        if [ -d 'target' ]; \
+         then echo 'Already build'; \
+         else cargo build --release; \
+           cp ./target/release/sawtooth-validator bin/sawtooth-validator; \
+           cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so \ 
+        fi
         sawadm keygen
         sawtooth keygen my_key
         sawset genesis -k /root/.sawtooth/keys/my_key.priv
