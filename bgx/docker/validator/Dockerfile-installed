@@ -84,7 +84,7 @@ COPY . /project
 RUN dpkg -i /tmp/python3-sawtooth-signing*.deb || true \
  && apt-get -f -y install \
  && /project/bin/protogen \
- && cd /project/validator \
+ && cd /project/validator;ls -l \
  && if [ -d "debian" ]; then rm -rf debian; fi \
  && python3 setup.py clean --all \
  && python3 setup.py --command-packages=stdeb.command debianize \
@@ -94,7 +94,7 @@ RUN dpkg -i /tmp/python3-sawtooth-signing*.deb || true \
  && if [ -d "lib" ]; then rm -rf lib; fi \
  && mkdir lib \
  && sed -i -e "0,/version.*$/ s/version.*$/version\ =\ \"$(../bin/get_version)\"/" Cargo.toml \
- && cargo build --release \
+ && cargo build --release;ls -l \
  && cp ./target/release/sawtooth-validator bin/sawtooth-validator \
  && cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so \
  && dpkg-buildpackage -b -rfakeroot -us -uc
