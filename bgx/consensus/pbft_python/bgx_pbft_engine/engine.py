@@ -140,7 +140,7 @@ class PbftEngine(Engine):
         try:
             return self._service.summarize_block()
         except exceptions.InvalidState as err:
-            LOGGER.warning(err)
+            LOGGER.warning("_summarize_block:err=%s",err)
             return None
         except exceptions.BlockNotReady:
             #LOGGER.debug('exceptions.BlockNotReady')

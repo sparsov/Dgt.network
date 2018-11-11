@@ -263,7 +263,7 @@ services:
     container_name: sawtooth-pbft-python-bgx
     depends_on:
       - validator
-      - bgx-registry
+#      - bgx-registry
     command: |
       bash -c "
         bgx/bin/protogen
