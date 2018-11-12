@@ -24,6 +24,7 @@
 /adm/bin/
 
 /bgx/**/__pycache__/
+/data-bgx/
 
 /**/build/
 

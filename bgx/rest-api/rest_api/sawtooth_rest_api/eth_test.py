@@ -1,8 +1,12 @@
-from web3.auto.infura import w3
+from web3 import Web3, HTTPProvider
+import requests
 
 # $ export INFURA_API_KEY = "f8398bb431d448cab6a9fc27647a9a19"
 
-if not w3.isConnected():
+# Connecting to test net ropsten through infura
+infura_provider = HTTPProvider('https://ropsten.infura.io')
+web3 = Web3(infura_provider)
+if not web3.isConnected():
     print('Alarm, not connected to Infura node')
 
 CONTRACT_ADDRESS = '0x11Ce8357fa42Dc336778381865a7ED1c76b38C4a'
@@ -579,8 +583,14 @@ CONTRACT_INTERFACE = '''[
 	}
 ]'''
 
-contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_INTERFACE)
+contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_INTERFACE)
 
 wallet_address = '0xD5779261bC3F08F13E6D520CD28E6A3FE5F47B8B'
 # Example of contract call
-contract.functions.balanceOf(wallet_address).call()
+print('Balance of wallet {} = {}', wallet_address, contract.functions.balanceOf(wallet_address).call())
+
+r = requests.get('https://api.kucoin.com/v1/open/currencies')
+if r.status_code == 200:
+    response_data = r.json()
+    rate = response_data['data']['rates']['ETH']['USD']
+    print(rate)
