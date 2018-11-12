@@ -1,4 +1,4 @@
-# Copyright 2018 Cargill Incorporated
+# Copyright 2018 NTRlab
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f sdk/examples/intkey_python/Dockerfile -t intkey-tp-python-local .
-
-# -------------=== intkey-tp-python build ===-------------
+# -------------=== smart-bgt-tp-python build ===-------------
 
 FROM ubuntu:bionic
 ARG BGX_TOP
@@ -44,6 +42,7 @@ RUN apt-get install -y -q \
     python3-zmq  \
     python3-pip
 
+# we should use only bionic for web3.py
 RUN pip3 install web3
 
 RUN mkdir -p /var/log/sawtooth
@@ -52,7 +51,7 @@ ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building smart-tp-python ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building smart-bgt-tp-python ---\n\033[0m" \
  && bin/protogen \
  && cd  sdk/examples/bgt_python \
  && python3 setup.py clean --all \
