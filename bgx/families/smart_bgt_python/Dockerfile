@@ -12,28 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f sdk/examples/bgt_python/Dockerfile -t bgt-tp-python-local .
+# docker build -f sdk/examples/intkey_python/Dockerfile -t intkey-tp-python-local .
 
-# -------------=== bgt-tp-python build ===-------------
+# -------------=== intkey-tp-python build ===-------------
 
-FROM ubuntu:xenial
+FROM ubuntu:bionic
 ARG BGX_TOP
-RUN echo "deb http://repo.sawtooth.me/ubuntu/ci xenial universe" >> /etc/apt/sources.list \
+RUN apt-get update \
+ && apt-get install gnupg -y
+
+RUN echo "deb http://repo.sawtooth.me/ubuntu/ci bionic universe" >> /etc/apt/sources.list \
  && (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8AA7AF1F1091A5FD \
  || apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 8AA7AF1F1091A5FD) \
  && apt-get update
 
-RUN apt-get install -y -q --allow-downgrades \
+RUN apt-get install -y -q \
     git \
     python3 \
     python3-stdeb
 
-RUN apt-get install -y -q --allow-downgrades \
+RUN apt-get install -y -q \
     python3-grpcio \
     python3-grpcio-tools \
     python3-protobuf
 
-RUN apt-get install -y -q --allow-downgrades \
+RUN apt-get install -y -q \
     python3-cbor \
     python3-colorlog \
     python3-toml \
@@ -42,14 +45,15 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-pip
 
 RUN pip3 install web3
+
 RUN mkdir -p /var/log/sawtooth
 
 ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 
 WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building bgt-tp-python ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building smart-tp-python ---\n\033[0m" \
  && bin/protogen \
- && cd sdk/examples/bgt_python \
+ && cd  sdk/examples/bgt_python \
  && python3 setup.py clean --all \
  && python3 setup.py build
