@@ -70,8 +70,8 @@ class PbftEngine(Engine):
         LOGGER.debug('PbftEngine: _initialize_block')
         chain_head = self._get_chain_head()
         initialize = self._oracle.initialize_block(chain_head,self._node)
-        LOGGER.debug('PbftEngine: _initialize_block initialize=%s ID=%s chain_head=%s',initialize,chain_head.block_id,chain_head)
-        if initialize:
+        LOGGER.debug('PbftEngine: _initialize_block initialize=%s ID=%s chain_head=%s',initialize,chain_head.block_id.hex(),chain_head)
+        if initialize :
             try:
                 self._service.initialize_block(previous_id=chain_head.block_id)
                 LOGGER.debug('PbftEngine: _initialize_block DONE')
@@ -121,7 +121,7 @@ class PbftEngine(Engine):
         return PbftBlock(self._service.get_chain_head())
 
     def _get_block(self, block_id):
-        LOGGER.debug('_get_block id=%s',block_id)
+        LOGGER.debug('_get_block id=%s',block_id.hex())
         return PbftBlock(self._service.get_blocks([block_id])[block_id])
 
     def _commit_block(self, block_id):
@@ -134,6 +134,7 @@ class PbftEngine(Engine):
         try:
             self._service.cancel_block()
         except exceptions.InvalidState:
+            LOGGER.warning("_cancel_block: ERR=InvalidState")
             pass
 
     def _summarize_block(self):
@@ -160,14 +161,17 @@ class PbftEngine(Engine):
 
         try:
             block_id = self._service.finalize_block(consensus)
-            LOGGER.info(
-                'Finalized %s with %s',block_id.hex(),json.loads(consensus.decode()))
+            #LOGGER.info('Finalized %s with %s',block_id.hex(),json.loads(consensus.decode()))
+            LOGGER.info('Finalized %s with',block_id.hex())
             return block_id
         except exceptions.BlockNotReady:
             LOGGER.debug('Block not ready to be finalized')
             return None
         except exceptions.InvalidState:
             LOGGER.warning('block cannot be finalized')
+            return None
+        except Exception as err:
+            LOGGER.warning("error=%s",err)
             return None
            
 
@@ -251,8 +255,8 @@ class PbftEngine(Engine):
                 if self._exit:
                     break
 
-                #self._try_to_publish()
-                
+                self._try_to_publish()
+                """
                 if not self._published:
                     #self._service.initialize_block()
                     if self._initialize_block() :
@@ -263,7 +267,7 @@ class PbftEngine(Engine):
                     if sum_cnt > 10:
                         sum_cnt = 0
                         self._my_finalize_block()
-                        
+                """        
             
 
             except Exception:  # pylint: disable=broad-except
@@ -295,7 +299,7 @@ class PbftEngine(Engine):
                     self._building = False
 
     def _handle_new_block(self, block):
-        LOGGER.info('handle_new_block:Received %s', block)
+        LOGGER.info('handle NEW_BLOCK:Received %s', block)
         block = PbftBlock(block)
 
         if self._check_consensus(block):

@@ -87,13 +87,11 @@ class PbftBlockVerifier(BlockVerifierInterface):
         # create a PBFT enclave and validator registry view
         previous_block = None
         try:
-            previous_block = \
-                self._block_cache[block_wrapper.previous_block_id]
+            previous_block = self._block_cache[block_wrapper.previous_block_id]
         except KeyError:
             pass
 
-        state_view = \
-            BlockWrapper.state_view_for_block(
+        state_view = BlockWrapper.state_view_for_block(
                 block_wrapper=previous_block,
                 state_view_factory=self._state_view_factory)
         """

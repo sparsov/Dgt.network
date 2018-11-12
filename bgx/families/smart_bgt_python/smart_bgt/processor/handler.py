@@ -17,7 +17,7 @@ import logging
 import hashlib
 
 import cbor
-
+from  web3  import Web3, HTTPProvider
 
 from sawtooth_sdk.processor.handler import TransactionHandler
 from sawtooth_sdk.processor.exceptions import InvalidTransaction

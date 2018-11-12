@@ -387,7 +387,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                     pbft_public_key=active_pbft_public_key
                 )
             LOGGER.debug("validator_info NONE")
-            return False
+            return True #False
 
         # Retrieve the key state corresponding to the PBFT public key in our
         # validator registry entry.
@@ -669,6 +669,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
             active_key = self._pbft_key_state_store.active_key
             pbft_key_state = self._pbft_key_state_store[active_key]
             sealed_signup_data = pbft_key_state.sealed_signup_data
+            """
             try:
                 wait_certificate = WaitCertificate.create_wait_certificate(
                         pbft_enclave_module=pbft_enclave_module,
@@ -681,7 +682,8 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 return None
 
             LOGGER.debug('Created wait certificate: %s', wait_certificate)
-
+            """
+            consensus = b'pbft' 
             return consensus
 
         # To compute the block hash, we are going to perform a hash using the

@@ -390,7 +390,7 @@ class Dispatcher(InstrumentedThread):
         while True:
             try:
                 _, msg_id = self._in_queue.get()
-                LOGGER.info("Have got MSG %s from queue",str(msg_id))
+                LOGGER.info("Dispatcher::run Have got MSG %s from queue",str(msg_id))
                 if msg_id == -1:
                     break
                 self._process(msg_id)

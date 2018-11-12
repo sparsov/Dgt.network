@@ -38,8 +38,10 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-colorlog \
     python3-toml \
     python3-yaml \
-    python3-zmq
+    python3-zmq  \
+    python3-pip
 
+RUN pip3 install web3
 RUN mkdir -p /var/log/sawtooth
 
 ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin

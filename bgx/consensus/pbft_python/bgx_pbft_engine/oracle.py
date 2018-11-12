@@ -96,7 +96,7 @@ class PbftOracle:
         LOGGER.debug('PbftOracle:verify_block...')
         
         """
-        verifier = BgtBlockVerifier(
+        verifier = PbfBlockVerifier(
             block_cache=self._block_cache,
             state_view_factory=self._state_view_factory,
             data_dir=self._data_dir,
