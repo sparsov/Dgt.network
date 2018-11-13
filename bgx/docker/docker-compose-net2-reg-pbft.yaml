@@ -19,11 +19,12 @@ services:
   settings-tp-2:
     build:
       context: ../..
-      dockerfile: families/settings/Dockerfile
+      dockerfile: bgx/docker/settings/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-settings-tp-bgx2:${ISOLATION_ID}
     networks: 
     - network1
@@ -52,6 +53,7 @@ services:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: bgt-tp-python-bgx2:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
@@ -80,6 +82,7 @@ services:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: bgx-validator-registry2:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
@@ -105,11 +108,12 @@ services:
   client-2:
     build:
       context: ../..
-      dockerfile: docker/sawtooth-shell-bgx
+      dockerfile: bgx/docker/sawtooth-shell
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-shell-bgx2:${ISOLATION_ID}
     networks:
     - network1
@@ -131,11 +135,12 @@ services:
   validator-2:
     build:
       context: ../..
-      dockerfile: validator/Dockerfile-bgx
+      dockerfile: bgx/docker/validator/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-validator-bgx2:${ISOLATION_ID}
     networks:
     - network1
@@ -161,9 +166,9 @@ services:
         python3 setup.py build
         mkdir -p bin
         mkdir -p lib
-        #cargo build --release
-        cp ./target/release/sawtooth-validator ../data-bgx2/bin/sawtooth-validator
-        cp ./target/release/libsawtooth_validator.so ../data-bgx2/lib/libsawtooth_validator.so
+        if [ -d 'target' ]; then echo 'Already build'; else cargo build --release; fi
+        if [ -f 'bin/sawtooth-validator' ]; then echo 'Already copied'; else cp ./target/release/sawtooth-validator bin/sawtooth-validator; fi
+        if [ -f 'lib/libsawtooth_validator.so' ]; then echo 'Already copied'; else cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so; fi
         sawadm keygen
         sawtooth keygen my_key
         sawset genesis -k /root/.sawtooth/keys/my_key.priv
@@ -181,11 +186,12 @@ services:
   rest-api-2:
     build:
       context: ../..
-      dockerfile: rest_api/Dockerfile
+      dockerfile: bgx/docker/rest_api/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-rest-api-bgx2:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
@@ -211,11 +217,12 @@ services:
   pbft-python-2:
     build:
       context: ../..
-      dockerfile: bgx/consensus/pbft_python/Dockerfile-bgx
+      dockerfile: bgx/consensus/pbft_python/Dockerfile
       args:
         - http_proxy
         - https_proxy
         - no_proxy
+        - BGX_TOP=bgx
     image: sawtooth-pbft-python-bgx:${ISOLATION_ID}
     networks:
     - network1
