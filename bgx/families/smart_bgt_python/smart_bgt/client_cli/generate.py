@@ -31,7 +31,7 @@ from sawtooth_signing import CryptoFactory
 from sawtooth_sdk.protobuf import transaction_pb2
 from sawtooth_sdk.protobuf import batch_pb2
 
-from smart_bgt.processor.handler import make_smart_bgt_address,FAMILY_NAME,FAMILY_VER
+from smart_bgt.processor.utils import make_smart_bgt_address,FAMILY_NAME,FAMILY_VER
 
 
 LOGGER = logging.getLogger(__name__)

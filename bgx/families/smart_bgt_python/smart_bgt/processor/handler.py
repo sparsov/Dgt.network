@@ -22,7 +22,8 @@ from  web3  import Web3, HTTPProvider
 from sawtooth_sdk.processor.handler import TransactionHandler
 from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
-
+from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+from smart_bgt.processor.utils  import FAMILY_NAME,FAMILY_VER,make_smart_bgt_address,SMART_BGT_ADDRESS_PREFIX #
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,14 +34,14 @@ MIN_VALUE = 0
 MAX_VALUE = 4294967295
 MAX_NAME_LENGTH = 20
 
-FAMILY_NAME = 'smart-bgt'
-FAMILY_VER  = '1.0'
+#FAMILY_NAME = 'smart-bgt'
+#FAMILY_VER  = '1.0'
 
-SMART_BGT_ADDRESS_PREFIX = hashlib.sha512(FAMILY_NAME.encode('utf-8')).hexdigest()[0:6]
+#SMART_BGT_ADDRESS_PREFIX = hashlib.sha512(FAMILY_NAME.encode('utf-8')).hexdigest()[0:6]
 
 
-def make_smart_bgt_address(name):
-    return SMART_BGT_ADDRESS_PREFIX + hashlib.sha512(name.encode('utf-8')).hexdigest()[-64:]
+#def make_smart_bgt_address(name):
+#    return SMART_BGT_ADDRESS_PREFIX + hashlib.sha512(name.encode('utf-8')).hexdigest()[-64:]
 
 
 class SmartBgtTransactionHandler(TransactionHandler):

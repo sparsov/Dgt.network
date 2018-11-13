@@ -33,7 +33,7 @@ from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
 from sawtooth_sdk.protobuf.batch_pb2 import Batch
 
 from smart_bgt.client_cli.exceptions import SmartBgtClientException
-from smart_bgt.processor.handler import FAMILY_NAME,FAMILY_VER
+from smart_bgt.processor.utils import FAMILY_NAME,FAMILY_VER
 
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()

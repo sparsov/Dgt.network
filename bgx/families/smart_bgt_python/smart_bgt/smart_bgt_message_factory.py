@@ -16,8 +16,7 @@
 import cbor
 
 from sawtooth_processor_test.message_factory import MessageFactory
-from smart_bgt.processor.handler import SMART_BGT_ADDRESS_PREFIX
-from smart_bgt.processor.handler import make_smart_bgt_address,FAMILY_NAME,FAMILY_VER
+from smart_bgt.processor.utils import make_smart_bgt_address,FAMILY_NAME,FAMILY_VER,SMART_BGT_ADDRESS_PREFIX
 
 
 class SmartBgtMessageFactory:

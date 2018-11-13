@@ -302,7 +302,7 @@ class PbftEngine(Engine):
                     self._building = False
 
     def _handle_new_block(self, block):
-        LOGGER.info('handle NEW_BLOCK:Received %s', block)
+        LOGGER.info('handle NEW_BLOCK:Received id=%s block_num=%s payload=%s', block.block_id.hex(),block.block_num,block.payload)
         block = PbftBlock(block)
 
         if self._check_consensus(block):
