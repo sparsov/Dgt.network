@@ -95,6 +95,9 @@ class PbftEngine(Engine):
         self._service.broadcast(PRE_PREPARE_MSG,payload.SerializeToString()) #b'payload')
 
     def _check_consensus(self, block):
+        if self._node == 'leader':
+            # leader node - send prePrepare
+            self._pre_prepare()
         return True
         #return self._oracle.verify_block(block)
 

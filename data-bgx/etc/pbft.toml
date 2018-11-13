@@ -21,7 +21,7 @@
 # Node type: 
 #           'plink' - permalink node  
 #           aux     - Auxiliary node
-#           leader  - leader node
+#           leader  - leader node - also should be permalink at the same time
 #           arbiter - Referee node
 # 
    node = "leader"

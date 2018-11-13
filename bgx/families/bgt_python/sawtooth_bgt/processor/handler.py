@@ -171,7 +171,7 @@ def _do_set(name, value, state):
 
     updated = {k: v for k, v in state.items()}
     updated[name] = value
-
+    LOGGER.debug('_do_set updated=%s',updated)
     return updated
 
 
