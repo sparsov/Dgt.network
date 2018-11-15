@@ -20,6 +20,9 @@ import json
 import base64
 from aiohttp import web
 
+import sys
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
 from google.protobuf.json_format import MessageToDict
@@ -41,9 +44,12 @@ from sawtooth_rest_api.protobuf import client_receipt_pb2
 from sawtooth_rest_api.protobuf import client_peers_pb2
 from sawtooth_rest_api.protobuf import client_status_pb2
 from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
-from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
-from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
+
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
+from sawtooth_rest_api.protobuf.transaction_pb2 import Transaction
+from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
+from sawtooth_rest_api.protobuf.batch_pb2 import Batch
+from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 
 from datetime import datetime
 # pylint: disable=too-many-lines
@@ -634,6 +640,8 @@ class RouteHandler:
             status=200)
 
     async def post_transaction(self, request):
+        timer_ctx = self._post_batches_total_time.time()
+        self._post_batches_count.inc()
         body = await request.json()
 
         if 'data' not in body:
@@ -679,18 +687,88 @@ class RouteHandler:
             raise errors.InvalidSignature()
 
         # Execute transaction
-        append_transaction(
-            address_from,
-            address_to,
-            payload['tx_payload'],
-            payload['coin_code'],
-            'Regular transaction'
+        # append_transaction(
+        #     address_from,
+        #     address_to,
+        #     payload['tx_payload'],
+        #     payload['coin_code'],
+        #     'Regular transaction'
+        # )
+
+        hashed_payload = rest_api_utils.hash_dict(payload)
+        print(payload, hashed_payload, sep='\n')
+        # TODO: change payload_sha512 to payload_sha256
+        # TODO: remove batcher_public_key
+        txn_header_bytes = TransactionHeader(
+            family_name='smart_bgt',
+            family_version='1.0',
+            inputs=[address_from],
+            outputs=[address_to],
+            signer_public_key=public_key_from,
+            # pub_key of node
+            batcher_public_key=NODE_CREDENTIALS['public_key'],
+            dependencies=[],
+            # payload_sha256
+            payload_sha512=hashed_payload
+        ).SerializeToString()
+
+        # TODO: change header_signature to payload_signature
+        txn = Transaction(
+            header=txn_header_bytes,
+            # payload_signature
+            header_signature=signed_payload,
+            payload=_b(hashed_payload)
         )
 
-        return self._wrap_response(
+        # TODO: change header_signature to payload_signature
+        batch_header_bytes = BatchHeader(
+            signer_public_key=NODE_CREDENTIALS['public_key'],
+            transaction_ids=[txn.header_signature]
+        ).SerializeToString()
+
+        print(NODE_CREDENTIALS['private_key'], batch_header_bytes)
+        batch_header_signature = rest_api_utils.sign_string(
+            priv_key=NODE_CREDENTIALS['private_key'],
+            string=str(batch_header_bytes)
+        )
+
+        batch = Batch(
+            header=batch_header_bytes,
+            header_signature=batch_header_signature,
+            transactions=[txn]
+        )
+
+        # Query validator
+        error_traps = [error_handlers.BatchInvalidTrap,
+                       error_handlers.BatchQueueFullTrap]
+        validator_query = client_batch_submit_pb2.\
+            ClientBatchSubmitRequest(batches=[batch])
+
+        with self._post_batches_validator_time.time():
+            await self._query_validator(
+                Message.CLIENT_BATCH_SUBMIT_REQUEST,
+                client_batch_submit_pb2.ClientBatchSubmitResponse,
+                validator_query,
+                error_traps)
+
+        # Build response envelope
+        id_string = batch_header_signature
+
+        status = 202
+        link = self._build_url(request, path='/batch_statuses', id=id_string)
+
+        retval = self._wrap_response(
             request,
-            metadata=TRANSACTIONS[-1],
-            status=200)
+            metadata={'link': link},
+            status=status)
+
+        timer_ctx.stop()
+        return retval
+
+        # return self._wrap_response(
+        #     request,
+        #     metadata=TRANSACTIONS[-1],
+        #     status=200)
 
     async def post_add_funds(self, request):
         body = await request.json()

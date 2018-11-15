@@ -68,7 +68,6 @@ def sign_dict(priv_key, dict):
     :return: secp256k1 signed sha256 hashed and base64 encoded json serialization of dict
     """
     sha256_hash = hash_dict(dict)
-
     chilkat_ecdsa = chilkat.CkEcc()
     prng = chilkat.CkPrng()
 
@@ -77,8 +76,29 @@ def sign_dict(priv_key, dict):
     chilkat_private_key = chilkat.CkPrivateKey()
     chilkat_private_key.LoadPkcs1(chilkat_byte_data)
 
-    ecdsa_sig_base64 = chilkat_ecdsa.signHashENC(sha256_hash,"base64",chilkat_private_key,prng)
-    return ecdsa_sig_base64
+    return chilkat_ecdsa.signHashENC(sha256_hash,"base64",chilkat_private_key,prng)
+
+
+def sign_string(priv_key, string):
+    """
+    :param priv_key: secp256k1 elliptic curve private key in Pkcs1 DER format in base64 encode
+    :param string: string
+    :return: secp256k1 signed sha256 hashed and base64 encoded json serialization of dict
+    """
+    crypt = chilkat.CkCrypt2()
+    crypt.put_HashAlgorithm("SHA256")
+    crypt.put_Charset("utf-8")
+    crypt.put_EncodingMode("base64")
+    sha256_hash = crypt.hashStringENC(string)
+
+    chilkat_ecdsa = chilkat.CkEcc()
+    prng = chilkat.CkPrng()
+    chilkat_byte_data = chilkat.CkByteData()
+    chilkat_byte_data.appendEncoded(priv_key, 'base64')
+    chilkat_private_key = chilkat.CkPrivateKey()
+    chilkat_private_key.LoadPkcs1(chilkat_byte_data)
+
+    return chilkat_ecdsa.signHashENC(sha256_hash,"base64",chilkat_private_key,prng)
 
 
 def verify_signature(pub_key, signature, dict):
