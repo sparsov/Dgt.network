@@ -40,6 +40,7 @@ from sawtooth_rest_api.config import load_default_rest_api_config
 from sawtooth_rest_api.config import load_toml_rest_api_config
 from sawtooth_rest_api.config import merge_rest_api_config
 from sawtooth_rest_api.config import RestApiConfig
+import aiohttp_cors
 
 
 LOGGER = logging.getLogger(__name__)
@@ -116,6 +117,19 @@ def start_rest_api(host, port, connection, timeout, registry,
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)
     app.on_shutdown.append(lambda app: subscriber_handler.on_shutdown())
+
+    # Configure default CORS settings.
+    cors = aiohttp_cors.setup(app, defaults={
+        "*": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+        )
+    })
+
+    # Configure CORS on all routes.
+    for route in list(app.router.routes()):
+        cors.add(route)
 
     # Start app
     LOGGER.info('Starting REST API on %s:%s', host, port)

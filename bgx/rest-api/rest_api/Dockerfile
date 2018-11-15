@@ -49,6 +49,8 @@ RUN pip3 install pycryptodome \
     ecdsa \
     cbor
 
+RUN pip3 install aiohttp_cors
+
 RUN mkdir /var/log/sawtooth
 
 ENV PATH=$PATH:/project/sawtooth-core/bin
