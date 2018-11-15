@@ -46,7 +46,8 @@ setup(
         "sawtooth-sdk",
         "sawtooth-signing",
         "web3",
-        "secp256k1"
+        "secp256k1",
+        "ecdsa"
     ],
     data_files=data_files,
     entry_points={

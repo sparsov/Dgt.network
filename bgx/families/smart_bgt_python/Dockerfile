@@ -43,6 +43,10 @@ RUN apt-get install -y -q \
     python3-pip  \
     python3-secp256k1
 
+RUN pip3 install ecdsa
+
+RUN export INFURA_API_KEY="f8398bb431d448cab6a9fc27647a9a19"
+
 # we should use only bionic for web3.py
 RUN pip3 install web3
 

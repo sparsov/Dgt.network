@@ -64,8 +64,11 @@ class SmartBgtClient:
     def set(self, name, value, wait=None):
         return self._send_transaction('set', name, value, wait=wait)
 
-    def init(self, name, value, wait=None):
-        return self._send_transaction('init', name, value, wait=wait)
+    def init(self, full_name, private_key, ethereum_address, wait=None):
+        return self._send_transaction('init', full_name, private_key, ethereum_address, wait=wait) ##################################
+
+    def generate_key(self, wait=None):
+        return self._send_transaction('generate_key', wait=wait) ##################################
 
     def inc(self, name, value, wait=None):
         return self._send_transaction('inc', name, value, wait=wait)
@@ -151,11 +154,12 @@ class SmartBgtClient:
 
         return result.text
 
-    def _send_transaction(self, verb, name, value, wait=None):
+    def _send_transaction(self, verb, name='None', value=None, value_2=None, wait=None):
         payload = cbor.dumps({
             'Verb': verb,
             'Name': name,
             'Value': value,
+            'Value_2': value_2,
         })
 
         # Construct the address
@@ -207,6 +211,7 @@ class SmartBgtClient:
             "batches", batch_list.SerializeToString(),
             'application/octet-stream',
         )
+
 
     def _create_batch_list(self, transactions):
         transaction_signatures = [t.header_signature for t in transactions]

@@ -17,18 +17,28 @@ import logging
 import hashlib
 
 import cbor
-from  web3  import Web3, HTTPProvider
+#from  web3  import Web3, HTTPProvider
 
 from sawtooth_sdk.processor.handler import TransactionHandler
 from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+#from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
 from smart_bgt.processor.utils  import FAMILY_NAME,FAMILY_VER,make_smart_bgt_address,SMART_BGT_ADDRESS_PREFIX #
+#from sawtooth_signing.secp256k1 import Secp256k1Context, Secp256k1PrivateKey, Secp256k1PublicKey 
+#from ecdsa import SigningKey, SECP256k1
+
+#import smart_bgt.processor.emission as emission
+#from smart_bgt.processor.services import DigitalSignature
+from smart_bgt.processor.services import BGXCrypto,BGXlistener
+from smart_bgt.processor.token import Token
+from smart_bgt.processor.emission import EmissionMechanism
+#from smart_bgt.processor.emission import Token
+#from sawtooth_signing.secp256k1 import Secp256k1Context 
+
 
 LOGGER = logging.getLogger(__name__)
 
-
-VALID_VERBS = 'set', 'inc', 'dec' , 'init'
+VALID_VERBS = 'set', 'inc', 'dec' , 'init', 'generate_key'
 
 MIN_VALUE = 0
 MAX_VALUE = 4294967295
@@ -59,23 +69,23 @@ class SmartBgtTransactionHandler(TransactionHandler):
 
     def apply(self, transaction, context):
         LOGGER.info('SmartBgtTransactionHandler apply')
-        verb, name, value = _unpack_transaction(transaction)
+        verb, name, value, value_2 = _unpack_transaction(transaction)
         LOGGER.info('SmartBgtTransactionHandler name %s',name)
         state = _get_state_data(name, context)
-        LOGGER.info('SmartBgtTransactionHandler _do_smart_bgt')
-        updated_state = _do_smart_bgt(verb, name, value, state)
+        LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt')
+        updated_state = _do_smart_bgt(verb, name, value, value_2, state)
 
         _set_state_data(name, updated_state, context)
     
 
 def _unpack_transaction(transaction):
-    verb, name, value = _decode_transaction(transaction)
+    verb, name, value, value_2 = _decode_transaction(transaction)
 
-    _validate_verb(verb)
-    _validate_name(name)
-    _validate_value(value)
+    #_validate_verb(verb)
+    #_validate_name(name)
+    #_validate_value(value)
 
-    return verb, name, value
+    return verb, name, value, value_2
 
 
 def _decode_transaction(transaction):
@@ -99,7 +109,12 @@ def _decode_transaction(transaction):
     except AttributeError:
         raise InvalidTransaction('Value is required')
 
-    return verb, name, value
+    try:
+        value_2 = content['Value_2']
+    except AttributeError:
+        raise InvalidTransaction('Value is required')
+
+    return verb, name, value, value_2
 
 
 def _validate_verb(verb):
@@ -147,7 +162,7 @@ def _set_state_data(name, state, context):
         raise InternalError('State error')
 
 
-def _do_smart_bgt(verb, name, value, state):
+def _do_smart_bgt(verb, name, value, value_2, state):
     verbs = {
         'set': _do_set,
         'inc': _do_inc,
@@ -155,6 +170,13 @@ def _do_smart_bgt(verb, name, value, state):
         'init': _do_init
     }
     LOGGER.debug('_do_smart_bgt request....')
+
+    if name == 'None':
+        return _do_generate_key(state)
+
+    if value_2:
+        return _do_init(name, value, value_2, state)
+
     try:
         return verbs[verb](name, value, state)
     except KeyError:
@@ -178,20 +200,75 @@ def _do_set(name, value, state):
 
     return updated
 
-def _do_init(name, value, state):
-    msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
-    LOGGER.debug(msg)
 
+def _do_generate_key(state):
+    LOGGER.debug("KEY GENERATION")
 
-    if name in state:
-        raise InvalidTransaction(
-            'Verb is "init", but already exists: Name: {n}, Value {v}'.format(
-                n=name,
-                v=state[name]))
+    digital_signature = BGXCrypto.DigitalSignature()
+    private_key = digital_signature.getSigningKey()
+    LOGGER.debug("New private key generated: " + private_key)
 
     updated = {k: v for k, v in state.items()}
-    updated[name] = value
+    return updated
 
+
+def _do_init(full_name, private_key, ethereum_address, state):
+    #msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
+    #LOGGER.debug(msg)
+
+
+    #if name in state:
+    #    raise InvalidTransaction(
+    #        'Verb is "init", but already exists: Name: {n}, Value {v}'.format(
+    #            n=name,
+    #            v=state[name]))
+
+    updated = {k: v for k, v in state.items()}
+    #updated[name] = value
+
+    ############################LOGGER.debug("############################################################################")
+    ############################LOGGER.debug("############################################################################")
+
+    LOGGER.debug("Info from sonsole: full_name - " + str(full_name))
+    LOGGER.debug("Info from sonsole: private_key - " + str(private_key))
+    LOGGER.debug("Info from sonsole: ethereum_address - " + str(ethereum_address))
+
+    ############################ds = BGXCrypto.DigitalSignature(private_key)
+    ############################msg = "Hello"
+    ############################cipher = ds.sign(msg)
+    ############################LOGGER.debug(str(cipher))
+    ############################res = ds.verify(cipher, msg)
+    ############################LOGGER.debug(str(res))
+
+    ############################LOGGER.debug("############################################################################")
+    ############################LOGGER.debug("############################################################################")
+    
+    LOGGER.debug("Emission - start")
+    
+    digital_signature = BGXCrypto.DigitalSignature(private_key)
+
+    LOGGER.debug("DigitalSignature is ready")
+
+    wallet_address = ethereum_address
+
+    ############################digital_signature = BGXCrypto.DigitalSignature()
+
+    emission_mechanism = EmissionMechanism()
+    LOGGER.debug("EmissionMechanism is ready")
+
+    dec_amount = BGXlistener.balanceOf(wallet_address)
+    LOGGER.debug("DEC amount on a wallet " + wallet_address + " = " + str(dec_amount))
+    bgt_price = 0
+
+    unique_tokens = emission_mechanism.releaseTokens("BGX Token", "BGT", "id", digital_signature, 1, wallet_address, bgt_price)
+    
+    for token in unique_tokens:
+        key = str(token.getId())
+        value = str(token.toJSON())
+        LOGGER.debug("New token: id " + str(key) + "  -  value " + str(value))
+        #updated[key] = val
+
+    LOGGER.debug("Emission - end")        
     return updated
 
 

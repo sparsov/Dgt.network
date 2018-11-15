@@ -17,61 +17,11 @@
 
 
 import time
-import smart_bgt.processor.services
-import inspect
+#import services
+#import inspect
 
-
-# Prototype for a Token class.
-# Note: must be JSON-serializable
-
-class Token:
-
-    def __init__(self, name, symbol, company_id, group_code, unique, digital_signature, seed = 0):
-        services.BGXlog.logInfo('Producing token')
-        self.name = name
-        self.symbol = symbol
-        self.company_id = company_id
-        self.group_code = group_code
-        self.granularity = 1
-        self.decimals = 18
-        self.unique = unique
-
-        if not isinstance(digital_signature, services.BGXCrypto.DigitalSignature):
-            services.BGXlog.logError('Wrong digital signature class as input in token creation')
-            # raise something
-            return False
-
-        imprint = name + symbol + company_id + group_code
-
-        if self.unique:
-            self.TokenId = services.BGXCrypto.intHash(imprint + str(seed))
-
-        self.sign = digital_signature.sign(self.getImprint())
-
-    def __str__(self):
-        return self.getImprint()
-
-    def verifyToken(self, digital_signature):
-        return digital_signature.verify(self.sign, self.getImprint())
-
-    def getSign(self):
-        return self.sign
-
-    def getImprint(self):
-        imprint = self.name + self.symbol + self.company_id + self.group_code
-        if self.unique:
-            imprint += str(self.TokenId)
-        return imprint
-
-    # TODO: implement
-
-    #def toJSON(self):
-        #return json.dumps(self.__dict__)
-
-    # TODO: implement
-
-    def fromJSON(self, data):
-        return True
+from smart_bgt.processor.services import BGXCrypto, BGXlistener
+from smart_bgt.processor.token import Token
 
 
 # Prototype for a EmissionMechanism class
@@ -79,38 +29,41 @@ class Token:
 
 class EmissionMechanism:
 
-    # TODO: implement
-
-    def checkEthereum(bgt_amount, wallet_address):
-        dec_amount = services.BGXlistener.balanceOf(wallet_address)
-        return bgt_amount * 0 <= dec_amount
+    def __init__(self):
+        self.type = "BGX"
 
     # TODO: implement
 
-    def getProvedHashOfClass():
+    def checkEthereum(self, bgt_amount, wallet_address):
+        dec_amount = int(BGXlistener.balanceOf(wallet_address)) 
+        return int(bgt_amount) * 0 <= dec_amount
+
+    # TODO: implement
+
+    def getProvedHashOfClass(self):
         return True
 
     # TODO: implement
 
-    def checkHashOfClass():
-        lines = inspect.getsource(EmissionMechanism)
-        hash = services.BGXCrypto.intHash(lines)
+    def checkHashOfClass(self):
+        #lines = inspect.getsource(EmissionMechanism)
+        #hash = BGXCrypto.intHash(lines)
         return True
 
-    def releaseTokens(name, symbol, company_id, unique, signing_key, tokens_amount, wallet_address):
-        services.BGXlog.logInfo('Emission in progress')
+    def releaseTokens(self, name, symbol, company_id, signing_key, tokens_amount, wallet_address, bgt_price):
+        #services.BGXlog.logInfo('Emission in progress')
         seed = str(time.time())
         imprint = name + symbol + company_id + seed
-        group_code = str(services.BGXCrypto.intHash(imprint))
+        group_code = str(BGXCrypto.intHash(imprint))
 
-        if not EmissionMechanism.checkEthereum(tokens_amount, wallet_address):
-            services.BGXlog.logError('Fail! Not enough tokens: ' + company_id)
-            # raise something
+        dec_amount = BGXlistener.balanceOf(wallet_address)
+        if tokens_amount * bgt_price > dec_amount:
             return False
 
         tokens = []
         for tokenNumber in range(tokens_amount):
-            token = Token(name, symbol, company_id, group_code, unique, signing_key, tokenNumber)
+            token = Token(name, symbol, company_id, group_code, signing_key, tokenNumber)
+            #token = Token("BGX Token", "BGT", "id", "code", 1, signing_key, tokenNumber)
             tokens.append(token)
 
         return tokens

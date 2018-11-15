@@ -111,6 +111,7 @@ def create_parser(prog_name):
 
     add_set_parser(subparsers, parent_parser)
     add_init_parser(subparsers, parent_parser)
+    add_generate_key_parser(subparsers, parent_parser)
     add_inc_parser(subparsers, parent_parser)
     add_dec_parser(subparsers, parent_parser)
     add_show_parser(subparsers, parent_parser)
@@ -172,14 +173,20 @@ def add_init_parser(subparsers, parent_parser):
         help='Sets an bgt value')
 
     parser.add_argument(
-        'name',
+        'full_name',
         type=str,
-        help='name of key to set')
+        help='')
 
     parser.add_argument(
-        'value',
-        type=int,
-        help='amount to set')
+        'private_key',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        'ethereum_address',
+        type=str,
+        help='')
+
 
     parser.add_argument(
         '--url',
@@ -199,6 +206,34 @@ def add_init_parser(subparsers, parent_parser):
         help='set time, in seconds, to wait for transaction to commit')
 
 
+def add_generate_key_parser(subparsers, parent_parser):
+    message = 'Generate some key.'
+
+    parser = subparsers.add_parser(
+        'generate_key',
+        parents=[parent_parser],
+        description=message,
+        help='Generate some key')
+
+    parser.add_argument(
+        '--url',
+        type=str,
+        help='specify URL of REST API')
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+    parser.add_argument(
+        '--wait',
+        nargs='?',
+        const=sys.maxsize,
+        type=int,
+        help='set time, in seconds, to wait for transaction to commit')
+
+
+
 def do_set(args):
     name, value, wait = args.name, args.value, args.wait
     client = _get_client(args)
@@ -207,9 +242,16 @@ def do_set(args):
 
 
 def do_init(args):
-    name, value, wait = args.name, args.value, args.wait
+    full_name, private_key, ethereum_address, wait = args.full_name, args.private_key, args.ethereum_address, args.wait
     client = _get_client(args)
-    response = client.init(name, value, wait)
+    response = client.init(full_name, private_key, ethereum_address, wait) ######################
+    print(response)
+
+
+def do_generate_key(args):
+    wait = args.wait
+    client = _get_client(args)
+    response = client.generate_key(wait) ######################
     print(response)
 
 
@@ -389,8 +431,10 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
 
     if args.command == 'set':
         do_set(args)
-    if args.command == 'init':
+    elif args.command == 'init':
         do_init(args)
+    elif args.command == 'generate_key':
+        do_generate_key(args)
     elif args.command == 'inc':
         do_inc(args)
     elif args.command == 'dec':
