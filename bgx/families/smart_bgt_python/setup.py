@@ -45,9 +45,9 @@ setup(
         "colorlog",
         "sawtooth-sdk",
         "sawtooth-signing",
-        "web3",
+        #"web3",
         "secp256k1",
-        "ecdsa"
+        #"ecdsa"
     ],
     data_files=data_files,
     entry_points={

@@ -159,8 +159,9 @@ def _set_state_data(name, state, context):
     addresses = context.set_state({address: encoded})
 
     if not addresses:
+        LOGGER.debug('_set_state_data  State error')
         raise InternalError('State error')
-
+    LOGGER.debug('_set_state_data  DONE encoded=%s address=%s',encoded,address)
 
 def _do_smart_bgt(verb, name, value, value_2, state):
     verbs = {
@@ -169,7 +170,7 @@ def _do_smart_bgt(verb, name, value, value_2, state):
         'dec': _do_dec,
         'init': _do_init
     }
-    LOGGER.debug('_do_smart_bgt request....')
+    LOGGER.debug('_do_smart_bgt request name=%s, value=%s',name, value)
 
     if name == 'None':
         return _do_generate_key(state)
@@ -197,7 +198,7 @@ def _do_set(name, value, state):
 
     updated = {k: v for k, v in state.items()}
     updated[name] = value
-
+    LOGGER.debug("_do_set  updated=%s ",updated)
     return updated
 
 
@@ -245,7 +246,7 @@ def _do_init(full_name, private_key, ethereum_address, state):
     
     LOGGER.debug("Emission - start")
     
-    digital_signature = BGXCrypto.DigitalSignature(private_key)
+    digital_signature = BGXCrypto.DigitalSignature()#private_key)
 
     LOGGER.debug("DigitalSignature is ready")
 
@@ -266,9 +267,9 @@ def _do_init(full_name, private_key, ethereum_address, state):
         key = str(token.getId())
         value = str(token.toJSON())
         LOGGER.debug("New token: id " + str(key) + "  -  value " + str(value))
-        #updated[key] = val
-
-    LOGGER.debug("Emission - end")        
+        updated[full_name] = value
+    
+    LOGGER.debug("Emission - end [%s]=updated=%s",full_name,updated)        
     return updated
 
 

@@ -49,7 +49,7 @@ services:
   smart-bgt-tp-python:
     build:
       context: ../..
-      dockerfile: bgx/families/smart_bgt_python/Dockerfile
+      dockerfile: bgx/families/smart_bgt_python/Dockerfile-xenial
       args:
         - http_proxy
         - https_proxy

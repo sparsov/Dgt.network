@@ -168,8 +168,8 @@ class BgtEngine(Engine):
             LOGGER.info('Finalized %s with ',block_id.hex()) #json.loads(consensus.decode())
             self._building = True
             # broadcast 
-            LOGGER.debug('broadcast ...')
-            self._service.broadcast('message_type',b'payload')
+            #LOGGER.debug('broadcast ...')
+            #self._service.broadcast('message_type',b'payload')
             return block_id
         except exceptions.BlockNotReady:
             LOGGER.debug('Block not ready to be finalized')
