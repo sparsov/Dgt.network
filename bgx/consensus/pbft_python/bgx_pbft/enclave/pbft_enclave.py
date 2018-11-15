@@ -318,9 +318,7 @@ class _PbftEnclaveSimulator:
             # Extract keys from the 'sealed' signup data
             if sealed_signup_data is None:
                 raise ValueError('Sealed Signup Data is None')
-            signup_data = \
-                json2dict(
-                    base64.b64decode(sealed_signup_data.encode()).decode())
+            signup_data = json2dict(base64.b64decode(sealed_signup_data.encode()).decode())
             pbft_private_key = signup_data['pbft_private_key']
             pbft_public_key = signup_data['pbft_public_key']
 

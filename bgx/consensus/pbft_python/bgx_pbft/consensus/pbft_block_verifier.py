@@ -71,9 +71,8 @@ class PbftBlockVerifier(BlockVerifierInterface):
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._validator_id = validator_id
-        self._consensus_state_store = ConsensusStateStore(
-                data_dir=self._data_dir,
-                validator_id=self._validator_id)
+        LOGGER.debug('PbftBlockVerifier:: ConsensusStateStore')
+        self._consensus_state_store = ConsensusStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
 
     def verify_block(self, block_wrapper):
         """Check that the block received conforms to the consensus rules.

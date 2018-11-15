@@ -166,10 +166,7 @@ class ConsensusState:
             if consensus_state is not None:
                 break
 
-            wait_certificate = \
-                utils.deserialize_wait_certificate(
-                    block=block,
-                    bgt_enclave_module=bgt_enclave_module)
+            wait_certificate = utils.deserialize_wait_certificate(block=block,bgt_enclave_module=bgt_enclave_module)
 
             # If this is a BGT block (i.e., it has a wait certificate), get
             # the validator info for the validator that signed this block and

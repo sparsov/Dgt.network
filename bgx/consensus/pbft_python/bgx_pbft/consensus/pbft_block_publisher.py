@@ -35,6 +35,8 @@ from bgx_pbft.consensus.pbft_settings_view import PbftSettingsView
 from bgx_pbft.consensus.signup_info import SignupInfo
 from bgx_pbft.consensus.pbft_key_state_store import PbftKeyState
 from bgx_pbft.consensus.pbft_key_state_store import PbftKeyStateStore
+
+#import bgx_pbft.enclave.pbft_enclave as PBFT_ENCLAVE_MODULE
 #from bgx_pbft.consensus.wait_timer import WaitTimer
 #from bgx_pbft.consensus.wait_certificate import WaitCertificate
 from bgx_pbft.consensus import utils
@@ -143,20 +145,16 @@ class PbftBlockPublisher(BlockPublisherInterface):
         self._config_dir = config_dir
         self._validator_id = validator_id
         self._node = node
-        self._consensus_state_store = ConsensusStateStore(
-                data_dir=self._data_dir,
-                validator_id=self._validator_id)
-        self._pbft_key_state_store = PbftKeyStateStore(
-                data_dir=self._data_dir,
-                validator_id=self._validator_id)
+        LOGGER.debug('PbftBlockPublisher:: ConsensusStateStore')
+        self._consensus_state_store = ConsensusStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
+        self._pbft_key_state_store = PbftKeyStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
         self._wait_timer = None
 
     def _create_proposal(self, block_header, pbft_enclave_module):
         """
         proposal request
         """
-        public_key_hash = hashlib.sha256(
-                block_header.signer_public_key.encode()).hexdigest()
+        public_key_hash = hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
         nonce = SignupInfo.block_id_to_nonce(block_header.previous_block_id)
 
         setting = 'sawtooth.consensus.pbft.max_log_size'
@@ -241,8 +239,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
              SettingsView.setting_address('sawtooth.bgt.valid_enclave_basenames')
             ]
 
-        header = \
-            txn_pb.TransactionHeader(
+        header = txn_pb.TransactionHeader(
                 signer_public_key=block_header.signer_public_key,
                 family_name='bgx_validator_registry',
                 family_version='1.0',
@@ -293,6 +290,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
         # See if a registration attempt has timed out. Assumes the caller has
         # checked for a committed registration and did not find it.
         # If it has timed out then this method will re-register.
+        LOGGER.debug("_handle_registration_timeout:ADD CONSENSUS_STATE for block_id=%s",block_header.previous_block_id)
         consensus_state = ConsensusState.consensus_state_for_block_id(
                 block_id=block_header.previous_block_id,
                 block_cache=self._block_cache,
@@ -302,8 +300,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
             )
         pbft_settings_view = PbftSettingsView(state_view)
 
-        if consensus_state.signup_attempt_timed_out(
-                signup_nonce, pbft_settings_view, self._block_cache):
+        if consensus_state.signup_attempt_timed_out(signup_nonce, pbft_settings_view, self._block_cache):
             LOGGER.error('My pbft registration using PPK %s has not committed by block %s. Create new registration',
                          pbft_public_key,
                          block_header.previous_block_id)
@@ -340,11 +337,8 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 block_wrapper=self._block_cache.block_store.chain_head,
                 state_view_factory=self._state_view_factory)
         
-        pbft_enclave_module = factory.PbftEnclaveFactory.get_pbft_enclave_module(
-                state_view=state_view,
-                config_dir=self._config_dir,
-                data_dir=self._data_dir)
-        
+        pbft_enclave_module = factory.PbftEnclaveFactory.get_pbft_enclave_module(state_view=state_view,config_dir=self._config_dir,data_dir=self._data_dir)
+        LOGGER.debug("pbft_enclave_module=%s previous_block_id=%s",pbft_enclave_module,type(block_header.previous_block_id))
         # Get our validator registry entry to see what PBFT public key
         # other validators think we are using.
         validator_registry_view = ValidatorRegistryView(state_view)
@@ -370,8 +364,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                     )
             else:  # Check if we need to give up on this registration attempt
                 try:
-                    nonce = self._pbft_key_state_store[
-                        active_pbft_public_key].signup_nonce
+                    nonce = self._pbft_key_state_store[active_pbft_public_key].signup_nonce
                 except (ValueError, AttributeError):
                     self._pbft_key_state_store.active_key = None
                     LOGGER.warning('Pbft Key State Store had inaccessible or '
@@ -419,8 +412,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
             # that key state store entry as being refreshed so that we will
             # never actually try to use it.
             dummy_data = b64encode(b'No sealed signup data').decode('utf-8')
-            self._pbft_key_state_store[
-                validator_info.signup_info.pbft_public_key] = PbftKeyState(
+            self._pbft_key_state_store[validator_info.signup_info.pbft_public_key] = PbftKeyState(
                     sealed_signup_data=dummy_data,
                     has_been_refreshed=True,
                     signup_nonce='unknown')
@@ -469,15 +461,9 @@ class PbftBlockPublisher(BlockPublisherInterface):
         LOGGER.debug("unsealed_pbft_public_key=%s ~ %s",unsealed_pbft_public_key,active_pbft_public_key)
         assert active_pbft_public_key == unsealed_pbft_public_key
 
-        LOGGER.debug(
-            'Using PBFT public key: %s...%s',
-            active_pbft_public_key[:8],
-            active_pbft_public_key[-8:])
-        LOGGER.debug(
-            'Unseal signup data: %s...%s',
-            pbft_key_state.sealed_signup_data[:8],
-            pbft_key_state.sealed_signup_data[-8:])
-
+        LOGGER.debug('Using PBFT public key: %s...%s',active_pbft_public_key[:8],active_pbft_public_key[-8:])
+        LOGGER.debug('Unseal signup data: %s...%s',pbft_key_state.sealed_signup_data[:8],pbft_key_state.sealed_signup_data[-8:])
+        LOGGER.debug("initialize_block:ADD CONSENSUS_STATE for block_id=%s",block_header.previous_block_id)
         consensus_state = ConsensusState.consensus_state_for_block_id(
                 block_id=block_header.previous_block_id,
                 block_cache=self._block_cache,

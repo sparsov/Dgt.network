@@ -16,17 +16,14 @@
 import logging
 
 from sawtooth_bgt.bgt_consensus.consensus_state import ConsensusState
-from sawtooth_bgt.bgt_consensus.consensus_state_store \
-    import ConsensusStateStore
+from sawtooth_bgt.bgt_consensus.consensus_state_store import ConsensusStateStore
 from sawtooth_bgt.bgt_consensus import bgt_enclave_factory as factory
 from sawtooth_bgt.bgt_consensus import utils
 from sawtooth_bgt.bgt_consensus.bgt_settings_view import BgtSettingsView
 from sawtooth_bgt.journal.block_wrapper import BlockWrapper
-from sawtooth_bgt.journal.consensus.consensus \
-    import ForkResolverInterface
+from sawtooth_bgt.journal.consensus.consensus import ForkResolverInterface
 
-from sawtooth_bgt_common.validator_registry_view.validator_registry_view \
-    import ValidatorRegistryView
+from sawtooth_bgt_common.validator_registry_view.validator_registry_view import ValidatorRegistryView
 
 
 LOGGER = logging.getLogger(__name__)
@@ -70,10 +67,8 @@ class BgtForkResolver(ForkResolverInterface):
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._validator_id = validator_id
-        self._consensus_state_store = \
-            ConsensusStateStore(
-                data_dir=self._data_dir,
-                validator_id=self._validator_id)
+        LOGGER.debug('BgtForkResolver:: ConsensusStateStore')
+        self._consensus_state_store = ConsensusStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
 
     def compare_forks(self, cur_fork_head, new_fork_head):
         """Given the head of two forks, return which should be the fork that
@@ -276,8 +271,7 @@ class BgtForkResolver(ForkResolverInterface):
                 # based upon the validator claiming a block, and then
                 # associate the consensus state with the new block in the
                 # store.
-                consensus_state = \
-                    ConsensusState.consensus_state_for_block_id(
+                consensus_state = ConsensusState.consensus_state_for_block_id(
                         block_id=new_fork_head.previous_block_id,
                         block_cache=self._block_cache,
                         state_view_factory=self._state_view_factory,

@@ -35,6 +35,9 @@ from sawtooth_sdk.protobuf.validator_pb2 import Message
 from bgx_pbft.consensus.pbft_block_publisher import PbftBlockPublisher
 #from bgx_pbft.consensus.pbft_block_verifier import BgtBlockVerifier
 #from bgx_pbft.consensus.pbft_fork_resolver import BgtForkResolver
+from bgx_pbft.consensus.consensus_state import ConsensusState
+from bgx_pbft.consensus.consensus_state_store import ConsensusStateStore
+
 
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo
 
@@ -42,9 +45,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class PbftOracle:
-    '''This is a wrapper around the PBFT structures (publisher,
-    verifier, fork resolver) and their attendant proxies.
-    '''
+    """
+    This is a wrapper around the PBFT structures (publisher,verifier, fork resolver) and their attendant proxies.
+    """
     def __init__(self, service, component_endpoint,
                  config_dir, data_dir, key_dir):
         self._config_dir = config_dir
@@ -62,6 +65,7 @@ class PbftOracle:
 
         self._batch_publisher = _BatchPublisherProxy(stream, self._signer)
         self._publisher = None
+        self._consensus_state_store = ConsensusStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
         LOGGER.debug('PbftOracle: _validator_id=%s init DONE',self._validator_id)
 
     def get_validator_id(self):
@@ -70,7 +74,8 @@ class PbftOracle:
     def initialize_block(self, previous_block,node):
         block_header = NewBlockHeader(
             previous_block,
-            self._signer.get_public_key().as_hex())
+            self._signer.get_public_key().as_hex()
+            )
 
         self._publisher = PbftBlockPublisher(
             block_cache=self._block_cache,
@@ -85,7 +90,7 @@ class PbftOracle:
         return self._publisher.initialize_block(block_header)
 
     def check_publish_block(self, block):
-        LOGGER.debug('PbftOracle:check_publish_block...')
+        #LOGGER.debug('PbftOracle:check_publish_block...')
         return self._publisher.check_publish_block(block)
 
     def finalize_block(self, block):
@@ -129,19 +134,30 @@ class PbftOracle:
                 return True    
 
         return False
-        
+
+    def get_consensus_state_for_block_id(self,block):
+        LOGGER.debug('PbftOracle: get_consensus_state for block=%s type=%s',block,type(block.block_id))
+        consensus_state = ConsensusState.consensus_state_for_block_id(
+                block_id=block.block_id.hex(), #block_header.previous_block_id,
+                block_cache=self._block_cache,
+                state_view_factory=self._state_view_factory,
+                consensus_state_store=self._consensus_state_store
+                )
+        return consensus_state
+
+
 
 class PbftBlock:
     def __init__(self, block):
         # fields that come with consensus blocks
-        LOGGER.debug('PbftBlock: init block=%s',block)
+        
         self.block_id = block.block_id
         self.previous_id = block.previous_id
         self.signer_id = block.signer_id
         self.block_num = block.block_num
         self.payload = block.payload
         self.summary = block.summary
-
+        LOGGER.debug('PbftBlock: init block_id=%s prev_id=%s',self.block_id.hex(),self.previous_id.hex())
         # fields that bgt requires
         identifier = block.block_id.hex()
         previous_block_id = block.previous_id.hex()

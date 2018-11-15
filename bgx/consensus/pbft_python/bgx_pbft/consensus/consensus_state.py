@@ -31,13 +31,7 @@ from bgx_pbft_common.validator_registry_view.validator_registry_view import Vali
 
 LOGGER = logging.getLogger(__name__)
 
-ValidatorState = \
-    collections.namedtuple(
-        'ValidatorState',
-        ['key_block_claim_count',
-         'pbft_public_key',
-         'total_block_claim_count'
-         ])
+ValidatorState = collections.namedtuple('ValidatorState',['key_block_claim_count','pbft_public_key','total_block_claim_count'])
 """ Instead of creating a full-fledged class, let's use a named tuple for
 the validator state.  The validator state represents the state for a single
 validator at a point in time.  A validator state object contains:
@@ -65,9 +59,7 @@ class ConsensusState:
     # MINIMUM_WAIT_TIME must match the constants in the enclaves
     MINIMUM_WAIT_TIME = 1.0
 
-    _BlockInfo = collections.namedtuple(
-            '_BlockInfo',
-            ['wait_certificate', 'validator_info', 'pbft_settings_view'])
+    _BlockInfo = collections.namedtuple('_BlockInfo',['wait_certificate', 'validator_info', 'pbft_settings_view'])
 
     """ Instead of creating a full-fledged class, let's use a named tuple for
     the block info.  The block info represents the information we need to
@@ -81,8 +73,7 @@ class ConsensusState:
         with the block
     """
 
-    _PopulationSample = collections.namedtuple(
-            '_PopulationSample', ['duration', 'local_mean'])
+    _PopulationSample = collections.namedtuple('_PopulationSample', ['duration', 'local_mean'])
 
     """ Instead of creating a full-fledged class, let's use a named tuple for
     the population sample.  The population sample represents the information
@@ -93,10 +84,7 @@ class ConsensusState:
     local_mean (float): The local mean from a wait certificate/timer
     """
 
-    _EstimateInfo = collections.namedtuple('_EstimateInfo',
-                                           ['population_estimate',
-                                            'previous_block_id',
-                                            'validator_id'])
+    _EstimateInfo = collections.namedtuple('_EstimateInfo',['population_estimate','previous_block_id','validator_id'])
 
     """ Instead of creating a full-fledged class, let's use a named tuple for
     the population estimates.  The population estimate represents what we need
@@ -121,7 +109,7 @@ class ConsensusState:
                                      block_cache,
                                      state_view_factory,
                                      consensus_state_store,
-                                     pbft_enclave_module):
+                                     pbft_enclave_module=None):
         """Returns the consensus state for the block referenced by block ID,
             creating it from the consensus state history if necessary.
 
@@ -140,7 +128,7 @@ class ConsensusState:
             ConsensusState object representing the consensus state for the
                 block referenced by block_id
         """
-
+        LOGGER.debug('ConsensusState: consensus_state_for_block_id for block_id=%s',block_id)
         consensus_state = None
         previous_wait_certificate = None
         blocks = collections.OrderedDict()
@@ -150,10 +138,7 @@ class ConsensusState:
         # created consensus state
         current_id = block_id
         while True:
-            block = \
-                ConsensusState._block_for_id(
-                    block_id=current_id,
-                    block_cache=block_cache)
+            block = ConsensusState._block_for_id(block_id=current_id,block_cache=block_cache)
             if block is None:
                 break
 
@@ -162,26 +147,21 @@ class ConsensusState:
             # state.
             consensus_state = consensus_state_store.get(block_id=current_id)
             if consensus_state is not None:
+                LOGGER.debug("ConsensusState: CONSENSUS_STATE=%s",consensus_state)
                 break
 
-            wait_certificate = utils.deserialize_wait_certificate(
-                    block=block,pbft_enclave_module=pbft_enclave_module)
+            wait_certificate = utils.deserialize_wait_certificate(block=block,pbft_enclave_module=pbft_enclave_module)
 
             # If this is a PBFT block (i.e., it has a wait certificate), get
             # the validator info for the validator that signed this block and
             # add the block information we will need to set validator state in
             # the block's consensus state.
             if wait_certificate is not None:
-                state_view = state_view_factory.create_view(
-                        state_root_hash=block.state_root_hash)
+                state_view = state_view_factory.create_view(state_root_hash=block.state_root_hash)
                 validator_registry_view = ValidatorRegistryView(state_view=state_view)
-                validator_info = validator_registry_view.get_validator_info(
-                        validator_id=block.header.signer_public_key)
+                validator_info = validator_registry_view.get_validator_info(validator_id=block.header.signer_public_key)
 
-                LOGGER.debug(
-                    'We need to build consensus state for block: %s...%s',
-                    current_id[:8],
-                    current_id[-8:])
+                LOGGER.debug('We need to build consensus state for block: %s...%s',current_id[:8],current_id[-8:])
 
                 blocks[current_id] = ConsensusState._BlockInfo(
                         wait_certificate=wait_certificate,
@@ -243,10 +223,12 @@ class ConsensusState:
                     consensus_state.aggregate_local_mean,
                     consensus_state.total_block_claim_count)
 
+        LOGGER.debug("ConsensusState: CONSENSUS_STATE=%s done",consensus_state)
         return consensus_state
 
     def __init__(self):
-        """Initialize a ConsensusState object
+        """
+        Initialize a ConsensusState object
 
         Returns:
             None
@@ -256,6 +238,10 @@ class ConsensusState:
         self._population_samples = collections.deque()
         self._total_block_claim_count = 0
         self._validators = {}
+        # pbft 
+        self._step = "NotStarted"
+        self._mode = "Normal"
+        self._sequence_number = 0
 
     @property
     def aggregate_local_mean(self):
@@ -473,20 +459,21 @@ class ConsensusState:
             ValidatorState: The validator state if it exists or the default
                 initial state if it does not
         """
-
+        LOGGER.debug("ConsensusState: get_validator_state %s='%s' num=%s",validator_info.node,validator_info.name,len(self._validators))
         # Fetch the validator state.  If it doesn't exist, then create a
         # default validator state object and store it for further requests
         validator_state = self._validators.get(validator_info.id)
 
         if validator_state is None:
-            validator_state = \
-                ValidatorState(
+            validator_state = ValidatorState(
                     key_block_claim_count=0,
                     pbft_public_key=validator_info.signup_info.
                     pbft_public_key,
                     total_block_claim_count=0)
             self._validators[validator_info.id] = validator_state
-
+            LOGGER.debug("ConsensusState: add validator %s='%s' num=%s",validator_info.node,validator_info.name,len(self._validators))
+        else:
+            LOGGER.debug("ConsensusState: validator %s='%s' already in list",validator_info.node,validator_info.name)
         return validator_state
 
     def validator_did_claim_block(self,
@@ -526,18 +513,14 @@ class ConsensusState:
             self._population_samples.popleft()
 
         # We need to fetch the current state for the validator
-        validator_state = \
-            self.get_validator_state(validator_info=validator_info)
+        validator_state = self.get_validator_state(validator_info=validator_info)
 
-        total_block_claim_count = \
-            validator_state.total_block_claim_count + 1
+        total_block_claim_count = validator_state.total_block_claim_count + 1
 
         # If the PBFT public keys match, then we are doing a simple statistics
         # update
-        if validator_info.signup_info.pbft_public_key == \
-                validator_state.pbft_public_key:
-            key_block_claim_count = \
-                validator_state.key_block_claim_count + 1
+        if validator_info.signup_info.pbft_public_key == validator_state.pbft_public_key:
+            key_block_claim_count = validator_state.key_block_claim_count + 1
 
         # Otherwise, we are resetting statistics for the validator.  This
         # includes using the validator info's transaction ID to get the block
@@ -557,8 +540,7 @@ class ConsensusState:
             total_block_claim_count)
 
         # Update our copy of the validator state
-        self._validators[validator_info.id] = \
-            ValidatorState(
+        self._validators[validator_info.id] = ValidatorState(
                 key_block_claim_count=key_block_claim_count,
                 pbft_public_key=validator_info.signup_info.pbft_public_key,
                 total_block_claim_count=total_block_claim_count)
@@ -673,10 +655,9 @@ class ConsensusState:
             pbft_settings_view.signup_commit_maximum_delay + 1)
         return True
 
-    def validator_has_claimed_block_limit(self,
-                                          validator_info,
-                                          pbft_settings_view):
-        """Determines if a validator has already claimed the maximum number of
+    def validator_has_claimed_block_limit(self,validator_info,pbft_settings_view):
+        """
+        Determines if a validator has already claimed the maximum number of
         blocks allowed with its PBFT key pair.
         Args:
             validator_info (BgxValidatorInfo): The current validator information
@@ -858,8 +839,7 @@ class ConsensusState:
         # add the new information (i.e., the validator trying to claim as well
         # as the population estimate) to the front to maintain the order of
         # most-recent to least-recent.
-        population_estimate_list = \
-            self._build_population_estimate_list(
+        population_estimate_list = self._build_population_estimate_list(
                 block_id=previous_block_id,
                 pbft_settings_view=pbft_settings_view,
                 block_cache=block_cache,
@@ -950,6 +930,9 @@ class ConsensusState:
             '_aggregate_local_mean': self._aggregate_local_mean,
             '_population_samples': list(self._population_samples),
             '_total_block_claim_count': self._total_block_claim_count,
+            '_mode': self._mode,
+            '_step': self._step,
+            '_sequence_number': self._sequence_number,
             '_validators': self._validators
         }
         return cbor.dumps(self_dict)
@@ -976,13 +959,13 @@ class ConsensusState:
             self_dict = cbor.loads(buffer)
 
             if not isinstance(self_dict, dict):
-                raise \
-                    ValueError(
-                        'buffer is not a valid serialization of a '
-                        'ConsensusState object')
+                raise ValueError('buffer is not a valid serialization of a ConsensusState object')
 
-            self._aggregate_local_mean = \
-                float(self_dict['_aggregate_local_mean'])
+
+            self._mode = self_dict['_mode']
+            self._step = self_dict['_step']
+            self._sequence_number = int(self_dict['_sequence_number'])
+            self._aggregate_local_mean = float(self_dict['_aggregate_local_mean'])
             self._local_mean = None
             self._population_samples = collections.deque()
             for sample in self_dict['_population_samples']:
@@ -1005,15 +988,9 @@ class ConsensusState:
 
             if not math.isfinite(self.aggregate_local_mean) or \
                     self.aggregate_local_mean < 0:
-                raise \
-                    ValueError(
-                        'aggregate_local_mean ({}) is invalid'.format(
-                            self.aggregate_local_mean))
+                raise ValueError('aggregate_local_mean ({}) is invalid'.format(self.aggregate_local_mean))
             if self.total_block_claim_count < 0:
-                raise \
-                    ValueError(
-                        'total_block_claim_count ({}) is invalid'.format(
-                            self.total_block_claim_count))
+                raise ValueError('total_block_claim_count ({}) is invalid'.format(self.total_block_claim_count))
 
             if not isinstance(validators, dict):
                 raise ValueError('_validators is not a dict')
@@ -1048,8 +1025,8 @@ class ConsensusState:
              key, value in self._validators.items()]
 
         return \
-            'ALM={:.4f}, TBCC={}, PS={}, V={}'.format(
-                self.aggregate_local_mean,
-                self.total_block_claim_count,
-                self._population_samples,
+            'mode={}, step={}, SEQ={}, PEERS={}'.format(
+                self._mode,
+                self._step,
+                self._sequence_number,
                 validators)

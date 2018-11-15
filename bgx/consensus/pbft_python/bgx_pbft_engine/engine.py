@@ -50,6 +50,7 @@ class PbftEngine(Engine):
         self._published = False
         self._building = False
         self._committing = False
+        self._check = False
 
         self._node = self._pbft_config.node
         self._pending_forks_to_resolve = PendingForks()
@@ -95,10 +96,16 @@ class PbftEngine(Engine):
         self._service.broadcast(PRE_PREPARE_MSG,payload.SerializeToString()) #b'payload')
 
     def _check_consensus(self, block):
-        if self._node == 'leader':
-            # leader node - send prePrepare
-            self._pre_prepare()
-        return True
+        state = self._oracle.get_consensus_state_for_block_id(block)
+        if state is not None:
+            LOGGER.debug('PbftEngine: have got  CONSENSUS_STATE id=%s',block.block_id.hex())
+            if self._node == 'leader':
+                # leader node - send prePrepare
+                self._pre_prepare()
+            return True
+        else:
+            LOGGER.debug('PbftEngine: there is no CONSENSUS_STATE for block')
+            return False
         #return self._oracle.verify_block(block)
 
     def _switch_forks(self, current_head, new_head):
@@ -142,6 +149,7 @@ class PbftEngine(Engine):
 
     def _summarize_block(self):
         try:
+            # Stop adding to the current block and summarize the contents of the block with a digest.
             return self._service.summarize_block()
         except exceptions.InvalidState as err:
             LOGGER.warning("_summarize_block:err=%s",err)
@@ -156,16 +164,20 @@ class PbftEngine(Engine):
         if summary is None:
             #LOGGER.debug('Block not ready to be summarized')
             return None
-
+        LOGGER.debug('Block ready to be summarized  summary=%s',summary.hex())
         consensus = self._oracle.finalize_block(summary)
-
+        
         if consensus is None:
             return None
 
         try:
+            """
+            Stop adding batches to the current block and finalize it. Include the given consensus data in the block.
+            If this call is successful, a BlockNew update will be received with the new block
+            """
             block_id = self._service.finalize_block(consensus)
             #LOGGER.info('Finalized %s with %s',block_id.hex(),json.loads(consensus.decode()))
-            LOGGER.info('Finalized %s with',block_id.hex())
+            LOGGER.info('Finalized id=%s with',block_id.hex())
             return block_id
         except exceptions.BlockNotReady:
             LOGGER.debug('Block not ready to be finalized')
@@ -209,7 +221,8 @@ class PbftEngine(Engine):
 
     def _check_publish_block(self):
         # Publishing is based solely on wait time, so just give it None.
-        LOGGER.debug('_check_publish_block ')
+        #LOGGER.debug('_check_publish_block ')
+        #return self._check;
         return self._oracle.check_publish_block(None)
 
     def start(self, updates, service, startup_state):
@@ -288,31 +301,35 @@ class PbftEngine(Engine):
                 LOGGER.debug('PbftEngine: _initialize_block DONE')
 
         if self._building:
-            LOGGER.debug('PbftEngine: _check_publish_block ..')
+            #LOGGER.debug('PbftEngine: _check_publish_block ..')
             if self._check_publish_block():
-                LOGGER.debug('PbftEngine: _finalize_block ..')
+                #LOGGER.debug('PbftEngine: _finalize_block ..')
+                #self._check = False
                 block_id = self._finalize_block()
                 if block_id:
-                    LOGGER.info("Published block %s", block_id.hex())
+                    LOGGER.info("Published block_id=%s", block_id.hex())
                     self._published = True
                     self._building = False
+                """
                 else:
                     LOGGER.debug('BgtEngine: _cancel_block')
                     self._cancel_block()
                     self._building = False
-
+                """
     def _handle_new_block(self, block):
         LOGGER.info('handle NEW_BLOCK:Received id=%s block_num=%s payload=%s', block.block_id.hex(),block.block_num,block.payload)
         block = PbftBlock(block)
 
         if self._check_consensus(block):
             LOGGER.info('Passed consensus check: %s', block.block_id.hex())
+            #self._check = True
             self._check_block(block.block_id)
         else:
             LOGGER.info('Failed consensus check: %s', block.block_id.hex())
             self._fail_block(block.block_id)
 
     def _handle_valid_block(self, block_id):
+        LOGGER.info('handle VALID_BLOCK:Received id=%s', block_id.hex())
         block = self._get_block(block_id)
 
         self._pending_forks_to_resolve.push(block)
@@ -345,7 +362,7 @@ class PbftEngine(Engine):
             self._ignore_block(block.block_id)
 
     def _handle_committed_block(self, block_id):
-        LOGGER.info('Chain head updated to %s, abandoning block in progress',block_id.hex())
+        LOGGER.info('handle COMMITTED_BLOCK:Chain head updated to %s, abandoning block in progress',block_id.hex())
 
         self._cancel_block()
 
@@ -360,14 +377,14 @@ class PbftEngine(Engine):
         Messages about new peers
         """
         #block = PbftBlock(block)
-        LOGGER.info('_handle_peer_connected: Received %s', block)
+        LOGGER.info('handle PEER_CONNECTED: Received %s', block)
 
     def _handle_peer_message(self, block):
         """
         we have got here messages which were sent for consensus via CONSENSUS_BROADCAST_REQUEST 
         """
         #block = PbftBlock(block)
-        LOGGER.info('_handle_peer_message: Received %s', block)
+        LOGGER.info('handle PEER_MESSAGE: Received %s', block)
 
     def _handle_broadcast_request(self, block):
-        LOGGER.info('_handle_broadcast_request: Received %s', block)
+        LOGGER.info('handle BROADCAST_REQUEST: Received %s', block)
