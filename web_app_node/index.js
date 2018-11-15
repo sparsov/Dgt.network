@@ -16,9 +16,9 @@ var glob = new chilkat.Global();
 var success = glob.UnlockBundle("Anything for 30-day trial");
 
 var addressesToPrivKeys = {
-    "4aa37a37b9793a7f3696129d9a367b26fd0b2b1c": "MC4CAQEEIN5I3Rd3U/0uZ9D+3qY/12U8X8XTti73YpId2QUnzEZUoAcGBSuBBAAK",
-    "673fcacfb51214e0543b786da79956b541e7d792": "MC4CAQEEIEl8UH0qpL7Xj3LvTY8m3TtiMBJDOhm+qtRdvjH4ADUaoAcGBSuBBAAK",
-    "d7d24d1c1ca78c63769ea99d563cb259311d2d62": "MC4CAQEEIEBR/EcoAQi+1c+YVrtx+6XgX6jlqLKZvaie4yfdFOyMoAcGBSuBBAAK"
+    "0x4aa37a37b9793a7f3696129d9a367b26fd0b2b1c": "MC4CAQEEIN5I3Rd3U/0uZ9D+3qY/12U8X8XTti73YpId2QUnzEZUoAcGBSuBBAAK",
+    "0x673fcacfb51214e0543b786da79956b541e7d792": "MC4CAQEEIEl8UH0qpL7Xj3LvTY8m3TtiMBJDOhm+qtRdvjH4ADUaoAcGBSuBBAAK",
+    "0xd7d24d1c1ca78c63769ea99d563cb259311d2d62": "MC4CAQEEIEBR/EcoAQi+1c+YVrtx+6XgX6jlqLKZvaie4yfdFOyMoAcGBSuBBAAK"
 }
 const express = require('express')
 var bodyParser = require('body-parser')

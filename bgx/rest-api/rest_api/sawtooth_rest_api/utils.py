@@ -38,7 +38,7 @@ def eth_address_from_pub_key(pkcs1_DER_base64_pub_key):
     # Take the last 20 bytes
     address_len = 40
     address = keccak_digest[-address_len:]
-    return address
+    return '0x' + address
 
 
 def hash_dict(dict):
