@@ -45,6 +45,7 @@ setup(
         "colorlog",
         "sawtooth-sdk",
         "sawtooth-signing",
+        "secp256k1"
     ],
     data_files=data_files,
     entry_points={

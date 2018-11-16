@@ -22,6 +22,27 @@ def generate_keys_pair():
     return priv_key.getPkcs1ENC('base64'), pub_key.getEncoded(True, 'base64')
 
 
+def priv_key_pkcs1_DER_base64_to_hex(pkcs1_DER_base64_priv_key):
+    """
+    :param pkcs1_DER_base64_priv_key: secp256k1 elliptic curve private key in Pkcs1 DER format in base64 encode
+    :return: hex private key
+    """
+    ecdsa_priv_key = ecdsa.SigningKey.from_der(base64.b64decode(pkcs1_DER_base64_priv_key))
+    return ecdsa_priv_key.to_string().hex()
+
+
+def pub_key_pkcs1_DER_base64_to_hex(pkcs1_DER_base64_pub_key):
+    """
+    :param pkcs1_DER_base64_pub_key: secp256k1 elliptic curve public key in Pkcs1 DER format in base64 encode
+    :return: hex public key
+    """
+    try:
+        ecdsa_pub_key = ecdsa.VerifyingKey.from_der(base64.b64decode(pkcs1_DER_base64_pub_key))
+    except TypeError:
+        raise errors.InvalidPublicKey()
+    return ecdsa_pub_key.to_string().hex()
+
+
 def eth_address_from_pub_key(pkcs1_DER_base64_pub_key):
     """
     :param pkcs1_DER_base64_pub_key: secp256k1 elliptic curve public key in Pkcs1 DER format in base64 encode

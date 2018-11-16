@@ -20,6 +20,9 @@ import json
 import base64
 from aiohttp import web
 import cbor
+from hashlib import sha512
+from sawtooth_signing import create_context
+from sawtooth_signing import CryptoFactory
 
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
@@ -686,91 +689,91 @@ class RouteHandler:
             raise errors.InvalidSignature()
 
         # Execute transaction
-        append_transaction(
-            address_from,
-            address_to,
-            payload['tx_payload'],
-            payload['coin_code'],
-            'Regular transaction'
+        # append_transaction(
+        #     address_from,
+        #     address_to,
+        #     payload['tx_payload'],
+        #     payload['coin_code'],
+        #     'Regular transaction'
+        # )
+        payload_bytes = cbor.dumps({
+            'Verb': 'transfer',
+            'Name': 'Later_Be_Changed_With_Value_From_M',
+            'Value': PUB_KEYS_BY_ADDRESSES[payload['address_to']],
+            'Value_2': payload['tx_payload'],
+        })
+        hashed_payload = sha512(payload_bytes).hexdigest()
+        node_private_key_hex = rest_api_utils.priv_key_pkcs1_DER_base64_to_hex(NODE_CREDENTIALS['private_key'])
+        secp256k1_context = create_context('secp256k1')
+        node_private_key = secp256k1_context.new_random_private_key().from_hex(node_private_key_hex)
+        node_signer = CryptoFactory(secp256k1_context).new_signer(node_private_key)
+
+        txn_header_bytes = TransactionHeader(
+            family_name='smart_bgt',
+            family_version='1.0',
+            inputs=[],
+            outputs=[],
+            # pub_key of node
+            signer_public_key=node_signer.get_public_key().as_hex(),
+            # pub_key of user
+            batcher_public_key=node_signer.get_public_key().as_hex(),
+            dependencies=[],
+            payload_sha512=hashed_payload
+        ).SerializeToString()
+
+        txn_header_signature = node_signer.sign(txn_header_bytes)
+        
+
+        txn = Transaction(
+            header=txn_header_bytes,
+            header_signature=txn_header_signature,
+            payload=payload_bytes
         )
 
-        # hashed_payload = rest_api_utils.hash_dict(payload)
-        # print(payload, hashed_payload, sep='\n')
-        # # TODO: change payload_sha512 to payload_sha256
-        # # TODO: remove batcher_public_key
-        # txn_header_bytes = TransactionHeader(
-        #     family_name='smart_bgt',
-        #     family_version='1.0',
-        #     inputs=[],
-        #     outputs=[],
-        #     signer_public_key=public_key_from,
-        #     # pub_key of node
-        #     batcher_public_key=NODE_CREDENTIALS['public_key'],
-        #     dependencies=[],
-        #     # payload_sha256
-        #     payload_sha512=hashed_payload
-        # ).SerializeToString()
-        #
-        # payload_bytes = cbor.dumps(payload)
-        # header_signature = rest_api_utils.si
-        #
-        # # TODO: change header_signature to payload_signature
-        # txn = Transaction(
-        #     header=txn_header_bytes,
-        #     # payload_signature
-        #     header_signature=signed_payload,
-        #     payload=payload_bytes
-        # )
-        #
-        # # TODO: change header_signature to payload_signature
-        # batch_header_bytes = BatchHeader(
-        #     signer_public_key=NODE_CREDENTIALS['public_key'],
-        #     transaction_ids=[txn.header_signature]
-        # ).SerializeToString()
-        #
-        # print(NODE_CREDENTIALS['private_key'], batch_header_bytes)
-        # batch_header_signature = rest_api_utils.sign_string(
-        #     priv_key=NODE_CREDENTIALS['private_key'],
-        #     string=str(batch_header_bytes)
-        # )
-        #
-        # batch = Batch(
-        #     header=batch_header_bytes,
-        #     header_signature=batch_header_signature,
-        #     transactions=[txn]
-        # )
-        #
-        # # Query validator
-        # error_traps = [error_handlers.BatchInvalidTrap,
-        #                error_handlers.BatchQueueFullTrap]
-        # validator_query = client_batch_submit_pb2.\
-        #     ClientBatchSubmitRequest(batches=[batch])
-        #
-        # with self._post_batches_validator_time.time():
-        #     await self._query_validator(
-        #         Message.CLIENT_BATCH_SUBMIT_REQUEST,
-        #         client_batch_submit_pb2.ClientBatchSubmitResponse,
-        #         validator_query,
-        #         error_traps)
-        #
-        # # Build response envelope
-        # id_string = batch_header_signature
-        #
-        # status = 202
-        # link = self._build_url(request, path='/batch_statuses', id=id_string)
-        #
-        # retval = self._wrap_response(
-        #     request,
-        #     metadata={'link': link},
-        #     status=status)
-        #
-        # timer_ctx.stop()
-        # return retval
+        batch_header_bytes = BatchHeader(
+            signer_public_key=node_signer.get_public_key().as_hex(),
+            transaction_ids=[txn_header_signature]
+        ).SerializeToString()
 
-        return self._wrap_response(
+        batch_header_signature = node_signer.sign(batch_header_bytes)
+
+        batch = Batch(
+            header=batch_header_bytes,
+            header_signature=batch_header_signature,
+            transactions=[txn]
+        )
+
+        # Query validator
+        error_traps = [error_handlers.BatchInvalidTrap,
+                       error_handlers.BatchQueueFullTrap]
+        validator_query = client_batch_submit_pb2.\
+            ClientBatchSubmitRequest(batches=[batch])
+
+        with self._post_batches_validator_time.time():
+            await self._query_validator(
+                Message.CLIENT_BATCH_SUBMIT_REQUEST,
+                client_batch_submit_pb2.ClientBatchSubmitResponse,
+                validator_query,
+                error_traps)
+
+        # Build response envelope
+        id_string = batch_header_signature
+
+        status = 202
+        link = self._build_url(request, path='/batch_statuses', id=id_string)
+
+        retval = self._wrap_response(
             request,
-            metadata=TRANSACTIONS[-1],
-            status=200)
+            metadata={'link': link},
+            status=status)
+
+        timer_ctx.stop()
+        return retval
+
+        # return self._wrap_response(
+        #     request,
+        #     metadata=TRANSACTIONS[-1],
+        #     status=200)
 
     async def post_add_funds(self, request):
         body = await request.json()

@@ -70,6 +70,10 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "bgx/protos/pbft")
     protoc(proto_dir, "bgx/consensus/pbft_python", "bgx_pbft_common/protobuf")
 
+    # Generate Smart BGT token  protos
+    proto_dir = JOIN(TOP_DIR, "bgx/protos/families/smart_bgt")
+    protoc(proto_dir, "bgx/families/bgt_python", "bgt_common/protobuf")
+
 
 def protoc(src_dir, base_dir, pkg, language="python"):
     if language == "python":

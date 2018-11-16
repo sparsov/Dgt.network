@@ -15,14 +15,16 @@
 
 import logging
 import hashlib
-
+import base64
 import cbor
 
 
 from sawtooth_sdk.processor.handler import TransactionHandler
 from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
-
+from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
+from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
+from sawtooth_signing import CryptoFactory,create_context
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +45,18 @@ def make_bgt_address(name):
 
 
 class BgtTransactionHandler(TransactionHandler):
+    def __init__(self):
+        self._context = create_context('secp256k1') 
+        LOGGER.debug('_do_set: context')
+        self._private_key = Secp256k1PrivateKey.new_random()
+        LOGGER.debug('_do_set: context private_key=%s',self._private_key.as_hex())
+        self._public_key = self._context.get_public_key(self._private_key)
+        crypto_factory = CryptoFactory(self._context)
+        self._signer = crypto_factory.new_signer(self._private_key)
+        #self._signer = CryptoFactory(self._context).new_signer(self.private_key)
+        LOGGER.debug('_do_set: public_key=%s  ',self._public_key.as_hex())
+        LOGGER.info('BgtTransactionHandler init DONE')
+
     @property
     def family_name(self):
         return FAMILY_NAME
@@ -60,10 +74,95 @@ class BgtTransactionHandler(TransactionHandler):
 
         state = _get_state_data(name, context)
 
-        updated_state = _do_bgt(verb, name, value, state)
+        updated_state = self._do_bgt(verb, name, value, state)
 
         _set_state_data(name, updated_state, context)
-    LOGGER.info('BgtTransactionHandler init')
+
+    def _do_bgt(self,verb, name, value, state):
+        verbs = {
+            'set': self._do_set,
+            'inc': self._do_inc,
+            'dec': self._do_dec,
+        }
+        LOGGER.debug('_do_bgt request....')
+        try:
+            return verbs[verb](name, value, state)
+        except KeyError:
+            # This would be a programming error.
+            raise InternalError('Unhandled verb: {}'.format(verb))
+
+
+    def _do_set(self,name, value, state):
+        msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
+        LOGGER.debug(msg)
+        
+
+        if name in state:
+            raise InvalidTransaction('Verb is "set", but already exists: Name: {n}, Value {v}'.format(n=name,v=state[name]))
+
+        updated = {k: v for k, v in state.items()}
+        #owner_key = self._context.sign('BGT_token'.encode(),self._private_key)
+        token = BgtTokenInfo(group_code = 'BGT_token',
+                             owner_key = self._signer.sign('BGT_token'.encode()), #owner_key,
+                             sign = self._public_key.as_hex(),
+                             decimals = int(value)
+                )
+        updated[name] = token.SerializeToString()
+        LOGGER.debug('_do_set updated=%s',updated)
+        return updated
+
+
+    def _do_inc(self,name, value, state):
+        msg = 'Incrementing "{n}" by {v}'.format(n=name, v=value)
+        LOGGER.debug(msg)
+
+        if name not in state:
+            raise InvalidTransaction(
+                'Verb is "inc" but name "{}" not in state'.format(name))
+
+        curr = state[name]
+        token = BgtTokenInfo()
+        token.ParseFromString(curr)
+        LOGGER.debug('_do_inc token[%s]=%s',token.group_code,token.decimals,value)
+        incd = token.decimals + value
+
+        if incd > MAX_VALUE:
+            raise InvalidTransaction(
+                'Verb is "inc", but result would be greater than {}'.format(
+                    MAX_VALUE))
+
+        updated = {k: v for k, v in state.items()}
+        token.decimals = incd
+        updated[name] = token.SerializeToString() 
+
+        return updated
+
+
+    def _do_dec(self,name, value, state):
+        msg = 'Decrementing "{n}" by {v}'.format(n=name, v=value)
+        LOGGER.debug(msg)
+
+        if name not in state:
+            raise InvalidTransaction(
+                'Verb is "dec" but name "{}" not in state'.format(name))
+
+        curr = state[name]
+        token = BgtTokenInfo()
+        token.ParseFromString(curr)
+        LOGGER.debug('_do_dec token[%s]=%s',token.group_code,token.decimals,value)
+        decd = token.decimals - value
+
+        if decd < MIN_VALUE:
+            raise InvalidTransaction(
+                'Verb is "dec", but result would be less than {}'.format(
+                    MIN_VALUE))
+
+        updated = {k: v for k, v in state.items()}
+        token.decimals = decd
+        updated[name] = token.SerializeToString()
+
+        return updated
+        
 
 def _unpack_transaction(transaction):
     verb, name, value = _decode_transaction(transaction)
@@ -126,6 +225,8 @@ def _get_state_data(name, context):
     state_entries = context.get_state([address])
 
     try:
+        #value = BgtTokenInfo()
+        #value.ParseFromString(state_entries[0].data)
         return cbor.loads(state_entries[0].data)
     except IndexError:
         return {}
@@ -144,76 +245,4 @@ def _set_state_data(name, state, context):
         raise InternalError('State error')
 
 
-def _do_bgt(verb, name, value, state):
-    verbs = {
-        'set': _do_set,
-        'inc': _do_inc,
-        'dec': _do_dec,
-    }
-    LOGGER.debug('_do_bgt request....')
-    try:
-        return verbs[verb](name, value, state)
-    except KeyError:
-        # This would be a programming error.
-        raise InternalError('Unhandled verb: {}'.format(verb))
 
-
-def _do_set(name, value, state):
-    msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
-    LOGGER.debug(msg)
-    
-
-    if name in state:
-        raise InvalidTransaction(
-            'Verb is "set", but already exists: Name: {n}, Value {v}'.format(
-                n=name,
-                v=state[name]))
-
-    updated = {k: v for k, v in state.items()}
-    updated[name] = value
-    LOGGER.debug('_do_set updated=%s',updated)
-    return updated
-
-
-def _do_inc(name, value, state):
-    msg = 'Incrementing "{n}" by {v}'.format(n=name, v=value)
-    LOGGER.debug(msg)
-
-    if name not in state:
-        raise InvalidTransaction(
-            'Verb is "inc" but name "{}" not in state'.format(name))
-
-    curr = state[name]
-    incd = curr + value
-
-    if incd > MAX_VALUE:
-        raise InvalidTransaction(
-            'Verb is "inc", but result would be greater than {}'.format(
-                MAX_VALUE))
-
-    updated = {k: v for k, v in state.items()}
-    updated[name] = incd
-
-    return updated
-
-
-def _do_dec(name, value, state):
-    msg = 'Decrementing "{n}" by {v}'.format(n=name, v=value)
-    LOGGER.debug(msg)
-
-    if name not in state:
-        raise InvalidTransaction(
-            'Verb is "dec" but name "{}" not in state'.format(name))
-
-    curr = state[name]
-    decd = curr - value
-
-    if decd < MIN_VALUE:
-        raise InvalidTransaction(
-            'Verb is "dec", but result would be less than {}'.format(
-                MIN_VALUE))
-
-    updated = {k: v for k, v in state.items()}
-    updated[name] = decd
-
-    return updated

@@ -305,6 +305,7 @@ class ExecutionContext:
 
         with self._lock:
             for address, value in address_value_dict.items():
+                LOGGER.debug('set_direct [%s]=(%s)',address,value)
                 self._validate_write(address)
                 if address in self._state:
                     self._state[address].set_result(result=value)

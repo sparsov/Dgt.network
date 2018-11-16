@@ -12,54 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f rest_api/Dockerfile -t sawtooth-rest-api-local .
+# docker build -f sdk/examples/intkey_python/Dockerfile -t intkey-tp-python-local .
 
-# -------------=== rest_api build ===-------------
+# -------------=== intkey-tp-python build ===-------------
 
-FROM ubuntu:xenial
+FROM ubuntu:bionic
 
-RUN echo "deb http://repo.sawtooth.me/ubuntu/ci xenial universe" >> /etc/apt/sources.list \
+RUN apt-get update \
+ && apt-get install gnupg -y
+
+RUN echo "deb http://repo.sawtooth.me/ubuntu/ci bionic universe" >> /etc/apt/sources.list \
  && (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8AA7AF1F1091A5FD \
  || apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 8AA7AF1F1091A5FD) \
  && apt-get update
 
-RUN apt-get install -y -q --allow-downgrades \
+RUN apt-get install -y -q \
     git \
     python3 \
     python3-stdeb
-RUN apt-get install -y -q --allow-downgrades \
+
+RUN apt-get install -y -q \
     python3-grpcio \
     python3-grpcio-tools \
     python3-protobuf
 
-RUN apt-get install -y -q --allow-downgrades \
-    python3-aiodns \
-    python3-aiohttp \
+RUN apt-get install -y -q \
+    python3-cbor \
     python3-colorlog \
-    python3-cchardet\
-    python3-pyformance \
     python3-toml \
     python3-yaml \
-    python3-zmq python3-secp256k1
+    python3-zmq
 
-RUN apt-get update && apt-get install -y \
-    python3-pip
-
-RUN pip3 install pycryptodome \
-    ecdsa \
-    cbor
-
-RUN pip3 install aiohttp_cors
-
-RUN mkdir /var/log/sawtooth
+RUN mkdir -p /var/log/sawtooth
 
 ENV PATH=$PATH:/project/sawtooth-core/bin
 
 WORKDIR /project/sawtooth-core
 
-CMD echo "\033[0;32m--- Building rest_api ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building intkey-tp-python ---\n\033[0m" \
  && bin/protogen \
- && cd rest_api \
- && python3 chilkat-linux/installChilkat.py \
+ && cd sdk/examples/intkey_python \
  && python3 setup.py clean --all \
  && python3 setup.py build

@@ -98,7 +98,8 @@ class PbftEngine(Engine):
     def _check_consensus(self, block):
         state = self._oracle.get_consensus_state_for_block_id(block)
         if state is not None:
-            LOGGER.debug('PbftEngine: have got  CONSENSUS_STATE id=%s',block.block_id.hex())
+            LOGGER.debug('PbftEngine: have got  CONSENSUS_STATE id=%s step=%s mode=%s',block.block_id.hex(),state.step,state.mode)
+            state.next_step()
             if self._node == 'leader':
                 # leader node - send prePrepare
                 self._pre_prepare()
