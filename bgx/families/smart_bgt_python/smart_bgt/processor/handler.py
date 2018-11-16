@@ -24,7 +24,7 @@ from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
 #from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
 from smart_bgt.processor.utils  import FAMILY_NAME,FAMILY_VER,make_smart_bgt_address,SMART_BGT_ADDRESS_PREFIX #
-#from sawtooth_signing.secp256k1 import Secp256k1Context, Secp256k1PrivateKey, Secp256k1PublicKey 
+from sawtooth_signing.secp256k1 import Secp256k1Context, Secp256k1PrivateKey, Secp256k1PublicKey
 #from ecdsa import SigningKey, SECP256k1
 
 #import smart_bgt.processor.emission as emission
@@ -207,7 +207,7 @@ def _do_generate_key(state):
 
     digital_signature = BGXCrypto.DigitalSignature()
     private_key = digital_signature.getSigningKey()
-    LOGGER.debug("New private key generated: " + private_key)
+    LOGGER.debug("New private key generated: " + str(private_key))
 
     updated = {k: v for k, v in state.items()}
     return updated
@@ -217,7 +217,6 @@ def _do_init(full_name, private_key, ethereum_address, state):
     #msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
     #LOGGER.debug(msg)
 
-
     #if name in state:
     #    raise InvalidTransaction(
     #        'Verb is "init", but already exists: Name: {n}, Value {v}'.format(
@@ -226,6 +225,9 @@ def _do_init(full_name, private_key, ethereum_address, state):
 
     updated = {k: v for k, v in state.items()}
     #updated[name] = value
+
+    #if full_name == "transfer":
+    #    LOGGER.debug("WOW")
 
     ############################LOGGER.debug("############################################################################")
     ############################LOGGER.debug("############################################################################")
@@ -246,7 +248,7 @@ def _do_init(full_name, private_key, ethereum_address, state):
     
     LOGGER.debug("Emission - start")
     
-    digital_signature = BGXCrypto.DigitalSignature()#private_key)
+    digital_signature = BGXCrypto.DigitalSignature(private_key)
 
     LOGGER.debug("DigitalSignature is ready")
 
@@ -262,13 +264,18 @@ def _do_init(full_name, private_key, ethereum_address, state):
     bgt_price = 0
 
     unique_tokens = emission_mechanism.releaseTokens("BGX Token", "BGT", "id", digital_signature, 1, wallet_address, bgt_price)
-    
+    LOGGER.debug("Emission - ok")
+
     for token in unique_tokens:
         key = str(token.getId())
         value = str(token.toJSON())
         LOGGER.debug("New token: id " + str(key) + "  -  value " + str(value))
-        updated[full_name] = value
-    
+        lit_key = str(key[-2:])
+        #updated[lit_key] = lit_key
+        #updated[lit_key] = "123"
+        ####updated[lit_key] = "1"
+        updated[key] = value
+    #updated[full_name] = "123"
     LOGGER.debug("Emission - end [%s]=updated=%s",full_name,updated)        
     return updated
 

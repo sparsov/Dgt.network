@@ -45,8 +45,8 @@ class Token:
         return str(self.token_id)
 
     def toJSON(self):
-        data = {'group_code': str(self.group_code), 'owner_key': self.owner_key, 'sign': self.sign}
-        return str(json.dumps(data))
+        #data = {'group_code': str(self.group_code), 'owner_key': self.owner_key, 'sign': self.sign}
+        return str(self.owner_key)
 
     # TODO: implement
 

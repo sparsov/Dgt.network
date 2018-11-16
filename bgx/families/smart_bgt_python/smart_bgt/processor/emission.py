@@ -52,7 +52,8 @@ class EmissionMechanism:
 
     def releaseTokens(self, name, symbol, company_id, signing_key, tokens_amount, wallet_address, bgt_price):
         #services.BGXlog.logInfo('Emission in progress')
-        seed = str(time.time())
+        #seed = str(time.time())
+        seed = ""
         imprint = name + symbol + company_id + seed
         group_code = str(BGXCrypto.intHash(imprint))
 

@@ -683,7 +683,8 @@ class BGXCrypto:
                 #self._verifying_key = self._signing_key.get_verifying_key()
             else:
                 self._context = Secp256k1Context()
-                self._signing_key = Secp256k1PublicKey.from_hex(str_signing_key)
+                hexed_string = str_signing_key.encode()
+                self._signing_key = Secp256k1PrivateKey.from_hex(hexed_string)
                 self._verifying_key = self._context.get_public_key(self._signing_key)
 
         def sign(self, message):
@@ -693,10 +694,10 @@ class BGXCrypto:
             return self._context.verify(sign, str(message).encode('utf-8'), self._verifying_key)
 
         def getVerifyingKey(self):
-            return True
+            return str(self._verifying_key.as_hex())
 
         def getSigningKey(self):
-            return self._signing_key.as_hex()
+            return str(self._signing_key.as_hex())
 
 
 # Namespace for general configuration
