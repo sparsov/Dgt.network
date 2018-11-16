@@ -37,7 +37,7 @@ from sawtooth_bgt.client_cli.bgt_workload import do_workload
 from sawtooth_bgt.client_cli.bgt_client import BgtClient
 from sawtooth_bgt.client_cli.exceptions import BgtCliException
 from sawtooth_bgt.client_cli.exceptions import BgtClientException
-
+from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
 
 DISTRIBUTION_NAME = 'sawtooth-bgt'
 
@@ -280,7 +280,9 @@ def do_show(args):
     name = args.name
     client = _get_client(args)
     value = client.show(name)
-    print('{}: {}'.format(name, value))
+    token = BgtTokenInfo()
+    token.ParseFromString(value)
+    print('{}: {}={}'.format(name,token.group_code,token.decimals))
 
 
 def add_list_parser(subparsers, parent_parser):
@@ -301,9 +303,11 @@ def add_list_parser(subparsers, parent_parser):
 def do_list(args):
     client = _get_client(args)
     results = client.list()
+    token = BgtTokenInfo()
     for pair in results:
         for name, value in pair.items():
-            print('{}: {}'.format(name, value))
+            token.ParseFromString(value)
+            print('{}: {}={}'.format(name,token.group_code,token.decimals))
 
 
 def _get_client(args):
