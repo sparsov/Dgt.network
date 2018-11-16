@@ -24,8 +24,7 @@ from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
 from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
-from sawtooth_signing import CryptoFactory
-from sawtooth_signing import create_context
+from sawtooth_signing import CryptoFactory,create_context
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +51,9 @@ class BgtTransactionHandler(TransactionHandler):
         self._private_key = Secp256k1PrivateKey.new_random()
         LOGGER.debug('_do_set: context private_key=%s',self._private_key.as_hex())
         self._public_key = self._context.get_public_key(self._private_key)
+        crypto_factory = CryptoFactory(self._context)
+        self._signer = crypto_factory.new_signer(self._private_key)
+        #self._signer = CryptoFactory(self._context).new_signer(self.private_key)
         LOGGER.debug('_do_set: public_key=%s  ',self._public_key.as_hex())
         LOGGER.info('BgtTransactionHandler init DONE')
 
@@ -105,7 +107,7 @@ class BgtTransactionHandler(TransactionHandler):
         owner_key = self._context.sign('BGT_token'.encode(),self._private_key)
         LOGGER.debug('_do_set: context owner_key=%s',owner_key)
         token = BgtTokenInfo(group_code = 'BGT_token',
-                             owner_key = owner_key,
+                             owner_key = self._signer.sign('BGT_token'.encode()), #owner_key,
                              sign = self._public_key.as_hex(),
                              decimals = int(value)
                 )

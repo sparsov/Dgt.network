@@ -110,6 +110,7 @@
 /bgx/consensus/pbft_python/build
 /bgx/consensus/pbft_python/bgx_pbft_common/protobuf
 /bgx/consensus/pbft_python/bgx_pbft/__pycache__/
+/bgx/families/bgt_python/bgt_common/protobuf
 /mydir
 /bgx/consensus/devmode_python/sawtooth_bgt/__pycache__/
 /bgx/consensus/devmode_python/sawtooth_bgt/bgt_consensus/__pycache__/
