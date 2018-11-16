@@ -38,7 +38,7 @@ def eth_address_from_pub_key(pkcs1_DER_base64_pub_key):
     # Take the last 20 bytes
     address_len = 40
     address = keccak_digest[-address_len:]
-    return address
+    return '0x' + address
 
 
 def hash_dict(dict):
@@ -52,7 +52,6 @@ def hash_dict(dict):
     crypt.put_EncodingMode("base64")
 
     json_serialized_dict = json.dumps(dict, sort_keys=True)
-
     return crypt.hashStringENC(json_serialized_dict)
 
 
@@ -145,18 +144,12 @@ def generate_startup_global_state():
         })
     print({'node': node_state, 'users': user_keys})
 
-print(sign_dict('MC4CAQEEILNcUpk4Ez03Q5tTstifDv4Edc3A+UFOq9swX31metuzoAcGBSuBBAAK', {
-                        "address_to": "eb442acf33c0294d2541ac145a929e4ea98679f5",
-                        "tx_payload": 100,
-                        "coin_code": "bgt",
-                        "reason": "any reason to add funds"
-                }))
-print(verify_signature('MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEmJmaAf5EqvbfEWtJJRR8pOmlBrNETY0dyg+ArMzEBxF2HmgpSw2t8/2+PgveIROgVhJwxfIVDI7DiJjDjc0JRw==',
-                       'MEQCIAL8AS+SpsGQ95BS//oCaXVvlpioRmn5Zg0EQUoZxWZ/AiAJmdly8GuHEL0vsSEIM7h+pH8AM8PZ+zMe5Usftt/JYw==',
+print(verify_signature('MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAECkayIOZ6enQ9Q3Rz2jSEPH+t0THLtDNJoVNYndwTdeGwwt+f6sGN9ABprdzvxeailLo/3E/wiZGoHw782JshpQ==',
+                       'MEQCILn/QoiMkkjZovBfavYFPyrJ+zcns/6fBXZh1gh6x30GAiBOGnMGIOCMrXJPWL9FOaXWjNUJwh6VxG6DqdAxKgFoGQ==',
                        {
-                           "address_to": "eb442acf33c0294d2541ac145a929e4ea98679f5",
-                           "tx_payload": 100,
+                           "address_from": "4aa37a37b9793a7f3696129d9a367b26fd0b2b1c",
+                           "address_to": "673fcacfb51214e0543b786da79956b541e7d792",
                            "coin_code": "bgt",
-                           "reason": "any reason to add funds"
-                       }
+                           "tx_payload": "10"
+                        }
                        ))

@@ -18,6 +18,8 @@
 /**/.idea/
 *.sublime*
 
+/web_app_node/node_modules/
+
 # Everything else
 /adm/Cargo.lock
 /adm/target/

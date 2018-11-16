@@ -19,9 +19,7 @@ import logging
 import json
 import base64
 from aiohttp import web
-
-import sys
-_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+import cbor
 
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
@@ -93,7 +91,8 @@ with open('../startup_global_state.json') as file:
 
 
 def append_transaction(address_from, address_to, tx_payload, currency, extra):
-    if float(tx_payload) < 0:
+    tx_payload = float(tx_payload)
+    if tx_payload < 0:
         raise errors.NegativePayload()
     if (not WALLETS[address_from][currency]) \
             or\
@@ -674,7 +673,7 @@ class RouteHandler:
                 address_from,
             )
             raise errors.NotEnoughFunds()
-        elif WALLETS[address_from][payload['coin_code']] < payload['tx_payload']:
+        elif WALLETS[address_from][payload['coin_code']] < int(payload['tx_payload']):
             LOGGER.debug(
                 "Not enough funds in user's wallet",
                 address_from,
@@ -702,8 +701,8 @@ class RouteHandler:
         txn_header_bytes = TransactionHeader(
             family_name='smart_bgt',
             family_version='1.0',
-            inputs=[address_from],
-            outputs=[address_to],
+            inputs=[],
+            outputs=[],
             signer_public_key=public_key_from,
             # pub_key of node
             batcher_public_key=NODE_CREDENTIALS['public_key'],
@@ -712,12 +711,15 @@ class RouteHandler:
             payload_sha512=hashed_payload
         ).SerializeToString()
 
+        payload_bytes = cbor.dumps(payload)
+        header_signature = rest_api_utils.si
+
         # TODO: change header_signature to payload_signature
         txn = Transaction(
             header=txn_header_bytes,
             # payload_signature
             header_signature=signed_payload,
-            payload=_b(hashed_payload)
+            payload=payload_bytes
         )
 
         # TODO: change header_signature to payload_signature
