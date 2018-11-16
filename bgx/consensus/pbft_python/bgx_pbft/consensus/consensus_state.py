@@ -58,6 +58,7 @@ class ConsensusState:
 
     # MINIMUM_WAIT_TIME must match the constants in the enclaves
     MINIMUM_WAIT_TIME = 1.0
+    STEP_LIST = ['NotStarted', 'PrePreparing', 'Preparing', 'Checking', 'Committing', 'Finished']
 
     _BlockInfo = collections.namedtuple('_BlockInfo',['wait_certificate', 'validator_info', 'pbft_settings_view'])
 
@@ -239,8 +240,8 @@ class ConsensusState:
         self._total_block_claim_count = 0
         self._validators = {}
         # pbft 
-        self._step = "NotStarted"
-        self._mode = "Normal"
+        self._step = 0 # NotStarted, PrePreparing, Preparing, Checking, Committing, Finished 
+        self._mode = "Normal"     # Normal, ViewChanging, Checkpointing
         self._sequence_number = 0
 
     @property
@@ -250,6 +251,30 @@ class ConsensusState:
     @property
     def total_block_claim_count(self):
         return self._total_block_claim_count
+
+    @property
+    def step(self):
+        return ConsensusState.STEP_LIST[self._step]
+
+    def next_step(self):
+        self._step += 1
+        self._step = self._step % len(ConsensusState.STEP_LIST)
+
+    @step.setter
+    def set_step(self, value):
+        self._step = value 
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def sequence_number(self):
+        return self._sequence_number
+
+    @property
+    def aggregate_local_mean(self):
+        return self._aggregate_local_mean
 
     @staticmethod
     def _check_validator_state(validator_state):
@@ -1025,8 +1050,8 @@ class ConsensusState:
              key, value in self._validators.items()]
 
         return \
-            'mode={}, step={}, SEQ={}, PEERS={}'.format(
+            'mode={}, step={}, SEQNUM={}, PEERS={}'.format(
                 self._mode,
-                self._step,
+                self.step,
                 self._sequence_number,
                 validators)

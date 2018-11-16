@@ -98,14 +98,10 @@ class BgtTransactionHandler(TransactionHandler):
         
 
         if name in state:
-            raise InvalidTransaction(
-                'Verb is "set", but already exists: Name: {n}, Value {v}'.format(
-                    n=name,
-                    v=state[name]))
+            raise InvalidTransaction('Verb is "set", but already exists: Name: {n}, Value {v}'.format(n=name,v=state[name]))
 
         updated = {k: v for k, v in state.items()}
-        owner_key = self._context.sign('BGT_token'.encode(),self._private_key)
-        LOGGER.debug('_do_set: context owner_key=%s',owner_key)
+        #owner_key = self._context.sign('BGT_token'.encode(),self._private_key)
         token = BgtTokenInfo(group_code = 'BGT_token',
                              owner_key = self._signer.sign('BGT_token'.encode()), #owner_key,
                              sign = self._public_key.as_hex(),
