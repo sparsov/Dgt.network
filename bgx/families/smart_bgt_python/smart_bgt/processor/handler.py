@@ -223,17 +223,21 @@ def _do_init(full_name, private_key, ethereum_address, state):
     #            n=name,
     #            v=state[name]))
 
-    if full_name == "transfer":
-        if "BGX_Token" not in state:
+    if private_key == "transfer":
+        if full_name not in state:
             LOGGER.debug("BAD NAME")
-        val = state["BGX_Token"]
+            raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(full_name))
+        
+        val = state[full_name]
+        LOGGER.debug("%s=%s",full_name,val)
 
     updated = {k: v for k, v in state.items()}
     #updated[name] = value
 
-    if full_name == "transfer":
+    if private_key == "transfer":
         LOGGER.debug("WOW")
-        updated["BGX_Token"] = "1"
+        updated[full_name] = "0"
+        updated[ethereum_address] = val
         LOGGER.debug("WOW1")
         #updated[private_key] = "0"
         #LOGGER.debug("WOW2")

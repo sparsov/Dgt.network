@@ -24,3 +24,5 @@ For running shell-bgx run next bash cmd .
 $ docker exec -it sawtooth-shell-bgx bash
 For list created tokens run into shell-bgx. 
 $ smart-bgt list  --url http://rest-api:8009
+# not in sawtooth shell
+$ curl http://localhost:8008/blocks
