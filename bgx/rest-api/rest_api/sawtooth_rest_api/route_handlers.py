@@ -20,6 +20,9 @@ import json
 import base64
 from aiohttp import web
 import cbor
+from hashlib import sha512
+from sawtooth_signing import create_context
+from sawtooth_signing import CryptoFactory
 
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
@@ -694,45 +697,47 @@ class RouteHandler:
         #     'Regular transaction'
         # )
 
-        hashed_payload = rest_api_utils.hash_dict(payload)
-        print(payload, hashed_payload, sep='\n')
-        # TODO: change payload_sha512 to payload_sha256
-        # TODO: remove batcher_public_key
+        hashed_payload = sha512(payload).hexdigest()
+        node_private_key_hex = rest_api_utils. \
+                pub_key_pkcs1_DER_base64_to_hex(NODE_CREDENTIALS['public_key'])
+        secp256k1_context = create_context('secp256k1')
+        node_private_key = secp256k1_context.new_random_private_key().\
+            from_hex(node_private_key_hex)
+        node_signer = CryptoFactory(secp256k1_context).new_signer(node_private_key)
+
         txn_header_bytes = TransactionHeader(
             family_name='smart_bgt',
             family_version='1.0',
             inputs=[],
             outputs=[],
-            signer_public_key=public_key_from,
             # pub_key of node
-            batcher_public_key=NODE_CREDENTIALS['public_key'],
+            signer_public_key=node_signer.get_public_key().as_hex(),
+            # pub_key of user
+            batcher_public_key=node_signer.get_public_key().as_hex(),
             dependencies=[],
-            # payload_sha256
             payload_sha512=hashed_payload
         ).SerializeToString()
 
-        payload_bytes = cbor.dumps(payload)
-        header_signature = rest_api_utils.si
+        txn_header_signature = node_signer.sign(txn_header_bytes)
+        payload_bytes = cbor.dumps({
+            'Verb': 'transfer',
+            'Name': 'Later_Be_Changed_With_Value_From_M',
+            'Value': PUB_KEYS_BY_ADDRESSES[payload['address_to']],
+            'Value_2': payload['tx_payload'],
+        })
 
-        # TODO: change header_signature to payload_signature
         txn = Transaction(
             header=txn_header_bytes,
-            # payload_signature
-            header_signature=signed_payload,
+            header_signature=txn_header_signature,
             payload=payload_bytes
         )
 
-        # TODO: change header_signature to payload_signature
         batch_header_bytes = BatchHeader(
-            signer_public_key=NODE_CREDENTIALS['public_key'],
-            transaction_ids=[txn.header_signature]
+            signer_public_key=node_signer.get_public_key().as_hex(),
+            transaction_ids=[txn_header_signature]
         ).SerializeToString()
 
-        print(NODE_CREDENTIALS['private_key'], batch_header_bytes)
-        batch_header_signature = rest_api_utils.sign_string(
-            priv_key=NODE_CREDENTIALS['private_key'],
-            string=str(batch_header_bytes)
-        )
+        batch_header_signature = node_signer.sign(batch_header_bytes)
 
         batch = Batch(
             header=batch_header_bytes,
