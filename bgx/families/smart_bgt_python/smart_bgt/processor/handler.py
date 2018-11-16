@@ -223,11 +223,25 @@ def _do_init(full_name, private_key, ethereum_address, state):
     #            n=name,
     #            v=state[name]))
 
+    if full_name == "transfer":
+        if "BGX_Token" not in state:
+            LOGGER.debug("BAD NAME")
+        val = state["BGX_Token"]
+
     updated = {k: v for k, v in state.items()}
     #updated[name] = value
 
-    #if full_name == "transfer":
-    #    LOGGER.debug("WOW")
+    if full_name == "transfer":
+        LOGGER.debug("WOW")
+        updated["BGX_Token"] = "1"
+        LOGGER.debug("WOW1")
+        #updated[private_key] = "0"
+        #LOGGER.debug("WOW2")
+        return updated
+
+
+
+
 
     ############################LOGGER.debug("############################################################################")
     ############################LOGGER.debug("############################################################################")
@@ -274,7 +288,7 @@ def _do_init(full_name, private_key, ethereum_address, state):
         #updated[lit_key] = lit_key
         #updated[lit_key] = "123"
         ####updated[lit_key] = "1"
-        updated[key] = value
+        updated["BGX_Token"] = key
     #updated[full_name] = "123"
     LOGGER.debug("Emission - end [%s]=updated=%s",full_name,updated)        
     return updated
