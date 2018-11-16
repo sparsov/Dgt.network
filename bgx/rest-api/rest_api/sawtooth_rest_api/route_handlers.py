@@ -18,6 +18,7 @@ import re
 import logging
 import json
 import base64
+import random
 from aiohttp import web
 import cbor
 from hashlib import sha512
@@ -705,11 +706,11 @@ class RouteHandler:
         hashed_payload = sha512(payload_bytes).hexdigest()
         node_private_key_hex = rest_api_utils.priv_key_pkcs1_DER_base64_to_hex(NODE_CREDENTIALS['private_key'])
         secp256k1_context = create_context('secp256k1')
-        node_private_key = secp256k1_context.new_random_private_key().from_hex(node_private_key_hex)
+        node_private_key = secp256k1_context.new_random_private_key() #.from_hex(node_private_key_hex)
         node_signer = CryptoFactory(secp256k1_context).new_signer(node_private_key)
 
         txn_header_bytes = TransactionHeader(
-            family_name='smart_bgt',
+            family_name='smart-bgt',
             family_version='1.0',
             inputs=[],
             outputs=[],
@@ -718,7 +719,8 @@ class RouteHandler:
             # pub_key of user
             batcher_public_key=node_signer.get_public_key().as_hex(),
             dependencies=[],
-            payload_sha512=hashed_payload
+            payload_sha512=hashed_payload,
+            nonce=hex(random.randint(0, 2**64))
         ).SerializeToString()
 
         txn_header_signature = node_signer.sign(txn_header_bytes)

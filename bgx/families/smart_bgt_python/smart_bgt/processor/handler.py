@@ -70,7 +70,7 @@ class SmartBgtTransactionHandler(TransactionHandler):
     def apply(self, transaction, context):
         LOGGER.info('SmartBgtTransactionHandler apply')
         verb, name, value, value_2 = _unpack_transaction(transaction)
-        LOGGER.info('SmartBgtTransactionHandler name %s',name)
+        LOGGER.info('SmartBgtTransactionHandler verb=%s name %s',verb,name)
         state = _get_state_data(name, context)
         LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt')
         updated_state = _do_smart_bgt(verb, name, value, value_2, state)
