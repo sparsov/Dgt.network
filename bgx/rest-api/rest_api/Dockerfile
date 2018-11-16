@@ -40,7 +40,7 @@ RUN apt-get install -y -q --allow-downgrades \
     python3-pyformance \
     python3-toml \
     python3-yaml \
-    python3-zmq
+    python3-zmq python3-secp256k1
 
 RUN apt-get update && apt-get install -y \
     python3-pip

@@ -696,13 +696,16 @@ class RouteHandler:
         #     payload['coin_code'],
         #     'Regular transaction'
         # )
-
-        hashed_payload = sha512(payload).hexdigest()
-        node_private_key_hex = rest_api_utils. \
-                pub_key_pkcs1_DER_base64_to_hex(NODE_CREDENTIALS['public_key'])
+        payload_bytes = cbor.dumps({
+            'Verb': 'transfer',
+            'Name': 'Later_Be_Changed_With_Value_From_M',
+            'Value': PUB_KEYS_BY_ADDRESSES[payload['address_to']],
+            'Value_2': payload['tx_payload'],
+        })
+        hashed_payload = sha512(payload_bytes).hexdigest()
+        node_private_key_hex = rest_api_utils.priv_key_pkcs1_DER_base64_to_hex(NODE_CREDENTIALS['private_key'])
         secp256k1_context = create_context('secp256k1')
-        node_private_key = secp256k1_context.new_random_private_key().\
-            from_hex(node_private_key_hex)
+        node_private_key = secp256k1_context.new_random_private_key().from_hex(node_private_key_hex)
         node_signer = CryptoFactory(secp256k1_context).new_signer(node_private_key)
 
         txn_header_bytes = TransactionHeader(
@@ -719,12 +722,7 @@ class RouteHandler:
         ).SerializeToString()
 
         txn_header_signature = node_signer.sign(txn_header_bytes)
-        payload_bytes = cbor.dumps({
-            'Verb': 'transfer',
-            'Name': 'Later_Be_Changed_With_Value_From_M',
-            'Value': PUB_KEYS_BY_ADDRESSES[payload['address_to']],
-            'Value_2': payload['tx_payload'],
-        })
+        
 
         txn = Transaction(
             header=txn_header_bytes,
