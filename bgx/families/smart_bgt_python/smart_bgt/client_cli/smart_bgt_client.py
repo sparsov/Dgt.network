@@ -164,13 +164,20 @@ class SmartBgtClient:
 
         # Construct the address
         address = self._get_address(name)
-
+        inputs = [address]
+        outputs= [address]
+        if value == 'transfer':
+            #
+            address1 = self._get_address(value_2)
+            inputs.append(address1)
+            outputs.append(address1)
+  
         header = TransactionHeader(
             signer_public_key=self._signer.get_public_key().as_hex(),
             family_name=FAMILY_NAME,
             family_version=FAMILY_VER,
-            inputs=[address],
-            outputs=[address],
+            inputs=inputs,
+            outputs=outputs,
             dependencies=[],
             payload_sha512=_sha512(payload),
             batcher_public_key=self._signer.get_public_key().as_hex(),

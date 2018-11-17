@@ -70,8 +70,11 @@ class SmartBgtTransactionHandler(TransactionHandler):
     def apply(self, transaction, context):
         LOGGER.info('SmartBgtTransactionHandler apply')
         verb, name, value, value_2 = _unpack_transaction(transaction)
-        LOGGER.info('SmartBgtTransactionHandler verb=%s name %s',verb,name)
-        state = _get_state_data(name, context)
+        LOGGER.info('SmartBgtTransactionHandler verb=%s name %s value=%s value_2=%s',verb,name,value,value_2)
+        if value == 'transfer':
+            state = _get_state_data([name,value_2], context)
+        else:
+            state = _get_state_data([name], context)
         LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt')
         updated_state = _do_smart_bgt(verb, name, value, value_2, state)
 
@@ -138,13 +141,22 @@ def _validate_value(value):
                 a=MAX_VALUE))
 
 
-def _get_state_data(name, context):
-    address = make_smart_bgt_address(name)
+def _get_state_data(names, context):
+    alist = []
+    for name  in names:
+        address = make_smart_bgt_address(name)
+        alist.append(address)
+    state_entries = context.get_state(alist)
 
-    state_entries = context.get_state([address])
-
+    LOGGER.debug('_get_state_data state_entries=%s',state_entries)
     try:
-        return cbor.loads(state_entries[0].data)
+        states = {}
+        for entry  in state_entries:
+            state = cbor.loads(entry.data)
+            for key,val in state.items():
+                LOGGER.debug('_get_state_data add=%s',key)
+                states[key] = val
+        return states #cbor.loads(state_entries[0].data)
     except IndexError:
         return {}
     except:
@@ -152,16 +164,19 @@ def _get_state_data(name, context):
 
 
 def _set_state_data(name, state, context):
-    address = make_smart_bgt_address(name)
+    new_states = {}
+    for key,val in state.items():
+        LOGGER.debug('_set_state_data  [%s]=%s',key,val)
+        address = make_smart_bgt_address(key)
+        encoded = cbor.dumps({key:val})
+        new_states[address] = encoded
 
-    encoded = cbor.dumps(state)
-
-    addresses = context.set_state({address: encoded})
+    addresses = context.set_state(new_states)
 
     if not addresses:
         LOGGER.debug('_set_state_data  State error')
         raise InternalError('State error')
-    LOGGER.debug('_set_state_data  DONE encoded=%s address=%s',encoded,address)
+    LOGGER.debug('_set_state_data  DONE name=%s address=%s',name,address)
 
 def _do_smart_bgt(verb, name, value, value_2, state):
     verbs = {
@@ -222,23 +237,24 @@ def _do_init(full_name, private_key, ethereum_address, state):
     #        'Verb is "init", but already exists: Name: {n}, Value {v}'.format(
     #            n=name,
     #            v=state[name]))
-
+    LOGGER.debug("have state=%s",state)
     if private_key == "transfer":
         if full_name not in state:
             LOGGER.debug("BAD NAME")
             raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(full_name))
         
         token = state[full_name]
+        token1 = state[ethereum_address] if ethereum_address in state else None
         LOGGER.debug("TRANSFER from %s=%s",full_name,token)
 
     updated = {k: v for k, v in state.items()}
     #updated[name] = value
-    LOGGER.debug("have state=%s",updated)
+    #LOGGER.debug("have state=%s",updated)
     if private_key == "transfer":
         LOGGER.debug("WOW")
         token['val'] = token['val'] - 20 # send tokens to ethereum_address
         updated[full_name] = token
-        updated[ethereum_address] = {'val': 20,'group' : 'BGT'}
+        updated[ethereum_address] = {'val':  token1['val'] + 20 if token1 else 20,'group' : 'BGT'}
         LOGGER.debug("Transfer - end updated=%s",updated)
         #updated[private_key] = "0"
         #LOGGER.debug("WOW2")
