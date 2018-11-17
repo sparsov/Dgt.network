@@ -228,17 +228,18 @@ def _do_init(full_name, private_key, ethereum_address, state):
             LOGGER.debug("BAD NAME")
             raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(full_name))
         
-        val = state[full_name]
-        LOGGER.debug("%s=%s",full_name,val)
+        token = state[full_name]
+        LOGGER.debug("TRANSFER from %s=%s",full_name,token)
 
     updated = {k: v for k, v in state.items()}
     #updated[name] = value
-
+    LOGGER.debug("have state=%s",updated)
     if private_key == "transfer":
         LOGGER.debug("WOW")
-        updated[full_name] = "0"
-        updated[ethereum_address] = val
-        LOGGER.debug("WOW1")
+        token['val'] = token['val'] - 20 # send tokens to ethereum_address
+        updated[full_name] = token
+        updated[ethereum_address] = {'val': 20,'group' : 'BGT'}
+        LOGGER.debug("Transfer - end updated=%s",updated)
         #updated[private_key] = "0"
         #LOGGER.debug("WOW2")
         return updated
@@ -292,9 +293,9 @@ def _do_init(full_name, private_key, ethereum_address, state):
         #updated[lit_key] = lit_key
         #updated[lit_key] = "123"
         ####updated[lit_key] = "1"
-        updated["BGX_Token"] = key
+        updated[full_name] = {'val': 1000,'group' : 'BGT'}
     #updated[full_name] = "123"
-    LOGGER.debug("Emission - end [%s]=updated=%s",full_name,updated)        
+    LOGGER.debug("Emission - end updated=%s",updated)        
     return updated
 
 
