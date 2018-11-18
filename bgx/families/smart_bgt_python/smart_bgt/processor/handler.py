@@ -72,11 +72,8 @@ class SmartBgtTransactionHandler(TransactionHandler):
         verb, args = _unpack_transaction(transaction)
         LOGGER.info('SmartBgtTransactionHandler verb=%s args %s',verb,args)
         try:
-            if verb == 'transfer':
-                state = _get_state_data([args['Name'],args['Value']], context)
-            else:
-                state = _get_state_data([args['Name']], context)
-            LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt')
+            state = _get_state_data([args['Name'],args['to_addr']] if verb == 'transfer' else [args['Name']], context)
+            LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt ')
             updated_state = _do_smart_bgt(verb, args, state)
 
             _set_state_data(updated_state, context)
@@ -241,9 +238,9 @@ def _do_init(args,state):
     LOGGER.debug("_do_init ...")
     try:
         full_name  = args['Name']
-        private_key = args['Value']
-        ethereum_address = args['Value_2']
-        num_bgt =  int(args['Value_3'])
+        private_key = args['private_key']
+        ethereum_address = args['ethereum_address']
+        num_bgt =  int(args['num_bgt'])
     except KeyError:
         LOGGER.debug("_do_init not all arg")
 
@@ -305,8 +302,8 @@ def _do_transfer(args,state):
     LOGGER.debug("_do_transfer ...")
     try:
         from_addr = args['Name']
-        to_addr   = args['Value']
-        num_bgt =  int(args['Value_2'])
+        to_addr   = args['to_addr']
+        num_bgt =  int(args['num_bgt'])
     except KeyError:
         LOGGER.debug("_do_transfer not all arg")
 

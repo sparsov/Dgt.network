@@ -62,23 +62,46 @@ class SmartBgtClient:
                 create_context('secp256k1')).new_signer(private_key)
 
     def set(self, name, value, wait=None):
-        return self._send_transaction('set', name, value, wait=wait)
+        args = {
+            'Name': name,
+            'Value': value,
+        }
+        return self._send_transaction('set', args, wait=wait)
 
     def init(self, full_name, private_key, ethereum_address,num_bgt, wait=None):
-        return self._send_transaction('init', full_name, private_key, ethereum_address,num_bgt, wait=wait) ##################################
+        args = {
+            'Name': full_name,
+            'private_key': private_key,
+            'ethereum_address': ethereum_address,
+            'num_bgt': num_bgt,
+        }
+        return self._send_transaction('init', args, wait=wait) ##################################
 
     def transfer(self, from_addr, to_addr, num_bgt, wait=None):
-        return self._send_transaction('transfer', from_addr, to_addr, num_bgt, wait=wait) ##################################
+        args = {
+            'Name': from_addr,
+            'to_addr': to_addr,
+            'num_bgt': num_bgt,
+        }
+        return self._send_transaction('transfer', args, wait=wait) ##################################
 
 
     def generate_key(self, wait=None):
-        return self._send_transaction('generate_key', wait=wait) ##################################
+        return self._send_transaction('generate_key',{}, wait=wait) ##################################
 
     def inc(self, name, value, wait=None):
-        return self._send_transaction('inc', name, value, wait=wait)
+        args = {
+            'Name': name,
+            'Value': value,
+        }
+        return self._send_transaction('inc', args, wait=wait)
 
     def dec(self, name, value, wait=None):
-        return self._send_transaction('dec', name, value, wait=wait)
+        args = {
+            'Name': name,
+            'Value': value,
+        }
+        return self._send_transaction('dec', args, wait=wait)
 
     def list(self):
         result = self._send_request(
@@ -158,22 +181,17 @@ class SmartBgtClient:
 
         return result.text
 
-    def _send_transaction(self, verb, name='None', value=None, value_2=None,value_3=None, wait=None):
-        payload = cbor.dumps({
-            'Verb': verb,
-            'Name': name,
-            'Value': value,
-            'Value_2': value_2,
-            'Value_3': value_3,
-        })
+    def _send_transaction(self, verb, args, wait=None):
+        args['Verb'] = verb
+        payload = cbor.dumps(args)
 
         # Construct the address 0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba
-        address = self._get_address(name)
+        address = self._get_address(args['Name'])
         inputs = [address]
         outputs= [address]
         if verb == 'transfer':
             #
-            address1 = self._get_address(value)
+            address1 = self._get_address(args['to_addr'])
             inputs.append(address1)
             outputs.append(address1)
   
