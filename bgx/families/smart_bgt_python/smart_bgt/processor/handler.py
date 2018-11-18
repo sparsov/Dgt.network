@@ -69,26 +69,28 @@ class SmartBgtTransactionHandler(TransactionHandler):
 
     def apply(self, transaction, context):
         LOGGER.info('SmartBgtTransactionHandler apply')
-        verb, name, value, value_2 = _unpack_transaction(transaction)
-        LOGGER.info('SmartBgtTransactionHandler verb=%s name %s value=%s value_2=%s',verb,name,value,value_2)
-        if value == 'transfer':
-            state = _get_state_data([name,value_2], context)
-        else:
-            state = _get_state_data([name], context)
-        LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt')
-        updated_state = _do_smart_bgt(verb, name, value, value_2, state)
+        verb, args = _unpack_transaction(transaction)
+        LOGGER.info('SmartBgtTransactionHandler verb=%s args %s',verb,args)
+        try:
+            if verb == 'transfer':
+                state = _get_state_data([args['Name'],args['Value']], context)
+            else:
+                state = _get_state_data([args['Name']], context)
+            LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt')
+            updated_state = _do_smart_bgt(verb, args, state)
 
-        _set_state_data(name, updated_state, context)
-    
+            _set_state_data(updated_state, context)
+        except AttributeError:
+            raise InvalidTransaction('Args are required')
 
 def _unpack_transaction(transaction):
-    verb, name, value, value_2 = _decode_transaction(transaction)
+    return  _decode_transaction(transaction)
 
     #_validate_verb(verb)
     #_validate_name(name)
     #_validate_value(value)
 
-    return verb, name, value, value_2
+    #return verb, name, value, value_2
 
 
 def _decode_transaction(transaction):
@@ -101,7 +103,7 @@ def _decode_transaction(transaction):
         verb = content['Verb']
     except AttributeError:
         raise InvalidTransaction('Verb is required')
-
+    """
     try:
         name = content['Name']
     except AttributeError:
@@ -116,8 +118,8 @@ def _decode_transaction(transaction):
         value_2 = content['Value_2']
     except AttributeError:
         raise InvalidTransaction('Value is required')
-
-    return verb, name, value, value_2
+    """
+    return verb, content # name, value, value_2
 
 
 def _validate_verb(verb):
@@ -163,7 +165,7 @@ def _get_state_data(names, context):
         raise InternalError('Failed to load state data')
 
 
-def _set_state_data(name, state, context):
+def _set_state_data( state, context):
     new_states = {}
     for key,val in state.items():
         LOGGER.debug('_set_state_data  [%s]=%s',key,val)
@@ -176,31 +178,30 @@ def _set_state_data(name, state, context):
     if not addresses:
         LOGGER.debug('_set_state_data  State error')
         raise InternalError('State error')
-    LOGGER.debug('_set_state_data  DONE name=%s address=%s',name,address)
+    LOGGER.debug('_set_state_data  DONE address=%s',address)
 
-def _do_smart_bgt(verb, name, value, value_2, state):
+def _do_smart_bgt(verb, args, state):
     verbs = {
         'set': _do_set,
         'inc': _do_inc,
         'dec': _do_dec,
-        'init': _do_init
+        'init': _do_init,
+        'transfer' : _do_transfer
     }
-    LOGGER.debug('_do_smart_bgt request name=%s, value=%s',name, value)
+    LOGGER.debug('_do_smart_bgt request verb=%s',verb)
 
-    if name == 'None':
+    if 'Name' not in args:
         return _do_generate_key(state)
-
-    if value_2:
-        return _do_init(name, value, value_2, state)
-
     try:
-        return verbs[verb](name, value, state)
+        return verbs[verb](args, state)
     except KeyError:
         # This would be a programming error.
         raise InternalError('Unhandled verb: {}'.format(verb))
 
 
-def _do_set(name, value, state):
+def _do_set(args, state):
+    name  = args['Name']
+    value = args['Value']
     msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
     LOGGER.debug(msg)
     
@@ -228,7 +229,7 @@ def _do_generate_key(state):
     return updated
 
 
-def _do_init(full_name, private_key, ethereum_address, state):
+def _do_init(args,state):
     #msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
     #LOGGER.debug(msg)
 
@@ -237,33 +238,18 @@ def _do_init(full_name, private_key, ethereum_address, state):
     #        'Verb is "init", but already exists: Name: {n}, Value {v}'.format(
     #            n=name,
     #            v=state[name]))
+    LOGGER.debug("_do_init ...")
+    try:
+        full_name  = args['Name']
+        private_key = args['Value']
+        ethereum_address = args['Value_2']
+        num_bgt =  int(args['Value_3'])
+    except KeyError:
+        LOGGER.debug("_do_init not all arg")
+
     LOGGER.debug("have state=%s",state)
-    if private_key == "transfer":
-        if full_name not in state:
-            LOGGER.debug("BAD NAME")
-            raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(full_name))
-        
-        token = state[full_name]
-        token1 = state[ethereum_address] if ethereum_address in state else None
-        LOGGER.debug("TRANSFER from %s=%s",full_name,token)
 
     updated = {k: v for k, v in state.items()}
-    #updated[name] = value
-    #LOGGER.debug("have state=%s",updated)
-    if private_key == "transfer":
-        LOGGER.debug("WOW")
-        token['val'] = token['val'] - 20 # send tokens to ethereum_address
-        updated[full_name] = token
-        updated[ethereum_address] = {'val':  token1['val'] + 20 if token1 else 20,'group' : 'BGT'}
-        LOGGER.debug("Transfer - end updated=%s",updated)
-        #updated[private_key] = "0"
-        #LOGGER.debug("WOW2")
-        return updated
-
-
-
-
-
     ############################LOGGER.debug("############################################################################")
     ############################LOGGER.debug("############################################################################")
 
@@ -309,13 +295,45 @@ def _do_init(full_name, private_key, ethereum_address, state):
         #updated[lit_key] = lit_key
         #updated[lit_key] = "123"
         ####updated[lit_key] = "1"
-        updated[full_name] = {'val': 1000,'group' : 'BGT'}
+        updated[full_name] = {'val': num_bgt,'group' : 'BGT'}
     #updated[full_name] = "123"
     LOGGER.debug("Emission - end updated=%s",updated)        
     return updated
 
 
-def _do_inc(name, value, state):
+def _do_transfer(args,state):
+    LOGGER.debug("_do_transfer ...")
+    try:
+        from_addr = args['Name']
+        to_addr   = args['Value']
+        num_bgt =  int(args['Value_2'])
+    except KeyError:
+        LOGGER.debug("_do_transfer not all arg")
+
+    LOGGER.debug("have state=%s",state)
+    if from_addr not in state:
+        LOGGER.debug("SET ADDR FROM")
+        raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
+
+    token = state[from_addr]
+    token1 = state[to_addr] if to_addr in state else None
+    LOGGER.debug("TRANSFER from %s->%s",from_addr,to_addr)
+
+    updated = {k: v for k, v in state.items()}
+    #updated[name] = value
+    #LOGGER.debug("have state=%s",updated)
+    LOGGER.debug("WOW")
+    token['val'] = token['val'] - num_bgt # send tokens to ethereum_address
+    updated[from_addr] = token
+    updated[to_addr] = {'val':  token1['val'] + num_bgt if token1 else num_bgt,'group' : 'BGT'}
+    LOGGER.debug("Transfer - end updated=%s",updated)
+    return updated
+
+
+
+def _do_inc(args, state):
+    name  = args['Name']
+    value = args['Value']
     msg = 'Incrementing "{n}" by {v}'.format(n=name, v=value)
     LOGGER.debug(msg)
 
@@ -337,7 +355,9 @@ def _do_inc(name, value, state):
     return updated
 
 
-def _do_dec(name, value, state):
+def _do_dec(args, state):
+    name  = args['Name']
+    value = args['Value']
     msg = 'Decrementing "{n}" by {v}'.format(n=name, v=value)
     LOGGER.debug(msg)
 

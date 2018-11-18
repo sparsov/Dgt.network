@@ -64,8 +64,12 @@ class SmartBgtClient:
     def set(self, name, value, wait=None):
         return self._send_transaction('set', name, value, wait=wait)
 
-    def init(self, full_name, private_key, ethereum_address, wait=None):
-        return self._send_transaction('init', full_name, private_key, ethereum_address, wait=wait) ##################################
+    def init(self, full_name, private_key, ethereum_address,num_bgt, wait=None):
+        return self._send_transaction('init', full_name, private_key, ethereum_address,num_bgt, wait=wait) ##################################
+
+    def transfer(self, from_addr, to_addr, num_bgt, wait=None):
+        return self._send_transaction('transfer', from_addr, to_addr, num_bgt, wait=wait) ##################################
+
 
     def generate_key(self, wait=None):
         return self._send_transaction('generate_key', wait=wait) ##################################
@@ -154,21 +158,22 @@ class SmartBgtClient:
 
         return result.text
 
-    def _send_transaction(self, verb, name='None', value=None, value_2=None, wait=None):
+    def _send_transaction(self, verb, name='None', value=None, value_2=None,value_3=None, wait=None):
         payload = cbor.dumps({
             'Verb': verb,
             'Name': name,
             'Value': value,
             'Value_2': value_2,
+            'Value_3': value_3,
         })
 
-        # Construct the address
+        # Construct the address 0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba
         address = self._get_address(name)
         inputs = [address]
         outputs= [address]
-        if value == 'transfer':
+        if verb == 'transfer':
             #
-            address1 = self._get_address(value_2)
+            address1 = self._get_address(value)
             inputs.append(address1)
             outputs.append(address1)
   

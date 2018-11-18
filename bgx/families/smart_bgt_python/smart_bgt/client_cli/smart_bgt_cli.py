@@ -111,6 +111,7 @@ def create_parser(prog_name):
 
     add_set_parser(subparsers, parent_parser)
     add_init_parser(subparsers, parent_parser)
+    add_transfer_parser(subparsers, parent_parser)
     add_generate_key_parser(subparsers, parent_parser)
     add_inc_parser(subparsers, parent_parser)
     add_dec_parser(subparsers, parent_parser)
@@ -170,7 +171,7 @@ def add_init_parser(subparsers, parent_parser):
         'init',
         parents=[parent_parser],
         description=message,
-        help='Sets an bgt value')
+        help='Make BGT emission')
 
     parser.add_argument(
         'full_name',
@@ -184,6 +185,52 @@ def add_init_parser(subparsers, parent_parser):
 
     parser.add_argument(
         'ethereum_address',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        'num_bgt',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        '--url',
+        type=str,
+        help='specify URL of REST API')
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+    parser.add_argument(
+        '--wait',
+        nargs='?',
+        const=sys.maxsize,
+        type=int,
+        help='set time, in seconds, to wait for transaction to commit')
+
+def add_transfer_parser(subparsers, parent_parser):
+    message = 'Sends an num_bgt transaction to transfer <from_addr> to <to_addr>.'
+
+    parser = subparsers.add_parser(
+        'transfer',
+        parents=[parent_parser],
+        description=message,
+        help='Make BGT transfer')
+
+    parser.add_argument(
+        'from_addr',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        'to_addr',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        'num_bgt',
         type=str,
         help='')
 
@@ -244,9 +291,14 @@ def do_set(args):
 def do_init(args):
     full_name, private_key, ethereum_address, wait = args.full_name, args.private_key, args.ethereum_address, args.wait
     client = _get_client(args)
-    response = client.init(full_name, private_key, ethereum_address, wait) ######################
+    response = client.init(full_name, private_key, ethereum_address,args.num_bgt, wait) ######################
     print(response)
 
+def do_transfer(args):
+    from_addr, to_addr, num_bgt, wait = args.from_addr, args.to_addr, args.num_bgt, args.wait
+    client = _get_client(args)
+    response = client.transfer(from_addr, to_addr, num_bgt, wait) ######################
+    print(response)
 
 def do_generate_key(args):
     wait = args.wait
@@ -433,6 +485,8 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
         do_set(args)
     elif args.command == 'init':
         do_init(args)
+    elif args.command == 'transfer':
+        do_transfer(args)
     elif args.command == 'generate_key':
         do_generate_key(args)
     elif args.command == 'inc':
