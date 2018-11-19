@@ -29,7 +29,7 @@ services:
         cd ../
         python3 setup.py clean --all
         python3 setup.py build
-        sawtooth-rest-api -vv --connect tcp://validator:4004  --bind rest-api-a:8009
+        sawtooth-rest-api -vv --connect tcp://18.222.233.160:4004  --bind rest-api-a:8009
       "
     stop_signal: SIGKILL
 

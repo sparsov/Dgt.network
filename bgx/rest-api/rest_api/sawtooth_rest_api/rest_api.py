@@ -114,6 +114,9 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/global_wallet', handler.get_global_wallet)
     app.router.add_get('/global_transactions', handler.get_global_transactions)
 
+    app.router.add_get('/state', handler.list_state)
+    app.router.add_get('/state/{address}', handler.fetch_state)
+
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)
     app.on_shutdown.append(lambda app: subscriber_handler.on_shutdown())

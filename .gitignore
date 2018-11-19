@@ -18,7 +18,7 @@
 /**/.idea/
 *.sublime*
 
-/web_app_node/node_modules/
+/bgx/web_app_node/node_modules/
 
 # Everything else
 /adm/Cargo.lock
