@@ -171,7 +171,7 @@ services:
     networks:
     - network1
     ports:
-      - "8009:8009"
+      - "8007:8007"
     depends_on:
       - validator-2
     command: |
@@ -180,7 +180,7 @@ services:
         cd rest_api
         python3 setup.py clean --all
         python3 setup.py build
-        sawtooth-rest-api -vv --connect tcp://validator-2:4006 --bind rest-api-2:8009
+        sawtooth-rest-api -vv --connect tcp://validator-2:4006 --bind rest-api-2:8007
       "
     stop_signal: SIGKILL
 
