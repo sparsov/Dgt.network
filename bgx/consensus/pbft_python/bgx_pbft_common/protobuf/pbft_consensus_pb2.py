@@ -19,11 +19,41 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='bgx_pbft_common/protobuf/pbft_consensus.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n-bgx_pbft_common/protobuf/pbft_consensus.proto\"[\n\x10PbftBlockMessage\x12\x10\n\x08\x62lock_id\x18\x01 \x01(\x0c\x12\x11\n\tsigner_id\x18\x03 \x01(\x0c\x12\x11\n\tblock_num\x18\x04 \x01(\x04\x12\x0f\n\x07summary\x18\x06 \x01(\x0c\"U\n\x0fPbftMessageInfo\x12\x10\n\x08msg_type\x18\x01 \x01(\t\x12\x0c\n\x04view\x18\x02 \x01(\x04\x12\x0f\n\x07seq_num\x18\x03 \x01(\x04\x12\x11\n\tsigner_id\x18\x04 \x01(\x0c\"O\n\x0bPbftMessage\x12\x1e\n\x04info\x18\x01 \x01(\x0b\x32\x10.PbftMessageInfo\x12 \n\x05\x62lock\x18\x02 \x01(\x0b\x32\x11.PbftBlockMessageb\x06proto3')
+  serialized_pb=_b('\n-bgx_pbft_common/protobuf/pbft_consensus.proto\"[\n\x10PbftBlockMessage\x12\x10\n\x08\x62lock_id\x18\x01 \x01(\x0c\x12\x11\n\tsigner_id\x18\x03 \x01(\x0c\x12\x11\n\tblock_num\x18\x04 \x01(\x04\x12\x0f\n\x07summary\x18\x06 \x01(\x0c\"\xd4\x01\n\x0fPbftMessageInfo\x12\x32\n\x08msg_type\x18\x01 \x01(\x0e\x32 .PbftMessageInfo.PbftMessageType\x12\x0c\n\x04view\x18\x02 \x01(\x04\x12\x0f\n\x07seq_num\x18\x03 \x01(\x04\x12\x11\n\tsigner_id\x18\x04 \x01(\x0c\"[\n\x0fPbftMessageType\x12\x13\n\x0fPRE_PREPARE_MSG\x10\x00\x12\x0f\n\x0bPREPARE_MSG\x10\x01\x12\x0e\n\nCOMMIT_MSG\x10\x02\x12\x12\n\x0e\x43HECKPOINT_MSG\x10\x03\"O\n\x0bPbftMessage\x12\x1e\n\x04info\x18\x01 \x01(\x0b\x32\x10.PbftMessageInfo\x12 \n\x05\x62lock\x18\x02 \x01(\x0b\x32\x11.PbftBlockMessageb\x06proto3')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
+
+_PBFTMESSAGEINFO_PBFTMESSAGETYPE = _descriptor.EnumDescriptor(
+  name='PbftMessageType',
+  full_name='PbftMessageInfo.PbftMessageType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='PRE_PREPARE_MSG', index=0, number=0,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='PREPARE_MSG', index=1, number=1,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='COMMIT_MSG', index=2, number=2,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='CHECKPOINT_MSG', index=3, number=3,
+      options=None,
+      type=None),
+  ],
+  containing_type=None,
+  options=None,
+  serialized_start=264,
+  serialized_end=355,
+)
+_sym_db.RegisterEnumDescriptor(_PBFTMESSAGEINFO_PBFTMESSAGETYPE)
 
 
 _PBFTBLOCKMESSAGE = _descriptor.Descriptor(
@@ -87,8 +117,8 @@ _PBFTMESSAGEINFO = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='msg_type', full_name='PbftMessageInfo.msg_type', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -118,6 +148,7 @@ _PBFTMESSAGEINFO = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
+    _PBFTMESSAGEINFO_PBFTMESSAGETYPE,
   ],
   options=None,
   is_extendable=False,
@@ -125,8 +156,8 @@ _PBFTMESSAGEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=142,
-  serialized_end=227,
+  serialized_start=143,
+  serialized_end=355,
 )
 
 
@@ -163,10 +194,12 @@ _PBFTMESSAGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=229,
-  serialized_end=308,
+  serialized_start=357,
+  serialized_end=436,
 )
 
+_PBFTMESSAGEINFO.fields_by_name['msg_type'].enum_type = _PBFTMESSAGEINFO_PBFTMESSAGETYPE
+_PBFTMESSAGEINFO_PBFTMESSAGETYPE.containing_type = _PBFTMESSAGEINFO
 _PBFTMESSAGE.fields_by_name['info'].message_type = _PBFTMESSAGEINFO
 _PBFTMESSAGE.fields_by_name['block'].message_type = _PBFTBLOCKMESSAGE
 DESCRIPTOR.message_types_by_name['PbftBlockMessage'] = _PBFTBLOCKMESSAGE

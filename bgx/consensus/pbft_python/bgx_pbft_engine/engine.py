@@ -34,7 +34,7 @@ from bgx_pbft.state.settings_view import SettingsView
 LOGGER = logging.getLogger(__name__)
 PBFT_NAME = 'pbft' 
 PBFT_VER  = '1.0'
-PRE_PREPARE_MSG = 'PrePrepare'
+
 
 class PbftEngine(Engine):
     def __init__(self, path_config, component_endpoint,pbft_config):
@@ -83,31 +83,9 @@ class PbftEngine(Engine):
                 LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
         return True #initialize
 
-    def _pre_prepare(self):
-        # broadcast 
-        payload = PbftMessageInfo(
-                    msg_type = PRE_PREPARE_MSG,
-                    view     = 0,
-                    seq_num  = 1,
-                    signer_id = self._oracle.get_validator_id().encode()
-            ) 
-
-        LOGGER.debug('broadcast peerMess=(%s)',payload)
-        self._service.broadcast(PRE_PREPARE_MSG,payload.SerializeToString()) #b'payload')
 
     def _check_consensus(self, block):
-        state = self._oracle.get_consensus_state_for_block_id(block)
-        if state is not None:
-            LOGGER.debug('PbftEngine: have got  CONSENSUS_STATE id=%s step=%s mode=%s',block.block_id.hex(),state.step,state.mode)
-            state.next_step()
-            if self._node == 'leader':
-                # leader node - send prePrepare
-                self._pre_prepare()
-            return True
-        else:
-            LOGGER.debug('PbftEngine: there is no CONSENSUS_STATE for block')
-            return False
-        #return self._oracle.verify_block(block)
+        return self._oracle.check_consensus(self._node,block)
 
     def _switch_forks(self, current_head, new_head):
         try:

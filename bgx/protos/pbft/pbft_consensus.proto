@@ -30,8 +30,14 @@ message PbftBlockMessage {
 }
 // PBFT message info
 message PbftMessageInfo {
+  enum PbftMessageType {
+      PRE_PREPARE_MSG = 0;
+      PREPARE_MSG = 1;
+      COMMIT_MSG = 2;
+      CHECKPOINT_MSG = 3;
+  }
   // Message type
-  string msg_type = 1;
+  PbftMessageType msg_type = 1;
 
   // Current view 
   uint64 view = 2;

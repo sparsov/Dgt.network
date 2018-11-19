@@ -39,7 +39,7 @@ from bgx_pbft.consensus.consensus_state import ConsensusState
 from bgx_pbft.consensus.consensus_state_store import ConsensusStateStore
 
 
-from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo
+from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,8 +48,11 @@ class PbftOracle:
     """
     This is a wrapper around the PBFT structures (publisher,verifier, fork resolver) and their attendant proxies.
     """
+    PRE_PREPARE_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
+
     def __init__(self, service, component_endpoint,
                  config_dir, data_dir, key_dir):
+        
         self._config_dir = config_dir
         self._data_dir = data_dir
         self._service = service
@@ -144,6 +147,41 @@ class PbftOracle:
                 consensus_state_store=self._consensus_state_store
                 )
         return consensus_state
+
+    def check_consensus(self,node,block):
+        state = self.get_consensus_state_for_block_id(block)
+        if state is not None:
+            LOGGER.debug('PbftOracle: have got  CONSENSUS_STATE id=%s step=%s mode=%s',block.block_id.hex(),state.step,state.mode)
+            state.next_step()
+            if node == 'leader':
+                # leader node - send prePrepare
+                self._pre_prepare(state,block)
+            return True
+        else:
+            LOGGER.debug('PbftEngine: there is no CONSENSUS_STATE for block')
+            return False
+
+    def _pre_prepare(self,state,block):
+        # broadcast 
+        messageInfo = PbftMessageInfo(
+                    msg_type = PbftMessageInfo.PRE_PREPARE_MSG,
+                    view     = 0,
+                    seq_num  = state.sequence_number,
+                    signer_id = self.get_validator_id().encode()
+            ) 
+        blockMessage = PbftBlockMessage(
+                    block_id  = block.block_id,
+                    signer_id =  block.signer_id,
+                    block_num = block.block_num,
+                    summary   = block.summary 
+            )
+        payload = PbftMessage(
+                    info  = messageInfo,
+                    block = blockMessage 
+            )
+         
+        LOGGER.debug('broadcast peerMess=(%s)',payload)
+        self._service.broadcast(PbftOracle.PRE_PREPARE_MSG[PbftMessageInfo.PRE_PREPARE_MSG],payload.SerializeToString()) #b'payload')
 
 
 
