@@ -109,3 +109,59 @@ function getAddresses() {
     xhr.send();
 }
 getAddresses()
+
+function getBlocks() {
+    // get result
+    var xhr = new XMLHttpRequest();
+    // xhr.responseType = 'json';
+    xhr.open("GET", `${REST_API_ENDPOINT}/blocks`, true);
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var json = JSON.parse(xhr.responseText);
+            console.log(json.data);
+            createGraph(json.data);
+        }
+    };
+    xhr.send();
+}
+getBlocks()
+
+function createGraph(data) {
+    var nodes=[{id:"0000000000000000", label:'start'}];
+    var edges=[];
+    data.forEach((el)=>{
+        nodes.push({
+            id:el.header_signature,
+            label:`number:${el.header.block_num},\ntype:${el.batches[0].transactions[0].decoded_payload.Verb},\namount:${el.batches[0].transactions[0].decoded_payload.num_bgt}`,
+            size: 150,
+            shape: 'box'
+        });
+        edges.push({
+            from: el.header.previous_block_id,
+            to: el.header_signature,
+            arrows: 'to'
+        })
+    })
+    var visNodes = new vis.DataSet(nodes);
+    var visEdges = new vis.DataSet(edges);
+
+    // create a network
+    var container = document.getElementById('mynetwork');
+    container.innerHTML = '';
+
+    // provide the data in the vis format
+    var data = {
+        nodes: visNodes,
+        edges: visEdges
+    };
+    var options = {
+        layout: {
+            hierarchical: {
+                direction: 'LR'
+            }
+        }
+    };
+
+    // initialize your network!
+    var network = new vis.Network(container, data, options);
+}
