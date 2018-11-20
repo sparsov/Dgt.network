@@ -19,10 +19,10 @@
 import logging
 import binascii
 import hashlib
-#from web3 import Web3, HTTPProvider
+from web3 import Web3, HTTPProvider
 #from ecdsa import SigningKey, SECP256k1
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
-
+LOGGER = logging.getLogger(__name__)
 # Namespace for ethereum listener
 
 class BGXlistener:
@@ -605,19 +605,23 @@ class BGXlistener:
             }
         ]'''
 
-        """
-        # Connecting to test net ropsten through infura
-        infura_provider = HTTPProvider('https://ropsten.infura.io')
-        web3 = Web3(infura_provider)
+        if True :
+            # Connecting to test net ropsten through infura
+            infura_provider = HTTPProvider('https://ropsten.infura.io')
+            web3 = Web3(infura_provider)
 
-        if not web3.isConnected():
-            # raise something
-            return False
-        
-        contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_INTERFACE)
-        return contract.functions.balanceOf(wallet_address).call()
-        """
-        return 100
+            if not web3.isConnected():
+                # raise something
+                LOGGER.debug('WEB3 is not connected')
+                return 1000
+            
+            contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_INTERFACE)
+            LOGGER.debug('WEB3 contract=%s',contract)
+            val = contract.functions.balanceOf(wallet_address).call()
+            LOGGER.debug('WEB3 val=%s',val)
+            return val
+        else:
+            return 100
 
 # Namespace for logger function
 

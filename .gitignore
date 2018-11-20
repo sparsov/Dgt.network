@@ -123,6 +123,8 @@
 /bgx/consensus/devmode_python/sawtooth_bgt_common/validator_registry_view/__pycache__/
 /bgx/consensus/devmode_python/sawtooth_bgt_engine/__pycache__/
 /bgx/families/smart_bgt_python/smart_bgt/__pycache__/
+/bgx/consensus/devmode_python/sawtooth_bgt_common/protobuf
+/bgx/consensus/pbft_python/bgx_pbft_common/protobuf
 *.vpj
 *.vpw
 *.vtg

@@ -17,7 +17,7 @@
 # -------------===  build ===-------------
 
 FROM ubuntu:bionic
-
+ARG BGX_TOP
 RUN apt-get update \
  && apt-get install gnupg -y
 
@@ -43,6 +43,6 @@ RUN apt-get install -y -q \
     python3-toml \
     python3-yaml
 
-ENV PATH=$PATH:/project/sawtooth-core/bin
+ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 
-WORKDIR /project/sawtooth-core
+WORKDIR /project/$BGX_TOP
