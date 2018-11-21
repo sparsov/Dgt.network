@@ -34,6 +34,7 @@ from sawtooth_sdk.protobuf.batch_pb2 import Batch
 
 from smart_bgt.client_cli.exceptions import SmartBgtClientException
 from smart_bgt.processor.utils import FAMILY_NAME,FAMILY_VER
+from smart_bgt.processor.services import BGXCrypto
 
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()
@@ -189,6 +190,16 @@ class SmartBgtClient:
         address = self._get_address(args['Name'])
         inputs = [address]
         outputs= [address]
+
+        if verb == 'init':
+	    #
+            private_key = args['private_key']
+            digital_signature = BGXCrypto.DigitalSignature(private_key)
+            open_key = digital_signature.getVerifyingKey()
+            address2 = self._get_address(open_key)
+            inputs.append(address2)
+            outputs.append(address2)
+
         if verb == 'transfer':
             #
             address1 = self._get_address(args['to_addr'])

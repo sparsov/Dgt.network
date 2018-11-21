@@ -36,6 +36,8 @@ from smart_bgt.processor.emission import EmissionMechanism
 #from sawtooth_signing.secp256k1 import Secp256k1Context 
 
 
+
+
 LOGGER = logging.getLogger(__name__)
 
 VALID_VERBS = 'set', 'inc', 'dec' , 'init', 'generate_key'
@@ -53,6 +55,11 @@ MAX_NAME_LENGTH = 20
 #def make_smart_bgt_address(name):
 #    return SMART_BGT_ADDRESS_PREFIX + hashlib.sha512(name.encode('utf-8')).hexdigest()[-64:]
 
+def sha512(data):
+    return hashlib.sha512(data).hexdigest()
+
+def get_prefix(self):
+    return sha512(FAMILY_NAME.encode('utf-8'))[0:6]
 
 class SmartBgtTransactionHandler(TransactionHandler):
     @property
@@ -72,7 +79,14 @@ class SmartBgtTransactionHandler(TransactionHandler):
         verb, args = _unpack_transaction(transaction)
         LOGGER.info('SmartBgtTransactionHandler verb=%s args %s',verb,args)
         try:
-            state = _get_state_data([args['Name'],args['to_addr']] if verb == 'transfer' else [args['Name']], context)
+ 
+            if verb == 'init':
+                private_key = args['private_key']
+                digital_signature = BGXCrypto.DigitalSignature(private_key)
+                open_key = digital_signature.getVerifyingKey()
+                state = _get_state_data([args['Name'], open_key], context)
+            else:
+                state = _get_state_data([args['Name'],args['to_addr']] if verb == 'transfer' else [args['Name'], 'SHIT'], context)
             LOGGER.info('SmartBgtTransactionHaEmissionMechanismndler _do_smart_bgt ')
             updated_state = _do_smart_bgt(verb, args, state)
 
@@ -182,10 +196,12 @@ def _do_smart_bgt(verb, args, state):
         'set': _do_set,
         'inc': _do_inc,
         'dec': _do_dec,
-        'init': _do_init,
         'transfer' : _do_transfer
     }
     LOGGER.debug('_do_smart_bgt request verb=%s',verb)
+
+    if verb == 'init':
+        return _do_init(args, state)
 
     if 'Name' not in args:
         return _do_generate_key(state)
@@ -247,53 +263,32 @@ def _do_init(args,state):
     LOGGER.debug("have state=%s",state)
 
     updated = {k: v for k, v in state.items()}
-    ############################LOGGER.debug("############################################################################")
-    ############################LOGGER.debug("############################################################################")
-
-    LOGGER.debug("Info from sonsole: full_name - " + str(full_name))
-    LOGGER.debug("Info from sonsole: private_key - " + str(private_key))
-    LOGGER.debug("Info from sonsole: ethereum_address - " + str(ethereum_address))
-
-    ############################ds = BGXCrypto.DigitalSignature(private_key)
-    ############################msg = "Hello"
-    ############################cipher = ds.sign(msg)
-    ############################LOGGER.debug(str(cipher))
-    ############################res = ds.verify(cipher, msg)
-    ############################LOGGER.debug(str(res))
-
-    ############################LOGGER.debug("############################################################################")
-    ############################LOGGER.debug("############################################################################")
     
     LOGGER.debug("Emission - start")
     
     digital_signature = BGXCrypto.DigitalSignature(private_key)
-
-    LOGGER.debug("DigitalSignature is ready")
-
     wallet_address = ethereum_address
 
-    ############################digital_signature = BGXCrypto.DigitalSignature()
-
     emission_mechanism = EmissionMechanism()
-    LOGGER.debug("EmissionMechanism is ready")
-
     dec_amount = BGXlistener.balanceOf(wallet_address)
-    LOGGER.debug("DEC amount on a wallet " + wallet_address + " = " + str(dec_amount))
     bgt_price = 0
 
-    unique_tokens = emission_mechanism.releaseTokens("BGX Token", "BGT", "id", digital_signature, 1, wallet_address, bgt_price)
+    #unique_tokens = emission_mechanism.releaseTokens("BGX Token", "BGT", "id", digital_signature, 1, wallet_address, bgt_price)
+    token, meta = emission_mechanism.releaseTokens(full_name, digital_signature, ethereum_address, num_bgt)
     LOGGER.debug("Emission - ok")
 
-    for token in unique_tokens:
-        key = str(token.getId())
-        value = str(token.toJSON())
-        LOGGER.debug("New token: id " + str(key) + "  -  value " + str(value))
-        lit_key = str(key[-2:])
-        #updated[lit_key] = lit_key
-        #updated[lit_key] = "123"
-        ####updated[lit_key] = "1"
-        updated[full_name] = {'val': num_bgt,'group' : 'BGT'}
-    #updated[full_name] = "123"
+    
+    key = str(token.getOwnerKey()) + str(token.getGroupId())
+    LOGGER.debug("KEY:" + key)
+    value = str(token.toJSON())
+    LOGGER.debug("VALUE:" + value)
+
+
+    updated[full_name] = str(meta.toJSON()) ############# updated[full_name] = {'val': num_bgt,'group' : 'BGT'}
+    open_key = digital_signature.getVerifyingKey()
+    updated[open_key] = str(token.toJSON())
+
+
     LOGGER.debug("Emission - end updated=%s",updated)        
     return updated
 
@@ -303,7 +298,7 @@ def _do_transfer(args,state):
     try:
         from_addr = args['Name']
         to_addr   = args['to_addr']
-        num_bgt =  int(args['num_bgt'])
+        num_bgt =  float(args['num_bgt'])
     except KeyError:
         LOGGER.debug("_do_transfer not all arg")
 
@@ -312,20 +307,39 @@ def _do_transfer(args,state):
         LOGGER.debug("SET ADDR FROM")
         raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
 
-    token = state[from_addr]
-    token1 = state[to_addr] if to_addr in state else None
+    from_token_str = state[from_addr] #token
+    to_token_str = state[to_addr] if to_addr in state else None #token1
     LOGGER.debug("TRANSFER from %s->%s",from_addr,to_addr)
+    LOGGER.debug("TRANSFER from %s->%s", from_token_str, to_token_str)
+
+    from_token = Token()
+    LOGGER.debug("Token ready")
+    from_token.fromJSON(from_token_str)
+    LOGGER.debug("From token: %s", str(from_token.toJSON()))
+
+    to_token = Token()
+    if to_token_str is None:
+        to_token.copy(from_token, to_addr)
+    else:
+        to_token.fromJSON(to_token_str)
+    LOGGER.debug("To token: %s", str(to_token.toJSON()))
+
+    res = from_token.send(to_token, float(num_bgt))
+    LOGGER.debug("RESULT of transfer: %s", str(res))
 
     updated = {k: v for k, v in state.items()}
-    #updated[name] = value
-    #LOGGER.debug("have state=%s",updated)
-    LOGGER.debug("WOW")
-    token['val'] = token['val'] - num_bgt # send tokens to ethereum_address
-    updated[from_addr] = token
-    updated[to_addr] = {'val':  token1['val'] + num_bgt if token1 else num_bgt,'group' : 'BGT'}
+
+    if res:
+        #updated[name] = value
+        #LOGGER.debug("have state=%s",updated)
+        LOGGER.debug("WOW")
+        updated[from_addr] = from_token.toJSON()
+        updated[to_addr] = to_token.toJSON()
+        #########token['val'] = token['val'] - num_bgt # send tokens to ethereum_address
+        #########updated[from_addr] = token
+        #########updated[to_addr] = {'val':  token1['val'] + num_bgt if token1 else num_bgt,'group' : 'BGT'}
     LOGGER.debug("Transfer - end updated=%s",updated)
     return updated
-
 
 
 def _do_inc(args, state):
