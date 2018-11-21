@@ -48,7 +48,7 @@ class PbftOracle:
     """
     This is a wrapper around the PBFT structures (publisher,verifier, fork resolver) and their attendant proxies.
     """
-    PRE_PREPARE_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
+    CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
     def __init__(self, service, component_endpoint,
                  config_dir, data_dir, key_dir):
@@ -139,37 +139,105 @@ class PbftOracle:
         return False
 
     def get_consensus_state_for_block_id(self,block):
-        LOGGER.debug('PbftOracle: get_consensus_state for block=%s type=%s',block,type(block.block_id))
+        block_id = block.block_id.hex()
+        LOGGER.debug('PbftOracle: get_consensus_state for block_id=%s',block_id)
         consensus_state = ConsensusState.consensus_state_for_block_id(
-                block_id=block.block_id.hex(), #block_header.previous_block_id,
+                block_id=block_id, #block_header.previous_block_id,
                 block_cache=self._block_cache,
                 state_view_factory=self._state_view_factory,
                 consensus_state_store=self._consensus_state_store
                 )
-        return consensus_state
+        return consensus_state,block_id
 
-    def check_consensus(self,node,block):
-        state = self.get_consensus_state_for_block_id(block)
+    def start_consensus(self,node,block):
+        """
+        Have got NewBlock message
+        """
+        state,block_id = self.get_consensus_state_for_block_id(block)
         if state is not None:
-            LOGGER.debug('PbftOracle: have got  CONSENSUS_STATE id=%s step=%s mode=%s',block.block_id.hex(),state.step,state.mode)
-            state.next_step()
-            if node == 'leader':
-                # leader node - send prePrepare
-                self._pre_prepare(state,block)
-            return True
+            if state.is_step_NotStarted:
+                LOGGER.debug('PbftOracle: START CONSENSUS for block_id=%s step=%s mode=%s',block_id,state.step,state.mode)
+                state.next_step()
+                self._consensus_state_store[block_id] = state # save new state
+                if node == 'leader':
+                    # leader node - send prePrepare
+                    self._send_pre_prepare(state,block)
+                elif  node == 'plink' :
+                    # just change step of consensus
+                    LOGGER.debug('PbftOracle: PLINK node step=%s',state.step)
+                return True
+            else:
+                LOGGER.debug('PbftOracle: cant START CONSENSUS for block_id=%s (incorrect state) ',block_id)
         else:
-            LOGGER.debug('PbftEngine: there is no CONSENSUS_STATE for block')
+            LOGGER.debug('PbftOracle: there is no CONSENSUS_STATE for block_id=%s',block_id)
             return False
 
     def peer_message(self,node,msg):
         """
-        consensuse message
+        consensuse message: PrePrepare, Prepare, Commit, Checkpoint 
         """
-        LOGGER.debug('PbftEngine: peer_message %s',type(msg))
+        LOGGER.debug('PbftOracle: peer_message p2p=(%s),(%s)',type(msg[0]),msg[1])
+        p2p_mesg = msg[0]
         payload = PbftMessage()
-        payload.ParseFromString(msg)
-    def _pre_prepare(self,state,block):
-        # broadcast 
+        payload.ParseFromString(p2p_mesg.content)
+        info,block = payload.info,payload.block
+        LOGGER.debug('PbftOracle: peer_message payload.info=(%s) payload.block=(%s)',info,block)
+        state, block_id = self.get_consensus_state_for_block_id(block)
+
+        def is_pre_prepare_valid():
+            return True
+
+        if state is None:
+            """
+            Undefined state for block 
+            """
+            LOGGER.debug('PbftOracle: PEER_MESSAGE undefined state for block=%s IGNORE message',block_id)
+            return
+        
+        LOGGER.debug('PbftOracle: CONSENSUS_STATE=%s for block_id=%s',state,block_id) 
+        if node == 'plink':
+            if state.is_step_PrePreparing :
+                if info.msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
+                    LOGGER.debug('PbftOracle: check PRE_PREPARE_MSG for node=%s',node)
+                    """
+                    check PRE_PREPARE_MSG:
+                        1) signer_id and summary of block inside PrePrepare match the corresponding fields of the original BlockNew block 
+                        2) View in PrePrepare message corresponds to this server's current view &&
+                        3) This message hasn't been accepted already with a different summary &&
+                        4) Sequence number is within the sequential bounds of the log (low and high water marks)
+                    """
+                    if is_pre_prepare_valid():
+                        # if correct change step of consensus and send Prepare 
+                        state.next_step()
+                        self._consensus_state_store[block_id] = state
+                        self._send_prepare(state,block)
+                    else:
+                        # If the PrePrepare is determined to be invalid, then start a view change
+                        pass
+                else:
+                    LOGGER.debug('PbftOracle: PRE_PREPARE_MSG in incorrect consensus state=%s',state.step)
+            elif state.is_step_Preparing:
+                # PREPARING STATE
+                if info.msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
+                    LOGGER.debug('PbftOracle: PRE_PREPARE_MSG node=%s',node)
+                    state.next_step()
+                    self._consensus_state_store[block_id] = state
+                    self._send_prepare(state,block)
+                else:
+                    LOGGER.debug('PbftOracle: PRE_PREPARE_MSG in incorrect consensus state=%s',state.step)
+        elif node == 'leader' :
+            #if state.is_step_PrePreparing :
+            if info.msg_type == PbftMessageInfo.PREPARE_MSG :
+                LOGGER.debug('PbftOracle: PREPARE_MSG node=%s state=%s',node,state.step)
+                if state.is_step_PrePreparing :
+                    # reply from plink node
+                    LOGGER.debug('PbftOracle: have got PREPARE_MSG in PrePreparing check_blocks=%d',block_id)
+                    self._service.check_blocks([block.block_id])
+
+
+
+    def _send_pre_prepare(self,state,block):
+        # send PRE_PREPARE message 
         messageInfo = PbftMessageInfo(
                     msg_type = PbftMessageInfo.PRE_PREPARE_MSG,
                     view     = 0,
@@ -182,13 +250,34 @@ class PbftOracle:
                     block_num = block.block_num,
                     summary   = block.summary 
             )
-        payload = PbftMessage(
-                    info  = messageInfo,
-                    block = blockMessage 
+        self._broadcast(messageInfo,blockMessage) 
+
+    def _send_prepare(self,state,block):
+        # send PREPARE message 
+        messageInfo = PbftMessageInfo(
+                    msg_type = PbftMessageInfo.PREPARE_MSG,
+                    view     = 0,
+                    seq_num  = state.sequence_number,
+                    signer_id = self.get_validator_id().encode()
+            ) 
+        blockMessage = PbftBlockMessage(
+                    block_id  = block.block_id,
+                    signer_id =  block.signer_id,
+                    block_num = block.block_num,
+                    summary   = block.summary 
             )
-         
-        LOGGER.debug('broadcast peerMess=(%s)',payload)
-        self._service.broadcast(PbftOracle.PRE_PREPARE_MSG[PbftMessageInfo.PRE_PREPARE_MSG],payload.SerializeToString()) #b'payload')
+        self._broadcast(messageInfo,blockMessage) 
+
+
+    def _broadcast(self,info,block):
+        # broadcast 
+        payload = PbftMessage(
+                    info  = info,
+                    block = block 
+            )
+
+        LOGGER.debug('broadcast CONSENSUS_MSG=(%s)',payload)
+        self._service.broadcast(PbftOracle.CONSENSUS_MSG[info.msg_type],payload.SerializeToString()) 
 
 
 

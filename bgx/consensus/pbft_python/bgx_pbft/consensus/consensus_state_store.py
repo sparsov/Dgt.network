@@ -76,6 +76,7 @@ class ConsensusStateStore(MutableMapping):
         Returns:
             None
         """
+        #LOGGER.debug('setitem id=%s', type(block_id))
         self._store_db[block_id] = consensus_state.serialize_to_bytes()
 
     def __getitem__(self, block_id):
@@ -91,6 +92,7 @@ class ConsensusStateStore(MutableMapping):
         Raises:
             KeyError if the block ID is not in the store
         """
+        #LOGGER.debug('getitem id=%s', type(block_id))
         serialized_consensus_state = self._store_db[block_id]
         if serialized_consensus_state is None:
             raise KeyError('Block ID {} not found'.format(block_id))

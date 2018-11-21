@@ -260,6 +260,29 @@ class ConsensusState:
         self._step += 1
         self._step = self._step % len(ConsensusState.STEP_LIST)
 
+    
+    @property
+    def is_step_NotStarted(self):
+        return self._step == 0
+    @property
+    def is_step_PrePreparing(self):
+        return self._step == 1
+
+    @property
+    def is_step_Preparing(self):
+        return self._step == 2
+
+    @property
+    def is_step_Checking(self):
+        return self._step == 3
+
+    @property
+    def is_step_Committing(self):
+        return self._step == 4
+    @property
+    def is_step_Finished(self):
+        return self._step == 5
+
     @step.setter
     def set_step(self, value):
         self._step = value 

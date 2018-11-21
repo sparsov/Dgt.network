@@ -19,7 +19,7 @@ services:
   settings-tp-2:
     build:
       context: ../..
-      dockerfile: bgx/docker/settings/Dockerfile
+      dockerfile: bgx/docker/settings/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -48,7 +48,7 @@ services:
   bgt-tp-python-2:
     build:
       context: ../..
-      dockerfile: bgx/families/bgt_python/Dockerfile
+      dockerfile: bgx/families/bgt_python/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -77,7 +77,7 @@ services:
   bgx-registry-2:
     build:
       context: ../..
-      dockerfile: bgx/families/bgx_validator_registry/Dockerfile
+      dockerfile: bgx/families/bgx_validator_registry/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -108,7 +108,7 @@ services:
   client-2:
     build:
       context: ../..
-      dockerfile: bgx/docker/sawtooth-shell
+      dockerfile: bgx/docker/sawtooth-shell-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -135,7 +135,7 @@ services:
   validator-2:
     build:
       context: ../..
-      dockerfile: bgx/docker/validator/Dockerfile
+      dockerfile: bgx/docker/validator/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -186,7 +186,7 @@ services:
   rest-api-2:
     build:
       context: ../..
-      dockerfile: bgx/docker/rest_api/Dockerfile
+      dockerfile: bgx/docker/rest_api/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -217,7 +217,7 @@ services:
   pbft-python-2:
     build:
       context: ../..
-      dockerfile: bgx/consensus/pbft_python/Dockerfile
+      dockerfile: bgx/consensus/pbft_python/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy

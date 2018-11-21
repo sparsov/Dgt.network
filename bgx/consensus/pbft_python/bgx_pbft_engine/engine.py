@@ -51,7 +51,7 @@ class PbftEngine(Engine):
         self._building = False
         self._committing = False
         self._check = False
-
+        self._is_peer_connected = False
         self._node = self._pbft_config.node
         self._pending_forks_to_resolve = PendingForks()
         LOGGER.debug('PbftEngine: init done pbft=%s',self._pbft_config)
@@ -85,10 +85,16 @@ class PbftEngine(Engine):
 
 
     def _check_consensus(self, block):
-        return self._oracle.check_consensus(self._node,block)
+        #if not self._is_peer_connected :
+        #    return True
+        self._start_consensus(block)
+        return False
+
+    def _start_consensus(self, block):
+        return self._oracle.start_consensus(self._node,block)
 
     def _peer_message(self, block):
-        LOGGER.info('handle PEER_MESSAGE: Received %s', block)
+        LOGGER.info('PbftEngine:handle PEER_MESSAGE: Received %s', type(block))
         return self._oracle.peer_message(self._node,block)
 
     def _switch_forks(self, current_head, new_head):
@@ -302,15 +308,15 @@ class PbftEngine(Engine):
     def _handle_new_block(self, block):
         LOGGER.info('handle NEW_BLOCK:Received id=%s block_num=%s payload=%s', block.block_id.hex(),block.block_num,block.payload)
         block = PbftBlock(block)
-
+        
         if self._check_consensus(block):
             LOGGER.info('Passed consensus check: %s', block.block_id.hex())
             #self._check = True
             self._check_block(block.block_id)
         else:
             LOGGER.info('Failed consensus check: %s', block.block_id.hex())
-            self._fail_block(block.block_id)
-
+            #self._fail_block(block.block_id)
+        
     def _handle_valid_block(self, block_id):
         LOGGER.info('handle VALID_BLOCK:Received id=%s', block_id.hex())
         block = self._get_block(block_id)
@@ -360,7 +366,8 @@ class PbftEngine(Engine):
         Messages about new peers
         """
         #block = PbftBlock(block)
-        LOGGER.info('handle PEER_CONNECTED: Received %s', block)
+        LOGGER.info('handle PEER_CONNECTED: Received %s', type(block))
+        self._is_peer_connected = True
 
     def _handle_peer_message(self, block):
         """
