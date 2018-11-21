@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f sdk/examples/intkey_python/Dockerfile -t intkey-tp-python-local .
+# docker build -f families/block_info/Dockerfile -t sawtooth-block-info-tp-local .
 
 # -------------=== intkey-tp-python build ===-------------
 
 FROM ubuntu:bionic
-ARG BGX_TOP
+
 RUN apt-get update \
  && apt-get install gnupg -y
 
@@ -41,20 +41,10 @@ RUN apt-get install -y -q \
     python3-colorlog \
     python3-toml \
     python3-yaml \
-    python3-zmq  \
-    python3-pip  \
-    python3-secp256k1
-
-RUN pip3 install web3
+    python3-zmq
 
 RUN mkdir -p /var/log/sawtooth
 
-ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
-RUN export INFURA_API_KEY="f8398bb431d448cab6a9fc27647a9a19"
-WORKDIR /project/$BGX_TOP
+ENV PATH=$PATH:/project/sawtooth-core/bin
 
-CMD echo "\033[0;32m--- Building smart_bgt_python ---\n\033[0m" \
- && bgx/bin/protogen \
- && cd bgx/families/smart_bgt_python \
- && python3 setup.py clean --all \
- && python3 setup.py build
+WORKDIR /project/sawtooth-core

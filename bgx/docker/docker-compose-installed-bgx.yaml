@@ -19,7 +19,7 @@ services:
   settings-tp:
     build:
       context: ../..
-      dockerfile: families/settings/Dockerfile-installed
+      dockerfile: bgx/docker/settings/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -34,7 +34,7 @@ services:
   validator:
     build:
       context: ../..
-      dockerfile: bgx/docker/validator/Dockerfile-installed
+      dockerfile: bgx/docker/validator/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -61,7 +61,7 @@ services:
   rest-api:
     build:
       context: ../..
-      dockerfile: rest_api/Dockerfile-installed
+      dockerfile: bgx/docker/rest_api/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -77,7 +77,7 @@ services:
   shell:
     build:
       context: ../..
-      dockerfile: bgx/docker/ci/sawtooth-shell-installed
+      dockerfile: bgx/docker/ci/sawtooth-shell-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -95,7 +95,7 @@ services:
   admin-tools:
     build:
       context: ../..
-      dockerfile: adm/Dockerfile-installed
+      dockerfile: bgx/docker/adm/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -106,7 +106,7 @@ services:
   sawtooth-cli:
     build:
       context: ../..
-      dockerfile: cli/Dockerfile-installed
+      dockerfile: bgx/docker/cli/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -117,7 +117,7 @@ services:
   block-info-tp:
     build:
       context: ../..
-      dockerfile: families/block_info/Dockerfile-installed
+      dockerfile: bgx/docker/families/block_info/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -128,7 +128,7 @@ services:
   identity-tp:
     build:
       context: ../..
-      dockerfile: families/identity/Dockerfile-installed
+      dockerfile: bgx/docker/families/identity/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -139,7 +139,7 @@ services:
   python-sdk:
     build:
       context: ../..
-      dockerfile: sdk/python/Dockerfile-installed
+      dockerfile: bgx/docker/sdk/python/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -150,7 +150,7 @@ services:
   signing:
     build:
       context: ../..
-      dockerfile: signing/Dockerfile-installed
+      dockerfile: bgx/docker/signing/Dockerfile-installed-${DISTR}
       args:
         - http_proxy
         - https_proxy
@@ -174,6 +174,6 @@ services:
   sawtooth-meta:
     build:
       context: ../..
-      dockerfile: ci/sawtooth-meta
+      dockerfile: bgx/docker/ci/sawtooth-meta-${DISTR}
     image: sawtooth-meta:${ISOLATION_ID}
     container_name: sawtooth-meta

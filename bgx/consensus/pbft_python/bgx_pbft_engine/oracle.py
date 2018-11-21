@@ -161,6 +161,13 @@ class PbftOracle:
             LOGGER.debug('PbftEngine: there is no CONSENSUS_STATE for block')
             return False
 
+    def peer_message(self,node,msg):
+        """
+        consensuse message
+        """
+        LOGGER.debug('PbftEngine: peer_message %s',type(msg))
+        payload = PbftMessage()
+        payload.ParseFromString(msg)
     def _pre_prepare(self,state,block):
         # broadcast 
         messageInfo = PbftMessageInfo(

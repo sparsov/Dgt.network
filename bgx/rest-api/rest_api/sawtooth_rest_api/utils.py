@@ -3,6 +3,7 @@ import base64
 from Crypto.Hash import keccak
 import chilkat
 import json
+import hashlib
 # import sawtooth_rest_api.exceptions as errors
 
 # Unlock chilkat library
@@ -165,12 +166,16 @@ def generate_startup_global_state():
         })
     print({'node': node_state, 'users': user_keys})
 
-print(verify_signature('MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAECkayIOZ6enQ9Q3Rz2jSEPH+t0THLtDNJoVNYndwTdeGwwt+f6sGN9ABprdzvxeailLo/3E/wiZGoHw782JshpQ==',
-                       'MEQCILn/QoiMkkjZovBfavYFPyrJ+zcns/6fBXZh1gh6x30GAiBOGnMGIOCMrXJPWL9FOaXWjNUJwh6VxG6DqdAxKgFoGQ==',
-                       {
-                           "address_from": "4aa37a37b9793a7f3696129d9a367b26fd0b2b1c",
-                           "address_to": "673fcacfb51214e0543b786da79956b541e7d792",
-                           "coin_code": "bgt",
-                           "tx_payload": "10"
-                        }
-                       ))
+
+def _sha512(data):
+    return hashlib.sha512(data).hexdigest()
+
+
+def generate_tx_address(input, family_name='smart-bgt'):
+    prefix = _sha512(family_name.encode('utf-8'))[0:6]
+    game_address = _sha512(input.encode('utf-8'))[64:]
+    return prefix + game_address
+
+print(generate_tx_address('0x4aa37a37b9793a7f3696129d9a367b26fd0b2b1c'))
+print(generate_tx_address('0x673fcacfb51214e0543b786da79956b541e7d792'))
+print(generate_tx_address('0xd7d24d1c1ca78c63769ea99d563cb259311d2d62'))

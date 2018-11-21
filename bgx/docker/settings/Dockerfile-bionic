@@ -1,5 +1,7 @@
+
 # Copyright 2018 Cargill Incorporated
-#
+# Copyright 2018 Bitwise IO, Inc.
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f sdk/examples/intkey_python/Dockerfile -t intkey-tp-python-local .
-
-# -------------=== intkey-tp-python build ===-------------
+# docker build -f families/settings/Dockerfile -t sawtooth-settings-tp-local .
 
 FROM ubuntu:bionic
 ARG BGX_TOP
@@ -26,35 +26,34 @@ RUN echo "deb http://repo.sawtooth.me/ubuntu/ci bionic universe" >> /etc/apt/sou
  || apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 8AA7AF1F1091A5FD) \
  && apt-get update
 
-RUN apt-get install -y -q \
+RUN apt-get install -y -q --allow-downgrades \
     git \
     python3 \
     python3-stdeb
 
-RUN apt-get install -y -q \
+RUN apt-get install -y -q --allow-downgrades \
     python3-grpcio \
     python3-grpcio-tools \
     python3-protobuf
 
-RUN apt-get install -y -q \
-    python3-cbor \
+RUN apt-get install -y -q --allow-downgrades \
     python3-colorlog \
     python3-toml \
     python3-yaml \
-    python3-zmq  \
-    python3-pip  \
-    python3-secp256k1
+    python3-zmq
 
-RUN pip3 install web3
+# For Building Protobufs
+#RUN curl -OLsS https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-linux-x86_64.zip \
+# && unzip protoc-3.5.1-linux-x86_64.zip -d protoc3 \
+# && rm protoc-3.5.1-linux-x86_64.zip
 
-RUN mkdir -p /var/log/sawtooth
 
-ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
-RUN export INFURA_API_KEY="f8398bb431d448cab6a9fc27647a9a19"
+ENV PATH=$PATH:/project/$BGX_TOP/BGX/bin:/project/$BGX_TOP/bin:/protoc3/bin
+
 WORKDIR /project/$BGX_TOP
 
-CMD echo "\033[0;32m--- Building smart_bgt_python ---\n\033[0m" \
- && bgx/bin/protogen \
- && cd bgx/families/smart_bgt_python \
+CMD echo "\033[0;32m--- Building settings ---\n\033[0m" \
+ && bin/protogen \
+ && cd families/settings \
  && python3 setup.py clean --all \
  && python3 setup.py build

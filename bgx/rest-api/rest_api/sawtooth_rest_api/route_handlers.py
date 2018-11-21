@@ -352,12 +352,22 @@ class RouteHandler:
             client_state_pb2.ClientStateListResponse,
             validator_query)
 
-        return self._wrap_paginated_response(
+        try:
+            encoded_entries = response.get('entries', [])
+
+            result = [
+                cbor.loads(base64.b64decode(entry["data"]))
+                for entry in encoded_entries
+            ]
+
+        except BaseException:
+            return None
+
+
+        return self._wrap_response(
             request=request,
-            response=response,
-            controls=paging_controls,
-            data=response.get('entries', []),
-            head=head)
+            data=result+encoded_entries
+        )
 
     async def fetch_state(self, request):
         """Fetches data from a specific address in the validator's state tree.
@@ -418,11 +428,17 @@ class RouteHandler:
             client_block_pb2.ClientBlockListResponse,
             validator_query)
 
+        data = [self._expand_block(b) for b in response['blocks']]
+        for block in data:
+            for batch in block['batches']:
+                for tx in batch['transactions']:
+                    tx['decoded_payload'] = cbor.loads(base64.b64decode(tx['payload']))
+
         return self._wrap_paginated_response(
             request=request,
             response=response,
             controls=paging_controls,
-            data=[self._expand_block(b) for b in response['blocks']])
+            data=data)
 
     async def fetch_block(self, request):
         """Fetches a specific block from the validator, specified by id.
@@ -670,19 +686,19 @@ class RouteHandler:
                 address_from,
             )
             raise errors.WalletNotFound()
-        elif payload['coin_code'] not in WALLETS[address_from]:
-            WALLETS[address_from][payload['coin_code']] = 0
-            LOGGER.debug(
-                "Not enough funds in user's wallet",
-                address_from,
-            )
-            raise errors.NotEnoughFunds()
-        elif WALLETS[address_from][payload['coin_code']] < int(payload['tx_payload']):
-            LOGGER.debug(
-                "Not enough funds in user's wallet",
-                address_from,
-            )
-            raise errors.NotEnoughFunds()
+        # elif payload['coin_code'] not in WALLETS[address_from]:
+        #     WALLETS[address_from][payload['coin_code']] = 0
+        #     LOGGER.debug(
+        #         "Not enough funds in user's wallet",
+        #         address_from,
+        #     )
+        #     raise errors.NotEnoughFunds()
+        # elif WALLETS[address_from][payload['coin_code']] < int(payload['tx_payload']):
+        #     LOGGER.debug(
+        #         "Not enough funds in user's wallet",
+        #         address_from,
+        #     )
+        #     raise errors.NotEnoughFunds()
 
         # Verification of signed hashes
         result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
@@ -697,11 +713,18 @@ class RouteHandler:
         #     payload['coin_code'],
         #     'Regular transaction'
         # )
+
+        # from_addr = 'BGX_Token'
+        from_addr = PUB_KEYS_BY_ADDRESSES[address_from]
+        # to_addr = 'mmmm'
+        to_addr = PUB_KEYS_BY_ADDRESSES[address_to]
+        family_name = 'smart-bgt'
+
         payload_bytes = cbor.dumps({
             'Verb': 'transfer',
-            'Name': 'Later_Be_Changed_With_Value_From_M',
-            'Value': PUB_KEYS_BY_ADDRESSES[payload['address_to']],
-            'Value_2': payload['tx_payload'],
+            'Name': from_addr,
+            'to_addr': to_addr,
+            'num_bgt': payload['tx_payload'],
         })
         hashed_payload = sha512(payload_bytes).hexdigest()
         node_private_key_hex = rest_api_utils.priv_key_pkcs1_DER_base64_to_hex(NODE_CREDENTIALS['private_key'])
@@ -709,11 +732,14 @@ class RouteHandler:
         node_private_key = secp256k1_context.new_random_private_key() #.from_hex(node_private_key_hex)
         node_signer = CryptoFactory(secp256k1_context).new_signer(node_private_key)
 
+        in_address = rest_api_utils.generate_tx_address(from_addr, family_name)
+        out_address = rest_api_utils.generate_tx_address(to_addr, family_name)
+
         txn_header_bytes = TransactionHeader(
-            family_name='smart-bgt',
+            family_name=family_name,
             family_version='1.0',
-            inputs=[],
-            outputs=[],
+            inputs=[in_address, out_address],
+            outputs=[in_address, out_address],
             # pub_key of node
             signer_public_key=node_signer.get_public_key().as_hex(),
             # pub_key of user
@@ -828,7 +854,6 @@ class RouteHandler:
         if address not in PUB_KEYS_BY_ADDRESSES:
             raise errors.AddressNotFound()
 
-        print(address)
         if address not in WALLETS:
             LOGGER.debug(
                 'Wallet not found',
@@ -836,12 +861,39 @@ class RouteHandler:
             )
             raise errors.WalletNotFound()
 
+        token_address = rest_api_utils.generate_tx_address(PUB_KEYS_BY_ADDRESSES[address])
+
+        error_traps = [
+            error_handlers.InvalidAddressTrap,
+            error_handlers.StateNotFoundTrap]
+
+        head = request.url.query.get('head', None)
+
+        head, root = await self._head_to_root(head)
+        response = await self._query_validator(
+            Message.CLIENT_STATE_GET_REQUEST,
+            client_state_pb2.ClientStateGetResponse,
+            client_state_pb2.ClientStateGetRequest(
+                state_root=root, address=token_address),
+            error_traps)
+
+        try:
+            result = cbor.loads(base64.b64decode(response['value']))
+
+        except BaseException:
+            return None
+
         return self._wrap_response(
             request,
-            metadata={
-                'wallet': WALLETS[address]
-            },
-            status=200)
+            data=result)
+
+
+        # return self._wrap_response(
+        #     request,
+        #     metadata={
+        #         'wallet': WALLETS[address]
+        #     },
+        #     status=200)
 
     async def get_global_wallet(self, request):
         return self._wrap_response(

@@ -87,6 +87,10 @@ class PbftEngine(Engine):
     def _check_consensus(self, block):
         return self._oracle.check_consensus(self._node,block)
 
+    def _peer_message(self, block):
+        LOGGER.info('handle PEER_MESSAGE: Received %s', block)
+        return self._oracle.peer_message(self._node,block)
+
     def _switch_forks(self, current_head, new_head):
         try:
             switch = self._oracle.switch_forks(current_head, new_head)
@@ -363,7 +367,8 @@ class PbftEngine(Engine):
         we have got here messages which were sent for consensus via CONSENSUS_BROADCAST_REQUEST 
         """
         #block = PbftBlock(block)
-        LOGGER.info('handle PEER_MESSAGE: Received %s', block)
+        self._peer_message(block)
+       
 
     def _handle_broadcast_request(self, block):
         LOGGER.info('handle BROADCAST_REQUEST: Received %s', block)
