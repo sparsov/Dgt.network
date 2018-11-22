@@ -428,11 +428,17 @@ class RouteHandler:
             client_block_pb2.ClientBlockListResponse,
             validator_query)
 
+        data = [self._expand_block(b) for b in response['blocks']]
+        for block in data:
+            for batch in block['batches']:
+                for tx in batch['transactions']:
+                    tx['decoded_payload'] = cbor.loads(base64.b64decode(tx['payload']))
+
         return self._wrap_paginated_response(
             request=request,
             response=response,
             controls=paging_controls,
-            data=[self._expand_block(b) for b in response['blocks']])
+            data=data)
 
     async def fetch_block(self, request):
         """Fetches a specific block from the validator, specified by id.

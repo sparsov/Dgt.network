@@ -116,6 +116,8 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     app.router.add_get('/state', handler.list_state)
     app.router.add_get('/state/{address}', handler.fetch_state)
+    app.router.add_get('/transactions', handler.list_transactions)
+    app.router.add_get('/blocks', handler.list_blocks)
 
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)

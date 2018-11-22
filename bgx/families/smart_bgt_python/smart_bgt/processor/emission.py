@@ -21,7 +21,7 @@ import time
 #import inspect
 
 from smart_bgt.processor.services import BGXCrypto, BGXlistener
-from smart_bgt.processor.token import Token
+from smart_bgt.processor.token import Token, MetaToken
 
 
 # Prototype for a EmissionMechanism class
@@ -50,24 +50,16 @@ class EmissionMechanism:
         #hash = BGXCrypto.intHash(lines)
         return True
 
-    def releaseTokens(self, name, symbol, company_id, signing_key, tokens_amount, wallet_address, bgt_price):
+    #def releaseTokens(self, name, symbol, company_id, signing_key, tokens_amount, wallet_address, bgt_price):
+    def releaseTokens(self, name, digital_signature, ethereum_address, num_bgt):
         #services.BGXlog.logInfo('Emission in progress')
         #seed = str(time.time())
-        seed = ""
-        imprint = name + symbol + company_id + seed
-        group_code = str(BGXCrypto.intHash(imprint))
+        
+        meta = MetaToken(name, 'BGT', 'company_id', 'group_code', num_bgt, 'BGT token', 1, digital_signature)
+        token = Token('group_code', num_bgt, digital_signature)
 
-        dec_amount = BGXlistener.balanceOf(wallet_address)
-        if tokens_amount * bgt_price > dec_amount:
-            return False
 
-        tokens = []
-        for tokenNumber in range(tokens_amount):
-            token = Token(name, symbol, company_id, group_code, signing_key, tokenNumber)
-            #token = Token("BGX Token", "BGT", "id", "code", 1, signing_key, tokenNumber)
-            tokens.append(token)
-
-        return tokens
+        return token, meta
 
 
 #digital_signature = services.BGXCrypto.DigitalSignature()
