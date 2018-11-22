@@ -20,7 +20,8 @@ import time
 #import services
 #import inspect
 
-from smart_bgt.processor.services import BGXCrypto, BGXlistener
+from smart_bgt.processor.services import BGXlistener
+from smart_bgt.processor.crypto import BGXCrypto
 from smart_bgt.processor.token import Token, MetaToken
 
 
@@ -34,9 +35,9 @@ class EmissionMechanism:
 
     # TODO: implement
 
-    def checkEthereum(self, bgt_amount, wallet_address):
+    def checkEthereum(self, bgt_amount, wallet_address, bgt_price, dec_price):
         dec_amount = int(BGXlistener.balanceOf(wallet_address)) 
-        return int(bgt_amount) * 0 <= dec_amount
+        return int(bgt_amount) * bgt_price <= dec_amount * dec_price
 
     # TODO: implement
 
@@ -48,22 +49,17 @@ class EmissionMechanism:
     def checkHashOfClass(self):
         #lines = inspect.getsource(EmissionMechanism)
         #hash = BGXCrypto.intHash(lines)
+
         return True
 
     #def releaseTokens(self, name, symbol, company_id, signing_key, tokens_amount, wallet_address, bgt_price):
-    def releaseTokens(self, name, digital_signature, ethereum_address, num_bgt):
+    def releaseTokens(self, name, digital_signature, ethereum_address, num_bgt, bgt_price = 1, dec_price = 1):
         #services.BGXlog.logInfo('Emission in progress')
-        #seed = str(time.time())
-        
+
+        if not self.checkEthereum(num_bgt, ethereum_address, bgt_price, dec_price):
+            return None, None
+
         meta = MetaToken(name, 'BGT', 'company_id', 'group_code', num_bgt, 'BGT token', 1, digital_signature)
         token = Token('group_code', num_bgt, digital_signature)
 
-
         return token, meta
-
-
-#digital_signature = services.BGXCrypto.DigitalSignature()
-#wallet_address = '0xD5779261bC3F08F13E6D520CD28E6A3FE5F47B8B'
-#unique_tokens = EmissionMechanism.releaseTokens("BGX Token", "BGT", "id", 1, digital_signature, 10, wallet_address)
-#for token in unique_tokens:
-#     print(token.verifyToken(digital_signature))

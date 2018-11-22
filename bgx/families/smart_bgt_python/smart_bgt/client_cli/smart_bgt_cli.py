@@ -194,6 +194,16 @@ def add_init_parser(subparsers, parent_parser):
         help='')
 
     parser.add_argument(
+        'bgt_price',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        'dec_price',
+        type=str,
+        help='')
+
+    parser.add_argument(
         '--url',
         type=str,
         help='specify URL of REST API')
@@ -289,9 +299,9 @@ def do_set(args):
 
 
 def do_init(args):
-    full_name, private_key, ethereum_address, wait = args.full_name, args.private_key, args.ethereum_address, args.wait
+    full_name, private_key, ethereum_address,  wait = args.full_name, args.private_key, args.ethereum_address, args.wait
     client = _get_client(args)
-    response = client.init(full_name, private_key, ethereum_address,args.num_bgt, wait) ######################
+    response = client.init(full_name, private_key, ethereum_address,args.num_bgt, args.bgt_price, args.dec_price, wait) ######################
     print(response)
 
 def do_transfer(args):
