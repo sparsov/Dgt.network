@@ -16,8 +16,8 @@ services:
     container_name: rest-api-a
     ports:
       - "8009:8009"
-    networks:
-      - network1
+#    networks:
+#      - network1
 
     # depends_on:
     #   - validator
@@ -32,6 +32,27 @@ services:
         sawtooth-rest-api -vv --connect tcp://18.222.233.160:4004  --bind rest-api-a:8009
       "
     stop_signal: SIGKILL
+
+  web_app:
+    build:
+      context: web_app_node/
+      dockerfile: Dockerfile
+    volumes:
+      - ./web_app_node:/app
+    container_name: web_app
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV_VAR
+    depends_on:
+       - rest-api-a
+    command: |
+      bash -c "
+        npm i
+        node index.js
+      "
+    stop_signal: SIGKILL
+
 
 networks:
   network1:

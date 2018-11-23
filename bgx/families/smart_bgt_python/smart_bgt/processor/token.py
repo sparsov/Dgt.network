@@ -1,6 +1,6 @@
 
 
-from smart_bgt.processor.services import BGXCrypto ##########BGXlog
+from smart_bgt.processor.crypto import BGXCrypto
 import math
 import json
 import logging

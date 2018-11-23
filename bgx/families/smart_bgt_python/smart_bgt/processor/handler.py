@@ -29,7 +29,8 @@ from sawtooth_signing.secp256k1 import Secp256k1Context, Secp256k1PrivateKey, Se
 
 #import smart_bgt.processor.emission as emission
 #from smart_bgt.processor.services import DigitalSignature
-from smart_bgt.processor.services import BGXCrypto,BGXlistener
+from smart_bgt.processor.services import BGXlistener
+from smart_bgt.processor.crypto import BGXCrypto
 from smart_bgt.processor.token import Token
 from smart_bgt.processor.emission import EmissionMechanism
 #from smart_bgt.processor.emission import Token
@@ -257,6 +258,8 @@ def _do_init(args,state):
         private_key = args['private_key']
         ethereum_address = args['ethereum_address']
         num_bgt =  int(args['num_bgt'])
+        bgt_price = float(args['bgt_price'])
+        dec_price = float(args['dec_price'])
     except KeyError:
         LOGGER.debug("_do_init not all arg")
 
@@ -271,12 +274,15 @@ def _do_init(args,state):
 
     emission_mechanism = EmissionMechanism()
     dec_amount = BGXlistener.balanceOf(wallet_address)
-    bgt_price = 0
 
     #unique_tokens = emission_mechanism.releaseTokens("BGX Token", "BGT", "id", digital_signature, 1, wallet_address, bgt_price)
-    token, meta = emission_mechanism.releaseTokens(full_name, digital_signature, ethereum_address, num_bgt)
-    LOGGER.debug("Emission - ok")
+    token, meta = emission_mechanism.releaseTokens(full_name, digital_signature, ethereum_address, num_bgt, \
+                                                   bgt_price, dec_price)
+    LOGGER.debug("Emission - ready")
 
+    if token is None or meta is None:
+        LOGGER.debug("Emission failed: not enough money")
+        return updated
     
     key = str(token.getOwnerKey()) + str(token.getGroupId())
     LOGGER.debug("KEY:" + key)

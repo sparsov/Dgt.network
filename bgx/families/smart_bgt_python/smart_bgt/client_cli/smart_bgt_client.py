@@ -34,7 +34,7 @@ from sawtooth_sdk.protobuf.batch_pb2 import Batch
 
 from smart_bgt.client_cli.exceptions import SmartBgtClientException
 from smart_bgt.processor.utils import FAMILY_NAME,FAMILY_VER
-from smart_bgt.processor.services import BGXCrypto
+from smart_bgt.processor.crypto import BGXCrypto
 
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()
@@ -69,12 +69,14 @@ class SmartBgtClient:
         }
         return self._send_transaction('set', args, wait=wait)
 
-    def init(self, full_name, private_key, ethereum_address,num_bgt, wait=None):
+    def init(self, full_name, private_key, ethereum_address,num_bgt,bgt_price,dec_price, wait=None):
         args = {
             'Name': full_name,
             'private_key': private_key,
             'ethereum_address': ethereum_address,
             'num_bgt': num_bgt,
+            'bgt_price': bgt_price,
+            'dec_price':dec_price,
         }
         return self._send_transaction('init', args, wait=wait) ##################################
 

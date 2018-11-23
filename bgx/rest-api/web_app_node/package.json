@@ -11,7 +11,7 @@
   "dependencies": {
     "body-parser": "^1.18.3",
     "bootstrap": "^4.1.3",
-    "chilkat_node10_macosx": "^9.50.75",
+    "chilkat_node10_linux64": "^9.50.75",
     "express": "^4.16.4"
   }
 }
