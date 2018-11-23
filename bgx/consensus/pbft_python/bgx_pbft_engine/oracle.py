@@ -140,7 +140,7 @@ class PbftOracle:
 
     def get_consensus_state_for_block_id(self,block):
         block_id = block.block_id.hex()
-        LOGGER.debug('PbftOracle: get_consensus_state for block_id=%s',block_id)
+        #LOGGER.debug('PbftOracle: get_consensus_state for block_id=%s',block_id)
         consensus_state = ConsensusState.consensus_state_for_block_id(
                 block_id=block_id, #block_header.previous_block_id,
                 block_cache=self._block_cache,
@@ -164,7 +164,7 @@ class PbftOracle:
                     self._send_pre_prepare(state,block)
                 elif  node == 'plink' :
                     # just change step of consensus
-                    LOGGER.debug('PbftOracle: PLINK node step=%s',state.step)
+                    LOGGER.debug('PbftOracle: PLINK node CONSENSUS step=%s',state.step)
                 return True
             else:
                 LOGGER.debug('PbftOracle: cant START CONSENSUS for block_id=%s (incorrect state) ',block_id)
@@ -176,14 +176,14 @@ class PbftOracle:
         """
         consensuse message: PrePrepare, Prepare, Commit, Checkpoint 
         """
-        LOGGER.debug('PbftOracle: peer_message p2p=(%s),(%s)',type(msg[0]),msg[1])
+       # LOGGER.debug('PbftOracle: peer_message p2p=(%s),(%s)',type(msg[0]),msg[1])
         p2p_mesg = msg[0]
         payload = PbftMessage()
         payload.ParseFromString(p2p_mesg.content)
         info,block = payload.info,payload.block
-        LOGGER.debug('PbftOracle: peer_message payload.info=(%s) payload.block=(%s)',info,block)
+        mgs_type = PbftOracle.CONSENSUS_MSG[info.msg_type]
         state, block_id = self.get_consensus_state_for_block_id(block)
-
+        LOGGER.debug("PbftOracle: Received PEER_MESSAGE '%s' for block='%s'",mgs_type,block_id)
         def is_pre_prepare_valid():
             return True
 
@@ -275,9 +275,9 @@ class PbftOracle:
                     info  = info,
                     block = block 
             )
-
-        LOGGER.debug('broadcast CONSENSUS_MSG=(%s)',payload)
-        self._service.broadcast(PbftOracle.CONSENSUS_MSG[info.msg_type],payload.SerializeToString()) 
+        mgs_type = PbftOracle.CONSENSUS_MSG[info.msg_type]
+        LOGGER.debug("broadcast CONSENSUS_MSG '%s' for(%s)",mgs_type,block.block_id.hex())
+        self._service.broadcast(mgs_type,payload.SerializeToString()) 
 
 
 

@@ -129,7 +129,7 @@ class ConsensusState:
             ConsensusState object representing the consensus state for the
                 block referenced by block_id
         """
-        LOGGER.debug('ConsensusState: consensus_state_for_block_id for block_id=%s',block_id)
+        #LOGGER.debug('ConsensusState: consensus_state_for_block_id for block_id=%s',block_id)
         consensus_state = None
         previous_wait_certificate = None
         blocks = collections.OrderedDict()

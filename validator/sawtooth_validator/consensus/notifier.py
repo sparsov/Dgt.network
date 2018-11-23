@@ -34,12 +34,13 @@ class ConsensusNotifier:
         self._registered_engines = ConcurrentSet()
 
     def _notify(self, message_type, message):
-        LOGGER.debug('ConsensusNotifier: _notify')
+        LOGGER.debug('ConsensusNotifier: _notify all peers')
         if self._registered_engines:
             LOGGER.debug('ConsensusNotifier: _notify %s',message_type)
             futures = self._service.send_all(
                 message_type,
                 message.SerializeToString())
+            LOGGER.debug('ConsensusNotifier: sent _notify to num=%s peers',len(futures))
             for future in futures:
                 future.result()
 
@@ -114,5 +115,5 @@ class ConsensusNotifier:
 
     def add_registered_engine(self, engine_name, engine_version):
         """Add to list of registered consensus engines"""
-        LOGGER.debug('ConsensusNotifier: add_registered_engine')
+        LOGGER.debug('ConsensusNotifier: add registered consensus engine')
         self._registered_engines.add((engine_name, engine_version))

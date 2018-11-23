@@ -94,7 +94,7 @@ class PbftEngine(Engine):
         return self._oracle.start_consensus(self._node,block)
 
     def _peer_message(self, block):
-        LOGGER.info('PbftEngine:handle PEER_MESSAGE: Received %s', type(block))
+        #LOGGER.info('PbftEngine:handle PEER_MESSAGE: Received %s', type(block))
         return self._oracle.peer_message(self._node,block)
 
     def _switch_forks(self, current_head, new_head):
