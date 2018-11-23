@@ -85,8 +85,8 @@ class PbftEngine(Engine):
 
 
     def _check_consensus(self, block):
-        #if not self._is_peer_connected :
-        #    return True
+        if not self._is_peer_connected :
+            return True
         self._start_consensus(block)
         return False
 
