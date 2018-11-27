@@ -51,7 +51,7 @@ class MetaToken:
 
     def toJSON(self):
         data = {'name': self.name, 'total_supply': str(self.total_supply), 'granularity': str(self.granularity), \
-                'decimals': str(self.decimals), 'creator_key': self.owner_key}
+                'decimals': str(self.decimals), 'creator_key': self.owner_key, 'group_code': self.group_code}
         return json.dumps(data)
 
 # Prototype for a Token class.

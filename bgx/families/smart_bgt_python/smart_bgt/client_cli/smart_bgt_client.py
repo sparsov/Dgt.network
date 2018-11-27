@@ -25,16 +25,15 @@ from sawtooth_signing import create_context
 from sawtooth_signing import CryptoFactory
 from sawtooth_signing import ParseError
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
-
 from sawtooth_sdk.protobuf.transaction_pb2 import TransactionHeader
 from sawtooth_sdk.protobuf.transaction_pb2 import Transaction
 from sawtooth_sdk.protobuf.batch_pb2 import BatchList
 from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
 from sawtooth_sdk.protobuf.batch_pb2 import Batch
-
 from smart_bgt.client_cli.exceptions import SmartBgtClientException
 from smart_bgt.processor.utils import FAMILY_NAME,FAMILY_VER
 from smart_bgt.processor.crypto import BGXCrypto
+
 
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()
@@ -62,12 +61,6 @@ class SmartBgtClient:
             self._signer = CryptoFactory(
                 create_context('secp256k1')).new_signer(private_key)
 
-    def set(self, name, value, wait=None):
-        args = {
-            'Name': name,
-            'Value': value,
-        }
-        return self._send_transaction('set', args, wait=wait)
 
     def init(self, full_name, private_key, ethereum_address,num_bgt,bgt_price,dec_price, wait=None):
         args = {
@@ -78,33 +71,22 @@ class SmartBgtClient:
             'bgt_price': bgt_price,
             'dec_price':dec_price,
         }
-        return self._send_transaction('init', args, wait=wait) ##################################
+        return self._send_transaction('init', args, wait=wait)
 
-    def transfer(self, from_addr, to_addr, num_bgt, wait=None):
+
+    def transfer(self, from_addr, to_addr, num_bgt, group_id='None', wait=None):
         args = {
             'Name': from_addr,
             'to_addr': to_addr,
             'num_bgt': num_bgt,
+            'group_id': group_id,
         }
-        return self._send_transaction('transfer', args, wait=wait) ##################################
+        return self._send_transaction('transfer', args, wait=wait)
 
 
     def generate_key(self, wait=None):
-        return self._send_transaction('generate_key',{}, wait=wait) ##################################
+        return self._send_transaction('generate_key',{}, wait=wait)
 
-    def inc(self, name, value, wait=None):
-        args = {
-            'Name': name,
-            'Value': value,
-        }
-        return self._send_transaction('inc', args, wait=wait)
-
-    def dec(self, name, value, wait=None):
-        args = {
-            'Name': name,
-            'Value': value,
-        }
-        return self._send_transaction('dec', args, wait=wait)
 
     def list(self):
         result = self._send_request(
@@ -122,6 +104,7 @@ class SmartBgtClient:
         except BaseException:
             return None
 
+
     def show(self, name):
         address = self._get_address(name)
 
@@ -135,6 +118,7 @@ class SmartBgtClient:
         except BaseException:
             return None
 
+
     def _get_status(self, batch_id, wait):
         try:
             result = self._send_request(
@@ -143,8 +127,10 @@ class SmartBgtClient:
         except BaseException as err:
             raise SmartBgtClientException(err)
 
+
     def _get_prefix(self):
         return _sha512(FAMILY_NAME.encode('utf-8'))[0:6]
+
 
     def _get_address(self, name):
         prefix = self._get_prefix()
@@ -188,22 +174,21 @@ class SmartBgtClient:
         args['Verb'] = verb
         payload = cbor.dumps(args)
 
+
         # Construct the address 0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba
-        address = self._get_address(args['Name'])
-        inputs = [address]
-        outputs= [address]
+        if verb != 'generate_key':
+            address = self._get_address(args['Name'])
+            inputs = [address]
+            outputs= [address]
 
         if verb == 'init':
-	    #
             private_key = args['private_key']
             digital_signature = BGXCrypto.DigitalSignature(private_key)
             open_key = digital_signature.getVerifyingKey()
             address2 = self._get_address(open_key)
             inputs.append(address2)
             outputs.append(address2)
-
-        if verb == 'transfer':
-            #
+        elif verb == 'transfer':
             address1 = self._get_address(args['to_addr'])
             inputs.append(address1)
             outputs.append(address1)

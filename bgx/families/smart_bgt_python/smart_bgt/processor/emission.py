@@ -36,8 +36,9 @@ class EmissionMechanism:
     # TODO: implement
 
     def checkEthereum(self, bgt_amount, wallet_address, bgt_price, dec_price):
-        dec_amount = int(BGXlistener.balanceOf(wallet_address)) 
-        return int(bgt_amount) * bgt_price <= dec_amount * dec_price
+        return True
+        #dec_amount = int(BGXlistener.balanceOf(wallet_address))
+        #return int(bgt_amount) * bgt_price <= dec_amount * dec_price
 
     # TODO: implement
 
@@ -49,7 +50,6 @@ class EmissionMechanism:
     def checkHashOfClass(self):
         #lines = inspect.getsource(EmissionMechanism)
         #hash = BGXCrypto.intHash(lines)
-
         return True
 
     #def releaseTokens(self, name, symbol, company_id, signing_key, tokens_amount, wallet_address, bgt_price):
@@ -59,7 +59,10 @@ class EmissionMechanism:
         if not self.checkEthereum(num_bgt, ethereum_address, bgt_price, dec_price):
             return None, None
 
-        meta = MetaToken(name, 'BGT', 'company_id', 'group_code', num_bgt, 'BGT token', 1, digital_signature)
-        token = Token('group_code', num_bgt, digital_signature)
+        imprint = name + str(num_bgt) + str(bgt_price)
+        group_code = BGXCrypto.strHash(imprint)
+
+        meta = MetaToken(name, 'BGT', 'company_id', group_code, num_bgt, 'BGT token', 1, digital_signature)
+        token = Token(group_code, num_bgt, digital_signature)
 
         return token, meta
