@@ -850,6 +850,9 @@ class RouteHandler:
             status=200)
 
     async def get_wallet(self, request):
+        """
+        get wallet balance
+        """
         address = request.match_info.get('address', '')
         if address not in PUB_KEYS_BY_ADDRESSES:
             raise errors.AddressNotFound()

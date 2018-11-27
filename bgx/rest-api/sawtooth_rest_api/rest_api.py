@@ -33,9 +33,10 @@ from sawtooth_sdk.processor.config import get_log_config
 from sawtooth_sdk.processor.config import get_log_dir
 from sawtooth_sdk.processor.config import get_config_dir
 from sawtooth_rest_api.messaging import Connection
-from sawtooth_rest_api.route_handlers import RouteHandler
-from sawtooth_rest_api.state_delta_subscription_handler \
-    import StateDeltaSubscriberHandler
+#from sawtooth_rest_api.route_handlers import RouteHandler
+#BGX handlers
+from sawtooth_rest_api.bgx_handlers import BgxRouteHandler
+from sawtooth_rest_api.state_delta_subscription_handler import StateDeltaSubscriberHandler
 from sawtooth_rest_api.config import load_default_rest_api_config
 from sawtooth_rest_api.config import load_toml_rest_api_config
 from sawtooth_rest_api.config import merge_rest_api_config
@@ -43,7 +44,7 @@ from sawtooth_rest_api.config import RestApiConfig
 
 
 LOGGER = logging.getLogger(__name__)
-DISTRIBUTION_NAME = 'sawtooth-rest-api'
+DISTRIBUTION_NAME = 'bgx-rest-api'
 
 
 def parse_args(args):
@@ -100,9 +101,8 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.on_cleanup.append(lambda app: connection.close())
 
     # Add routes to the web app
+    handler = BgxRouteHandler(loop, connection, timeout, registry)
     LOGGER.info('Creating handlers for validator at %s', connection.url)
-
-    handler = RouteHandler(loop, connection, timeout, registry)
 
     app.router.add_post('/batches', handler.submit_batches)
     app.router.add_get('/batch_statuses', handler.list_statuses)
@@ -116,19 +116,22 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     app.router.add_get('/batches', handler.list_batches)
     app.router.add_get('/batches/{batch_id}', handler.fetch_batch)
-
+    
     app.router.add_get('/transactions', handler.list_transactions)
-    app.router.add_get(
-        '/transactions/{transaction_id}',
-        handler.fetch_transaction)
+    app.router.add_get('/transactions/{transaction_id}',handler.fetch_transaction)
 
     app.router.add_get('/receipts', handler.list_receipts)
     app.router.add_post('/receipts', handler.list_receipts)
-
+  
     app.router.add_get('/peers', handler.fetch_peers)
     app.router.add_get('/nodes', handler.fetch_nodes) # just for testing
     app.router.add_get('/status', handler.fetch_status)
 
+    # ADD BGX handlers
+    app.router.add_post('/transactions', handler.post_transfer)
+    app.router.add_get('/wallets/{address}', handler.get_wallet)
+    app.router.add_post('/wallets', handler.post_wallet)
+    #
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)
     app.on_shutdown.append(lambda app: subscriber_handler.on_shutdown())
@@ -204,7 +207,7 @@ def main():
             log_configuration(log_config=log_config)
         else:
             log_dir = get_log_dir()
-            log_configuration(log_dir=log_dir, name="rest_api")
+            log_configuration(log_dir=log_dir, name="bgx-rest-api")
         init_console_logging(verbose_level=opts.verbose)
 
         try:

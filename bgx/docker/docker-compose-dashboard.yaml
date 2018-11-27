@@ -52,8 +52,8 @@ services:
       - network1
     environment:
       - ENV_VAR
-    depends_on:
-       - rest-api-stub
+    #depends_on:
+    #   - rest-api-stub
     command: |
       bash -c "
         cd bgx/web_app_node

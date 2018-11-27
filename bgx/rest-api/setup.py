@@ -44,7 +44,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'aiodns', 'aiohttp>=2.3.2', 'cchardet', 'protobuf', 'sawtooth-sdk',
-        'pyformance'
+        'pyformance','cbor'
     ],
     data_files=data_files,
     entry_points={

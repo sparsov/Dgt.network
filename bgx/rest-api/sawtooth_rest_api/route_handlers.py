@@ -447,6 +447,8 @@ class RouteHandler:
             link: The link to this exact query, including head block
             paging: Paging info and nav, like total resources and a next link
         """
+        LOGGER.debug('list_transactions for validator')
+
         paging_controls = self._get_paging_controls(request)
         validator_query = client_transaction_pb2.ClientTransactionListRequest(
             head_id=self._get_head_id(request),
@@ -612,6 +614,7 @@ class RouteHandler:
                 'endpoint': response['endpoint']
             },
             metadata=self._get_metadata(request, response))
+
 
     async def _query_validator(self, request_type, response_proto,
                                payload, error_traps=None):

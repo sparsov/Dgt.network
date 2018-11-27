@@ -1,5 +1,5 @@
 // get DOM elements
-var REST_API_ENDPOINT = 'http://172.16.4.138:8007'
+var REST_API_ENDPOINT = 'http://172.16.4.138:8002'
 var WEB_SERVER_ENDPOINT = 'http://172.16.4.138:8000'
 
 var from      = document.getElementById('from'),
@@ -124,7 +124,7 @@ function getBlocks() {
     };
     xhr.send();
 }
-getBlocks()
+//getBlocks()
 
 function createGraph(data) {
     var nodes=[{id:"0000000000000000", label:'start'}];

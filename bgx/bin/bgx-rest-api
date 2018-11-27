@@ -28,6 +28,9 @@ sys.path.insert(0, os.path.join(
     'bgx','rest-api'))
 sys.path.insert(0, os.path.join(
     TOP_DIR,
+    'bgx','families','smart_bgt_python'))
+sys.path.insert(0, os.path.join(
+    TOP_DIR,
     'sdk', 'python'))
 sys.path.insert(0, os.path.join(
     TOP_DIR,
