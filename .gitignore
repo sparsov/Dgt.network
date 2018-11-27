@@ -128,6 +128,12 @@
 /bgx/rest-api-stub/sawtooth_rest_api/__pycache__
 /bgx/rest-api-stub/sawtooth_rest_api/protobuf
 /bgx/rest-api-stub/build
+/bgx/rest-api/build
+/bgx/rest-api/sawtooth_rest_api/protobuf
+/bgx/rest-api/sawtooth_rest_api/__pycache__
+/bgx/dashboard/build
+/bgx/dashboard/sawtooth_rest_api/protobuf
+/bgx/dashboard/sawtooth_rest_api/__pycache__
 *.vpj
 *.vpw
 *.vtg
