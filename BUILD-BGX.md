@@ -26,3 +26,6 @@ For list created tokens run into shell-bgx.
 $ smart-bgt list  --url http://rest-api:8009
 # not in sawtooth shell
 $ curl http://localhost:8008/blocks
+# smart-bgt init BGX_Token 21fad1db7c1e4f3fb98bb16fcff6942b4b2b9f890196b8754399ebfd74718de1 0xFB2F7C8687F6d86a031D2DE3d51f4c62e83AdA22 20 1 1 --url http://rest-api:8008
+# smart-bgt transfer 0236bd0b2f6041338ffe5a2236be89f369ec3094e5247bb40aad3aaa18ff2da395 222 0.1 --url http://rest-api:8008 
+ 

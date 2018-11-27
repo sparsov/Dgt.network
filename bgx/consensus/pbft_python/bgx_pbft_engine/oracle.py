@@ -15,6 +15,7 @@
 
 import logging
 import os
+import binascii
 
 import sawtooth_signing as signing
 from sawtooth_signing import CryptoFactory
@@ -42,8 +43,15 @@ from bgx_pbft.consensus.consensus_state_store import ConsensusStateStore
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
 
 LOGGER = logging.getLogger(__name__)
-
-
+BLOCK_ID = ['60be3a6e9d3dae288ec5f7f1c4398bdd2fa7b0cda6543e70276d9fdb5c2c1eb93d0d0a6d1642dc354b1379a956a4aba7b44632081bb98e51b3e761c85976aff3',
+            '60be3a6e9d3dae288ec5f7f1c4398bdd2fa7b0cda6543e70276d9fdb5c2c1eb93d0d0a6d1642dc354b1379a956a4aba7b44632081bb98e51b3e761c85976aff4',
+            '60be3a6e9d3dae288ec5f7f1c4398bdd2fa7b0cda6543e70276d9fdb5c2c1eb93d0d0a6d1642dc354b1379a956a4aba7b44632081bb98e51b3e761c85976aff5',
+            '60be3a6e9d3dae288ec5f7f1c4398bdd2fa7b0cda6543e70276d9fdb5c2c1eb93d0d0a6d1642dc354b1379a956a4aba7b44632081bb98e51b3e761c85976aff6',
+            '60be3a6e9d3dae288ec5f7f1c4398bdd2fa7b0cda6543e70276d9fdb5c2c1eb93d0d0a6d1642dc354b1379a956a4aba7b44632081bb98e51b3e761c85976aff7'
+           ]
+def int2hex(v):
+    #return binascii.hexlify(bytes(str.encode(str(v))))
+    return BLOCK_ID[v]
 class PbftOracle:
     """
     This is a wrapper around the PBFT structures (publisher,verifier, fork resolver) and their attendant proxies.
@@ -138,22 +146,23 @@ class PbftOracle:
 
         return False
 
-    def get_consensus_state_for_block_id(self,block):
-        block_id = block.block_id.hex()
-        #LOGGER.debug('PbftOracle: get_consensus_state for block_id=%s',block_id)
+    def get_consensus_state_for_block_id(self,block_id):
+        #block_id = block.block_id.hex()
+        LOGGER.debug("PbftOracle: get_consensus_state for block_id='%s'",block_id)
         consensus_state = ConsensusState.consensus_state_for_block_id(
                 block_id=block_id, #block_header.previous_block_id,
                 block_cache=self._block_cache,
                 state_view_factory=self._state_view_factory,
                 consensus_state_store=self._consensus_state_store
                 )
-        return consensus_state,block_id
+        return consensus_state
 
     def start_consensus(self,node,block):
         """
         Have got NewBlock message
         """
-        state,block_id = self.get_consensus_state_for_block_id(block)
+        block_id = int2hex(block.block_num) #block.block_id.hex()
+        state = self.get_consensus_state_for_block_id(block_id)
         if state is not None:
             if state.is_step_NotStarted:
                 LOGGER.debug('PbftOracle: START CONSENSUS for block_id=%s step=%s mode=%s',block_id,state.step,state.mode)
@@ -161,7 +170,7 @@ class PbftOracle:
                 self._consensus_state_store[block_id] = state # save new state
                 if node == 'leader':
                     # leader node - send prePrepare
-                    self._send_pre_prepare(state,block)
+                    self._send_pre_prepare(state,block,block_id)
                 elif  node == 'plink' :
                     # just change step of consensus
                     LOGGER.debug('PbftOracle: PLINK node CONSENSUS step=%s',state.step)
@@ -182,7 +191,8 @@ class PbftOracle:
         payload.ParseFromString(p2p_mesg.content)
         info,block = payload.info,payload.block
         mgs_type = PbftOracle.CONSENSUS_MSG[info.msg_type]
-        state, block_id = self.get_consensus_state_for_block_id(block)
+        block_id = int2hex(block.block_num) #block.block_id.hex()
+        state = self.get_consensus_state_for_block_id(block_id)
         LOGGER.debug("PbftOracle: Received PEER_MESSAGE '%s' for block='%s'",mgs_type,block_id)
         def is_pre_prepare_valid():
             return True
@@ -210,7 +220,7 @@ class PbftOracle:
                         # if correct change step of consensus and send Prepare 
                         state.next_step()
                         self._consensus_state_store[block_id] = state
-                        self._send_prepare(state,block)
+                        self._send_prepare(state,block,block_id)
                     else:
                         # If the PrePrepare is determined to be invalid, then start a view change
                         pass
@@ -222,7 +232,7 @@ class PbftOracle:
                     LOGGER.debug('PbftOracle: PRE_PREPARE_MSG node=%s',node)
                     state.next_step()
                     self._consensus_state_store[block_id] = state
-                    self._send_prepare(state,block)
+                    self._send_prepare(state,block,block_id)
                 else:
                     LOGGER.debug('PbftOracle: PRE_PREPARE_MSG in incorrect consensus state=%s',state.step)
         elif node == 'leader' :
@@ -236,7 +246,7 @@ class PbftOracle:
 
 
 
-    def _send_pre_prepare(self,state,block):
+    def _send_pre_prepare(self,state,block,block_id):
         # send PRE_PREPARE message 
         messageInfo = PbftMessageInfo(
                     msg_type = PbftMessageInfo.PRE_PREPARE_MSG,
@@ -245,14 +255,14 @@ class PbftOracle:
                     signer_id = self.get_validator_id().encode()
             ) 
         blockMessage = PbftBlockMessage(
-                    block_id  = block.block_id,
+                    block_id  = block_id,
                     signer_id =  block.signer_id,
                     block_num = block.block_num,
                     summary   = block.summary 
             )
         self._broadcast(messageInfo,blockMessage) 
 
-    def _send_prepare(self,state,block):
+    def _send_prepare(self,state,block,block_id):
         # send PREPARE message 
         messageInfo = PbftMessageInfo(
                     msg_type = PbftMessageInfo.PREPARE_MSG,
@@ -261,7 +271,7 @@ class PbftOracle:
                     signer_id = self.get_validator_id().encode()
             ) 
         blockMessage = PbftBlockMessage(
-                    block_id  = block.block_id,
+                    block_id  = block_id,
                     signer_id =  block.signer_id,
                     block_num = block.block_num,
                     summary   = block.summary 

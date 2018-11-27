@@ -125,6 +125,9 @@
 /bgx/families/smart_bgt_python/smart_bgt/__pycache__/
 /bgx/consensus/devmode_python/sawtooth_bgt_common/protobuf
 /bgx/consensus/pbft_python/bgx_pbft_common/protobuf
+/bgx/rest-api-stub/sawtooth_rest_api/__pycache__
+/bgx/rest-api-stub/sawtooth_rest_api/protobuf
+/bgx/rest-api-stub/build
 *.vpj
 *.vpw
 *.vtg

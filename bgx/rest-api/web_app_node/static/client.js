@@ -1,6 +1,6 @@
 // get DOM elements
-var REST_API_ENDPOINT = 'http://localhost:8009'
-var WEB_SERVER_ENDPOINT = 'http://localhost:8000'
+var REST_API_ENDPOINT = 'http://172.16.4.138:8007'
+var WEB_SERVER_ENDPOINT = 'http://172.16.4.138:8000'
 
 var from      = document.getElementById('from'),
     to        = document.getElementById('to');
