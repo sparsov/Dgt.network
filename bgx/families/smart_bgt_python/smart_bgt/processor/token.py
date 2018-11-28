@@ -4,7 +4,7 @@ from smart_bgt.processor.crypto import BGXCrypto
 import math
 import json
 import logging
-
+from smart_bgt.processor.utils  import SMART_BGT_CREATOR_KEY
 BASIC_DECIMALS = 18
 
 
@@ -51,7 +51,7 @@ class MetaToken:
 
     def toJSON(self):
         data = {'name': self.name, 'total_supply': str(self.total_supply), 'granularity': str(self.granularity), \
-                'decimals': str(self.decimals), 'creator_key': self.owner_key, 'group_code': self.group_code}
+                'decimals': str(self.decimals), SMART_BGT_CREATOR_KEY: self.owner_key, 'group_code': self.group_code}
         return json.dumps(data)
 
 # Prototype for a Token class.
