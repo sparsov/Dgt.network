@@ -19,6 +19,7 @@ import logging
 import json
 import base64
 from aiohttp import web
+import cbor
 
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
@@ -41,14 +42,84 @@ from sawtooth_rest_api.protobuf import client_receipt_pb2
 from sawtooth_rest_api.protobuf import client_peers_pb2
 from sawtooth_rest_api.protobuf import client_status_pb2
 from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
-from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
-from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
+from sawtooth_rest_api.protobuf.transaction_pb2 import Transaction
+from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
+from sawtooth_rest_api.protobuf.batch_pb2 import Batch
+from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 
+from datetime import datetime
 # pylint: disable=too-many-lines
 
 DEFAULT_TIMEOUT = 300
 LOGGER = logging.getLogger(__name__)
+
+import sawtooth_rest_api.utils as rest_api_utils
+# BGX
+# Transaction scheme
+# TRANSACTION_SCHEME = {
+#     'timestamp': time
+#     'status': true/false
+#     'tx_payload': number
+#     'currency': string ('dec', 'bgt')
+#     'key_from': base64 encoded string public key
+#     'key_to': base64 encoded string of public key
+#     'extra': string
+# }
+
+WALLETS = {}
+PUB_KEYS_BY_ADDRESSES = {}
+NODE_CREDENTIALS = {}
+TRANSACTIONS = []
+TRANSACTION_FEE = 0.1
+COINS_RATIO = {
+    'bgt': 1,
+    'dec': 100
+}
+with open('../startup_global_state.json') as file:
+    file_data = json.load(file)
+    users = file_data['users']
+    node = file_data['node']
+    WALLETS[node['address']] = node['wallet']
+    del node['wallet']
+    PUB_KEYS_BY_ADDRESSES[node['address']] = node['public_key']
+    NODE_CREDENTIALS = node
+    for user in users:
+        WALLETS[user['address']] = user['wallet']
+        PUB_KEYS_BY_ADDRESSES[user['address']] = user['public_key']
+
+
+def append_transaction(address_from, address_to, tx_payload, currency, extra):
+    tx_payload = float(tx_payload)
+    if tx_payload < 0:
+        raise errors.NegativePayload()
+    if (not WALLETS[address_from][currency]) \
+            or\
+       (WALLETS[address_from][currency] < tx_payload):
+        raise errors.NotEnoughFunds()
+    if address_to not in WALLETS:
+        WALLETS[address_to] = {
+            currency: 0
+        }
+    if currency not in WALLETS[address_to]:
+        WALLETS[address_to][currency] = 0
+    if currency not in WALLETS[NODE_CREDENTIALS['address']]:
+        WALLETS[NODE_CREDENTIALS['address']][currency] = 0
+
+    WALLETS[address_from][currency] -= tx_payload
+    WALLETS[address_to][currency] += (tx_payload * (1 - TRANSACTION_FEE))
+    WALLETS[NODE_CREDENTIALS['address']][currency] += tx_payload * TRANSACTION_FEE
+    TRANSACTIONS.append({
+        'timestamp': datetime.now().__str__(),
+        'status': True,
+        'tx_payload': tx_payload,
+        'currency': currency,
+        'address_from': address_from,
+        'address_to': address_to,
+        'fee': TRANSACTION_FEE,
+        'extra': extra
+    })
+    return True
 
 
 class CounterWrapper():
@@ -433,6 +504,355 @@ class RouteHandler:
             data=self._expand_batch(response['batch']),
             metadata=self._get_metadata(request, response))
 
+    # First iteration of implementation
+    async def post_wallet(self, request):
+        if 'public_key' not in request.headers:
+            LOGGER.debug(
+                'Submission header public_key is mandatory'
+            )
+            raise errors.NoMandatoryHeader()
+        public_key = request.headers['public_key']
+
+        user_address = rest_api_utils.eth_address_from_pub_key(public_key)
+        if user_address in WALLETS:
+            return self._wrap_response(
+                request,
+                metadata={
+                    user_address: {
+                        'wallet': WALLETS[user_address]
+                    }
+                },
+                status=200)
+
+        WALLETS[user_address] = {}
+        PUB_KEYS_BY_ADDRESSES[user_address] = public_key
+
+        return self._wrap_response(
+            request,
+            metadata={
+                user_address: {
+                    'wallet': {}
+                }
+            },
+            status=200)
+
+    async def get_fee(self, request):
+        body = await request.json()
+
+        if 'data' not in body or 'payload' not in body['data']:
+            raise errors.NoTransactionPayload()
+
+        payload = body['data']['payload']
+
+        return self._wrap_response(
+            request,
+            metadata={
+                'fee': TRANSACTION_FEE,
+                'payload': payload
+            },
+            status=200)
+
+    # Convertation from dec to coin_code makes as two transaction
+    # Transaction of DEC from user's wallet to node's wallet
+    # If first transaction was approved:
+    #   Transaction of coin_code from node's wallet to user's wallet
+    async def post_transaction_convert(self, request):
+        body = await request.json()
+
+        if 'data' not in body:
+            raise errors.NoTransactionPayload()
+
+        data = body['data']
+        try:
+            payload = data['payload']
+            signed_payload = data['signed_payload']
+            address_from = payload['address_from']
+            address_to = payload['address_to']
+            coin_code_from = payload['coin_code_from']
+            coin_code_to = payload['coin_code_to']
+        except KeyError:
+            raise errors.BadTransactionPayload()
+
+        if address_from not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
+        else:
+            public_key_from = PUB_KEYS_BY_ADDRESSES[address_from]
+
+        if address_to not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
+
+        if address_from not in WALLETS:
+            LOGGER.debug(
+                'Wallet not found',
+                address_from,
+            )
+            raise errors.WalletNotFound()
+        elif coin_code_from not in WALLETS[address_from]:
+            LOGGER.debug(
+                "Not enough funds in user's wallet",
+                address_from,
+            )
+            raise errors.NotEnoughFunds()
+        elif WALLETS[address_from][coin_code_from] < payload['tx_payload_from']:
+            LOGGER.debug(
+                "Not enough funds in user's wallet",
+                address_from,
+            )
+            raise errors.NotEnoughFunds()
+
+        if address_to not in WALLETS:
+            LOGGER.debug(
+                'Wallet not found',
+                address_to,
+            )
+            raise errors.WalletNotFound()
+
+        # Verification of signed hash
+        result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
+        if result != 1:
+            raise errors.InvalidSignature()
+
+        # Execute transaction
+        append_transaction(
+            address_from,
+            NODE_CREDENTIALS['address'],
+            payload['tx_payload_from'],
+            coin_code_from,
+            'First step of convertation'
+        )
+
+        append_transaction(
+            NODE_CREDENTIALS['address'],
+            address_to,
+            (float(payload['tx_payload_from']) / COINS_RATIO[coin_code_to]) * COINS_RATIO[coin_code_from],
+            coin_code_to,
+            'Second step of convertation'
+        )
+
+        return self._wrap_response(
+            request,
+            metadata={
+                'wallet_from': WALLETS[address_from],
+                'wallet_to': WALLETS[address_to]
+            },
+            status=200)
+
+    async def post_transaction(self, request):
+        timer_ctx = self._post_batches_total_time.time()
+        self._post_batches_count.inc()
+        body = await request.json()
+
+        if 'data' not in body:
+            raise errors.NoTransactionPayload()
+
+        data = body['data']
+        try:
+            signed_payload = data['signed_payload']
+            payload = data['payload']
+            address_from = payload['address_from']
+            address_to = payload['address_to']
+        except KeyError:
+            raise errors.BadTransactionPayload()
+
+        if address_from not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
+        else:
+            public_key_from = PUB_KEYS_BY_ADDRESSES[address_from]
+
+        if address_from not in WALLETS:
+            LOGGER.debug(
+                'Wallet not found',
+                address_from,
+            )
+            raise errors.WalletNotFound()
+        elif payload['coin_code'] not in WALLETS[address_from]:
+            WALLETS[address_from][payload['coin_code']] = 0
+            LOGGER.debug(
+                "Not enough funds in user's wallet",
+                address_from,
+            )
+            raise errors.NotEnoughFunds()
+        elif WALLETS[address_from][payload['coin_code']] < int(payload['tx_payload']):
+            LOGGER.debug(
+                "Not enough funds in user's wallet",
+                address_from,
+            )
+            raise errors.NotEnoughFunds()
+
+        # Verification of signed hashes
+        result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
+        if result != 1:
+            raise errors.InvalidSignature()
+
+        # Execute transaction
+        append_transaction(
+            address_from,
+            address_to,
+            payload['tx_payload'],
+            payload['coin_code'],
+            'Regular transaction'
+        )
+
+        # hashed_payload = rest_api_utils.hash_dict(payload)
+        # print(payload, hashed_payload, sep='\n')
+        # # TODO: change payload_sha512 to payload_sha256
+        # # TODO: remove batcher_public_key
+        # txn_header_bytes = TransactionHeader(
+        #     family_name='smart_bgt',
+        #     family_version='1.0',
+        #     inputs=[],
+        #     outputs=[],
+        #     signer_public_key=public_key_from,
+        #     # pub_key of node
+        #     batcher_public_key=NODE_CREDENTIALS['public_key'],
+        #     dependencies=[],
+        #     # payload_sha256
+        #     payload_sha512=hashed_payload
+        # ).SerializeToString()
+        #
+        # payload_bytes = cbor.dumps(payload)
+        # header_signature = rest_api_utils.si
+        #
+        # # TODO: change header_signature to payload_signature
+        # txn = Transaction(
+        #     header=txn_header_bytes,
+        #     # payload_signature
+        #     header_signature=signed_payload,
+        #     payload=payload_bytes
+        # )
+        #
+        # # TODO: change header_signature to payload_signature
+        # batch_header_bytes = BatchHeader(
+        #     signer_public_key=NODE_CREDENTIALS['public_key'],
+        #     transaction_ids=[txn.header_signature]
+        # ).SerializeToString()
+        #
+        # print(NODE_CREDENTIALS['private_key'], batch_header_bytes)
+        # batch_header_signature = rest_api_utils.sign_string(
+        #     priv_key=NODE_CREDENTIALS['private_key'],
+        #     string=str(batch_header_bytes)
+        # )
+        #
+        # batch = Batch(
+        #     header=batch_header_bytes,
+        #     header_signature=batch_header_signature,
+        #     transactions=[txn]
+        # )
+        #
+        # # Query validator
+        # error_traps = [error_handlers.BatchInvalidTrap,
+        #                error_handlers.BatchQueueFullTrap]
+        # validator_query = client_batch_submit_pb2.\
+        #     ClientBatchSubmitRequest(batches=[batch])
+        #
+        # with self._post_batches_validator_time.time():
+        #     await self._query_validator(
+        #         Message.CLIENT_BATCH_SUBMIT_REQUEST,
+        #         client_batch_submit_pb2.ClientBatchSubmitResponse,
+        #         validator_query,
+        #         error_traps)
+        #
+        # # Build response envelope
+        # id_string = batch_header_signature
+        #
+        # status = 202
+        # link = self._build_url(request, path='/batch_statuses', id=id_string)
+        #
+        # retval = self._wrap_response(
+        #     request,
+        #     metadata={'link': link},
+        #     status=status)
+        #
+        # timer_ctx.stop()
+        # return retval
+
+        return self._wrap_response(
+            request,
+            metadata=TRANSACTIONS[-1],
+            status=200)
+
+    async def post_add_funds(self, request):
+        body = await request.json()
+
+        if 'data' not in body:
+            raise errors.NoTransactionPayload()
+
+        data = body['data']
+        try:
+            signed_payload = data['signed_payload']
+            payload = data['payload']
+            address_to = payload['address_to']
+            reason = payload['reason']
+        except KeyError:
+            raise errors.BadTransactionPayload()
+
+        if address_to not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
+        else:
+            public_key_to = PUB_KEYS_BY_ADDRESSES[address_to]
+
+        if address_to not in WALLETS:
+            LOGGER.debug(
+                'Wallet not found',
+                address_to,
+            )
+            raise errors.WalletNotFound()
+
+        # Verification of signed hashes
+        result = rest_api_utils.verify_signature(public_key_to, signed_payload, payload)
+        if result != 1:
+            raise errors.InvalidSignature()
+
+        # Execute transaction
+        append_transaction(
+            NODE_CREDENTIALS['address'],
+            address_to,
+            payload['tx_payload'],
+            payload['coin_code'],
+            {'comment': 'Adding funds', 'reason': reason}
+        )
+
+        return self._wrap_response(
+            request,
+            metadata=TRANSACTIONS[-1],
+            status=200)
+
+    async def get_wallet(self, request):
+        address = request.match_info.get('address', '')
+        if address not in PUB_KEYS_BY_ADDRESSES:
+            raise errors.AddressNotFound()
+
+        print(address)
+        if address not in WALLETS:
+            LOGGER.debug(
+                'Wallet not found',
+                address,
+            )
+            raise errors.WalletNotFound()
+
+        return self._wrap_response(
+            request,
+            metadata={
+                'wallet': WALLETS[address]
+            },
+            status=200)
+
+    async def get_global_wallet(self, request):
+        return self._wrap_response(
+            request,
+            metadata={
+                'wallets': WALLETS
+            },
+            status=200)
+
+    async def get_global_transactions(self, request):
+        return self._wrap_response(
+            request,
+            metadata={
+                'transactions': TRANSACTIONS
+            },
+            status=200)
+
     async def list_transactions(self, request):
         """Fetches list of txns from validator, optionally filtered by id.
 
@@ -561,25 +981,6 @@ class RouteHandler:
 
     async def fetch_peers(self, request):
         """Fetches the peers from the validator.
-        Request:
-
-        Response:
-            data: JSON array of peer endpoints
-            link: The link to this exact query
-        """
-
-        response = await self._query_validator(
-            Message.CLIENT_PEERS_GET_REQUEST,
-            client_peers_pb2.ClientPeersGetResponse,
-            client_peers_pb2.ClientPeersGetRequest())
-
-        return self._wrap_response(
-            request,
-            data=response['peers'],
-            metadata=self._get_metadata(request, response))
-
-    async def fetch_nodes(self, request):
-        """Fetches the nodes from the validator.
         Request:
 
         Response:

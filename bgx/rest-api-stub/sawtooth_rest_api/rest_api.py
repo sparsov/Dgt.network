@@ -40,6 +40,7 @@ from sawtooth_rest_api.config import load_default_rest_api_config
 from sawtooth_rest_api.config import load_toml_rest_api_config
 from sawtooth_rest_api.config import merge_rest_api_config
 from sawtooth_rest_api.config import RestApiConfig
+import aiohttp_cors
 
 
 LOGGER = logging.getLogger(__name__)
@@ -104,32 +105,32 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     handler = RouteHandler(loop, connection, timeout, registry)
 
-    app.router.add_post('/batches', handler.submit_batches)
-    app.router.add_get('/batch_statuses', handler.list_statuses)
-    app.router.add_post('/batch_statuses', handler.list_statuses)
-    app.router.add_get('/state', handler.list_state)
-    app.router.add_get('/state/{address}', handler.fetch_state)
-    app.router.add_get('/blocks', handler.list_blocks)
-    app.router.add_get('/blocks/{block_id}', handler.fetch_block)
-    app.router.add_get('/batches', handler.list_batches)
-    app.router.add_get('/batches/{batch_id}', handler.fetch_batch)
-    app.router.add_get('/transactions', handler.list_transactions)
-    app.router.add_get(
-        '/transactions/{transaction_id}',
-        handler.fetch_transaction)
-
-    app.router.add_get('/receipts', handler.list_receipts)
-    app.router.add_post('/receipts', handler.list_receipts)
-
-    app.router.add_get('/peers', handler.fetch_peers)
-    app.router.add_get('/nodes', handler.fetch_nodes)
-
-    # just for testing
-    app.router.add_get('/status', handler.fetch_status)
+    app.router.add_post('/wallets', handler.post_wallet)
+    app.router.add_post('/fee', handler.get_fee)
+    app.router.add_post('/transactions', handler.post_transaction)
+    app.router.add_post('/transactions/convert', handler.post_transaction_convert)
+    app.router.add_post('/transactions/add_funds', handler.post_add_funds)
+    app.router.add_get('/wallets/{address}', handler.get_wallet)
+    app.router.add_get('/global_wallet', handler.get_global_wallet)
+    app.router.add_get('/global_transactions', handler.get_global_transactions)
 
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)
+
     app.on_shutdown.append(lambda app: subscriber_handler.on_shutdown())
+
+    # Configure default CORS settings.
+    cors = aiohttp_cors.setup(app, defaults={
+        "*": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+        )
+    })
+
+    # Configure CORS on all routes.
+    for route in list(app.router.routes()):
+        cors.add(route)
 
     # Start app
     LOGGER.info('Starting REST API on %s:%s', host, port)

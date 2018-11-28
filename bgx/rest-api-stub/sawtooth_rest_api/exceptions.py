@@ -303,3 +303,58 @@ class ReceiptIdQueryInvalid(_ApiError):
     message = ("Requests for transaction receipts sent as a GET request must "
                "have an 'id' query parameter with a comma-separated list of "
                "at least one transaction id.")
+
+# BGX exceptions
+class NoMandatoryHeader(_ApiError):
+    api_code = 84
+    status_code = 400
+    title = 'Mandatory Request Header is Missing'
+    message = ''
+
+class NoTransactionPayload(_ApiError):
+    api_code = 85
+    status_code = 400
+    title = 'Transaction Payload not found'
+    message = "In body of request should be payload of transaction and it's signed hash"
+
+class BadTransactionPayload(_ApiError):
+    api_code = 86
+    status_code = 500
+    title = 'Bad Transaction Payload'
+    message = "Sent transaction payload has invalid format"
+
+class InvalidPublicKey(_ApiError):
+    api_code = 86
+    status_code = 500
+    title = 'Invalid Public Key'
+    message = "Sent Public Key is invalid"
+
+class InvalidSignature(_ApiError):
+    api_code = 87
+    status_code = 500
+    title = 'Signature is invalid'
+    message = "Sent Signed Payload is invalid"
+
+class AddressNotFound(_ApiError):
+    api_code = 87
+    status_code = 500
+    title = 'Wallet Address Not Found'
+    message = ""
+
+class WalletNotFound(_ApiError):
+    api_code = 90
+    status_code = 400
+    title = "User's wallet not found"
+    message = ''
+
+class NotEnoughFunds(_ApiError):
+    api_code = 91
+    status_code = 400
+    title = "Not enough funds in user's wallet"
+    message = ''
+
+class NegativePayload(_ApiError):
+    api_code = 92
+    status_code = 400
+    title = "Transaction Payload Should Not Be Negative"
+    message = ''
