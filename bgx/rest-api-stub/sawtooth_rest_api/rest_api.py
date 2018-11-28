@@ -202,7 +202,7 @@ def main():
             log_configuration(log_config=log_config)
         else:
             log_dir = get_log_dir()
-            log_configuration(log_dir=log_dir, name="rest_api")
+            log_configuration(log_dir=log_dir, name="rest-api-stub")
         init_console_logging(verbose_level=opts.verbose)
 
         try:

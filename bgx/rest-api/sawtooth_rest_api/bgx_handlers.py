@@ -59,14 +59,17 @@ from smart_bgt.processor.utils import make_smart_bgt_address
 
 LOGGER = logging.getLogger(__name__)
 
+TRANSACTION_FEE = 0.1
+
+
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()
 
 def _base64url2public(addr):
-    return addr
+    return str(base64.urlsafe_b64decode(addr))
 
 def _public2base64url(key):
-    return key
+    return base64.urlsafe_b64encode(key.encode()).decode('utf-8')
 
 class BgxRouteHandler(RouteHandler):
     """Contains a number of aiohttp handlers for endpoints in the Rest Api.
@@ -222,8 +225,9 @@ class BgxRouteHandler(RouteHandler):
         get wallet balance
         """
         address = request.match_info.get('address', '')
-        address =  _base64url2public(address)
         LOGGER.debug('BgxRouteHandler: get_wallet address=%s',address)
+        address =  _base64url2public(address)
+        LOGGER.debug('BgxRouteHandler: get_wallet public=%s',address)
         token_address = make_smart_bgt_address(address)
 
         error_traps = [
@@ -273,5 +277,30 @@ class BgxRouteHandler(RouteHandler):
             },
             status=200)
 
+    async def get_fee(self, request):
+        body = await request.json()
 
+        if 'data' not in body or 'payload' not in body['data']:
+            raise errors.NoTransactionPayload()
+
+        payload = body['data']['payload']
+
+        return self._wrap_response(
+            request,
+            metadata={
+                'fee': TRANSACTION_FEE,
+                'payload': payload
+            },
+            status=200)
+
+    async def get_global_transactions(self, request):
+        """
+        DONT USE now instead list_transactions handler
+        """
+        return self._wrap_response(
+            request,
+            metadata={
+                'transactions': []
+            },
+            status=200)
 
