@@ -150,7 +150,7 @@ class BgxRouteHandler(RouteHandler):
         LOGGER.debug('BgxRouteHandler:_get_state_by_addr %s',address)
         state_address = make_smart_bgt_address(address)
 
-        error_traps = [error_handlers.InvalidAddressTrap,error_handlers.StateNotFoundTrap]
+        error_traps = [error_handlers.InvalidAddressTrap] #,error_handlers.StateNotFoundTrap]
 
         head = request.url.query.get('head', None)
 
@@ -161,14 +161,26 @@ class BgxRouteHandler(RouteHandler):
             client_state_pb2.ClientStateGetRequest(
                 state_root=root, address=state_address),
             error_traps)
-
+        LOGGER.debug('BgxRouteHandler:_get_state_by_addr %s',address)
         try:
             result = cbor.loads(base64.b64decode(response['value']))
             LOGGER.debug('BgxRouteHandler: _get_state_by_addr result=%s',type(result))
         except BaseException:
-            LOGGER.debug('BgxRouteHandler: Cant get state for=%s',address)
+            LOGGER.debug('BgxRouteHandler: Cant get state FOR=%s',address)
             return None
         return result
+
+
+    def _wrap_error(self,request,code,mesg,title = 'Error'):
+        return self._wrap_response(
+                        request,
+                        metadata={
+                            'code': code,
+                            'title' : title,
+                            'message' : mesg
+                        },
+                        status=code
+                        )
 
     async def _make_token_transfer(self,request,address_from,address_to,num_bgt):
         """
@@ -241,35 +253,7 @@ class BgxRouteHandler(RouteHandler):
         address_to   =  _base64url2public(address_to)
 
         LOGGER.debug('BgxRouteHandler: post_transaction make payload=%s',payload)
-        payload_bytes = cbor.dumps({
-            'Verb'   : 'transfer',
-            'Name'   : address_from,
-            'to_addr': address_to,
-            'num_bgt': num_bgt,
-        })
-       
-        in_address = make_smart_bgt_address(address_from)
-        out_address = make_smart_bgt_address(address_to)
-        inputs =[in_address, out_address]   
-        outputs=[in_address, out_address]
-        transaction = self._create_transaction(payload_bytes,inputs,outputs)
-        batch = self._create_batch([transaction])
-        batch_id = batch.header_signature #batch_list.batches[0].header_signature
-
-        # Query validator
-        error_traps = [error_handlers.BatchInvalidTrap,error_handlers.BatchQueueFullTrap]
-        validator_query = client_batch_submit_pb2.ClientBatchSubmitRequest(batches=[batch])
-        LOGGER.debug('BgxRouteHandler: post_transfer send batch_id=%s',batch_id)
-
-        with self._post_batches_validator_time.time():
-            await self._query_validator(
-                Message.CLIENT_BATCH_SUBMIT_REQUEST,
-                client_batch_submit_pb2.ClientBatchSubmitResponse,
-                validator_query,
-                error_traps)
-
-        # Build response envelope
-        link = self._build_url(request, path='/batch_statuses', id=batch_id)
+        link = await self._make_token_transfer(request,address_from,address_to,num_bgt)
         status = 202
 
         retval = self._wrap_response(
@@ -287,33 +271,19 @@ class BgxRouteHandler(RouteHandler):
         """
         address = request.match_info.get('address', '')
         LOGGER.debug('BgxRouteHandler: get_wallet address=%s type=%s',address,type(address))
-        address =  _base64url2public(address)
-        LOGGER.debug('BgxRouteHandler: get_wallet public=(%s) type=%s',address,type(address))
-        token_address = make_smart_bgt_address(address)
-
-        error_traps = [
-            error_handlers.InvalidAddressTrap,
-            error_handlers.StateNotFoundTrap]
-
-        head = request.url.query.get('head', None)
-
-        head, root = await self._head_to_root(head)
-        response = await self._query_validator(
-            Message.CLIENT_STATE_GET_REQUEST,
-            client_state_pb2.ClientStateGetResponse,
-            client_state_pb2.ClientStateGetRequest(
-                state_root=root, address=token_address),
-            error_traps)
-
         try:
-            result = cbor.loads(base64.b64decode(response['value']))
-            LOGGER.debug('BgxRouteHandler: get_wallet result=%s',result)
-        except BaseException:
-            return None
+            address =  _base64url2public(address)
+        except :
+            return self._wrap_error(request,400,'Bad wallet address.')
 
+        LOGGER.debug('BgxRouteHandler: get_wallet public=(%s) type=%s',address,type(address))
+        result = await self._get_state_by_addr(request,address)
+        if result is None :
+            return self._wrap_error(request,400,'There is no wallet for this public key.')
+        token = json.loads(result[address])
         return self._wrap_response(
             request,
-            data=result)
+            data=token)
 
     # First iteration of implementation
     async def post_wallet(self, request):
@@ -327,20 +297,42 @@ class BgxRouteHandler(RouteHandler):
 
         # convert  public_key to base64url for using it into url /wallets/addr
         user_address = _public2base64url(public_key)
-        meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
-        if meta_token is not None:
-            # create wallet and present some few token
-            meta = json.loads(meta_token[SMART_BGT_META])
-            LOGGER.debug('BgxRouteHandler:post_wallet meta=%s key=%s',meta,meta[SMART_BGT_CREATOR_KEY]) 
-            # make transfer to new wallet
-            link = await self._make_token_transfer(request,meta[SMART_BGT_CREATOR_KEY],public_key,SMART_BGT_PRESENT_AMOUNT)
-            LOGGER.debug('BgxRouteHandler:post_wallet link=%s',link) 
+        wallet = await self._get_state_by_addr(request,public_key)
+        if wallet is None:
+            LOGGER.debug('BgxRouteHandler:post_wallet CREATE NEW WALLET') 
+            meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
+            if meta_token is not None:
+                # create wallet and present some few token
+                meta = json.loads(meta_token[SMART_BGT_META])
+                LOGGER.debug('BgxRouteHandler:post_wallet meta=%s key=%s',meta,meta[SMART_BGT_CREATOR_KEY]) 
+                # make transfer to new wallet
+                link = await self._make_token_transfer(request,meta[SMART_BGT_CREATOR_KEY],public_key,SMART_BGT_PRESENT_AMOUNT)
+                LOGGER.debug('BgxRouteHandler:post_wallet link=%s',link) 
+                # SHOULD DO waiting until wallet was created
+                #wallet = await self._get_state_by_addr(request,public_key)
+                status = "Wallet WAS CREATED"
+                coin_code = ''
+                amount    = 0
+
+            else: # we must do emmission before
+                return self._wrap_error(request,400,'Emmission must be done before')
+        else:
+            token = json.loads(wallet[public_key])
+            status = "Wallet ALREADY CREATED"
+            coin_code = token['group_code']
+            amount    = token['balance']
+            LOGGER.debug('BgxRouteHandler:post_wallet ALREADY CREATED %s (%s)',wallet,token)
+
 
         return self._wrap_response(
             request,
             metadata={
                 user_address: {
-                    'wallet': {}
+                    'status': status,
+                    'balance': {
+                        'coin_code' : coin_code,
+                        'amount'    : amount
+                    }
                 }
             },
             status=200)

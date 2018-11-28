@@ -20,7 +20,7 @@ services:
     networks:
     - network1
     ports:
-      - "8002:8002"
+      - "8008:8008"
     # depends_on:
     #   - validator
     command: |
@@ -32,7 +32,7 @@ services:
         #cd ../
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api -vv --connect tcp://validator:4004 --bind bgx-rest-api:8002
+        bgx-rest-api -vv --connect tcp://validator:4004 --bind bgx-rest-api:8008
       "
     stop_signal: SIGKILL
 
