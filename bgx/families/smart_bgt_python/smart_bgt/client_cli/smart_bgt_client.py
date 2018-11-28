@@ -84,6 +84,15 @@ class SmartBgtClient:
         return self._send_transaction('transfer', args, wait=wait)
 
 
+    def allowance(self, from_addr, num_bgt, group_id='None', wait=None):
+        args = {
+            'Name': from_addr,
+            'num_bgt': num_bgt,
+            'group_id': group_id,
+        }
+        return self._send_transaction('allowance', args, wait=wait)
+
+
     def generate_key(self, wait=None):
         return self._send_transaction('generate_key',{}, wait=wait)
 
@@ -173,7 +182,8 @@ class SmartBgtClient:
     def _send_transaction(self, verb, args, wait=None):
         args['Verb'] = verb
         payload = cbor.dumps(args)
-
+        inputs = []
+        outputs= []
 
         # Construct the address 0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba
         if verb != 'generate_key':

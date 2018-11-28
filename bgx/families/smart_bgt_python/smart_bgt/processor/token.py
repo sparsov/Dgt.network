@@ -4,19 +4,24 @@ from smart_bgt.processor.crypto import BGXCrypto
 import math
 import json
 import logging
+
 from smart_bgt.processor.utils  import SMART_BGT_CREATOR_KEY
+
+
+LOGGER = logging.getLogger(__name__)
+
 BASIC_DECIMALS = 18
 
+# Prototype for a MetaToken class.
 
 class MetaToken:
 
     def __init__(self, name, symbol, company_id, group_code, total_supply, description, internal_token_price, \
                  digital_signature):
-        ##########BGXlog.logInfo("Init metatoken")
+
         if not self.__checkValues(total_supply, internal_token_price, digital_signature):
-            ##########BGXlog.logInfo("Init metatoken - Error")
-            # raise something
-            return False
+            LOGGER.error("Init metatoken - wrong args")
+            raise InternalError('Failed to init metatoken')
 
         self.name = name
         self.symbol = symbol
@@ -24,28 +29,27 @@ class MetaToken:
         self.group_code = group_code
         self.total_supply = total_supply
         self.granularity = 1
-        # max value of token = 1000000000000000000 = 10^18
-        # max int in python  = 9223372036854775807
         self.decimals = BASIC_DECIMALS
         self.description = description
-        # USD by default
         self.currency_code = 1
         self.internal_token_price = internal_token_price
         self.bgx_conversion = False
         self.internal_conversion = False
         self.ethereum_conversion = False
         self.owner_key = digital_signature.getVerifyingKey()
-        ##########BGXlog.logInfo("Init metatoken - Ready")
 
     def __checkValues(self, total_supply, internal_token_price, digital_signature):
-        if not isinstance(total_supply, int):
-            ##########BGXlog.logError("Not integer : total_supply" )
+
+        if not isinstance(total_supply, int) or total_supply < 0:
+            LOGGER.debug('Bad integer : total_supply')
             return False
-        if not isinstance(internal_token_price, int):
-            ##########BGXlog.logError("Not integer : internal_token_price" )
+
+        if not isinstance(internal_token_price, int) or internal_token_price < 0:
+            LOGGER.debug('Bad integer : internal_token_price')
             return False
+
         if not isinstance(digital_signature, BGXCrypto.DigitalSignature):
-            ##########BGXlog.logError("Bad digital signature")
+            LOGGER.debug('Bad digital signature')
             return False
         return True
 
@@ -60,7 +64,7 @@ class MetaToken:
 class Token:
 
     def __init__(self, group_code = None, balance = 0, digital_signature = None, granularity = 1, decimals = 18):
-        ##########BGXlog.logInfo("Init token")
+
         if group_code == None:
             self.active_flag = False
             self.group_code = 'None'
@@ -71,9 +75,8 @@ class Token:
             self.sign = 'None'
         else:
             if not self.__checkValues(balance, granularity, decimals, digital_signature):
-                ##########BGXlog.logInfo("Init token - Error")
-                # raise something
-                return False
+                LOGGER.error("Init token - wrong args")
+                raise InternalError('Failed to init token')
 
             self.active_flag = True
             self.group_code = str(group_code)
@@ -86,37 +89,36 @@ class Token:
     def __str__(self):
         return self.getImprint()
 
-    def copy(self, token, owner_key):
-        self.active_flag = True
-        self.group_code = token.getGroupId()
-        self.owner_key = owner_key
-
-    def __checkValues(self, balance, granularity, decimals, digital_signature=None):
-        if not isinstance(balance, int) or balance < 0:
-            ##########BGXlog.logError("Bad integer : balance" )
-            return False
-        if not isinstance(granularity, int) or granularity < 0:
-            ##########BGXlog.logError("Bad integer : balance" )
-            return False
-        if not isinstance(decimals, int) or decimals < 0:
-            ##########BGXlog.logError("Bad integer : balance" )
-            return False
-        if digital_signature is not None and not isinstance(digital_signature, BGXCrypto.DigitalSignature):
-            ##########BGXlog.logError("Bad digital signature")
-            return False
-        return True
 
     def getGroupId(self):
         return self.group_code
 
-    def getOwnerKey(self):
-        return self.owner_key
+    def copy(self, token):
+        self.active_flag = True
+        self.group_code = token.getGroupId()
+        #self.owner_key = owner_key
+
+    def __checkValues(self, balance, granularity, decimals, digital_signature=None):
+
+        if not isinstance(balance, int) or balance < 0:
+            LOGGER.debug('Bad integer : balance')
+            return False
+
+        if not isinstance(granularity, int) or granularity < 0:
+            LOGGER.debug('Bad integer : granularity')
+            return False
+
+        if not isinstance(decimals, int) or decimals < 0:
+            LOGGER.debug('Bad integer : decimals')
+            return False
+
+        if digital_signature is not None and not isinstance(digital_signature, BGXCrypto.DigitalSignature):
+            LOGGER.debug('Bad digital signature')
+            return False
+        return True
 
     def verifyToken(self, digital_signature):
         return digital_signature.verify(self.sign, self.getImprint())
-
-    def getSign(self):
-        return self.sign
 
     def getImprint(self):
         imprint = self.group_code + str(self.balance) + str(self.granularity) + \
@@ -129,22 +131,31 @@ class Token:
         return json.dumps(data)
 
     def fromJSON(self, json_string):
-        data = json.loads(json_string)
-        group_code = data['group_code']
-        balance = int(data['balance'])
-        granularity = int(data['granularity'])
-        decimals = int(data['decimals'])
-        owner_key = data['owner_key']
-        sign = data['sign']
+
+        try:
+            data = json.loads(json_string)
+        except:
+            LOGGER.error('Cant read json with token: %s', sys.exc_info()[0])
+            raise InternalError('Failed to load token')
+
+        try:
+            group_code = data['group_code']
+            balance = int(data['balance'])
+            granularity = int(data['granularity'])
+            decimals = int(data['decimals'])
+            owner_key = data['owner_key']
+            sign = data['sign']
+        except KeyError:
+            LOGGER.error("json with token has not all arg")
+            raise InternalError('Failed to load token')
 
         if not self.__checkValues(balance, granularity, decimals):
-            ##########BGXlog.logInfo("Loading token - Error")
-            # raise something
-            return False
+            LOGGER.error("Loading token from JSON - wrong args")
+            raise InternalError('Failed to load token')
 
         if not self.active_flag:
             msg = 'Update "{n}"'.format(n=self.toJSON())
-            ##########BGXlog.logInfo(msg)
+            LOGGER.debug(msg)
 
         self.active_flag = True
         self.group_code = group_code
@@ -154,11 +165,11 @@ class Token:
         self.owner_key = owner_key
         self.sign = sign
 
-        ###############3if not self.verifyToken():
-            ###################msg = 'Failed load from "{n}"'.format(n=self.toJSON())
-            ##########BGXlog.logError(msg)
-            # raise something
-            ####################return False
+    def getSign(self):
+        return self.sign
+
+    def getOwnerKey(self):
+        return self.owner_key
 
     def getBalance(self):
         return self.balance
@@ -182,14 +193,14 @@ class Token:
             amount /= 10
             flag /= 10
             decimals += 1
-
         return decimals, int(amount)
 
     def send(self, to_token, amount = 0):
         if  not isinstance(to_token, Token) or (not isinstance(amount, float) and \
             not isinstance(amount, int)) or amount <= 0 or pow(10, BASIC_DECIMALS) * amount < 1:
-            ##########BGXlog.logInfo(Send error - bad parameters)
+            LOGGER.debug("Sending token - wrong args")
             return False
+
         from_decimals = self.getDecimals()
         from_balance = self.getBalance()
 
@@ -201,7 +212,7 @@ class Token:
         send_amount = int(amount * pow(10, BASIC_DECIMALS))
 
         if from_amount < send_amount:
-            ##########BGXlog.logInfo(Send error - not enough money)
+            LOGGER.debug("Sending token - not enough money")
             return False
 
         from_amount -= send_amount
@@ -214,3 +225,21 @@ class Token:
         to_token.__setDecimals(to_decimals)
         to_token.__setBalance(to_balance)
         return True
+
+    def send_allowance(self, amount = 0):
+        if (not isinstance(amount, float) and not isinstance(amount, int)) or amount <= 0 or \
+                pow(10, BASIC_DECIMALS) * amount < 1:
+            LOGGER.debug("Sending token allowance - wrong args")
+            return False
+
+        from_decimals = self.getDecimals()
+        from_balance = self.getBalance()
+
+        from_amount = from_balance * pow(10, from_decimals)
+        send_amount = int(amount * pow(10, BASIC_DECIMALS))
+
+        if from_amount < send_amount:
+            LOGGER.debug("Sending token allowance - not enough money")
+            return False
+        return True
+

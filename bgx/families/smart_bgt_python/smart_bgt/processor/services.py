@@ -20,7 +20,8 @@ import logging
 import sys
 import json
 from web3 import Web3, HTTPProvider
-#from ecdsa import SigningKey, SECP256k1
+from sawtooth_sdk.processor.exceptions import InternalError
+from smart_bgt.processor.token import Token
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,8 +40,7 @@ class BGXlistener:
                     BGXlistener.DECAir = json.dumps(decJson)
                 except:
                     LOGGER.debug('BGXlistener cant read json %s',sys.exc_info()[0])
-                
-            
+
         if BGXlistener.DECOwn == '{}':
             with open('./DEC.json') as file:
                 try:
@@ -48,7 +48,6 @@ class BGXlistener:
                     BGXlistener.DECOwn = json.dumps(decJson)
                 except:
                     LOGGER.debug('BGXlistener cant read json %s',sys.exc_info()[0])
-            #LOGGER.debug('BGXlistener DECOwn=(%s)',BGXlistener.DECOwn)
 
         if True :
             # Connecting to test net ropsten through infura
@@ -56,31 +55,20 @@ class BGXlistener:
             web3 = Web3(infura_provider)
 
             if not web3.isConnected():
-                # raise something
                 LOGGER.debug('WEB3 is not connected')
-                return 0
+                raise InternalError('Ethereum listener - WEB3 is not connected')
+
             addr = DEC_ADDRESS
             LOGGER.debug('WEB3 GET CONTRACT=%s wallet_address=%s',CONTRACT_ADDRESS,wallet_address)
             #contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=DECAir ) #CONTRACT_INTERFACE)
             contract = web3.eth.contract(address=addr, abi=BGXlistener.DECOwn ) #CONTRACT_INTERFACE)
-            LOGGER.debug('WEB3 contract=%s',contract)
+            LOGGER.debug('WEB3 contract=%s', contract)
             total = contract.functions.totalSupply().call()
             val = contract.functions.balanceOf(wallet_address).call()
-            LOGGER.debug('WEB3 total=%s val=%s',total,val)
-            return val
+            LOGGER.debug('WEB3 total=%s val=%s', total, val)
+            return float(val)
         else:
             return 0
-
-# Namespace for logger function
-
-class BGXlog:
-
-    def logInfo(str):
-        logging.info(str)
-
-    def logError(str):
-        logging.error(str)
-
 
 # Namespace for general configuration
 
@@ -89,3 +77,46 @@ class BGXConf:
     DEFAULT_STORAGE_PATH = './'
     MAX_RETRY_CREATE_DB = 10
 
+
+class BGXwallet():
+
+    def __init__(self):
+        self._tokens = {}
+
+    def append(self, token):
+        if not isinstance(token, Token):
+            LOGGER.error("BGXwallet append - wrong args")
+            raise InternalError('Failed to append token')
+
+        key = token.getGroupId()
+        self._tokens[key] = token.toJSON()
+
+    def get_token(self, token_id):
+        if token_id not in self._tokens:
+            max_token = Token()
+            cur_token = Token()
+            for token_id in self._tokens.keys():
+                token_str = self._tokens[token_id]
+                cur_token.fromJSON(token_str)
+                if max_token.getBalance() < cur_token.getBalance():
+                    max_token = cur_token
+            return max_token
+        else:
+            token_str = self._tokens[token_id]
+            del self._tokens[token_id]
+            token = Token()
+            token.fromJSON(token_str)
+            return token
+
+    def toJSON(self):
+        return json.dumps(self._tokens)
+
+    def fromJSON(self, json_string):
+        try:
+            data = json.loads(json_string)
+        except:
+            LOGGER.error('Cant read json with BGXwallet: %s', sys.exc_info()[0])
+            raise InternalError('Failed to load BGXwallet')
+
+        for k, v in data.items():
+            self._tokens[k] = v
