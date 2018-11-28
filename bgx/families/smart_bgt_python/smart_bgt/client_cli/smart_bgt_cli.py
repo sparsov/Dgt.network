@@ -21,8 +21,9 @@ import sys
 import traceback
 import pkg_resources
 
-from colorlog import ColoredFormatter
+from smart_bgt.client_cli.smart_bgt_client import SmartBgtClient
 
+from colorlog import ColoredFormatter
 from smart_bgt.client_cli.generate import add_generate_parser
 from smart_bgt.client_cli.generate import do_generate
 from smart_bgt.client_cli.populate import add_populate_parser
@@ -34,13 +35,13 @@ from smart_bgt.client_cli.load import do_load
 from smart_bgt.client_cli.smart_bgt_workload import add_workload_parser
 from smart_bgt.client_cli.smart_bgt_workload import do_workload
 
-from smart_bgt.client_cli.smart_bgt_client import SmartBgtClient
+
+
 from smart_bgt.client_cli.exceptions import SmartBgtCliException
 from smart_bgt.client_cli.exceptions import SmartBgtClientException
 
 
 DISTRIBUTION_NAME = 'smart-bgt'
-
 
 DEFAULT_URL = 'http://127.0.0.1:8008'
 
@@ -109,12 +110,9 @@ def create_parser(prog_name):
 
     subparsers = parser.add_subparsers(title='subcommands', dest='command')
 
-    add_set_parser(subparsers, parent_parser)
     add_init_parser(subparsers, parent_parser)
     add_transfer_parser(subparsers, parent_parser)
     add_generate_key_parser(subparsers, parent_parser)
-    add_inc_parser(subparsers, parent_parser)
-    add_dec_parser(subparsers, parent_parser)
     add_show_parser(subparsers, parent_parser)
     add_list_parser(subparsers, parent_parser)
 
@@ -125,43 +123,6 @@ def create_parser(prog_name):
     add_workload_parser(subparsers, parent_parser)
 
     return parser
-
-
-def add_set_parser(subparsers, parent_parser):
-    message = 'Sends an bgt transaction to set <name> to <value>.'
-
-    parser = subparsers.add_parser(
-        'set',
-        parents=[parent_parser],
-        description=message,
-        help='Sets an bgt value')
-
-    parser.add_argument(
-        'name',
-        type=str,
-        help='name of key to set')
-
-    parser.add_argument(
-        'value',
-        type=int,
-        help='amount to set')
-
-    parser.add_argument(
-        '--url',
-        type=str,
-        help='specify URL of REST API')
-
-    parser.add_argument(
-        '--keyfile',
-        type=str,
-        help="identify file containing user's private key")
-
-    parser.add_argument(
-        '--wait',
-        nargs='?',
-        const=sys.maxsize,
-        type=int,
-        help='set time, in seconds, to wait for transaction to commit')
 
 
 def add_init_parser(subparsers, parent_parser):
@@ -220,6 +181,7 @@ def add_init_parser(subparsers, parent_parser):
         type=int,
         help='set time, in seconds, to wait for transaction to commit')
 
+
 def add_transfer_parser(subparsers, parent_parser):
     message = 'Sends an num_bgt transaction to transfer <from_addr> to <to_addr>.'
 
@@ -244,6 +206,10 @@ def add_transfer_parser(subparsers, parent_parser):
         type=str,
         help='')
 
+    parser.add_argument(
+        'group_id',
+        type=str,
+        help='')
 
     parser.add_argument(
         '--url',
@@ -290,121 +256,6 @@ def add_generate_key_parser(subparsers, parent_parser):
         help='set time, in seconds, to wait for transaction to commit')
 
 
-
-def do_set(args):
-    name, value, wait = args.name, args.value, args.wait
-    client = _get_client(args)
-    response = client.set(name, value, wait)
-    print(response)
-
-
-def do_init(args):
-    full_name, private_key, ethereum_address,  wait = args.full_name, args.private_key, args.ethereum_address, args.wait
-    client = _get_client(args)
-    response = client.init(full_name, private_key, ethereum_address,args.num_bgt, args.bgt_price, args.dec_price, wait) ######################
-    print(response)
-
-def do_transfer(args):
-    from_addr, to_addr, num_bgt, wait = args.from_addr, args.to_addr, args.num_bgt, args.wait
-    client = _get_client(args)
-    response = client.transfer(from_addr, to_addr, num_bgt, wait) ######################
-    print(response)
-
-def do_generate_key(args):
-    wait = args.wait
-    client = _get_client(args)
-    response = client.generate_key(wait) ######################
-    print(response)
-
-
-def add_inc_parser(subparsers, parent_parser):
-    message = 'Sends an bgt transaction to increment <name> by <value>.'
-
-    parser = subparsers.add_parser(
-        'inc',
-        parents=[parent_parser],
-        description=message,
-        help='Increments an bgt value')
-
-    parser.add_argument(
-        'name',
-        type=str,
-        help='identify name of key to increment')
-
-    parser.add_argument(
-        'value',
-        type=int,
-        help='specify amount to increment')
-
-    parser.add_argument(
-        '--url',
-        type=str,
-        help='specify URL of REST API')
-
-    parser.add_argument(
-        '--keyfile',
-        type=str,
-        help="identify file containing user's private key")
-
-    parser.add_argument(
-        '--wait',
-        nargs='?',
-        const=sys.maxsize,
-        type=int,
-        help='set time, in seconds, to wait for transaction to commit')
-
-
-def do_inc(args):
-    name, value, wait = args.name, args.value, args.wait
-    client = _get_client(args)
-    response = client.inc(name, value, wait)
-    print(response)
-
-
-def add_dec_parser(subparsers, parent_parser):
-    message = 'Sends an bgt transaction to decrement <name> by <value>.'
-
-    parser = subparsers.add_parser(
-        'dec',
-        parents=[parent_parser],
-        description=message,
-        help='Decrements an bgt value')
-
-    parser.add_argument(
-        'name',
-        type=str,
-        help='identify name of key to decrement')
-
-    parser.add_argument(
-        'value',
-        type=int,
-        help='amount to decrement')
-
-    parser.add_argument(
-        '--url',
-        type=str,
-        help='specify URL of REST API')
-
-    parser.add_argument(
-        '--keyfile',
-        type=str,
-        help="identify file containing user's private key")
-
-    parser.add_argument(
-        '--wait',
-        nargs='?',
-        const=sys.maxsize,
-        type=int,
-        help='set time, in seconds, to wait for transaction to commit')
-
-
-def do_dec(args):
-    name, value, wait = args.name, args.value, args.wait
-    client = _get_client(args)
-    response = client.dec(name, value, wait)
-    print(response)
-
-
 def add_show_parser(subparsers, parent_parser):
     message = 'Shows the value of the key <name>.'
 
@@ -423,6 +274,28 @@ def add_show_parser(subparsers, parent_parser):
         '--url',
         type=str,
         help='specify URL of REST API')
+
+
+def do_init(args):
+    full_name, private_key, ethereum_address, num_bgt, bgt_price, dec_price, wait  = args.full_name, \
+        args.private_key, args.ethereum_address, args.num_bgt, args.bgt_price, args.dec_price, args.wait
+    client = _get_client(args)
+    response = client.init(full_name, private_key, ethereum_address, num_bgt, bgt_price, dec_price, wait)
+    print(response)
+
+
+def do_transfer(args):
+    from_addr, to_addr, num_bgt, group_id, wait = args.from_addr, args.to_addr, args.num_bgt, args.group_id, args.wait
+    client = _get_client(args)
+    response = client.transfer(from_addr, to_addr, num_bgt, group_id, wait)
+    print(response)
+
+
+def do_generate_key(args):
+    wait = args.wait
+    client = _get_client(args)
+    response = client.generate_key(wait)
+    print(response)
 
 
 def do_show(args):
@@ -491,18 +364,12 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
         parser.print_help()
         sys.exit(1)
 
-    if args.command == 'set':
-        do_set(args)
-    elif args.command == 'init':
+    if args.command == 'init':
         do_init(args)
     elif args.command == 'transfer':
         do_transfer(args)
     elif args.command == 'generate_key':
         do_generate_key(args)
-    elif args.command == 'inc':
-        do_inc(args)
-    elif args.command == 'dec':
-        do_dec(args)
     elif args.command == 'show':
         do_show(args)
     elif args.command == 'list':

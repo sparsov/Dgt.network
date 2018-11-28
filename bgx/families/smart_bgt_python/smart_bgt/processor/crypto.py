@@ -44,6 +44,7 @@ class BGXCrypto:
             hexed_string = binascii.b2a_hex(signing_key)
             return str(hexed_string.decode())
     """
+
     class DigitalSignature:
 
         def __init__(self, str_signing_key=None):
@@ -51,8 +52,6 @@ class BGXCrypto:
                 self._context = Secp256k1Context()
                 self._signing_key = self._context.new_random_private_key()
                 self._verifying_key = self._context.get_public_key(self._signing_key)
-                #self._signing_key = SigningKey.generate(curve=SECP256k1)
-                #self._verifying_key = self._signing_key.get_verifying_key()
             else:
                 self._context = Secp256k1Context()
                 hexed_string = str_signing_key.encode()
