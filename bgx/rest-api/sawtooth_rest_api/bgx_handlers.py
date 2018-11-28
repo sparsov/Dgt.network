@@ -318,10 +318,11 @@ class BgxRouteHandler(RouteHandler):
                 return self._wrap_error(request,400,'Emmission must be done before')
         else:
             token = json.loads(wallet[public_key])
+            LOGGER.debug('BgxRouteHandler:post_wallet ALREADY CREATED token(%s)',token)
             status = "Wallet ALREADY CREATED"
             coin_code = token['group_code']
             amount    = token['balance']
-            LOGGER.debug('BgxRouteHandler:post_wallet ALREADY CREATED %s (%s)',wallet,token)
+            
 
 
         return self._wrap_response(
