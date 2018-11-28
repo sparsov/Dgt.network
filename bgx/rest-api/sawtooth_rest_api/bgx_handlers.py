@@ -170,6 +170,17 @@ class BgxRouteHandler(RouteHandler):
             return None
         return result
 
+    def _get_token(self,wallet,key):
+        tokens = json.loads(wallet[key])
+        amount = 0
+        coin_code = ''
+        for key in tokens:
+            LOGGER.debug('BgxRouteHandler:_get_token group (%s)',key)
+            token = json.loads(tokens[key])
+            coin_code = coin_code + ',' + (token['group_code'] if 'group_code' in token else 'white')
+            amount    = amount + int(token['balance']  if 'balance' in token else 0)
+        return coin_code,amount
+
 
     def _wrap_error(self,request,code,mesg,title = 'Error'):
         return self._wrap_response(
@@ -192,7 +203,7 @@ class BgxRouteHandler(RouteHandler):
             'Name'   : address_from,
             'to_addr': address_to,
             'num_bgt': num_bgt,
-            'group_id' : None
+            'group_id' : 'group_code'
         })
         LOGGER.debug('BgxRouteHandler: _make_token_transfer make payload=%s',payload_bytes)
         in_address = make_smart_bgt_address(address_from)
@@ -281,10 +292,17 @@ class BgxRouteHandler(RouteHandler):
         result = await self._get_state_by_addr(request,address)
         if result is None :
             return self._wrap_error(request,400,'There is no wallet for this public key.')
-        token = json.loads(result[address])
+        status = 'Ok'
+        coin_code,amount = self._get_token(result,address)
         return self._wrap_response(
             request,
-            data=token)
+            data={
+                    'status': status,
+                    'balance': {
+                        'coin_code' : coin_code,
+                        'amount'    : amount
+                    }
+                })
 
     # First iteration of implementation
     async def post_wallet(self, request):
@@ -312,17 +330,15 @@ class BgxRouteHandler(RouteHandler):
                 # SHOULD DO waiting until wallet was created
                 #wallet = await self._get_state_by_addr(request,public_key)
                 status = "Wallet WAS CREATED"
-                coin_code = ''
+                coin_code = 'white'
                 amount    = 0
 
             else: # we must do emmission before
                 return self._wrap_error(request,400,'Emmission must be done before')
         else:
-            token = json.loads(wallet[public_key])
-            LOGGER.debug('BgxRouteHandler:post_wallet ALREADY CREATED token(%s)',token)
+            LOGGER.debug('BgxRouteHandler:post_wallet ALREADY CREATED wallet(%s)',wallet)
             status = "Wallet ALREADY CREATED"
-            coin_code = token['group_code']
-            amount    = token['balance']
+            coin_code,amount = self._get_token(wallet,public_key)
             
 
 
