@@ -76,7 +76,7 @@ COINS_RATIO = {
     'bgt': 1,
     'dec': 100
 }
-with open('../startup_global_state.json') as file:
+with open('./startup_global_state.json') as file:
     file_data = json.load(file)
     users = file_data['users']
     node = file_data['node']
