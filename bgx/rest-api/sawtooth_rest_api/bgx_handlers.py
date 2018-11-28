@@ -192,6 +192,7 @@ class BgxRouteHandler(RouteHandler):
             'Name'   : address_from,
             'to_addr': address_to,
             'num_bgt': num_bgt,
+            'group_id' : None
         })
         LOGGER.debug('BgxRouteHandler: _make_token_transfer make payload=%s',payload_bytes)
         in_address = make_smart_bgt_address(address_from)
