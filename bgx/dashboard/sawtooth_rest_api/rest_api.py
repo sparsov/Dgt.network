@@ -33,7 +33,8 @@ from sawtooth_sdk.processor.config import get_log_config
 from sawtooth_sdk.processor.config import get_log_dir
 from sawtooth_sdk.processor.config import get_config_dir
 from sawtooth_rest_api.messaging import Connection
-from sawtooth_rest_api.route_handlers import RouteHandler
+#from sawtooth_rest_api.route_handlers import RouteHandler
+from sawtooth_rest_api.dashboard_handlers import DashboardRouteHandler
 from sawtooth_rest_api.state_delta_subscription_handler \
     import StateDeltaSubscriberHandler
 from sawtooth_rest_api.config import load_default_rest_api_config
@@ -102,7 +103,7 @@ def start_rest_api(host, port, connection, timeout, registry,
     # Add routes to the web app
     LOGGER.info('Creating handlers for validator at %s', connection.url)
 
-    handler = RouteHandler(loop, connection, timeout, registry)
+    handler = DashboardRouteHandler(loop, connection, timeout, registry)
 
     app.router.add_post('/batches', handler.submit_batches)
     app.router.add_get('/batch_statuses', handler.list_statuses)
@@ -128,6 +129,10 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/peers', handler.fetch_peers)
     app.router.add_get('/nodes', handler.fetch_nodes) # just for testing
     app.router.add_get('/status', handler.fetch_status)
+    # 
+    # ADD web app
+    app.router.add_get('/', handler.index)
+    app.router.add_get('/bundle.js',handler.javascript)
 
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)
@@ -204,7 +209,7 @@ def main():
             log_configuration(log_config=log_config)
         else:
             log_dir = get_log_dir()
-            log_configuration(log_dir=log_dir, name="rest_api")
+            log_configuration(log_dir=log_dir, name="dashboard-app")
         init_console_logging(verbose_level=opts.verbose)
 
         try:
