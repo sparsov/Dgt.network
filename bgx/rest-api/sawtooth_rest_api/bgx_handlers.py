@@ -171,6 +171,11 @@ class BgxRouteHandler(RouteHandler):
         return result
 
     def _get_token(self,wallet,key):
+        def coin(token):
+            balance = int(token['balance']  if 'balance' in token else 0)
+            decimals = int(token['decimals']  if 'decimals' in token else 18)
+            return round(balance * pow(10, decimals - 18),5)
+         
         tokens = json.loads(wallet[key])
         amount = 0
         coin_code = ''
@@ -178,7 +183,7 @@ class BgxRouteHandler(RouteHandler):
             LOGGER.debug('BgxRouteHandler:_get_token group (%s)',key)
             token = json.loads(tokens[key])
             coin_code = coin_code + ',' + (token['group_code'] if 'group_code' in token else 'white')
-            amount    = amount + int(token['balance']  if 'balance' in token else 0)
+            amount    = amount + coin(token)
         return coin_code,amount
 
 

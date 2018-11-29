@@ -70,7 +70,15 @@ class DashboardRouteHandler(RouteHandler):
 
         super().__init__(loop,connection,timeout,metrics_registry)
         # Dashboard init
-        LOGGER.debug('DashboardRouteHandler: _done')
+        self._network = {}
+        try:
+            with open('./network.json') as file:
+                self._network = json.load(file)
+        except:
+            pass
+
+        
+        LOGGER.debug('DashboardRouteHandler: network=%s',self._network)
 
     async def index(self,request):
         LOGGER.debug('DashboardRouteHandler: index')
@@ -81,3 +89,23 @@ class DashboardRouteHandler(RouteHandler):
         LOGGER.debug('DashboardRouteHandler: javascript=%s',request.path)
         content = open(os.path.join(ROOT,'app/js/'+request.path[1:]), 'r', encoding='utf-8').read()
         return web.Response(content_type='application/javascript', text=content)
+
+    async def fetch_peers(self, request):
+        """Fetches the peers from the validator.
+        Request:
+
+        Response:
+            data: JSON array of peer endpoints
+            link: The link to this exact query
+        """
+        LOGGER.debug('DashboardRouteHandler: fetch_peers')
+        response = await self._query_validator(
+            Message.CLIENT_PEERS_GET_REQUEST,
+            client_peers_pb2.ClientPeersGetResponse,
+            client_peers_pb2.ClientPeersGetRequest())
+
+        return self._wrap_response(
+            request,
+            data=self._network, #response['peers'],
+            metadata=self._get_metadata(request, response))
+
