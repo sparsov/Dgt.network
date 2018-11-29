@@ -78,7 +78,7 @@ class DashboardRouteHandler(RouteHandler):
             pass
 
         
-        LOGGER.debug('DashboardRouteHandler: network=%s',self._network)
+        #LOGGER.debug('DashboardRouteHandler: network=%s',self._network)
 
     async def index(self,request):
         LOGGER.debug('DashboardRouteHandler: index')
