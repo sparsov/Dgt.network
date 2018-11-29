@@ -93,6 +93,20 @@ class SmartBgtClient:
         return self._send_transaction('allowance', args, wait=wait)
 
 
+    def balance_of(self, addr, wait=None):
+        args = {
+            'addr': addr,
+        }
+        return self._send_transaction('balance_of', args, wait=wait)
+
+
+    def total_supply(self, token_name, wait=None):
+        args = {
+            'token_name': token_name,
+        }
+        return self._send_transaction('total_supply', args, wait=wait)
+
+
     def generate_key(self, wait=None):
         return self._send_transaction('generate_key',{}, wait=wait)
 
@@ -186,7 +200,7 @@ class SmartBgtClient:
         outputs= []
 
         # Construct the address 0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba
-        if verb != 'generate_key':
+        if verb != 'generate_key' and verb != 'balance_of' and verb != 'total_supply':
             address = self._get_address(args['Name'])
             inputs = [address]
             outputs= [address]
@@ -202,6 +216,14 @@ class SmartBgtClient:
             address1 = self._get_address(args['to_addr'])
             inputs.append(address1)
             outputs.append(address1)
+        elif verb == 'balance_of':
+            address = self._get_address(args['addr'])
+            inputs = [address]
+            outputs = [address]
+        elif verb == 'total_supply':
+            address = self._get_address(args['token_name'])
+            inputs = [address]
+            outputs = [address]
   
         header = TransactionHeader(
             signer_public_key=self._signer.get_public_key().as_hex(),

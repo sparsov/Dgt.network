@@ -116,6 +116,8 @@ def create_parser(prog_name):
     add_generate_key_parser(subparsers, parent_parser)
     add_show_parser(subparsers, parent_parser)
     add_list_parser(subparsers, parent_parser)
+    add_balance_of_parser(subparsers, parent_parser)
+    add_total_supply_parser(subparsers, parent_parser)
 
     add_generate_parser(subparsers, parent_parser)
     add_load_parser(subparsers, parent_parser)
@@ -272,6 +274,70 @@ def add_allowance_parser(subparsers, parent_parser):
         help='set time, in seconds, to wait for transaction to commit')
 
 
+def add_balance_of_parser(subparsers, parent_parser):
+    message = 'Check balance of <addr>.'
+
+    parser = subparsers.add_parser(
+        'balance_of',
+        parents=[parent_parser],
+        description=message,
+        help='Check balance of <addr>')
+
+    parser.add_argument(
+        'addr',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        '--url',
+        type=str,
+        help='specify URL of REST API')
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+    parser.add_argument(
+        '--wait',
+        nargs='?',
+        const=sys.maxsize,
+        type=int,
+        help='set time, in seconds, to wait for transaction to commit')
+
+
+def add_total_supply_parser(subparsers, parent_parser):
+    message = 'Check total supply of <token name>.'
+
+    parser = subparsers.add_parser(
+        'total_supply',
+        parents=[parent_parser],
+        description=message,
+        help='Check total supply of <token name>')
+
+    parser.add_argument(
+        'token_name',
+        type=str,
+        help='')
+
+    parser.add_argument(
+        '--url',
+        type=str,
+        help='specify URL of REST API')
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+    parser.add_argument(
+        '--wait',
+        nargs='?',
+        const=sys.maxsize,
+        type=int,
+        help='set time, in seconds, to wait for transaction to commit')
+
+
 def add_generate_key_parser(subparsers, parent_parser):
     message = 'Generate some key.'
 
@@ -338,6 +404,20 @@ def do_allowance(args):
     from_addr, num_bgt, group_id, wait = args.from_addr, args.num_bgt, args.group_id, args.wait
     client = _get_client(args)
     response = client.allowance(from_addr, num_bgt, group_id, wait)
+    print(response)
+
+
+def get_balance_of(args):
+    addr, wait = args.addr, args.wait
+    client = _get_client(args)
+    response = client.balance_of(addr, wait)
+    print(response)
+
+
+def get_total_supply(args):
+    token_name, wait = args.token_name, args.wait
+    client = _get_client(args)
+    response = client.total_supply(token_name, wait)
     print(response)
 
 
@@ -416,6 +496,10 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
 
     if args.command == 'init':
         do_init(args)
+    elif args.command == 'balance_of':
+        get_balance_of(args)
+    elif args.command == 'total_supply':
+        get_total_supply(args)
     elif args.command == 'transfer':
         do_transfer(args)
     elif args.command == 'allowance':
@@ -436,7 +520,6 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
         do_create_batch(args)
     elif args.command == 'workload':
         do_workload(args)
-
     else:
         raise SmartBgtCliException("invalid command: {}".format(args.command))
 

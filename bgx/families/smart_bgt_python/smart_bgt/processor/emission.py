@@ -49,7 +49,10 @@ class EmissionMechanism:
         #hash = BGXCrypto.intHash(lines)
         return True
 
-    def releaseTokens(self, name, digital_signature, ethereum_address, num_bgt, bgt_price = 1, dec_price = 1):
+
+
+    def releaseTokens(self, name, symbol, company_id, digital_signature, ethereum_address, num_bgt, description, \
+                      bgt_price = 1, dec_price = 1):
 
         if not self.checkEthereum(num_bgt, ethereum_address, bgt_price, dec_price):
             return None, None
@@ -57,6 +60,23 @@ class EmissionMechanism:
         imprint = name + str(num_bgt) + str(bgt_price)
         group_code = BGXCrypto.strHash(imprint)
 
-        meta = MetaToken(name, 'BGT', 'company_id', group_code, num_bgt, 'BGT token', 1, digital_signature)
+        meta = MetaToken(name, symbol, company_id, group_code, num_bgt, description, bgt_price, digital_signature)
         token = Token(group_code, num_bgt, digital_signature)
         return token, meta
+
+    def releaseExtraTokens(self, token, meta_token, digital_signature, ethereum_address, num_bgt, bgt_price, dec_price):
+
+        if not isinstance(meta_token, MetaToken):
+            return None, None
+
+        if not self.checkEthereum(num_bgt, ethereum_address, bgt_price, dec_price):
+            return None, None
+
+        if not isinstance(token, Token):
+            group_code = meta.get_group_code()
+            token = Token(group_code, num_bgt, digital_signature)
+        else:
+            token.add(num_bgt)
+
+        meta_token.add(num_bgt)
+        return token, meta_token

@@ -32,6 +32,7 @@ from smart_bgt.processor.emission import EmissionMechanism
 
 
 LOGGER = logging.getLogger(__name__)
+BGX_EPSILON = 0.000000000001
 
 
 class SmartBgtTransactionHandler(TransactionHandler):
@@ -53,6 +54,10 @@ class SmartBgtTransactionHandler(TransactionHandler):
         try:
             if verb == 'generate_key':
                 state = ''
+            elif verb == 'balance_of':
+                state = _get_state_data([args['addr']], context)
+            elif verb == 'total_supply':
+                state = _get_state_data([args['token_name']], context)
             elif verb == 'init':
                 private_key = args['private_key']
                 digital_signature = BGXCrypto.DigitalSignature(private_key)
@@ -64,7 +69,9 @@ class SmartBgtTransactionHandler(TransactionHandler):
                 state = _get_state_data([args['Name']], context)
 
             updated_state = _do_smart_bgt(verb, args, state)
-            _set_state_data(updated_state, context)
+
+            if not (verb == 'generate_key' or verb == 'balance_of' or verb == 'total_supply'):
+                _set_state_data(updated_state, context)
         except AttributeError:
             raise InvalidTransaction('Args are required')
 
@@ -136,6 +143,10 @@ def _do_smart_bgt(verb, args, state):
             return _do_transfer(args, state)
         elif verb == 'allowance':
             return _do_allowance(args, state)
+        elif verb == 'balance_of':
+            return _get_balance_of(args, state)
+        elif verb == 'total_supply':
+            return _get_total_supply(args, state)
     except KeyError:
         # This would be a programming error.
         raise InternalError('Unhandled verb: {}'.format(verb))
@@ -156,34 +167,56 @@ def _do_init(args, state):
         private_key = args['private_key']
         ethereum_address = args['ethereum_address']
         num_bgt = int(args['num_bgt'])
-        bgt_price = float(args['bgt_price'])
-        dec_price = float(args['dec_price'])
+        bgt_price = int(args['bgt_price'])
+        dec_price = int(args['dec_price'])
     except KeyError:
-        LOGGER.debug("_do_init not all args")
+        msg = "_do_init not all args"
+        LOGGER.debug(msg)
+        raise InternalError(msg)
 
     updated = {k: v for k, v in state.items()}
-
-    if full_name in state:
-        LOGGER.debug("This type of tokens already exists")
-        return updated
-
     digital_signature = BGXCrypto.DigitalSignature(private_key)
     emission_mechanism = EmissionMechanism()
-    token, meta = emission_mechanism.releaseTokens(full_name, digital_signature, ethereum_address, num_bgt, \
-                                                   bgt_price, dec_price)
+    open_key = digital_signature.getVerifyingKey()
+
+    wallet = BGXwallet()
+    if open_key in state:
+        wallet_str = state[open_key]
+        wallet.fromJSON(wallet_str)
+
+    if full_name in state:
+        LOGGER.debug("This type of tokens already exists. Updating..")
+        meta_str = state[full_name]
+        meta = MetaToken()
+        meta.fromJSON(meta_str)
+        old_price = meta.get_internal_token_price()
+        owner = meta.get_owner_key()
+        group_code = meta.get_group_code()
+
+        if abs(old_price - bgt_price) > BGX_EPSILON or owner != open_key:
+            LOGGER.debug("Old price and new one are different OR wrong public key")
+            return updated
+
+        token = None
+
+        if open_key in state:
+            token = wallet.strictly_get_token(group_code)
+
+        token, meta = emission_mechanism.releaseExtraTokens(token, meta, digital_signature, \
+                                                            ethereum_address, num_bgt, bgt_price, dec_price)
+    else:
+        LOGGER.debug("Creating new type of tokens..")
+        symbol = 'BGT'
+        company_id = 'company_id'
+        description = 'BGT token'
+        token, meta = emission_mechanism.releaseTokens(full_name, symbol, company_id, digital_signature, \
+                                                       ethereum_address, num_bgt, description, bgt_price, dec_price)
 
     if token is None or meta is None:
         LOGGER.debug("Emission failed: not enough money")
         return updated
 
-    open_key = digital_signature.getVerifyingKey()
-    wallet = BGXwallet()
     wallet.append(token)
-
-    if open_key in state:
-        wallet_str = state[open_key]
-        wallet.fromJSON(wallet_str)
-
     updated[full_name] = str(meta.toJSON())
     updated[open_key] = str(wallet.toJSON())
     LOGGER.debug("Init - ready! updated=%s", updated)
@@ -198,7 +231,9 @@ def _do_transfer(args, state):
         num_bgt = float(args['num_bgt'])
         group_id = args['group_id']
     except KeyError:
-        LOGGER.debug("_do_transfer not all arg")
+        msg = "_do_transfer not all args"
+        LOGGER.debug(msg)
+        raise InternalError(msg)
 
     updated = {k: v for k, v in state.items()}
 
@@ -242,13 +277,13 @@ def _do_allowance(args, state):
         num_bgt = float(args['num_bgt'])
         group_id = args['group_id']
     except KeyError:
-        LOGGER.debug("_do_allowance not all arg")
-
-    updated = {k: v for k, v in state.items()}
+        msg = "_do_allowance not all arg"
+        LOGGER.debug(msg)
+        raise InternalError(msg)
 
     if from_addr not in state:
         LOGGER.debug("allowance - address %s not registered", from_addr)
-        return updated
+        return state
 
     from_wallet_str = state[from_addr]
     from_wallet = BGXwallet()
@@ -257,5 +292,46 @@ def _do_allowance(args, state):
 
     res = from_token.send_allowance(num_bgt)
     LOGGER.debug("allowance - result = %s", str(res))
-    return updated
+    return state
 
+
+def _get_balance_of(args, state):
+    LOGGER.debug("_get_balance_of ...")
+    try:
+        addr = args['addr']
+    except KeyError:
+        msg = "_get_balance_of not all arg"
+        LOGGER.debug(msg)
+        raise InternalError(msg)
+
+    if addr not in state:
+        LOGGER.debug("_get_balance_of - address %s not registered", addr)
+        return state
+
+    wallet_str = state[addr]
+    wallet = BGXwallet()
+    wallet.fromJSON(wallet_str)
+    balance = wallet.get_balance()
+    LOGGER.debug("_get_balance_of - address %s balance = %s", addr, str(balance))
+    return state
+
+
+def _get_total_supply(args, state):
+    LOGGER.debug("_get_total_supply ...")
+    try:
+        addr = args['token_name']
+    except KeyError:
+        msg = "_get_total_supply not all arg"
+        LOGGER.debug(msg)
+        raise InternalError(msg)
+
+    if addr not in state:
+        LOGGER.debug("_get_total_supply - metatoken %s not registered", addr)
+        return state
+
+    meta_token_str = state[addr]
+    meta_token = MetaToken()
+    meta_token.fromJSON(meta_token_str)
+    balance = meta_token.get_total_supply()
+    LOGGER.debug("_get_total_supply - total supply of %s = %s", addr, str(balance))
+    return state

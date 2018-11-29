@@ -108,6 +108,25 @@ class BGXwallet():
             token.fromJSON(token_str)
             return token
 
+    def strictly_get_token(self, token_id):
+        if token_id not in self._tokens:
+            return None
+        else:
+            token_str = self._tokens[token_id]
+            del self._tokens[token_id]
+            token = Token()
+            token.fromJSON(token_str)
+            return token
+
+    def get_balance(self):
+        balance = {}
+        cur_token = Token()
+        for token_id in self._tokens.keys():
+            token_str = self._tokens[token_id]
+            cur_token.fromJSON(token_str)
+            balance[token_id] = cur_token.get_amount()
+        return balance
+
     def toJSON(self):
         return json.dumps(self._tokens)
 
