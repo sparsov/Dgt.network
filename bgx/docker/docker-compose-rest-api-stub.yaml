@@ -32,7 +32,7 @@ services:
         cd ../
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api-stub -v --bind rest-api-stub:8008
+        bgx-rest-api-stub -vv --bind rest-api-stub:8008
       "
     stop_signal: SIGKILL
 
