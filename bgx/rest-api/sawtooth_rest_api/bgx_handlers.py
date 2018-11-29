@@ -262,7 +262,7 @@ class BgxRouteHandler(RouteHandler):
         """
 
         address_from =  _base64url2public(address_from)
-        #address_to   =  _base64url2public(address_to)
+        address_to   =  _base64url2public(address_to)
 
         LOGGER.debug('BgxRouteHandler: post_transaction make payload=%s',payload)
         link = await self._make_token_transfer(request,address_from,address_to,num_bgt)
