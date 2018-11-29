@@ -20,7 +20,7 @@ FAMILY_NAME = 'smart-bgt'
 FAMILY_VER  = '1.0'
 SMART_BGT_META = 'BGX_Token'
 SMART_BGT_CREATOR_KEY = 'creator_key'
-SMART_BGT_PRESENT_AMOUNT = 1
+SMART_BGT_PRESENT_AMOUNT = 7
 SMART_BGT_ADDRESS_PREFIX = hashlib.sha512(FAMILY_NAME.encode('utf-8')).hexdigest()[0:6]
 
 
