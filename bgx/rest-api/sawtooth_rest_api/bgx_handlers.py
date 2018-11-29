@@ -294,15 +294,27 @@ class BgxRouteHandler(RouteHandler):
             return self._wrap_error(request,400,'There is no wallet for this public key.')
         status = 'Ok'
         coin_code,amount = self._get_token(result,address)
-        return self._wrap_response(
-            request,
+        """
             data={
                     'status': status,
                     'balance': {
                         'coin_code' : coin_code,
                         'amount'    : amount
                     }
-                })
+                }
+        """
+        return self._wrap_response(
+            request,
+            metadata={
+                'wallet': {
+                        'coin_code' : coin_code,
+                        'amount'    : amount,
+                        'bgt'       : amount
+                    }
+            }
+            )
+            
+            
 
     # First iteration of implementation
     async def post_wallet(self, request):
@@ -347,9 +359,10 @@ class BgxRouteHandler(RouteHandler):
             metadata={
                 user_address: {
                     'status': status,
-                    'balance': {
+                    'wallet': {
                         'coin_code' : coin_code,
-                        'amount'    : amount
+                        'amount'    : amount,
+                        'bgt'       : amount
                     }
                 }
             },
