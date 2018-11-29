@@ -742,7 +742,7 @@ class RouteHandler:
 
         if data is not None:
             envelope['data'] = data
-
+        LOGGER.debug('_wrap_response: envelope=(%s)',envelope)
         return web.Response(
             status=status,
             content_type='application/json',
