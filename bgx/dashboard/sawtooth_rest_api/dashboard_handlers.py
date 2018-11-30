@@ -81,8 +81,14 @@ class DashboardRouteHandler(RouteHandler):
         #LOGGER.debug('DashboardRouteHandler: network=%s',self._network)
 
     async def index(self,request):
-        LOGGER.debug('DashboardRouteHandler: index')
-        content = open(os.path.join(ROOT, 'app/html/index.html'), 'r').read()
+        html = request.match_info.get('html', '/')
+        LOGGER.debug('DashboardRouteHandler: index=%s html=%s',request.path,html)
+        full_path = 'app/html/' +  ('index' if html == '/' else html) + '.html' 
+        try:
+            content = open(os.path.join(ROOT, full_path), 'r').read()
+        except:
+            raise errors.FileNotFound()
+
         return web.Response(content_type='text/html', text=content)
 
     async def javascript(self,request):
