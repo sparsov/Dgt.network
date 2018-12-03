@@ -295,7 +295,7 @@ class PbftBlockPublisher(BlockPublisherInterface):
                 block_cache=self._block_cache,
                 state_view_factory=self._state_view_factory,
                 consensus_state_store=self._consensus_state_store,
-                pbft_enclave_module=pbft_enclave_module
+                pbft_enclave_module=None #pbft_enclave_module
             )
         """
         # for getting PBFT settings from chain
@@ -499,6 +499,8 @@ class PbftBlockPublisher(BlockPublisherInterface):
             # hit the key block claim limit, we won't even bother initializing
             # a block on this chain as it will be rejected by other
             # validators.
+
+            LOGGER.debug("initialize_block:ADD validator_has_claimed_block_limit ")
             pbft_key_state = self._pbft_key_state_store[active_pbft_public_key]
             if not pbft_key_state.has_been_refreshed:
                 LOGGER.info(
