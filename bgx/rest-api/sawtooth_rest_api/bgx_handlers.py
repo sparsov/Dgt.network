@@ -400,3 +400,52 @@ class BgxRouteHandler(RouteHandler):
             },
             status=200)
 
+    async def post_add_funds(self, request):
+        body = await request.json()
+
+        if 'data' not in body:
+            raise errors.NoTransactionPayload()
+
+        data = body['data']
+        try:
+            signed_payload = data['signed_payload']
+            payload = data['payload']
+            address_to = payload['address_to']
+            reason = payload['reason']
+            bgt_num = payload['tx_payload']
+            coin_code = payload['coin_code']
+
+
+        except KeyError:
+            raise errors.BadTransactionPayload()
+
+        
+        LOGGER.debug('BgxRouteHandler:post_add_funds payload(%s)',payload)    
+        try:
+            public_key_to =  _base64url2public(address_to)
+        except :
+            return self._wrap_error(request,400,'Bad wallet address')
+        wallet = await self._get_state_by_addr(request,public_key_to)
+        if wallet is None:
+            LOGGER.debug('BgxRouteHandler:post_add_funds wallet(%s) not found',address_to)
+            raise errors.WalletNotFound()
+        # check emmission
+        meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
+        if meta_token is not None:
+            # create wallet and present some few token
+            meta = json.loads(meta_token[SMART_BGT_META])
+            LOGGER.debug('BgxRouteHandler:post_add_funds meta=%s key=%s bgt_num=%s reason=%s',meta,meta[SMART_BGT_CREATOR_KEY],bgt_num,reason) 
+            # make transfer to new wallet
+            link = await self._make_token_transfer(request,meta[SMART_BGT_CREATOR_KEY],public_key_to,bgt_num)
+        else:
+            return self._wrap_error(request,400,'Emmission must be done before')
+        # Verification of signed hashes
+        #result = rest_api_utils.verify_signature(public_key_to, signed_payload, payload)
+        #if result != 1:
+        #    raise errors.InvalidSignature()
+
+        return self._wrap_response(
+            request,
+            metadata=link,
+            status=200)
+
