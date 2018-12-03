@@ -67,7 +67,11 @@ def _sha512(data):
     return hashlib.sha512(data).hexdigest()
 
 def _base64url2public(addr):
-    return base64.urlsafe_b64decode(addr).decode("utf-8")
+    try:
+        return base64.urlsafe_b64decode(addr).decode("utf-8") 
+    except :
+        raise errors.BadWalletAddress()
+        
 
 def _public2base64url(key):
     return base64.urlsafe_b64encode(key.encode()).decode('utf-8')
@@ -288,10 +292,7 @@ class BgxRouteHandler(RouteHandler):
         """
         address = request.match_info.get('address', '')
         LOGGER.debug('BgxRouteHandler: get_wallet address=%s type=%s',address,type(address))
-        try:
-            address =  _base64url2public(address)
-        except :
-            return self._wrap_error(request,400,'Bad wallet address.')
+        address =  _base64url2public(address)
 
         LOGGER.debug('BgxRouteHandler: get_wallet public=(%s) type=%s',address,type(address))
         result = await self._get_state_by_addr(request,address)
@@ -421,10 +422,7 @@ class BgxRouteHandler(RouteHandler):
 
         
         LOGGER.debug('BgxRouteHandler:post_add_funds payload(%s)',payload)    
-        try:
-            public_key_to =  _base64url2public(address_to)
-        except :
-            return self._wrap_error(request,400,'Bad wallet address')
+        public_key_to =  _base64url2public(address_to)
         wallet = await self._get_state_by_addr(request,public_key_to)
         if wallet is None:
             LOGGER.debug('BgxRouteHandler:post_add_funds wallet(%s) not found',address_to)

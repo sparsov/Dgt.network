@@ -310,3 +310,9 @@ class WalletNotFound(_ApiError):
     title = "User's wallet not found"
     message = ''
 
+class BadWalletAddress(_ApiError):
+    api_code = 91
+    status_code = 400
+    title = "Bad wallet addres"
+    message = ''
+
