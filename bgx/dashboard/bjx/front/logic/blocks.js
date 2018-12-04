@@ -4,6 +4,7 @@ export function convertBlocks(data) {
     let parent = {name: 'initial'}
     let initial = parent
     data.data.forEach((i) => {
+      i.header.block_num = parseInt(i.header.block_num)
 
       let node = {
         name: trimHash(i.header_signature),

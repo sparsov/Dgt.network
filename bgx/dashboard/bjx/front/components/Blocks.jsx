@@ -2,7 +2,9 @@ import React from 'react'
 import { connect } from 'react-redux'
 import classNames from 'classnames/bind'
 
-import Block from './Block'
+import Hash from './Hash'
+
+import ReactTable from "react-table"
 
 class Blocks extends React.Component {
 
@@ -117,7 +119,7 @@ class Blocks extends React.Component {
   }
 
   render() {
-    const {graph_blocks, blocks_data, className, id, role} = this.props;
+    const {graph_blocks, columns, blocks_data, className, id, role} = this.props;
 
     if (graph_blocks == null)
     return (
@@ -138,24 +140,10 @@ class Blocks extends React.Component {
           </div>
           <div className='row'>
             <div className='col-12'>
-
-              <table className={classNames('table', 'table-bordered', 'table-sm', 'table-striped')}>
-                <thead>
-                  <tr>
-                    <th>Block Num</th>
-                    <th>Batch Ids</th>
-                    <th>Consensus</th>
-                    <th>Previous block ID</th>
-                    <th>signer_public_key</th>
-                    <th>state root hash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {blocks_data.map((t) => {
-                  return <Block key={t.header_signature} t={t}/>
-                })}
-                </tbody>
-              </table>
+              <ReactTable data={blocks_data}
+              defaultPageSize={10}
+              columns={columns}
+              className='-striped'/>
             </div>
           </div>
         </div>
@@ -166,6 +154,36 @@ class Blocks extends React.Component {
 Blocks.defaultProps = {
   graph_blocks: null,
   blocks_data: [],
+  columns: [
+  {
+    id: 'blockNum',
+    Header: 'Block Num',
+    accessor: d => parseInt(d.header.block_num),
+    width: 30,
+  },
+  { id: 'batchIds',
+    Header: 'Batch Ids',
+    accessor: d => d.header.batch_ids.map((i) => {
+          return (  <Hash key={i} hash={i}/> )
+        })
+  },
+  {
+    id: 'consensus',
+    Header: 'Consensus',
+    accessor: d => d.header.consensus,
+  },
+    { id: 'prevBlockId',
+    Header: 'Previous Block ID',
+    accessor: d => <Hash hash={d.header.previous_block_id}/>,
+  },
+    { id: 'signerPublicKey',
+    Header: 'Signer Public Key',
+    accessor: d => <Hash hash={d.header.signer_public_key}/>,
+  },
+    { id: 'stateRootHash',
+    Header: 'state Root Hash',
+    accessor: d =><Hash hash={d.header.state_root_hash}/>,
+  },]
 };
 
 function mapStateToProps(store) {
