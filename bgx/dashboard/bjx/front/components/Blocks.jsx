@@ -2,13 +2,15 @@ import React from 'react'
 import { connect } from 'react-redux'
 import classNames from 'classnames/bind'
 
+import Block from './Block'
+
 class Blocks extends React.Component {
 
   componentDidUpdate() {
 
-    const data = Object.assign({}, this.props.blocks);
+    const data = Object.assign({}, this.props.graph_blocks);
 
-    var width = 680,
+    var width = 600,
         height = 300,
         root;
 
@@ -117,9 +119,9 @@ class Blocks extends React.Component {
   }
 
   render() {
-    const {blocks, className, id, role} = this.props;
+    const {graph_blocks, blocks_data, className, id, role} = this.props;
 
-    if (blocks == null)
+    if (graph_blocks == null)
     return (
       <div className={className} id={id} role={role}>
         <strong> No Blocks</strong>
@@ -127,9 +129,34 @@ class Blocks extends React.Component {
     else
       return (
         <div className={className} id={id} role={role}>
-          <div className='container'>
-            <div className='chartContainer'>
-              <svg className='chart-block'/>
+          <div classNmae='row'>
+            <div className='col-6'>
+              <div className='container'>
+                <div className='chartContainer'>
+                  <svg className='chart-block'/>
+                </div>
+              </div>
+            </div>
+
+            <div className='col-6'>
+
+              <table className={classNames('table', 'table-bordered', 'table-sm', 'table-striped')}>
+                <thead>
+                  <tr>
+                    <th>Block Num</th>
+                    <th>Batch Ids</th>
+                    <th>Consensus</th>
+                    <th>Previous block ID</th>
+                    <th>signer_public_key</th>
+                    <th>state root hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {blocks_data.map((t) => {
+                  return <Block key={t.header_signature} t={t}/>
+                })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -138,12 +165,14 @@ class Blocks extends React.Component {
 }
 
 Blocks.defaultProps = {
-  blocks: null,
+  graph_blocks: null,
+  blocks_data: [],
 };
 
 function mapStateToProps(store) {
   return {
-    blocks: store.blocksReducer.data,
+    graph_blocks: store.blocksReducer.data.graph,
+    blocks_data: store.blocksReducer.data.data,
   };
 }
 

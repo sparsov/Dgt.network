@@ -27,12 +27,9 @@ class Graph extends React.Component {
   componentDidUpdate() {
     const data = Object.assign({}, this.props.data);
 
-
 var width = +d3.select('.chart').style('width').slice(0, -2),
     height = 300,
     root;
-
-
 
 
     var force = d3.layout.force()
@@ -97,13 +94,16 @@ function update() {
 
   nodeEnter.append("text")
       .attr("dy", "-1em")
-      .text(function(d) { return d.IP; });
+      .text(function(d) { return d.IP; })
+      .style("opacity",  function(d) { return d.node_state == 'active' ? 1 : 0.3; })
+      .style("font-weight",  function(d) { return d.node_state == 'active' ? 'bold' : 'normal'; })
   node.select("circle")
    .attr("r", function(d) {
         return (d.ssselect === undefined || !d.ssselect ? 5 : 10) });
 
   node.select("circle")
-      .style("fill", color);
+      .style("fill", color)
+      .style("opacity",  function(d) { return d.node_state == 'active' ? 1 : 0.3; })
 }
 
 function tick() {
@@ -118,8 +118,7 @@ function tick() {
 function color(d) {
   return d.ssselect ? "#00FF00"
       : d._children ? "#3182bd" // collapsed package
-      : d.children ? "#c6dbef" // expanded package
-      : "#fd8d3c"; // leaf node
+      : "#c6dbef" // expanded package
 }
 
 function mouseLeave(d){
@@ -135,8 +134,8 @@ function mouseOver(d){
   div
     .style("opacity", .9);
   div.html("IP: "+d.IP + "<br/>"+
-            "State: " + d.node_state +"<br/>"+
-            "Type: " + d.node_type)
+            d.node_state +"<br/>"+
+            d.node_type)
    .style("left", (d.x) + "px")
    .style("top", (d.y + 12) + "px")
 

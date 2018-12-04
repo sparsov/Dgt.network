@@ -12,5 +12,7 @@ export function convertBlocks(data) {
       parent.children = [node]
       parent = node
     })
-  return initial.children[0];
+
+    data['graph'] = initial.children[0];
+  return data;
 }
