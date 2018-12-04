@@ -15,6 +15,7 @@ export function convertBlocks(data) {
       parent = node
     })
 
-    data['graph'] = initial.children[0];
+    data.graph = initial.children[0];
+    data.data = data.data.reverse();
   return data;
 }

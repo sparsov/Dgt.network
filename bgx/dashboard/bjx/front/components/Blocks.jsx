@@ -142,6 +142,7 @@ class Blocks extends React.Component {
             <div className='col-12'>
               <ReactTable data={blocks_data}
               defaultPageSize={10}
+              minRows={0}
               columns={columns}
               className='-striped'/>
             </div>

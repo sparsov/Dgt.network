@@ -1,41 +1,63 @@
 import React from 'react'
-import Transaction from './Transaction'
 import { connect } from 'react-redux'
 import classNames from 'classnames/bind'
 
+import Hash from './Hash'
+
+import ReactTable from 'react-table'
+
 class Transactions extends React.Component {
   render() {
-    const {transactions, className, id, role} = this.props
-
-    if (!transactions.length)
-      return (<div className={className} id={id} role={role}>
-        <strong> No transactions</strong>
-        </div>)
-    else
-      return (<div className={className} id={id} role={role}>
-        <table className={classNames('table', 'table-bordered', 'table-sm', 'table-striped')}>
-          <thead>
-            <tr>
-              <th>family name (family version)</th>
-              <th>inputs</th>
-              <th>outputs</th>
-              <th><i>from</i></th>
-              <th><i>to</i></th>
-              <th>signer_public_key</th>
-            </tr>
-          </thead>
-          <tbody>
-        {transactions.map((t) => {
-          return <Transaction key={t.header_signature} t={t}/>
-        })}
-        </tbody>
-        </table>
-      </div>)
+    const {transactions, columns, className, id, role} = this.props
+    return (
+      <div className={className} id={id} role={role}>
+      {!transactions.length ? (
+      <strong> No transactions</strong>
+      ) : (
+      <ReactTable data={transactions}
+        defaultPageSize={10}
+        minRows={0}
+        columns={columns}
+        className='-striped'/>
+        )}
+    </div>
+    )
   }
 }
 
 Transactions.defaultProps = {
   transactions: [],
+  columns: [
+  {
+    id: 'family',
+    Header: 'Family name (family version)',
+    accessor: t => `${t.header.family_name} ${t.header.family_version}`,
+  },
+  { id: 'inputs',
+    Header: 'Inputs',
+    accessor: t => t.header.inputs.map((i) => {
+          return (  <Hash key={i} hash={i}/> )
+        })
+  },
+  {
+    id: 'outputs',
+    Header: 'Outputs',
+    accessor: t => t.header.outputs.map((i) => {
+          return (  <Hash key={i} hash={i}/> )
+        })
+  },
+  { id: 'from',
+    Header: 'From',
+    accessor: d => <i>wallet key</i>,
+  },
+  { id: 'to',
+    Header: 'To',
+    accessor: d => <i>wallet key</i>,
+  },
+  { id: 'signerPublicKey',
+    Header: 'Signer Public Key',
+    accessor: d => <Hash hash={d.header.signer_public_key}/>,
+  }]
 };
 
 function mapStateToProps(store) {

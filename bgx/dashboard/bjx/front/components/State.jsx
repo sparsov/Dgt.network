@@ -3,42 +3,37 @@ import { connect } from 'react-redux'
 import classNames from 'classnames/bind'
 import Hash from './Hash'
 
+import ReactTable from "react-table"
+
 class State extends React.Component {
   render() {
-      const {state, className, id, role} = this.props;
-
-      if (!state.length)
-        return (<div className={className} id={id} role={role}>
-          <strong> No State</strong>
-          </div>)
-      else
-          return (
-            <div className={className} id={id} role={role}>
-              <table className={classNames('table', 'table-bordered', 'table-sm', 'table-striped')}>
-                <thead>
-                  <tr>
-                    <th>address</th>
-                    <th>data</th>
-                  </tr>
-                </thead>
-                <tbody>
-              {state.map((t) => {
-                return (
-                    <tr>
-                      <td><Hash hash={t.address}/></td>
-                      <td><Hash hash={t.data}/></td>
-                    </tr>
-                  )
-              })}
-              </tbody>
-              </table>
-            </div>
-          )
+    const {state, columns, className, id, role} = this.props;
+    return (<div className={className} id={id} role={role}>
+      {!state.length  ? (
+        <strong> No State</strong>
+      ) : (
+        <ReactTable data={state}
+          defaultPageSize={10}
+          columns={columns}
+          minRows={0}
+          className='-striped'/>
+      )}
+      </div>
+    )
   }
 }
 
 State.defaultProps = {
   state: [],
+  columns: [{
+    id: 'address',
+    Header: 'Address',
+    accessor: t => <Hash hash={t.address}/>,
+  },{
+    id: 'data',
+    Header: 'Data',
+    accessor: t => <Hash hash={t.data}/>,
+  },]
 };
 
 function mapStateToProps(store) {
