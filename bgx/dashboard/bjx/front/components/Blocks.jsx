@@ -7,10 +7,16 @@ import Hash from './Hash'
 import ReactTable from "react-table"
 
 class Blocks extends React.Component {
+  constructor(props){
+    super(props)
+    this.state= { selectedBlockNum: null}
+  }
 
   componentDidUpdate() {
-
     const data = Object.assign({}, this.props.graph_blocks);
+
+    const { selectedBlockNum } = this.state;
+    const that = this;
 
     var width = 680,
         height = 600,
@@ -86,20 +92,19 @@ class Blocks extends React.Component {
     }
 
     function color(d) {
-            return d.number == 0 ? "#fd8d3c" : "#c6dbef" // collapsed package
+      //return d.number == 0 ? "#fd8d3c" : "#c6dbef" // collapsed package
+
+      return d.number == selectedBlockNum ? "#00FF00" :
+      (d.number == 0 ? "#fd8d3c" : "#c6dbef") // collapsed package
     }
 
     // Toggle children on click.
     function click(d) {
       if (d3.event.defaultPrevented) return; // ignore drag
-      if (d.children) {
-        d._children = d.children;
-        d.children = null;
-      } else {
-        d.children = d._children;
-        d._children = null;
-      }
-      store.dispatch(selectP(d))
+
+      that.setState({
+        selectedBlockNum: d.number,
+      });
       update();
     }
 
@@ -119,6 +124,7 @@ class Blocks extends React.Component {
   }
 
   render() {
+    const that = this;
     const {graph_blocks, columns, blocks_data, className, id, role} = this.props;
 
     if (graph_blocks == null)
@@ -144,7 +150,24 @@ class Blocks extends React.Component {
               defaultPageSize={10}
               minRows={0}
               columns={columns}
-              className='-striped'/>
+              className='-striped'
+              getTrProps={(state, rowInfo) => {
+                if (rowInfo && rowInfo.row) {
+                  return {
+                    onClick: (e) => {
+                      that.setState({
+                        selectedBlockNum: rowInfo.row.blockNum,
+                      })
+                    },
+                    style: {
+                      background: rowInfo.index === this.state.selectedBlockNum ? '#b8daff' :
+                       rowInfo.index%2 == 0 ? 'rgba(0,0,0,.05)' : 'white',
+                    }
+                  }
+                }else{
+                  return {}
+                }
+              }} />
             </div>
           </div>
         </div>
