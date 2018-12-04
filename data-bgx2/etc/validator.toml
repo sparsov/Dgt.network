@@ -28,8 +28,8 @@
 # network and component.
 bind = [
   "network:tcp://validator-bgx-2:8801",
-  "component:tcp://127.0.0.1:4004",
-  "consensus:tcp://127.0.0.1:5050"
+  "component:tcp://127.0.0.1:4006",
+  "consensus:tcp://127.0.0.1:5051"
 ]
 
 # The type of peering approach the validator should take. Choices are 'static'
