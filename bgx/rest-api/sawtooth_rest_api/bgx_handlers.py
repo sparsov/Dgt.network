@@ -190,6 +190,15 @@ class BgxRouteHandler(RouteHandler):
             amount    = amount + coin(token)
         return coin_code,amount
 
+    async def get_meta_token(self,request):
+        meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
+        if meta_token is None:
+            return meta_token,''
+        # create wallet and present some few token
+        meta = json.loads(meta_token[SMART_BGT_META])
+        LOGGER.debug('BgxRouteHandler:get_meta_token=%s key=%s',meta,meta[SMART_BGT_CREATOR_KEY])
+        return meta_token,meta[SMART_BGT_CREATOR_KEY]
+         
 
     def _wrap_error(self,request,code,mesg,title = 'Error'):
         return self._wrap_response(
@@ -271,8 +280,16 @@ class BgxRouteHandler(RouteHandler):
         """
 
         address_from =  _base64url2public(address_from)
-        address_to   =  _base64url2public(address_to)
-
+        try:
+            address_to   =  _base64url2public(address_to)
+        except errors.BadWalletAddress:
+            LOGGER.debug('BgxRouteHandler: post_transfer  BadWalletAddress= %s',address_to)
+            meta_token,meta_wallet = await self.get_meta_token(request)
+            if meta_token is None:
+                raise errors.BadWalletAddress()
+            LOGGER.debug('BgxRouteHandler: post_transfer to META WALLET=%s',meta_wallet)
+            address_to = meta_wallet
+        
         LOGGER.debug('BgxRouteHandler: post_transaction make payload=%s',payload)
         link = await self._make_token_transfer(request,address_from,address_to,num_bgt)
         status = 202
@@ -337,13 +354,14 @@ class BgxRouteHandler(RouteHandler):
         wallet = await self._get_state_by_addr(request,public_key)
         if wallet is None:
             LOGGER.debug('BgxRouteHandler:post_wallet CREATE NEW WALLET') 
-            meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
+            #meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
+            meta_token,meta_wallet = await self.get_meta_token(request)
             if meta_token is not None:
                 # create wallet and present some few token
-                meta = json.loads(meta_token[SMART_BGT_META])
-                LOGGER.debug('BgxRouteHandler:post_wallet meta=%s key=%s',meta,meta[SMART_BGT_CREATOR_KEY]) 
+                #meta = json.loads(meta_token[SMART_BGT_META])
+                #LOGGER.debug('BgxRouteHandler:post_wallet meta=%s key=%s',meta,meta[SMART_BGT_CREATOR_KEY]) 
                 # make transfer to new wallet
-                link = await self._make_token_transfer(request,meta[SMART_BGT_CREATOR_KEY],public_key,SMART_BGT_PRESENT_AMOUNT)
+                link = await self._make_token_transfer(request,meta_wallet,public_key,SMART_BGT_PRESENT_AMOUNT)
                 LOGGER.debug('BgxRouteHandler:post_wallet link=%s',link) 
                 # SHOULD DO waiting until wallet was created
                 #wallet = await self._get_state_by_addr(request,public_key)
