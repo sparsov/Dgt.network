@@ -7,6 +7,7 @@ export function convertBlocks(data) {
 
       let node = {
         name: trimHash(i.header_signature),
+        number: i.header.block_num,
         children: []
       }
       parent.children = [node]

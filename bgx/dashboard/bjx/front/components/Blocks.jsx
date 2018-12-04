@@ -10,12 +10,12 @@ class Blocks extends React.Component {
 
     const data = Object.assign({}, this.props.graph_blocks);
 
-    var width = 600,
-        height = 300,
+    var width = 680,
+        height = 600,
         root;
 
     var force = d3.layout.force()
-        .linkDistance(80)
+        .linkDistance(50)
         .charge(-120)
         .gravity(.05)
         .size([width, height])
@@ -64,7 +64,7 @@ class Blocks extends React.Component {
           .call(force.drag);
 
       nodeEnter.append("circle")
-          .attr("r", function(d) { return Math.sqrt(d.size) / 10 || 4.5; });
+          .attr("r", function(d) { return d.number == 0 ? 6 : 4 });
 
       nodeEnter.append("text")
           .attr("dy", ".35em")
@@ -84,9 +84,7 @@ class Blocks extends React.Component {
     }
 
     function color(d) {
-      return d._children ? "#3182bd" // collapsed package
-          : d.children ? "#c6dbef" // expanded package
-          : "#fd8d3c"; // leaf node
+            return d.number == 0 ? "#fd8d3c" : "#c6dbef" // collapsed package
     }
 
     // Toggle children on click.
