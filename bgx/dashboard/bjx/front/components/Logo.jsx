@@ -24,7 +24,7 @@ class Logo extends React.Component {
          <span className="logo" dangerouslySetInnerHTML={{ __html: LogoSvg }}></span>
         </a>
         BGX Web viewer [ALPHA]
-        <a to="#" onClick={this.handleClick} class="btn btn-outline-success">Update</a>
+        <a to="#" onClick={this.handleClick} className="btn btn-outline-success">Update</a>
       </nav>);
   }
 }

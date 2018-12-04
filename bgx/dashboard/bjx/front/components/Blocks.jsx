@@ -129,16 +129,17 @@ class Blocks extends React.Component {
     else
       return (
         <div className={className} id={id} role={role}>
-          <div classNmae='row'>
-            <div className='col-6'>
+          <div className='row'>
+            <div className='col-12'>
               <div className='container'>
                 <div className='chartContainer'>
                   <svg className='chart-block'/>
                 </div>
               </div>
             </div>
-
-            <div className='col-6'>
+          </div>
+          <div className='row'>
+            <div className='col-12'>
 
               <table className={classNames('table', 'table-bordered', 'table-sm', 'table-striped')}>
                 <thead>

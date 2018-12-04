@@ -33,7 +33,7 @@ var width = +d3.select('.chart').style('width').slice(0, -2),
 
 
     var force = d3.layout.force()
-    .linkDistance(80)
+    .linkDistance(60)
     .charge(-120)
     .gravity(.05)
     .size([width, height])
