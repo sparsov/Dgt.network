@@ -190,9 +190,10 @@ class BgxRouteHandler(RouteHandler):
             amount    = amount + coin(token)
         return coin_code,amount
 
-    async def get_meta_token(self,request):
+    async def get_meta_token(self,request,coin_code = 'bgt'):
         """
-        get meta token and corresponding wallet
+        get meta token coin_code and corresponding wallet
+        now use SMART_BGT_META as coin_code - FIX IT 
         """
         meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
         if meta_token is None:
@@ -271,11 +272,10 @@ class BgxRouteHandler(RouteHandler):
             address_from = payload['address_from']
             address_to = payload['address_to']
             num_bgt    = payload['tx_payload']
-            coin_code    = payload['coin_code']
 
         except KeyError:
             raise errors.BadTransactionPayload()
-
+        coin_code    = payload['coin_code'] if 'coin_code' in payload else None
         # Verification of signed hashes
         """
         result = rest_api_utils.verify_signature(public_key_from, signed_payload, payload)
@@ -288,14 +288,14 @@ class BgxRouteHandler(RouteHandler):
             address_to   =  _base64url2public(address_to)
         except errors.BadWalletAddress:
             LOGGER.debug('BgxRouteHandler: post_transfer  BadWalletAddress= %s',address_to)
-            meta_token,meta_wallet = await self.get_meta_token(request)
+            meta_token,meta_wallet = await self.get_meta_token(request,coin_code)
             if meta_token is None:
                 raise errors.BadWalletAddress()
             LOGGER.debug('BgxRouteHandler: post_transfer to META WALLET=%s',meta_wallet)
             address_to = meta_wallet
         
         LOGGER.debug('BgxRouteHandler: post_transaction make payload=%s',payload)
-        link = await self._make_token_transfer(request,address_from,address_to,num_bgt)
+        link = await self._make_token_transfer(request,address_from,address_to,num_bgt,coin_code)
         status = 202
 
         retval = self._wrap_response(
@@ -361,9 +361,7 @@ class BgxRouteHandler(RouteHandler):
             #meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
             meta_token,meta_wallet = await self.get_meta_token(request)
             if meta_token is not None:
-                # create wallet and present some few token
-                #meta = json.loads(meta_token[SMART_BGT_META])
-                #LOGGER.debug('BgxRouteHandler:post_wallet meta=%s key=%s',meta,meta[SMART_BGT_CREATOR_KEY]) 
+                # create wallet and present some few 'bgt' token as default 
                 # make transfer to new wallet
                 link = await self._make_token_transfer(request,meta_wallet,public_key,SMART_BGT_PRESENT_AMOUNT)
                 LOGGER.debug('BgxRouteHandler:post_wallet link=%s',link) 
@@ -450,13 +448,11 @@ class BgxRouteHandler(RouteHandler):
             LOGGER.debug('BgxRouteHandler:post_add_funds wallet(%s) not found',address_to)
             raise errors.WalletNotFound()
         # check emmission
-        meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
+        meta_token,meta_wallet = await self.get_meta_token(request,coin_code)
         if meta_token is not None:
-            # create wallet and present some few token
-            meta = json.loads(meta_token[SMART_BGT_META])
-            LOGGER.debug('BgxRouteHandler:post_add_funds meta=%s key=%s bgt_num=%s reason=%s',meta,meta[SMART_BGT_CREATOR_KEY],bgt_num,reason) 
-            # make transfer to new wallet
-            link = await self._make_token_transfer(request,meta[SMART_BGT_CREATOR_KEY],public_key_to,bgt_num)
+            LOGGER.debug('BgxRouteHandler:post_add_funds key=%s bgt_num=%s reason=%s',meta_wallet,bgt_num,reason) 
+            # make transfer to  public_key_to wallet
+            link = await self._make_token_transfer(request,meta_wallet,public_key_to,bgt_num,coin_code)
         else:
             return self._wrap_error(request,400,'Emmission must be done before')
         # Verification of signed hashes
