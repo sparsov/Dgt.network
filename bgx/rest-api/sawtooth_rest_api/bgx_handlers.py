@@ -192,7 +192,7 @@ class BgxRouteHandler(RouteHandler):
 
     async def get_meta_token(self,request):
         """
-        get meta token and correspondent wallet
+        get meta token and corresponding wallet
         """
         meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
         if meta_token is None:
