@@ -192,7 +192,7 @@ class BgxRouteHandler(RouteHandler):
 
     async def get_meta_token(self,request,coin_code = 'bgt'):
         """
-        get meta token coin_code and corresponding wallet
+        get meta token with label coin_code and corresponding wallet
         now use SMART_BGT_META as coin_code - FIX IT 
         """
         meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
@@ -358,7 +358,6 @@ class BgxRouteHandler(RouteHandler):
         wallet = await self._get_state_by_addr(request,public_key)
         if wallet is None:
             LOGGER.debug('BgxRouteHandler:post_wallet CREATE NEW WALLET') 
-            #meta_token = await self._get_state_by_addr(request,SMART_BGT_META)
             meta_token,meta_wallet = await self.get_meta_token(request)
             if meta_token is not None:
                 # create wallet and present some few 'bgt' token as default 
