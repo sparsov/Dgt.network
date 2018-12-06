@@ -214,7 +214,7 @@ class BgxRouteHandler(RouteHandler):
                         status=code
                         )
 
-    async def _make_token_transfer(self,request,address_from,address_to,num_bgt):
+    async def _make_token_transfer(self,request,address_from,address_to,num_bgt,coin_code='bgt'):
         """
         Make transfer from wallet to wallet
         """
@@ -224,7 +224,7 @@ class BgxRouteHandler(RouteHandler):
             'Name'   : address_from,
             'to_addr': address_to,
             'num_bgt': num_bgt,
-            'group_id' : 'group_code'
+            'group_id' : coin_code
         })
         LOGGER.debug('BgxRouteHandler: _make_token_transfer make payload=%s',payload_bytes)
         in_address = make_smart_bgt_address(address_from)
@@ -271,6 +271,7 @@ class BgxRouteHandler(RouteHandler):
             address_from = payload['address_from']
             address_to = payload['address_to']
             num_bgt    = payload['tx_payload']
+            coin_code    = payload['coin_code']
 
         except KeyError:
             raise errors.BadTransactionPayload()
