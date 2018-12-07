@@ -149,7 +149,8 @@ class DashboardRouteHandler(RouteHandler):
                     yaml.safe_load(result)["data"]))[name]
         """
         #content1 = yaml.safe_load(response['value'])
-        content = cbor.loads(response['value'].encode('utf-8'))
+        #content = cbor.loads(response['value'].encode('utf-8'))
+        content = cbor.loads(base64.b64decode(response['value']))
         LOGGER.debug('DashboardRouteHandler: fetch_state=(%s) type=%s',content,type(response['value']))
         return self._wrap_response(
             request,
