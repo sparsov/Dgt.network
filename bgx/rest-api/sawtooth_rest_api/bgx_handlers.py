@@ -470,14 +470,7 @@ class BgxRouteHandler(RouteHandler):
             usermeta={
                 'transactions': result_list
             })
-        """
-        return self._wrap_response(
-            request,
-            metadata={
-                'transactions': result_list
-            },
-            status=200)
-        """    
+
     async def post_add_funds(self, request):
         body = await request.json()
 
