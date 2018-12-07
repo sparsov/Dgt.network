@@ -462,6 +462,7 @@ class BgxRouteHandler(RouteHandler):
 
             result_list.append(result_tx)
 
+        LOGGER.debug('get_global_transactions result_list=%s',result_list)
         return self._wrap_paginated_response(
             request=request,
             response=response,
