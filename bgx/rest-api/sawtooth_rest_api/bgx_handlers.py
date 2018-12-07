@@ -20,6 +20,7 @@ import json
 import base64
 import hashlib
 import random
+from datetime import datetime
 
 from aiohttp import web
 
@@ -413,10 +414,58 @@ class BgxRouteHandler(RouteHandler):
         """
         DONT USE now instead list_transactions handler
         """
+        LOGGER.debug('list_transactions for validator')
+
+        paging_controls = self._get_paging_controls(request)
+        validator_query = client_transaction_pb2.ClientTransactionListRequest(
+            head_id=self._get_head_id(request),
+            transaction_ids=self._get_filter_ids(request),
+            sorting=self._get_sorting_message(request, "default"),
+            paging=self._make_paging_message(paging_controls))
+
+        response = await self._query_validator(
+            Message.CLIENT_TRANSACTION_LIST_REQUEST,
+            client_transaction_pb2.ClientTransactionListResponse,
+            validator_query)
+
+        data = [self._expand_transaction(t) for t in response['transactions']]
+
+        transactions = [cbor.loads(base64.b64decode(tx['payload'])) for tx in data]
+        # transactions = list(filter(lambda tx: 'Verb' in tx and tx['Verb'] == 'transfer',
+        #                            [cbor.loads(base64.b64decode(tx['payload'])) for tx in data]))
+
+        result_list = []
+        for tx in transactions:
+            if not isinstance(tx, dict) or \
+                    'Verb' not in tx or \
+                    tx['Verb'] != 'transfer':
+                continue
+            result_tx = {
+                    'timestamp': datetime.now().__str__(),
+                    'status': True,
+                    'tx_payload': tx['num_bgt'],
+                    'currency': tx['group_id'],
+                    'address_from': tx['Name'],
+                    'address_to': tx['to_addr'],
+                    'fee': 0.1,
+                    'extra': 'extra information'
+                }
+            try:
+                result_tx['address_from'] = _public2base64url(result_tx['address_from'])
+            except:
+                pass
+
+            try:
+                result_tx['address_to'] = _public2base64url(result_tx['address_to'])
+            except:
+                pass
+
+            result_list.append(result_tx)
+
         return self._wrap_response(
             request,
             metadata={
-                'transactions': []
+                'transactions': result_list
             },
             status=200)
 
