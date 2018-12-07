@@ -36,8 +36,8 @@ services:
     - network1
     ports:
       - "8008:8008" 
-    depends_on:
-       - validator-bgx
+    #depends_on:
+    #   - validator-bgx
     command: |
       bash -c "
         bgx/bin/protogen
