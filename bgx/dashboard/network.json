@@ -1,5 +1,9 @@
 {
-	"net_structure":{
+    "groups":[
+      {"name" : "Activity","field" : "node_state","list":[]},
+      {"name" : "Type","field" : "node_type","list":[]}
+    ],
+    "net_structure":{
 			"parent_node": 
 			{
 				"public_key": "02f2068c16fe9fd0ffcc1da19fd98add24c89c6c5b6c080a1895ee53b565d5cf6c",
