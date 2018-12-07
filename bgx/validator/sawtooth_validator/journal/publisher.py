@@ -743,7 +743,7 @@ class BlockPublisher(object):
 
                     if block:
                         blkw = BlockWrapper(block)
-                        LOGGER.info("Claimed Block: %s", blkw)
+                        LOGGER.info("Claimed Block: %s (%s)",blkw,block)
                         self._block_sender.send(blkw.block)
                         self._blocks_published_count.inc()
 

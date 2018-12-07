@@ -57,7 +57,7 @@ class BlockWrapper(object):
     @property
     def batches(self):
         """
-        Returns the consensus object of the block.
+        Returns the batches object of the block.
         """
         return self.block.batches
 

@@ -74,8 +74,8 @@ class ConsensusFactory(object):
         """
         settings_view = SettingsView(state_view)
 
-        default_consensus = 'genesis' if block_id == NULL_BLOCK_IDENTIFIER else 'devmode'  # 'pbft' 'devmode'
+        default_consensus = 'genesis' if block_id == NULL_BLOCK_IDENTIFIER else 'devmode'  
         consensus_module_name = settings_view.get_setting('sawtooth.consensus.algorithm', default_value=default_consensus)
-        LOGGER.debug("ConsensusFactory: consensus_module_name=%s  default_consensus=%s",consensus_module_name,default_consensus)
+        LOGGER.debug("ConsensusFactory: consensus_module_name=%s",consensus_module_name)
         return ConsensusFactory.get_consensus_module(
             consensus_module_name)
