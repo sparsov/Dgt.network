@@ -154,7 +154,7 @@ class DashboardRouteHandler(RouteHandler):
         LOGGER.debug('DashboardRouteHandler: fetch_state=(%s) type=%s',content,type(response['value']))
         return self._wrap_response(
             request,
-            data=response['value'],
+            data=content,
             metadata=self._get_metadata(request, response, head=head))
 
 
