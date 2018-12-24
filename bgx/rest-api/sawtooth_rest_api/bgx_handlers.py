@@ -58,7 +58,7 @@ from smart_bgt.processor.utils import FAMILY_NAME as SMART_BGX_FAMILY
 from smart_bgt.processor.utils import FAMILY_VER as SMART_BGX_VER
 from smart_bgt.processor.utils import SMART_BGT_META,SMART_BGT_CREATOR_KEY,SMART_BGT_PRESENT_AMOUNT
 from smart_bgt.processor.utils import make_smart_bgt_address
-
+import time
 LOGGER = logging.getLogger(__name__)
 
 TRANSACTION_FEE = 0.1
@@ -249,9 +249,37 @@ class BgxRouteHandler(RouteHandler):
                 validator_query,
                 error_traps)
 
+
+        # Ask validator for batch status while it changes from PENDING
+        pending_status = 'PENDING'
+        status = ''
+        while True:
+            error_traps = [error_handlers.StatusResponseMissing]
+            validator_query = \
+                client_batch_submit_pb2.ClientBatchStatusRequest(
+                    batch_ids=[batch_id])
+            self._set_wait(request, validator_query)
+            response = await self._query_validator(
+                Message.CLIENT_BATCH_STATUS_REQUEST,
+                client_batch_submit_pb2.ClientBatchStatusResponse,
+                validator_query,
+                error_traps)
+            metadata = self._get_metadata(request, response)
+            data = self._drop_id_prefixes(
+                self._drop_empty_props(response['batch_statuses']))
+
+            LOGGER.debug('CLIENT_BATCH_STATUS_REQUEST:metadata:%s', metadata)
+            LOGGER.debug('CLIENT_BATCH_STATUS_REQUEST:data:%s', data)
+            batch = data[0]
+            if batch['status'] != pending_status:
+                status = batch['status']
+                break
+            time.sleep(5)
+
+
         # Build response envelope
-        link = self._build_url(request, path='/batch_statuses', id=batch_id)
-        return link
+        # link = self._build_url(request, path='/batch_statuses', id=batch_id)
+        return status
 
     async def post_transfer(self, request):
         """
@@ -296,13 +324,26 @@ class BgxRouteHandler(RouteHandler):
             address_to = meta_wallet
         
         LOGGER.debug('BgxRouteHandler: post_transaction make payload=%s',payload)
-        link = await self._make_token_transfer(request,address_from,address_to,num_bgt,coin_code)
-        status = 202
+        tx_status = await self._make_token_transfer(request,address_from,address_to,num_bgt,coin_code)
+        # status = 202
+
+        tx = {
+            'timestamp': datetime.now().__str__(),
+            'status': True,
+            'tx_payload': num_bgt,
+            'currency': payload['coin_code'],
+            'address_from': address_from,
+            'address_to': address_to,
+            'fee': TRANSACTION_FEE,
+            'tx_status': tx_status,
+            'extra': 'post_transfer'
+        }
 
         retval = self._wrap_response(
             request,
-            metadata={'link': link},
-            status=status)
+            # metadata={'link': link},
+            metadata=tx,
+            status=200)
         LOGGER.debug('BgxRouteHandler: post_transfer retval=%s',retval)
         timer_ctx.stop()
         return retval
@@ -363,8 +404,8 @@ class BgxRouteHandler(RouteHandler):
             if meta_token is not None:
                 # create wallet and present some few 'bgt' token as default 
                 # make transfer to new wallet
-                link = await self._make_token_transfer(request,meta_wallet,public_key,SMART_BGT_PRESENT_AMOUNT)
-                LOGGER.debug('BgxRouteHandler:post_wallet link=%s',link) 
+                tx_status = await self._make_token_transfer(request,meta_wallet,public_key,SMART_BGT_PRESENT_AMOUNT)
+                LOGGER.debug('BgxRouteHandler:post_wallet tx_status=%s',tx_status)
                 # SHOULD DO waiting until wallet was created
                 #wallet = await self._get_state_by_addr(request,public_key)
                 status = "Wallet WAS CREATED"
@@ -435,6 +476,7 @@ class BgxRouteHandler(RouteHandler):
         #                            [cbor.loads(base64.b64decode(tx['payload'])) for tx in data]))
 
         result_list = []
+        LOGGER.error('transactions = [cbor.loads(base64.b64decode(tx[])) for tx in d')
         for tx in transactions:
             if not isinstance(tx, dict) or \
                     'Verb' not in tx or \
@@ -503,7 +545,7 @@ class BgxRouteHandler(RouteHandler):
         if meta_token is not None:
             LOGGER.debug('BgxRouteHandler:post_add_funds key=%s bgt_num=%s reason=%s',meta_wallet,bgt_num,reason) 
             # make transfer to  public_key_to wallet
-            link = await self._make_token_transfer(request,meta_wallet,public_key_to,bgt_num,coin_code)
+            tx_status = await self._make_token_transfer(request,meta_wallet,public_key_to,bgt_num,coin_code)
         else:
             return self._wrap_error(request,400,'Emmission must be done before')
         # Verification of signed hashes
@@ -511,8 +553,24 @@ class BgxRouteHandler(RouteHandler):
         #if result != 1:
         #    raise errors.InvalidSignature()
 
+        tx = {
+            'timestamp': datetime.now().__str__(),
+            'status': True,
+            'tx_payload': bgt_num,
+            'currency': coin_code,
+            'address_to': address_to,
+            'fee': TRANSACTION_FEE,
+            'tx_status': tx_status,
+            'extra': 'post_transfer'
+        }
+
         return self._wrap_response(
             request,
-            metadata=link,
+            metadata=tx,
             status=200)
+
+        # return self._wrap_response(
+        #     request,
+        #     metadata=link,
+        #     status=200)
 
