@@ -504,14 +504,12 @@ class BgxRouteHandler(RouteHandler):
             result_list.append(result_tx)
 
         LOGGER.debug('get_global_transactions result_list=%s',result_list)
-        return self._wrap_paginated_response(
-            request=request,
-            response=response,
-            controls=paging_controls,
-            data = None,
-            usermeta={
+        return self._wrap_response(
+            request,
+            metadata={
                 'transactions': result_list
-            })
+            },
+            status=200)
 
     async def post_add_funds(self, request):
         body = await request.json()
