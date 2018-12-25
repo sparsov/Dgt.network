@@ -316,3 +316,8 @@ class BadWalletAddress(_ApiError):
     title = "Bad wallet addres"
     message = ''
 
+class NotEnoughFunds(_ApiError):
+    api_code = 92
+    status_code = 400
+    title = "Not enough funds in user's wallet"
+    message = ''

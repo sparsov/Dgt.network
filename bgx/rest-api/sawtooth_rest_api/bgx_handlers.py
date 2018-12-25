@@ -335,6 +335,7 @@ class BgxRouteHandler(RouteHandler):
             _, amount_after = self._get_token(state, address_to)
             if amount_before == amount_after:
                 tx_status = 'INVALID'
+                raise errors.NotEnoughFunds()
 
         tx = {
             'timestamp': datetime.now().__str__(),
