@@ -338,7 +338,7 @@ class BgxRouteHandler(RouteHandler):
 
         tx = {
             'timestamp': datetime.now().__str__(),
-            'status': True,
+            'status': tx_status == 'COMMITED',
             'tx_payload': num_bgt,
             'currency': payload['coin_code'],
             'address_from': address_from,
