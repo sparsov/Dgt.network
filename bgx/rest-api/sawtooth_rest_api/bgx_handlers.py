@@ -476,7 +476,6 @@ class BgxRouteHandler(RouteHandler):
         #                            [cbor.loads(base64.b64decode(tx['payload'])) for tx in data]))
 
         result_list = []
-        LOGGER.error('transactions = [cbor.loads(base64.b64decode(tx[])) for tx in d')
         for tx in transactions:
             if not isinstance(tx, dict) or \
                     'Verb' not in tx or \
