@@ -225,6 +225,8 @@ def _do_init(args, state):
 
 def _do_transfer(args, state):
     LOGGER.debug("_do_transfer ...")
+    updated = {k: v for k, v in state.items()}
+    
     try:
         from_addr = args['Name']
         to_addr = args['to_addr']
@@ -234,8 +236,9 @@ def _do_transfer(args, state):
         msg = "_do_transfer not all args"
         LOGGER.debug(msg)
         raise InternalError(msg)
-
-    updated = {k: v for k, v in state.items()}
+    except ValueError as err:
+        LOGGER.debug("args err=%s",err)
+        return updated
 
     if from_addr not in state:
         # raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
@@ -260,6 +263,7 @@ def _do_transfer(args, state):
 
     if not res:
         LOGGER.debug("Sending tokens - not enough money")
+        raise InvalidTransaction('Unhandled action (not enough money): {}'.format(xo_payload.action))
     else:
         from_wallet.append(from_token)
         to_wallet.append(to_token)
