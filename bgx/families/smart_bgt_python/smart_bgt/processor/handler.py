@@ -172,7 +172,10 @@ def _do_init(args, state):
     except KeyError:
         msg = "_do_init not all args"
         LOGGER.debug(msg)
-        raise InternalError(msg)
+        return updated
+    except ValueError as err:
+        LOGGER.debug("args err=%s",err)
+        return updated
 
     updated = {k: v for k, v in state.items()}
     digital_signature = BGXCrypto.DigitalSignature(private_key)
@@ -226,7 +229,7 @@ def _do_init(args, state):
 def _do_transfer(args, state):
     LOGGER.debug("_do_transfer ...")
     updated = {k: v for k, v in state.items()}
-    
+
     try:
         from_addr = args['Name']
         to_addr = args['to_addr']
@@ -235,7 +238,7 @@ def _do_transfer(args, state):
     except KeyError:
         msg = "_do_transfer not all args"
         LOGGER.debug(msg)
-        raise InternalError(msg)
+        return updated
     except ValueError as err:
         LOGGER.debug("args err=%s",err)
         return updated
@@ -283,7 +286,10 @@ def _do_allowance(args, state):
     except KeyError:
         msg = "_do_allowance not all arg"
         LOGGER.debug(msg)
-        raise InternalError(msg)
+        return updated
+    except ValueError as err:
+        LOGGER.debug("args err=%s",err)
+        return updated
 
     if from_addr not in state:
         LOGGER.debug("allowance - address %s not registered", from_addr)
@@ -306,7 +312,10 @@ def _get_balance_of(args, state):
     except KeyError:
         msg = "_get_balance_of not all arg"
         LOGGER.debug(msg)
-        raise InternalError(msg)
+        return updated
+    except ValueError as err:
+        LOGGER.debug("args err=%s",err)
+        return updated
 
     if addr not in state:
         LOGGER.debug("_get_balance_of - address %s not registered", addr)
@@ -327,7 +336,10 @@ def _get_total_supply(args, state):
     except KeyError:
         msg = "_get_total_supply not all arg"
         LOGGER.debug(msg)
-        raise InternalError(msg)
+        return updated
+    except ValueError as err:
+        LOGGER.debug("args err=%s",err)
+        return updated
 
     if addr not in state:
         LOGGER.debug("_get_total_supply - metatoken %s not registered", addr)
