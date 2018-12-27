@@ -323,19 +323,12 @@ class BgxRouteHandler(RouteHandler):
             LOGGER.debug('BgxRouteHandler: post_transfer to META WALLET=%s',meta_wallet)
             address_to = meta_wallet
 
-        state = await self._get_state_by_addr(request, address_to)
-        _, amount_before = self._get_token(state, address_to)
-
         LOGGER.debug('BgxRouteHandler: post_transaction make payload=%s',payload)
         tx_status = await self._make_token_transfer(request,address_from,address_to,num_bgt,coin_code)
         # status = 202
 
-        if tx_status == 'COMMITTED':
-            state = await self._get_state_by_addr(request, address_to)
-            _, amount_after = self._get_token(state, address_to)
-            if amount_before == amount_after:
-                tx_status = 'INVALID'
-                raise errors.NotEnoughFunds()
+        if tx_status != 'COMMITTED':
+            raise errors.NotEnoughFunds()
 
         tx = {
             'timestamp': datetime.now().__str__(),
