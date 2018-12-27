@@ -266,7 +266,7 @@ def _do_transfer(args, state):
 
     if not res:
         LOGGER.debug("Sending tokens - not enough money")
-        raise InvalidTransaction('Unhandled action (not enough money): {}'.format(xo_payload.action))
+        raise InvalidTransaction('Unhandled action (not enough money)')
     else:
         from_wallet.append(from_token)
         to_wallet.append(to_token)
