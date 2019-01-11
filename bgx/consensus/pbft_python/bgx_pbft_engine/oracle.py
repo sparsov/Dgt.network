@@ -414,7 +414,7 @@ class PbftOracle:
                 LOGGER.debug('%s ALREADY CHECKED block[%s]',env,_short_id(block_id))
                 return True
             else:
-                    LOGGER.debug('PbftOracle: %s call check_blocks [%s]',env,_short_id(block_id))
+                LOGGER.debug('PbftOracle: %s call check_blocks [%s]',env,_short_id(block_id))
                 self._service.check_blocks([bid])
                 return False
 
