@@ -180,7 +180,7 @@ class PbftOracle:
                 """
                 if cur_fork_head.block_num == 0:
                     LOGGER.debug('PbftOracle: switch_forks TRUE blocks ID are the same')
-                return True   
+                    return True   
                 else:
                     LOGGER.debug('PbftOracle: switch_forks FALSE blocks ID are the same')
                     return False
