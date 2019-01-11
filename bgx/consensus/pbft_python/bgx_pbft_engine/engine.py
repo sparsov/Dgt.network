@@ -88,7 +88,7 @@ class PbftEngine(Engine):
                     self._block_num = chain_head.block_num
                     # open new block Candidate start from  chain_head.block_id 
                     self._service.initialize_block(previous_id=chain_head.block_id)
-                LOGGER.debug('PbftEngine: PROXY _initialize_block DONE\n')
+                    LOGGER.debug('PbftEngine: PROXY _initialize_block DONE\n')
                 else:
                     self._block_id = chain_head.block_id
                     LOGGER.debug('PbftEngine: PROXY _initialize_block ALREADY WAS DONE\n')
