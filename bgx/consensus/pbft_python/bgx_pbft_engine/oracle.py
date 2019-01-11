@@ -344,7 +344,8 @@ class PbftOracle:
         state.set_ignored_step()
         self.set_consensus_state_for_block_id(block_id,state)
         LOGGER.warning("PbftOracle: IGNORE block_id=%s => state=%s",_short_id(block_id),state.step)
-        def commit_block(self,state,block_id,env):
+
+    def commit_block(self,state,block_id,env):
         LOGGER.debug('%s call commit_block',env)
         if state.unknown_block:
             LOGGER.debug('%s DONT TRY commit_block (UnknownBlock)\n',env)
