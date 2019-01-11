@@ -17,7 +17,7 @@ version: '3.6'
 services:
 
 
-  bgx-api:
+  bgx-api-ext:
     build:
       context: ../..
       dockerfile: bgx/rest-api/Dockerfile-${DISTR}
@@ -31,7 +31,7 @@ services:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: bgx-api
+    container_name: bgx-api-ext
     networks:
     - network1
     ports:
@@ -44,7 +44,7 @@ services:
         cd bgx/rest-api
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api -vv --connect tcp://validator-bgx:4004 --bind bgx-api:8008
+        bgx-rest-api -vv --connect tcp://validator:4004 --bind bgx-api-ext:8008
       "
     stop_signal: SIGKILL
 

@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # -----------------------------------------------------------------------------
-
+import logging
+from bgx_pbft_common.utils import _short_id
+LOGGER = logging.getLogger(__name__)
 
 class PendingForks:
     """FIFO backlog of forks that have to be be resolved. If a new block is
@@ -30,9 +32,14 @@ class PendingForks:
         except ValueError:
             self._queue.insert(0, block.block_id)
             self._blocks[block.block_id] = block
+            LOGGER.debug('PendingForks PUSH block_id=%s',_short_id(block.block_id.hex()))
             return
-
-        del self._blocks[block.previous_id]
+        try:
+            del self._blocks[block.previous_id]
+            LOGGER.debug('PendingForks DEL block_id=%s',_short_id(block.previous_id.hex()))
+        except KeyError:
+            pass
+        LOGGER.debug('PendingForks PUSH  block_id=%s INSTEAD prev',_short_id(block.block_id.hex()))
         self._queue[index] = block.block_id
         self._blocks[block.block_id] = block
 

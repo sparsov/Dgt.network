@@ -68,7 +68,12 @@ class SmartBgtTransactionHandler(TransactionHandler):
             else:
                 state = _get_state_data([args['Name']], context)
 
-            updated_state = _do_smart_bgt(verb, args, state)
+            try:
+                updated_state = _do_smart_bgt(verb, args, state)
+            except InvalidTransaction as exc:
+                if not (verb == 'generate_key' or verb == 'balance_of' or verb == 'total_supply'):
+                    _set_state_data(state, context)
+                raise exc
 
             if not (verb == 'generate_key' or verb == 'balance_of' or verb == 'total_supply'):
                 _set_state_data(updated_state, context)
@@ -105,6 +110,7 @@ def _get_state_data(names, context):
         states = {}
         for entry  in state_entries:
             state = cbor.loads(entry.data)
+            LOGGER.debug('_get_state_data state=(%s)', state)
             for key, val in state.items():
                 LOGGER.debug('_get_state_data add=%s', key)
                 states[key] = val
@@ -112,7 +118,8 @@ def _get_state_data(names, context):
     except IndexError:
         return {}
     except:
-        raise InternalError('Failed to load state data')
+        LOGGER.debug('_get_state_data: Failed to load state data')
+        raise InvalidTransaction('Failed to load state data')
 
 
 def _set_state_data(state, context):
@@ -244,7 +251,7 @@ def _do_transfer(args, state):
         return updated
 
     if from_addr not in state:
-        # raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
+        raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
         LOGGER.debug("Sending tokens - address %s not registered", from_addr)
         return updated
 
@@ -286,10 +293,10 @@ def _do_allowance(args, state):
     except KeyError:
         msg = "_do_allowance not all arg"
         LOGGER.debug(msg)
-        return updated
+        raise InvalidTransaction(msg)
     except ValueError as err:
         LOGGER.debug("args err=%s",err)
-        return updated
+        raise InvalidTransaction("_do_allowance arg value error")
 
     if from_addr not in state:
         LOGGER.debug("allowance - address %s not registered", from_addr)
@@ -312,10 +319,10 @@ def _get_balance_of(args, state):
     except KeyError:
         msg = "_get_balance_of not all arg"
         LOGGER.debug(msg)
-        return updated
+        raise InvalidTransaction(msg)
     except ValueError as err:
         LOGGER.debug("args err=%s",err)
-        return updated
+        raise InvalidTransaction("_do_allowance arg value error")
 
     if addr not in state:
         LOGGER.debug("_get_balance_of - address %s not registered", addr)
@@ -336,10 +343,10 @@ def _get_total_supply(args, state):
     except KeyError:
         msg = "_get_total_supply not all arg"
         LOGGER.debug(msg)
-        return updated
+        raise InternalError(msg)
     except ValueError as err:
         LOGGER.debug("args err=%s",err)
-        return updated
+        raise InvalidTransaction("_do_allowance arg value error")
 
     if addr not in state:
         LOGGER.debug("_get_total_supply - metatoken %s not registered", addr)

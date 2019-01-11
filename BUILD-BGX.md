@@ -38,3 +38,5 @@ $ bash transfer.sh 673fcacfb51214e0543b786da79956b541e7d792 4aa37a37b9793a7f3696
 $ bash create_wallet.sh 673fcacfb51214e0543b786da79956b541e7d792
 # get wallet
 $ bash get_wallet.sh 673fcacfb51214e0543b786da79956b541e7d792
+smart-bgt init BGX_Token 21fad1db7c1e4f3fb98bb16fcff6942b4b2b9f890196b8754399ebfd74718de1 0xFB2F7C8687F6d86a031D2DE3d51f4c62e83AdA22 2000000 1 1 --url http://bgx-api:8018
+smart-bgt transfer 0236bd0b2f6041338ffe5a2236be89f369ec3094e5247bb40aad3aaa18ff2da395 028c7e06db3af50a9958390e3e29f166b1cf6198586acf37cde46c8ea54e4a79ea 30 any --url bgx-api:8018

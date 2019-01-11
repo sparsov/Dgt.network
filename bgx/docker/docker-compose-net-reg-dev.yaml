@@ -275,35 +275,64 @@ services:
 #      "
 #    stop_signal: SIGKILL
 
-  pbft-python:
-    build:
-      context: ../..
-      dockerfile: bgx/consensus/pbft_python/Dockerfile-${DISTR}
-      args:
-        - http_proxy
-        - https_proxy
-        - no_proxy
-        - BGX_TOP=bgx
-    image: sawtooth-pbft-python-bgx:${ISOLATION_ID}
-    networks:
-    - network1
-    environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
-    volumes:
-      - ../..:/project/${BGX_TOP}
-    container_name: sawtooth-pbft-python-bgx
-    depends_on:
-      - validator
-#      - bgx-registry
-    command: |
-      bash -c "
-        bgx/bin/protogen
-        cd bgx/consensus/pbft_python
-        python3 setup.py clean --all
-        python3 setup.py build
-        pbft-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
-      "
-    stop_signal: SIGKILL
+  devmode-python:
+   build:
+     context: ../..
+     dockerfile: bgx/consensus/devmode_python/Dockerfile-${DISTR}
+     args:
+       - http_proxy
+       - https_proxy
+       - no_proxy
+       - BGX_TOP=bgx
+   image: devmode-python-bgx:${ISOLATION_ID}
+   networks:
+   - network1
+   environment:
+   - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+   volumes:
+     - ../..:/project/${BGX_TOP}
+   container_name: devmode-python-bgx
+   depends_on:
+     - validator
+   command: |
+     bash -c "
+       bgx/bin/protogen
+       cd bgx/consensus/devmode_python
+       python3 setup.py clean --all
+       python3 setup.py build
+       devmode-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
+     "
+   stop_signal: SIGKILL
+
+#  pbft-python:
+#    build:
+#      context: ../..
+#      dockerfile: bgx/consensus/pbft_python/Dockerfile-${DISTR}
+#      args:
+#        - http_proxy
+#        - https_proxy
+#        - no_proxy
+#        - BGX_TOP=bgx
+#    image: sawtooth-pbft-python-bgx:${ISOLATION_ID}
+#    networks:
+#    - network1
+#    environment:
+#    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+#    volumes:
+#      - ../..:/project/${BGX_TOP}
+#    container_name: sawtooth-pbft-python-bgx
+#    depends_on:
+#      - validator
+##      - bgx-registry
+#    command: |
+#      bash -c "
+#        bgx/bin/protogen
+#        cd bgx/consensus/pbft_python
+#        python3 setup.py clean --all
+#        python3 setup.py build
+#        pbft-python -vv --connect tcp://validator:5050 --component tcp://validator:4004
+#      "
+#    stop_signal: SIGKILL
 
 networks:
   network1:
