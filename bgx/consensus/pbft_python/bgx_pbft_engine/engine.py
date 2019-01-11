@@ -400,7 +400,7 @@ class PbftEngine(Engine):
             """
             if self._check_consensus(block):
                 LOGGER.info('PbftEngine:Passed consensus check: %s', block.block_id.hex())
-            #self._check = True
+                #self._check = True
                 self._check_block(block.block_id)
             else:
                 LOGGER.info('PbftEngine: Failed consensus check: %s', block.block_id.hex())
@@ -420,11 +420,10 @@ class PbftEngine(Engine):
         #self._process_pending_forks()
         # after pending_forks block could be ingored
         self._oracle.message_consensus_handler(Message.CONSENSUS_NOTIFY_BLOCK_VALID,block)
-        
-    def _handle_invalid_block(self, block_id):
+
+    def _handle_invalid_block(self,block_id):
         LOGGER.info('=> INVALID_BLOCK:Received id=%s\n', _short_id(block_id.hex()))
         block = self._get_block(block_id)
-
         self._oracle.message_consensus_handler(Message.CONSENSUS_NOTIFY_BLOCK_INVALID,block)
 
     def _process_pending_forks(self):
@@ -440,14 +439,13 @@ class PbftEngine(Engine):
     def _resolve_fork(self, block):
         chain_head = self._get_chain_head()
 
-        LOGGER.info(
-            'Choosing between chain heads -- current: %s -- new: %s',_short_id(chain_head.block_id.hex()),_short_id(block.block_id.hex()))
+        LOGGER.info('Choosing between chain heads -- current: %s -- new: %s',_short_id(chain_head.block_id.hex()),_short_id(block.block_id.hex()))
 
         if self._switch_forks(chain_head, block):
             LOGGER.info('stop process _process_pending_forks for block=%s', _short_id(block.block_id.hex()))
             #self._commit_block(block.block_id)
             # stop process _process_pending_forks()
-            self._committing = True
+            self._committing = True   
         else:
             LOGGER.info('Ignoring block=%s', _short_id(block.block_id.hex()))
             # mark block as ignored
@@ -460,7 +458,6 @@ class PbftEngine(Engine):
     def _handle_committed_block(self, block_id):
         LOGGER.info('=> COMMITTED_BLOCK:Chain head updated to %s, abandoning block in progress',_short_id(block_id.hex()))
         block = self._get_block(block_id)
-
         self._oracle.message_consensus_handler(Message.CONSENSUS_NOTIFY_BLOCK_COMMIT,block)
         # make sure that bloock candidate is empty
         self._cancel_block()
@@ -489,6 +486,9 @@ class PbftEngine(Engine):
             #self._committing = False
             #self._check = False
             LOGGER.debug('PUBLISH AGAIN')
+
+
+
        
 
     def _handle_broadcast_request(self, block):
