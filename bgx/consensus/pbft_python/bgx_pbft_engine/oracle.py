@@ -460,10 +460,10 @@ class PbftOracle:
                     """
                     if is_pre_prepare_valid():
                         # if correct change step of consensus and send Prepare to All nodes(but only leader will check it)
-                    LOGGER.debug('PbftOracle: PLINK PRE_PREPARE_MSG PrePreparing => Preparing')
-                    state.next_step() # => Preparing
-                    self.set_consensus_state_for_block_id(block_id,state)
-                    self._send_prepare(state,block)
+                        LOGGER.debug('PbftOracle: PLINK PRE_PREPARE_MSG PrePreparing => Preparing')
+                        state.next_step() # => Preparing
+                        self.set_consensus_state_for_block_id(block_id,state)
+                        self._send_prepare(state,block)
                     else:
                         # If the PrePrepare is determined to be invalid, then start a view change
                     LOGGER.debug('PbftOracle: PLINK PrePreparing => ViewChange')
