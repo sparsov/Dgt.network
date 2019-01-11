@@ -413,7 +413,7 @@ class PbftEngine(Engine):
 
 
     def _handle_valid_block(self, block_id):
-            LOGGER.info('=> VALID_BLOCK:Received block_id=%s\n', _short_id(block_id.hex()))
+        LOGGER.info('=> VALID_BLOCK:Received block_id=%s\n', _short_id(block_id.hex()))
         block = self._get_block(block_id)
         self._resolve_fork(block)    
         #self._pending_forks_to_resolve.push(block)
