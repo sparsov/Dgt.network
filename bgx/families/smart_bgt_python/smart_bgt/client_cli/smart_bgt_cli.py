@@ -395,6 +395,9 @@ def do_init(args):
 
 def do_transfer(args):
     from_addr, to_addr, num_bgt, group_id, wait = args.from_addr, args.to_addr, args.num_bgt, args.group_id, args.wait
+    print("SMART_BGT>client_cli>smart_bgt_cli>do_transfer"
+                 "\nfrom_addr=%s\nto_addr=%s\nnum_bgt=%s\ngroup_id=%s\nwait=%s",
+                 from_addr, to_addr, num_bgt, group_id, wait)
     client = _get_client(args)
     response = client.transfer(from_addr, to_addr, num_bgt, group_id, wait)
     print(response)

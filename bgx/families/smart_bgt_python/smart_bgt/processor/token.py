@@ -272,6 +272,10 @@ class Token:
         return decimals, int(amount)
 
     def send(self, to_token, amount = 0):
+        LOGGER.debug("SMART_BGT>processor>token>send"
+                     "\nself=%s\nto_token=%s\namount=%s",
+                     str(self), to_token, amount)
+
         if  not isinstance(to_token, Token) or (not isinstance(amount, float) and \
             not isinstance(amount, int)) or amount <= 0 or pow(10, BASIC_DECIMALS) * amount < 1:
             LOGGER.debug("Sending token - wrong args")
