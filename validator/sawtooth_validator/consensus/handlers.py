@@ -115,7 +115,7 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
         chain_head = startup_info.chain_head
         peers = [bytes.fromhex(peer_id) for peer_id in startup_info.peers]
         local_peer_info = startup_info.local_peer_info
-
+        LOGGER.debug('ConsensusRegisterHandler: peers=%s local=%s chain_head[%s]=%s header=%s',peers,local_peer_info,type(chain_head),chain_head,type(chain_head.header))
         block_header = BlockHeader()
         block_header.ParseFromString(chain_head.header)
 
@@ -224,15 +224,16 @@ class ConsensusSummarizeBlockHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusSummarizeBlockHandler: proxy:summarize_block')
+            #LOGGER.debug('ConsensusSummarizeBlockHandler: proxy:summarize_block')
             summary = self._proxy.summarize_block()
+            LOGGER.debug('ConsensusSummarizeBlockHandler: proxy:summarize_block summary[%s]=%s',type(summary),summary.hex())
             response.summary = summary
         except BlockNotInitialized:
             LOGGER.debug('ConsensusSummarizeBlockHandler: BlockNotInitialized')
             response.status =\
                 consensus_pb2.ConsensusSummarizeBlockResponse.INVALID_STATE
         except BlockEmpty:
-            LOGGER.debug('ConsensusSummarizeBlockHandler: BlockEmpty')
+            #LOGGER.debug('ConsensusSummarizeBlockHandler: BlockEmpty')
             response.status =\
                 consensus_pb2.ConsensusSummarizeBlockResponse.BLOCK_NOT_READY
         except Exception:  # pylint: disable=broad-except
@@ -253,8 +254,9 @@ class ConsensusFinalizeBlockHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusFinalizeBlockHandler: proxy:finalize_block')
+            LOGGER.debug('ConsensusFinalizeBlockHandler: proxy:finalize_block data[%s]=%s',type(request.data),request.data)
             response.block_id = self._proxy.finalize_block(request.data)
+            LOGGER.debug('ConsensusFinalizeBlockHandler: proxy:finalize_block response.block_id[%s]=%s',type(response.block_id),response.block_id.hex())
         except BlockNotInitialized:
             response.status =\
                 consensus_pb2.ConsensusFinalizeBlockResponse.INVALID_STATE
