@@ -240,7 +240,7 @@ services:
 #      context: ../..
 #      dockerfile: bgx/rest-api/Dockerfile-${DISTR}
 #      args:
-#        - http_proxy   
+#        - http_proxy
 #        - https_proxy
 #        - no_proxy
 #        - BGX_TOP=bgx
@@ -253,7 +253,7 @@ services:
 #    networks:
 #    - network1
 #    ports:
-#      - "8008:8008" 
+#      - "8008:8008"
 #    depends_on:
 #       - validator-bgx
 #    command: |

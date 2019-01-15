@@ -99,6 +99,10 @@ def _decode_transaction(transaction):
 
 
 def _get_state_data(names, context):
+    LOGGER.debug("SMART_BGT>processor>handler>_get_state_data"
+                 "\nnames=%s\ncontext=%s",
+                 names, context)
+
     alist = []
     for name in names:
         address = make_smart_bgt_address(name)
@@ -108,7 +112,7 @@ def _get_state_data(names, context):
     LOGGER.debug('_get_state_data state_entries=%s', state_entries)
     try:
         states = {}
-        for entry  in state_entries:
+        for entry in state_entries:
             state = cbor.loads(entry.data)
             LOGGER.debug('_get_state_data state=(%s)', state)
             for key, val in state.items():
@@ -123,11 +127,15 @@ def _get_state_data(names, context):
 
 
 def _set_state_data(state, context):
+    LOGGER.debug("SMART_BGT>processor>handler>_set_state_data"
+                 "\nstate=%s\ncontext=%s",
+                 state, context)
+
     new_states = {}
     for key,val in state.items():
         LOGGER.debug('_set_state_data  [%s]=%s', key, val)
         address = make_smart_bgt_address(key)
-        encoded = cbor.dumps({key:val})
+        encoded = cbor.dumps({key: val})
         new_states[address] = encoded
 
     addresses = context.set_state(new_states)
@@ -250,12 +258,18 @@ def _do_transfer(args, state):
         LOGGER.debug("args err=%s",err)
         return updated
 
+    LOGGER.debug("SMART_BGT>processor>handler>_do_transfer"
+                 "\nfrom_addr=%s\nto_addr=%s\nnum_bgt=%s\ngroup_id=%s",
+                 from_addr, to_addr, num_bgt, group_id)
+
     if from_addr not in state:
-        raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
         LOGGER.debug("Sending tokens - address %s not registered", from_addr)
-        return updated
+        raise InvalidTransaction('Verb is "transfer" but name "{}" not in state'.format(from_addr))
 
     from_wallet_str = state[from_addr]
+    LOGGER.debug("SMART_BGT>processor>handler>_do_transfer"
+                 "\nfrom_wallet_str=%s",
+                 from_wallet_str)
     from_wallet = BGXwallet()
     from_wallet.fromJSON(from_wallet_str)
     from_token = from_wallet.get_token(group_id)
@@ -263,6 +277,8 @@ def _do_transfer(args, state):
     to_token = Token()
     to_wallet = BGXwallet()
     if to_addr in state:
+        LOGGER.debug("SMART_BGT>processor>handler>_do_transfer"
+                     "\nto_addr is in state")
         to_wallet_str = state[to_addr]
         to_wallet.fromJSON(to_wallet_str)
         to_token = to_wallet.get_token(group_id)
