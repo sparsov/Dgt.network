@@ -7,18 +7,20 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin/
 DESC="bgx"
 NAME=bgx
-LOGPATH="/var/log/bgx"
+LOGPATH="/var/log"
 OUTFILE=$LOGPATH/bgx.log
 PIDFILE=/var/run/$NAME.pid
-
+VERBOSE=yes
 DAEMON_ARGS="-d"
-
+FROM="/home/bgx/Projects/bgx"
+FROM1=""
+DAEMON="docker-compose"
 #
 # Function that starts the daemon/service
 #
 do_start()
 {
-  (cd /home/bgx/Projects/bgx;docker-compose -f bgx/docker/docker-compose-netall-reg-dev-loc.yaml up -d)
+  (cd $FROM1;ls -l;docker-compose -f bgx/docker/docker-compose-netall-reg-dev-loc.yaml up $DAEMON_ARGS)
 }
 
 #
@@ -31,7 +33,7 @@ do_stop()
         #   1 if daemon was already stopped
         #   2 if daemon could not be stopped
         #   other if a failure occurred
-        (cd /home/bgx/Projects/bgx;docker-compose -f bgx/docker/docker-compose-netall-reg-dev-loc.yaml down)
+        (cd $FROM1;ls -l;docker-compose -f bgx/docker/docker-compose-netall-reg-dev-loc.yaml down)
 }
 
 case "$1" in
@@ -54,26 +56,10 @@ case "$1" in
   status)
        status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
        ;;
-  restart|force-reload|_cron)
-  	[ "$1" = "_cron" ] && VERBOSE="no"
+  restart|force-reload)
         [ "$VERBOSE" != no ] && log_daemon_msg "Restarting $DESC" "$NAME"
         do_stop
-        case "$?" in
-          0|1)
-                do_start
-                case "$?" in
-                        0) [ "$VERBOSE" != no ] && log_end_msg 0
-			   [ "$1" = "_cron" ] && sleep 3 && find $LOGPATH -name 'atop_*' -mtime +28 -exec rm {} \;
-		           ;;
-                        1) [ "$VERBOSE" != no ] && log_end_msg 1 ;; # Old process is still running
-                        *) [ "$VERBOSE" != no ] && log_end_msg 1 ;; # Failed to start
-                esac
-                ;;
-          *)
-                # Failed to stop
-                [ "$VERBOSE" != no ] && log_end_msg 1
-                ;;
-        esac
+        do_start
         ;;
   *)
 	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2

@@ -21,7 +21,7 @@ After=network.target
 User=bgx
 Group=bgx
 #EnvironmentFile=-/etc/default/sawtooth-bgt-engine
-ExecStart=/home/bgx/Projects/bgx/bgx/utils/bgx.sh 
+ExecStart=/usr/local/bin/bgx.sh 
 Restart=on-failure
 RestartSec=200
 
