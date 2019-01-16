@@ -64,6 +64,7 @@ services:
     container_name: bgt-tp-python-bgx
     depends_on:
       - validator
+      - 
     command: |
       bash -c "
         bgx/bin/protogen
@@ -123,9 +124,17 @@ services:
     container_name: sawtooth-shell-bgx
     depends_on:
       - validator
+      - validator-2
+      - bgx-api
+      - bgx-api-2
+      - smart-bgt-tp-python
+      - smart-bgt-tp-python-2
     command: |
       bash -c "
-        ls -l;sawtooth keygen --force &&
+        sawtooth keygen --force
+        echo START EMISSION;
+        sleep 15 && smart-bgt init BGX_Token 21fad1db7c1e4f3fb98bb16fcff6942b4b2b9f890196b8754399ebfd74718de1 0xFB2F7C8687F6d86a031D2DE3d51f4c62e83AdA22 2000000 1 1 --url http://bgx-api:8018
+        echo EMISSION DONE;
         tail -f /dev/null
       "
     stop_signal: SIGKILL
@@ -210,6 +219,38 @@ services:
         python3 setup.py clean --all
         python3 setup.py build
         bgx-rest-api -vv --connect tcp://validator:4004 --bind bgx-api:8018
+      "
+    stop_signal: SIGKILL
+
+
+  bgx-dashboard:
+    build:
+      context: ../..
+      dockerfile: bgx/dashboard/Dockerfile-${DISTR}
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+        - BGX_TOP=bgx
+    image: bgx-dashboard
+    environment:
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+    volumes:
+      - ../..:/project/${BGX_TOP}
+    container_name: bgx-dashboard
+    networks:
+    - network1
+    ports:
+      - "8003:8003"
+    depends_on:
+      - validator
+    command: |
+      bash -c "
+        bgx/bin/protogen
+        cd bgx/dashboard
+        python3 setup.py clean --all
+        python3 setup.py build
+        bgx-dashboard -vv  --connect tcp://validator:4004 --bind bgx-dashboard:8003
       "
     stop_signal: SIGKILL
 

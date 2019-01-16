@@ -1,6 +1,7 @@
 #! /bin/sh
 DAEMON_ARGS="-d"
 FROM="/home/bgx/Projects/bgx"
+FROM1="/home/hyper/Hyperledger/bgx"
 #
 # Function that starts the daemon/service
 #

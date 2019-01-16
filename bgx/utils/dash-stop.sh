@@ -1,5 +1,6 @@
 #! /bin/sh
 FROM="/home/bgx/Projects/bgx"
+FROM1="/home/hyper/Hyperledger/bgx"
 #
 # Function that start dashboard
 #

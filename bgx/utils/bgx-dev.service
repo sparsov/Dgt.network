@@ -18,12 +18,14 @@ Description=BGX
 After=network.target
 
 [Service]
-User=bgx
-Group=bgx
+User=hyper
+Group=hyper
 #EnvironmentFile=-/etc/default/sawtooth-bgt-engine
-ExecStart=/usr/local/bin/bgx.sh 
+ExecStart=/usr/local/bin/bgx-start.sh
+ExecStop=/usr/local/bin/bgx-stop.sh
 Restart=on-failure
 RestartSec=200
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
