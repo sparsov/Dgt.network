@@ -299,6 +299,7 @@ class ReferenceChainCursor(database.Cursor):
 
     def value(self):
         value = self._seek_curs().value()
+        
         if not value:
             return None
 

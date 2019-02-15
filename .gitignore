@@ -138,6 +138,10 @@
 /bgx/validator/sawtooth_validator.egg-info/
 /bgx/validator/sawtooth_validator/protobuf/
 /bgx/validator/**/__pycache__/
+/bgx/validator-dag/build/
+/bgx/validator-dag/sawtooth_validator.egg-info/
+/bgx/validator-dag/sawtooth_validator/protobuf/
+/bgx/validator-dag/**/__pycache__/
 *.vpj
 *.vpw
 *.vtg

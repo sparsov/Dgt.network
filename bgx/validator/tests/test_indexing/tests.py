@@ -511,7 +511,7 @@ class IndexedDatabaseTest(unittest.TestCase):
 
         with db.cursor(index='name') as curs:
             ordered_values = list(curs.iter())
-
+        
         self.assertEqual(
             [(2, "alice", "Alice's data"),
              (1, "foo", "bar")],
