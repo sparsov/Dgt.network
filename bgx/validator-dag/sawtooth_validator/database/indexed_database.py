@@ -134,7 +134,7 @@ class IndexedDatabase(database.Database):
     def get_multi(self, keys, index=None):
         if index is not None and index not in self._indexes:
             raise ValueError('Index {} does not exist'.format(index))
-        print('GET_MULTI',keys)
+        #print('GET_MULTI',keys)
         with self._lmdb.begin() as txn:
             result = []
             cursor = txn.cursor(self._main_db)
@@ -148,7 +148,7 @@ class IndexedDatabase(database.Database):
                 # If we're looking at an index, check the index first
                 if index_cursor:
                     try:
-                        print('index_cursor',read_key)
+                        #print('index_cursor',read_key)
                         read_key = index_cursor.get(read_key)
                     except lmdb.BadValsizeError:
                         raise KeyError("Invalid key: %s" % read_key)
@@ -310,7 +310,7 @@ class ReferenceChainCursor(database.Cursor):
 
     def value(self):
         value = self._seek_curs().value()
-        print('VALUE',value)
+        #print('VALUE',value)
         if not value:
             return None
 
@@ -340,10 +340,10 @@ class ReferenceChainCursor(database.Cursor):
 def _read(initial_key, cursor_chain, deserializer):
     key = initial_key
     packed = key
-    print('_READ',key,cursor_chain)
+    #print('_READ',key,cursor_chain)
     for curs in cursor_chain:
         packed = curs.get(key)
-        print('_PACKED',packed)
+        #print('_PACKED',packed)
         if not packed:
             raise IndexOutOfSyncError(
                 'Index is out of date for key {}'.format(key))

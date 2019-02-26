@@ -27,11 +27,13 @@ from sawtooth_bgt.processor.handler import BgtTransactionHandler
 
 
 LOGGER = logging.getLogger(__name__)
+"""
 # testing NATS
 import asyncio
 from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrConnectionClosed, ErrTimeout, ErrNoServers
 from sawtooth_sdk.protobuf.validator_pb2 import Message
+"""
 #
 # ORIENTDB
 import pyorient
@@ -40,7 +42,7 @@ import pyorient
 
 DISTRIBUTION_NAME = 'sawtooth-bgt'
 _NATS_ = False
-_ORIENTDB_ = True
+_ORIENTDB_ = False
 ORIENTDB_HOST = "orientdb" # "orientdb" "localhost"
 DB_NAME = "sw"
 DB_USER,DB_PASS = "admin","foo"
@@ -71,7 +73,7 @@ def parse_args(args):
         help='print version information')
 
     return parser.parse_args(args)
-
+"""
 async def run(loop,nats):
     nc = NATS()
 
@@ -128,6 +130,7 @@ async def run(loop,nats):
     # Drain gracefully closes the connection, allowing all subscribers to
     # handle any pending messages inflight that the server may have sent.
     await nc.drain()
+"""
 
 def main(args=None):
     if args is None:
@@ -178,11 +181,14 @@ def main(args=None):
             except Exception as ex :
                 LOGGER.debug("TESTING ORIENTDB '%s' FAILED (%s)\n",ORIENTDB_HOST,ex)
         if _NATS_:
+            pass
+            """
             LOGGER.debug("TESTING NATS CLIENT")
             loop = asyncio.get_event_loop()
             loop.run_until_complete(run(loop,"nats://nats:4222"))
             loop.close()
             LOGGER.debug("DONE TESTING NATS CLIENT")
+            """
         else:
             #processor = TransactionProcessor(url=opts.connect)
             handler = BgtTransactionHandler()

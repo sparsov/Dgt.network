@@ -19,7 +19,8 @@ from collections.abc import MutableMapping
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.state.merkle import INIT_ROOT_KEY
-
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class BlockStore(MutableMapping):
     """
@@ -33,9 +34,8 @@ class BlockStore(MutableMapping):
 
     def __setitem__(self, key, value):
         if key != value.identifier:
-            raise KeyError(
-                "Invalid key to store block under: {} expected {}".format(
-                    key, value.identifier))
+            raise KeyError("Invalid key to store block under: {} expected {}".format(key, value.identifier))
+        LOGGER.debug("BlockStore key=%s val=%s",key, value)
         self._block_store.put(key, value)
 
     def __getitem__(self, key):

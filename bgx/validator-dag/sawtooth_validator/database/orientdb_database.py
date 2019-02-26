@@ -17,9 +17,13 @@ import logging
 import os
 import lmdb
 import struct
+import base64
+from threading import RLock
 
 # Orientdb
 import pyorient
+from pyorient import OrientRecord
+
 from urllib.parse import urlparse
 
 from sawtooth_validator.database import database
@@ -35,10 +39,48 @@ STORAGE_TYPE = pyorient.STORAGE_TYPE_MEMORY  # pyorient.STORAGE_TYPE_PLOCAL
 CLUSTER_TYPE = pyorient.CLUSTER_TYPE_MEMORY  # pyorient.CLUSTER_TYPE_PHYSICAL
 BLOCK_CLUSTER = "block"
 BLOCK_CLS = "@Block"
-BLOCK_CMD = ["CREATE CLASS Block","CREATE PROPERTY Block.id STRING","CREATE PROPERTY Block.data STRING"]
-CREATE_PROP = "CREATE PROPERTY Block.{} {}"
+BLOCK_CMD = ["CREATE CLASS Block","CREATE PROPERTY Block.id_ STRING","CREATE PROPERTY Block.data STRING "] #BINARY
+CREATE_PROP    = "CREATE PROPERTY Block.{} {}"
+DELETE_BY_ID   = "DELETE FROM Block WHERE id_ = {}"
+COUNT_BY_ID    = "SELECT count(*) as cnt FROM Block where id_='%s'"
+COUNT_BY_INDEX = "SELECT count(*) as cnt FROM Block where %s_='%s'"
+GET_NUM_QUERY  = "SELECT count(*) as cnt FROM Block"
+GET_KEYS_QUERY = "SELECT {} as val FROM Block ORDER BY {}"
+GET_FROM_BLOCK_BY_IND = "SELECT FROM Block WHERE {}='{}'" 
+GET_FROM_BLOCK_BY_ORDER =  "SELECT FROM Block ORDER BY {} SKIP {} LIMIT 1"
+PROP_ID = 'id'
+
 class IndexOutOfSyncError(Exception):
     pass
+
+class OrientClient:
+    def __init__(self,client):
+        self._lock = RLock()
+        self._client = client
+
+    def command(self, *args):
+        with self._lock:
+            return self._client.command(*args)
+
+    def batch(self, *args):
+        with self._lock:
+            return self._client.batch(*args)
+
+    def query(self, *args):
+        with self._lock:
+            return self._client.query(*args)
+
+    def data_cluster_count(self, *args):
+        with self._lock:
+            return self._client.data_cluster_count(*args)
+
+    def record_create(self, *args):
+        with self._lock:
+            return self._client.record_create(*args)
+
+    def record_load(self, *args):
+        with self._lock:
+            return self._client.record_load(*args)
 
 
 class OrientDatabase(database.Database):
@@ -69,52 +111,65 @@ class OrientDatabase(database.Database):
         """
         super(OrientDatabase, self).__init__()
         url = urlparse(filename,allow_fragments=True)
-        print("ORIENTDB url=%s",url)
+        netloc = url.netloc.split('@')
+        user = netloc[0].split(':')
+        net = netloc[1].split(':')
+        dbnm = url.path[1:]
+        #print("ORIENTDB url=%s",url,'user',user,'net',net,dbnm)
         if indexes is None:
             indexes = {}
         create = bool(flag == 'c')
-        client = pyorient.OrientDB(ORIENTDB_HOST, 2424)
-        LOGGER.info("TESTING ORIENTDB client=%s",client)
-        session_id = client.connect( DB_USER, DB_PASS )
+        self._db_host = (net[0],int(net[1]))
+        self._db_user = (user[0], user[1])
+        self._db_nm   = dbnm
+        client = pyorient.OrientDB(net[0],int(net[1])) # ORIENTDB_HOST, 2424
+        LOGGER.debug("TESTING ORIENTDB client=%s",client)
+        session_id = client.connect( user[0], user[1] )
+        self._session_id = session_id
         LOGGER.debug("_ORIENTDB_ client=%s session_id=%s",client,session_id)
         #db = client.db_create( DB_NAME, pyorient.DB_TYPE_GRAPH, pyorient.STORAGE_TYPE_PLOCAL )
-        is_db = client.db_exists( DB_NAME, STORAGE_TYPE )
-        print('db_exists orient',is_db)
+        is_db = client.db_exists(dbnm, STORAGE_TYPE )
+        LOGGER.debug('db_exists orient is_db=%s',is_db)
         if is_db and (flag == 'n' or flag == 'c'):
             # recreate DB
-            client.db_drop(DB_NAME)
+            client.db_drop(dbnm)
             is_db = False
         if not is_db:
-            self._main_db = client.db_create( DB_NAME, pyorient.DB_TYPE_GRAPH, STORAGE_TYPE )
-            print('CREATE orient',self._main_db)
-        self._main_db = client.db_open( DB_NAME, DB_USER, DB_PASS )
-        print('PARAMS indexes',indexes,'values',indexes.values())
-        self._indexes = {name: self._make_index_tuple(name, index_info) for name, index_info in indexes.items()}
-        print('_indexes ITEMS',self._indexes.values())
+            self._main_db = client.db_create( dbnm, pyorient.DB_TYPE_GRAPH, STORAGE_TYPE )
+            LOGGER.debug('ORIENTDB CREATED (%s)',dbnm)
 
+        self._main_db = client.db_open( dbnm, user[0], user[1] )
+        LOGGER.debug('ORIENTDB indexes=%s ',indexes)
+        self._indexes = {name: self._make_index_tuple(name, index_info) for name, index_info in indexes.items()}
+        #print('_indexes ITEMS',self._indexes.values())
+        LOGGER.debug("ORIENTDB _indexes=%s",self._indexes.values())
         if not is_db:
             # create Block cluster
             self._cluster_id = client.data_cluster_add(BLOCK_CLUSTER,CLUSTER_TYPE)
-            print('CREATE cluster_id',self._cluster_id)
+            LOGGER.debug('CREATE cluster_id=%s',self._cluster_id)
             batch_cmds = [] #['begin']
             for command in BLOCK_CMD:
                 batch_cmds.append(command)
             #batch_cmds.append('commit retry 100')
             for name, _,intkey in self._indexes.values():
                 # add field for index
-                batch_cmds.append(CREATE_PROP.format(name,"LONG" if intkey else "STRING")) # BINARY
+                batch_cmds.append(CREATE_PROP.format(name+'_',"LONG" if intkey else "STRING")) # BINARY
 
             cmd = ';'.join(batch_cmds)
             try:
-                print('TRY CREATE Block',cmd)
+                #print('TRY CREATE Block',cmd)
+                LOGGER.debug("ORIENTDB batch=%s",cmd)
                 results = client.batch(cmd)
-                print('CREATE Block results',results)
+                LOGGER.debug('CREATE Block results=%s',results)
             except Exception as ex:
-                print('Cant CREATE PROP',cmd,ex)
+                LOGGER.debug("Cant run batch=%s(%s)",cmd,ex)
+                #print('Cant CREATE PROP',cmd,ex)
     
-        self._client = client
+        self._raw_client = client
+        self._client = OrientClient(client) 
         self._serializer = serializer
         self._deserializer = deserializer
+        self.curs_cnt = 0
 
         """  
         self._lmdb = lmdb.Environment(
@@ -144,14 +199,14 @@ class OrientDatabase(database.Database):
         else:
             raise ValueError('Index {} must be defined as a function or a dict'.format(name))
 
-        print("NAME of index",'index_{}'.format(name).encode(),'key_fn',key_fn)
+        #print("NAME of index",'index_{}'.format(name).encode(),'key_fn',key_fn)
         return (name,key_fn,integerkey) #self._lmdb.open_db('index_{}'.format(name).encode(),integerkey=integerkey),
                 
 
     # pylint: disable=no-value-for-parameter
     def __len__(self):
         cnt = self._client.data_cluster_count([self._cluster_id])
-        print('__LEN__',cnt)
+        #print('__LEN__',cnt)
         return cnt 
         """ 
         with self._lmdb.begin(db=self._main_db) as txn:
@@ -163,7 +218,7 @@ class OrientDatabase(database.Database):
 
         if index is not None and index not in self._indexes:
             raise ValueError('Index {} does not exist'.format(index))
-        print('COUNT',self._indexes[index][0])
+        #print('COUNT',self._indexes[index][0])
         return self._client.data_cluster_count([self._cluster_id])
         """
         with self._lmdb.begin(db=self._indexes[index][0]) as txn:
@@ -174,21 +229,21 @@ class OrientDatabase(database.Database):
             data = self._client.query(query)
             return data[0].cnt
         except Exception as ex:
-            print("_get_num_query",ex)
+            LOGGER.debug("_get_num_query %s",ex)
             return -1
 
     def contains_key(self, key, index=None):
         
         if index is not None and index not in self._indexes:
-            print('INDEX does not exist',index,self._indexes)
+            #print('INDEX does not exist',index,self._indexes)
             raise ValueError('Index {} does not exist'.format(index))
 
         if index:
             search_db = self._indexes[index][0]
-            print('USE index',search_db,type(search_db))
-            query = "SELECT count(*) as cnt FROM Block where %s='%s'" % (search_db,key)
+            #print('USE index',search_db,type(search_db))
+            query = COUNT_BY_INDEX % (search_db,key)
         else:
-            query = "SELECT count(*) as cnt FROM Block where id='%s'" % (key)
+            query = COUNT_BY_ID % (key)
         
         print('contains QUERY=',query)
         try:    
@@ -197,7 +252,8 @@ class OrientDatabase(database.Database):
             return data[0].cnt > 0
 
         except Exception as ex:
-            print("cant get ",key,ex)
+            LOGGER.debug("cant get key=%s(%s)",key,ex)
+
         return False
         """
         with self._lmdb.begin(db=search_db) as txn:
@@ -208,21 +264,30 @@ class OrientDatabase(database.Database):
         if index is not None and index not in self._indexes:
             raise ValueError('Index {} does not exist'.format(index))
         result = []
-        print('GET_MULTI',keys,'index',index)
-        cursor = _OrientCursor(self._client,(self._cluster_id,index),self._deserializer) 
+        print('GET_MULTI',keys,'INDEX',index)
+        #client, session_id = self.new_client()
+        cursor = _OrientCursor(self._client,(self._cluster_id,index,self._session_id),self._deserializer) 
         for key in keys:
             try:    
-                packed = cursor.get(key,index=index)
+                packed = cursor.get(key,index=index if index else PROP_ID)
+                
                 if packed is not None:
                     rec = self._deserializer(packed)
+                    print('GET_MULTI REC=',type(rec),rec)
                     if not index:
                         result.append((str(key),rec))
                     else:
-                        rkey = rec[0]
+                        print('GET_MULTI key=',key)
+                        try:
+                            rkey = rec[0]
+                        except Exception as ex:
+                            print('GET_MULTI rkey({})'.format(ex))    
+                            rkey = key
+                        print('GET_MULTI rkey=',rkey)
                         result.append((str(rkey),rec)) 
             except :
                 pass
-        print('GET_MULTI=',result)
+        #print('GET_MULTI result=',result)
         return result
         """
         with self._lmdb.begin() as txn:
@@ -259,6 +324,14 @@ class OrientDatabase(database.Database):
         return result
         """
 
+    def new_client(self):
+        client = pyorient.OrientDB(self._db_host[0],self._db_host[1])
+        session_id = client.connect(self._db_user[0],self._db_user[1])
+        client.db_open(self._db_nm, self._db_user[0],self._db_user[1])
+        self.curs_cnt += 1
+        LOGGER.debug("CURSOR: NEW=%s session_id=%s",self.curs_cnt,session_id)
+        return client,session_id
+
     def cursor(self, index=None):
         """
         index is field for ordering 
@@ -273,8 +346,9 @@ class OrientDatabase(database.Database):
         if index:
             db_chain.append(self._indexes[index][0])
         """
+        #client,session_id = self.new_client()
         #db_chain.append(self._main_db)
-        return ReferenceChainCursor(self._client, (self._cluster_id,index), self._deserializer)
+        return ReferenceChainCursor(self._client, (self._cluster_id,index,self._session_id), self._deserializer)
 
     def update(self, puts, deletes):
         """Applies the given puts and deletes atomically.
@@ -284,14 +358,10 @@ class OrientDatabase(database.Database):
         """
         # Process deletes first, to handle the case of new items replacing
         # Drop items
+        #client, session_id = self.new_client()
+        cursor = _OrientCursor(self._client,(self._cluster_id,None,self._session_id),self._deserializer)
         for key in deletes:
-            try:
-                query = "DELETE FROM Block WHERE id = {}".format(key)
-                print('DELETE',key,'QUERY',query)
-                self._client.command(query)
-            except Exception as ex:
-                print('Cant DELETE',key,ex)
-            #client.record_delete(<cluster-id>, <record-id>)
+            cursor.delete(key)
             """
             if not cursor.set_key(key.encode()):
                 # value doesn't exist
@@ -307,31 +377,10 @@ class OrientDatabase(database.Database):
                     if index_cursor.set_key(idx_key):
                         index_cursor.delete()
             """
-
-
         for key, value in puts:
             packed = self._serializer(value)
-            #print('key,val',key,packed)
-            event = {
-                BLOCK_CLS: {
-                    "id": key,
-                    "data": packed.decode("utf-8"),
-                },
-            }
-            # add index fields
-            for (index_db, index_key_fn,intkey) in self._indexes.values():
-                index_keys = index_key_fn(value)
-                kval = index_keys[0].decode("utf-8")
-                event[BLOCK_CLS][index_db] = struct.unpack('I', index_keys[0])[0] if intkey else kval
-                print('index_keys IVAL',type(index_keys[0]),index_keys[0],'index_db',index_db)
-                if intkey:
-                    print('index_keys',struct.unpack('I', index_keys[0])[0])
-            try:
-                print('ADD record',event)
-                self._client.record_create(self._cluster_id, event)
-            except Exception as ex:
-                print('cant add record',key,ex)
-
+            cursor.put(key,value,packed,self._indexes)
+            
         return 
         """
         with self._lmdb.begin(write=True, buffers=True) as txn:
@@ -389,10 +438,10 @@ class OrientDatabase(database.Database):
         if index is not None and index not in self._indexes:
             raise ValueError('Index {} does not exist'.format(index))
 
-        db_fld = self._indexes[index][0] if index else 'id'
-        num = self._get_num_query("select count(*) as cnt from Block") #  order by {}
-        print('KEYS NUM',num)
-        query = "select {} as val from Block order by {}".format(db_fld,db_fld)
+        db_fld = (self._indexes[index][0] if index else PROP_ID) +'_'
+        num = self._get_num_query(GET_NUM_QUERY) #  order by {}
+        #print('KEYS NUM',num)
+        query = GET_KEYS_QUERY.format(db_fld,db_fld)
         keys = []
         records = self._client.query(query,num)
         for rec in records:
@@ -401,7 +450,7 @@ class OrientDatabase(database.Database):
                 keys.append(val)
             except:
                 print('oRecordData undef VAl',rec.oRecordData)
-        print('LEN',len(records),'QUERY',query,'KEYS',keys)
+        #print('LEN',len(records),'QUERY',query,'KEYS',keys)
         return keys
         """
         with self._lmdb.begin(db=db) as txn:
@@ -411,27 +460,46 @@ class OrientDatabase(database.Database):
             ]
         """
 
+
 class _OrientCursor:
     def __init__(self,client,db,deserializer):
         self._cluster_id = db[0] #cluster_id
         self._index = db[1]
+        self._session_id = db[2]
         self._client = client
         self._deserializer = deserializer
+        self._count = None 
         self._curr = None
         self._value = None
         self._key = None
         self._dir  = 0
+        LOGGER.debug("OrientCursor: COUNT=%s",self.cluster_count)
+
+    def __del__(self):
+        LOGGER.debug("OrientCursor: DEL sess=%s",self._session_id)
+        """
+        try:
+            self._client.close()
+        except Exception as ex:
+            LOGGER.debug("OrientCursor: CANT close=%s",ex)
+        """
+            
+    @property
+    def cluster_count(self):
+        if not self._count:
+            self._count = self._client.data_cluster_count([self._cluster_id])
+        return self._count
 
     def __iter__(self):
         return self
 
     def __next__(self):
         curr = self._curr
-        print('_OrientCursor._next',curr,'+',self._dir,type(self._curr),type(self._dir))
+        #print('_OrientCursor._next',curr,'+',self._dir,type(self._curr),type(self._dir))
         self._curr += self._dir
         
         return curr
-
+    
     def key(self):
         return self._key if self._key else ''
 
@@ -440,30 +508,91 @@ class _OrientCursor:
         if not self._curr:
             self._curr,self._key = 1, 1 
         else:
-            self._curr = int(self._key)
+            try:
+                self._curr = int(self._key)
+            except ValueError:
+                self._curr = int(self._key,16)
+            self._skip = self._curr 
+            
 
-        print('_OrientCursor.iternext',self._curr,keys)
+        #print('_OrientCursor.iternext',self._curr,keys)
         return self
 
     def iterprev(self,keys=True,values=True):
         self._dir = -1
         if not self._curr:
-            self._curr = self._client.data_cluster_count([self._cluster_id]) 
+            self._curr = self.cluster_count
             self._key  = self._curr
         else:
-            self._curr = self._key
+            try:
+                self._curr = int(self._key)
+            except ValueError:
+                self._curr = int(self._key,16)
+            self._skip = self._curr
 
-        print('_OrientCursor.iterprev',self._curr,keys)
+        #print('_OrientCursor.iterprev',self._curr,keys)
         return self
 
     def first(self):
         self._curr,self._key = 1, 1
+        try:
+            self.get(self._curr)
+        except :
+            return False
+
+        return True if self.cluster_count > 0 else False
 
     def last(self):
-        self._curr = self._client.data_cluster_count([self._cluster_id]) 
+        self._curr = self.cluster_count 
         self._key  = self._curr
+        #print('LAST curr',self._curr)
+        try:
+            self.get(self._curr)
+        except :
+            return False
+        return True if self._curr > 0 else False 
+
+    def put(self,key, value,packed,indexes={}, dupdata=True, overwrite=True, append=False, db=None):
+        """
+        """
+        b64data = base64.b64encode(packed).decode('utf-8') 
+        event = {
+            BLOCK_CLS: {
+                "id_": key,
+                "data": b64data ,
+            },
+        }
+        # add index fields
+        for (index_db, index_key_fn,intkey) in indexes.values():
+            index_keys = index_key_fn(value)
+            if len(index_keys) > 0:
+                #print('INDEX_KEYS ({}) VALUE=({})'.format(index_keys,value))
+                kval =  index_keys[0].decode("utf-8") # base64.b64encode(index_keys[0]).decode('utf-8')
+                event[BLOCK_CLS][index_db+'_'] = struct.unpack('I', index_keys[0])[0] if intkey else kval
+                #print('index_keys IVAL',type(index_keys[0]),index_keys[0],'index_db',index_db)
+                if intkey:
+                    print('index_keys',struct.unpack('I', index_keys[0])[0])
+        try:
+            #print('ADD record',event)
+            self._client.record_create(self._cluster_id, event)
+            self._count += 1
+            LOGGER.debug("PUT: key=%.20s,b64data=%s CNT=%s",key,type(b64data),self._count)
+        except Exception as ex:
+            LOGGER.debug('PUT: Сant add record=%s (%s)',key,ex)
+
+    def delete(self,key,value='',db=None):
+        try:
+            query = DELETE_BY_ID.format(key)
+            #print('DELETE',key,'QUERY',query)
+            self._client.command(query)
+            self._count = None
+        except Exception as ex:
+            print('Cant DELETE',key,ex)
 
     def get(self,key, default=None,index=None):
+        def _encode_data(rec):
+            return base64.b64decode(rec['data']) #rec['data'].encode("utf-8")
+
         if not index and not self._index:
             rkey = "#{}:{}".format(self._cluster_id,int(key)-1)
             packed = self._client.record_load(rkey)
@@ -471,31 +600,35 @@ class _OrientCursor:
             if len(rec) == 0:
                 self._curr = None
                 raise IndexOutOfSyncError()
-            packed = rec['data'].encode("utf-8")
+            packed = _encode_data(rec)
             self._key = int(key)
             self._value = self._deserializer(packed)
-            print('_OrientCursor.GET',rkey,'->',packed)
+            #print('_OrientCursor.GET',rkey,'->',type(packed),packed,'val',self._value)
             return packed
         # use index 
         if index:
-            query = "SELECT FROM Block where %s='%s'" % (index,key)
+            query = GET_FROM_BLOCK_BY_IND.format((index+'_'),key)
         else: # where id = {}
-            skip = key-1 
+            #skip = key - 1
+            skip = self._skip if hasattr(self,'_skip') else key - 1
             if skip < 0 :
                 self._curr = None
                 raise IndexOutOfSyncError()
-            query = "SELECT FROM Block order by {} SKIP {} LIMIT 1".format(self._index,skip)
-        print('QUERY=',query)
+            query = GET_FROM_BLOCK_BY_ORDER.format(self._index+'_',skip)
+            if hasattr(self,'_skip'):
+                self._skip -= 1
+            #query = "SELECT FROM Block where int({})={}  LIMIT 1".format(self._index+'_',key)
+        print('QUERY=',query,'KEY',key,type(key))
         packed = self._client.query(query)
-        print('PACKED=',packed)
-        if len(packed) == 0:
+        #print('PACKED=',packed)
+        if packed == [] or not isinstance( packed[0], OrientRecord ):
             self._curr = None
             raise IndexOutOfSyncError()
         rec = packed[0].oRecordData
-        packed = rec['data'].encode("utf-8")
+        packed = _encode_data(rec)
         self._value = self._deserializer(packed)
         self._key = key
-        print('get:use index',index,self._key,self._value,type(self._curr)) 
+        print('GET:use index',index,self._key,'VAl',self._value,type(self._curr)) 
         return packed
 
     def value(self):
@@ -503,10 +636,15 @@ class _OrientCursor:
         return self._value # read it 
 
     def set_key(self,key):
-        print('_OrientCursor.set_key',key,key.decode())
-        self._curr = int(key)
+        dkey = key.decode()
+        #print('_OrientCursor.set_key',key,type(key),type(dkey))
         try:
-            self.get(key.decode(),index='id')
+            self._curr = int(dkey) if isinstance(key,bytes) else int(key)
+        except ValueError:
+             self._curr = int(dkey,16)
+        try:
+            self.get(dkey,index=self._index if self._index else PROP_ID)
+            print('_OrientCursor.get OK',self._curr)
             return True
         except:
             return False
@@ -530,10 +668,11 @@ class ReferenceChainCursor(database.Cursor):
 
     def open(self):
         self._cluster_id = self._db[0]
-        print('ReferenceChainCursor OPEN',self._db)
+        #print('ReferenceChainCursor OPEN',self._db)
         #self._lmdb_cursors = [self._reference_chain[0]]
+        LOGGER.debug('ReferenceChainCursor OPEN %s',self._db[2])
         self._curs = _OrientCursor(self._client,self._db,self._deserializer)
-        print('OPEN',self._curs)
+        #print('OPEN',self._curs)
 
         """
         self._lmdb_txn = self._lmdb_env.begin()
@@ -543,7 +682,8 @@ class ReferenceChainCursor(database.Cursor):
         """
 
     def close(self):
-        print('ReferenceChainCursor CLOSE')
+        LOGGER.debug('ReferenceChainCursor CLOSE %s',self._client)
+        #self._curs.close()
         """
         for curs in self._lmdb_cursors:
             curs.close()
@@ -554,11 +694,11 @@ class ReferenceChainCursor(database.Cursor):
         """
 
     def iter(self):
-        print('CURS.ITER')
+        #print('CURS.ITER')
         return ReferenceChainCursor._wrap_iterator(self._curs.iternext(keys=False),self._deserializer)
 
     def iter_rev(self):
-        print('CURS.ITER_REV')
+        #print('CURS.ITER_REV')
         return ReferenceChainCursor._wrap_iterator(self._curs.iterprev(keys=False),self._deserializer)
 
     def first(self):
@@ -569,7 +709,7 @@ class ReferenceChainCursor(database.Cursor):
         return self._curs.last()
 
     def seek(self, key):
-        print('SEEK',key)
+        #print('SEEK',key,type(key))
         return self._curs.set_key(key.encode())
 
     def key(self):

@@ -45,17 +45,17 @@ services:
       "
     stop_signal: SIGKILL
 
-  nats:
-    image: 'nats:1.4.0'
-    networks: 
-     - network1
-    entrypoint: "/gnatsd -DV"
-    expose:
-      - "4222"
-    ports:
-      - "8222:8222"
-    container_name: bgx-nats
-    hostname: nats-server
+#  nats:
+#    image: 'nats:1.4.0'
+#    networks: 
+#     - network1
+#    entrypoint: "/gnatsd -DV"
+#    expose:
+#      - "4222"
+#    ports:
+#      - "8222:8222"
+#    container_name: bgx-nats
+#    hostname: nats-server
 
   orientdb:
     image: broadinstitute/orientdb:2.1.0
@@ -94,8 +94,8 @@ services:
     container_name: bgt-tp-python-bgx
     depends_on:
       - validator
-      - orientdb
-      - nats
+#      - orientdb
+#      - nats
     command: |
       bash -c "
         bgx/bin/protogen
@@ -136,8 +136,6 @@ services:
       "
     stop_signal: SIGKILL
 
-
-
   client:
     build:
       context: ../..
@@ -164,7 +162,6 @@ services:
       "
     stop_signal: SIGKILL
 
-
   validator:
     build:
       context: ../..
@@ -181,7 +178,9 @@ services:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: sawtooth-validator-bgx
+    container_name: validator-bgx
+    depends_on:
+      - orientdb
     expose:
       - 4004
       - 8800
@@ -189,12 +188,13 @@ services:
     ports:
       - "4004:4004"
       - "8800:8800"
+      - "5050:5050"
     # start the validator with an empty genesis batch
     # cargo build --release sawadm keygen && sawtooth keygen my_key && sawset genesis -k /root/.sawtooth/keys/my_key.priv && sawadm genesis config-genesis.batch && 
     command: |
       bash -c "
         bgx/bin/protogen
-        cd validator
+        cd bgx/validator-dag
         python3 setup.py clean --all
         python3 setup.py build
         mkdir -p bin
@@ -207,8 +207,8 @@ services:
         sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=pbfts sawtooth.consensus.pbft.max_log_size=20 sawtooth.consensus.pbft.nodes=\"{'0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba': 'leader','028c7e06db3af50a9958390e3e29f166b1cf6198586acf37cde46c8ea54e4a79ef': 'plink'}\"
         sawset genesis -k /root/.sawtooth/keys/my_key.priv
         #ls -l /var/lib/
-        rm -f ../data-bgx/data/* ../data-bgx/logs/*.log*;sawadm genesis config-genesis.batch sawset.batch 
-        sawtooth-validator -vv  \
+        rm -f ../../data-bgx/data/* ../../data-bgx/logs/*.log*;sawadm genesis config-genesis.batch sawset.batch 
+        validator-dag -vv  \
             --endpoint tcp://validator:8800 \
             --bind component:tcp://eth0:4004 \
             --bind network:tcp://eth0:8800 \

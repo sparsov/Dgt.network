@@ -29,6 +29,8 @@ from sawtooth_validator.execution.context_manager import ContextManager
 from sawtooth_validator.database.indexed_database import IndexedDatabase
 from sawtooth_validator.database.native_lmdb import NativeLmdbDatabase
 
+from sawtooth_validator.database.orientdb_database import OrientDatabase
+     
 from sawtooth_validator.journal.block_store import BlockStore
 from sawtooth_validator.networking.dispatch import Dispatcher
 from sawtooth_validator.execution.executor import TransactionExecutor
@@ -49,7 +51,7 @@ class ExecutionError(Exception):
     pass
 
 
-def get_databases(bind_network, data_dir):
+def get_databases(bind_network, data_dir,database=None):
     # Get the global state database to operate on
     global_state_db_filename = os.path.join(
         data_dir, 'merkle-{}.lmdb'.format(bind_network[-2:]))
@@ -59,16 +61,28 @@ def get_databases(bind_network, data_dir):
         global_state_db_filename,
         indexes=MerkleDatabase.create_index_configuration())
 
-    # Get the blockstore
-    block_db_filename = os.path.join(
-        data_dir, 'block-{}.lmdb'.format(bind_network[-2:]))
-    LOGGER.debug('block store file is %s', block_db_filename)
-    block_db = IndexedDatabase(
-        block_db_filename,
-        BlockStore.serialize_block,
-        BlockStore.deserialize_block,
-        flag='c',
-        indexes=BlockStore.create_index_configuration())
+    if database:
+        LOGGER.debug('get_databases: OPEN ORIENTDB uri=%s', database)
+        block_db = OrientDatabase(
+            database,
+            BlockStore.serialize_block,
+            BlockStore.deserialize_block,
+            indexes=BlockStore.create_index_configuration(),
+            flag='c'
+            )
+        LOGGER.debug('get_databases:OPEN ORIENT DB DONE %s',block_db)
+    else:
+        # Get the blockstore
+        block_db_filename = os.path.join(
+            data_dir, 'block-{}.lmdb'.format(bind_network[-2:]))
+        LOGGER.debug('block store file is %s', block_db_filename)
+        block_db = IndexedDatabase(
+            block_db_filename,
+            BlockStore.serialize_block,
+            BlockStore.deserialize_block,
+            flag='c',
+            indexes=BlockStore.create_index_configuration())
+
     blockstore = BlockStore(block_db)
 
     return global_state_db, blockstore

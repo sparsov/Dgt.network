@@ -444,7 +444,7 @@ class OrientDatabaseTest(unittest.TestCase):
         - not interrupt the iteration with an error
         """
         db = OrientDatabase(
-            os.path.join(self._temp_dir, 'test_db'),
+            DB_URI,
             _serialize_tuple,
             _deserialize_tuple,
             indexes={'name': lambda tup: [tup[1].encode()]},

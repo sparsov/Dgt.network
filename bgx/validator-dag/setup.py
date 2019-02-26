@@ -45,9 +45,9 @@ if os.path.exists("/lib/systemd/system"):
                        ['packaging/systemd/sawtooth-validator.service']))
 
 setup(
-    name='sawtooth-validator',
+    name='validator-dag',
     version=subprocess.check_output(
-        ['../bin/get_version']).decode('utf-8').strip(),
+        ['../../bin/get_version']).decode('utf-8').strip(),
     description='Sawtooth Validator',
     author='Hyperledger Sawtooth',
     url='https://github.com/hyperledger/sawtooth-core',

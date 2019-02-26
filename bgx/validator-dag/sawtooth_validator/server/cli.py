@@ -111,6 +111,7 @@ def main(args):
             peering=args['peering'],
             peers=args['peers'],
             scheduler=args['scheduler'],
+            database=args['database'] if 'database' in args else None,
             seeds=args['seeds'],
             state_pruning_block_depth=args['state_pruning_block_depth'],
             fork_cache_keep_time=args['fork_cache_keep_time'],
@@ -235,7 +236,8 @@ def main(args):
     # Verify state integrity before startup
     global_state_db, blockstore = state_verifier.get_databases(
         bind_network,
-        path_config.data_dir)
+        path_config.data_dir,
+        validator_config.database)
 
     state_verifier.verify_state(
         global_state_db,
@@ -247,9 +249,7 @@ def main(args):
     global_state_db.drop()
     global_state_db = None
 
-    LOGGER.info(
-        'Starting validator with %s scheduler',
-        validator_config.scheduler)
+    LOGGER.info('Starting validator with %s scheduler database=%s',validator_config.scheduler,validator_config.database)
 
     validator = Validator(
         bind_network,
@@ -263,6 +263,7 @@ def main(args):
         path_config.config_dir,
         identity_signer,
         validator_config.scheduler,
+        validator_config.database,
         validator_config.permissions,
         validator_config.minimum_peer_connectivity,
         validator_config.maximum_peer_connectivity,

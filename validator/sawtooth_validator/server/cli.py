@@ -247,8 +247,7 @@ def main(args):
     global_state_db.drop()
     global_state_db = None
 
-    LOGGER.info(
-        'Starting validator with %s scheduler',
+    LOGGER.info('Starting validator with %s scheduler',
         validator_config.scheduler)
 
     validator = Validator(

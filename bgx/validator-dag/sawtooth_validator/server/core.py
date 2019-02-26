@@ -26,6 +26,8 @@ from sawtooth_validator.execution.context_manager import ContextManager
 from sawtooth_validator.consensus.notifier import ConsensusNotifier
 from sawtooth_validator.consensus.proxy import ConsensusProxy
 from sawtooth_validator.database.indexed_database import IndexedDatabase
+#orient db
+from sawtooth_validator.database.orientdb_database import OrientDatabase
 from sawtooth_validator.database.lmdb_nolock_database import LMDBNoLockDatabase
 from sawtooth_validator.database.native_lmdb import NativeLmdbDatabase
 from sawtooth_validator.journal.block_validator import BlockValidator
@@ -83,6 +85,7 @@ class Validator:
                  config_dir,
                  identity_signer,
                  scheduler_type,
+                 database_type,
                  permissions,
                  minimum_peer_connectivity,
                  maximum_peer_connectivity,
@@ -133,17 +136,27 @@ class Validator:
         LOGGER.debug('txn receipt store file is %s', receipt_db_filename)
         receipt_db = LMDBNoLockDatabase(receipt_db_filename, 'c')
         receipt_store = TransactionReceiptStore(receipt_db)
-
-        # -- Setup Block Store -- #
-        block_db_filename = os.path.join(
-            data_dir, 'block-{}.lmdb'.format(bind_network[-2:]))
-        LOGGER.debug('block store file is %s', block_db_filename)
-        block_db = IndexedDatabase(
-            block_db_filename,
-            BlockStore.serialize_block,
-            BlockStore.deserialize_block,
-            flag='c',
-            indexes=BlockStore.create_index_configuration())
+        if not database_type:
+            # -- Setup Block Store -- #
+            block_db_filename = os.path.join(data_dir, 'block-{}.lmdb'.format(bind_network[-2:]))
+            LOGGER.debug('USE IndexedDatabase block store file is %s', block_db_filename)
+            block_db = IndexedDatabase(
+                block_db_filename,
+                BlockStore.serialize_block,
+                BlockStore.deserialize_block,
+                flag='c',
+                indexes=BlockStore.create_index_configuration())
+        else:
+            #ORIENT_URI = "uri://admin:foo@orientdb:2424/blocks"
+            LOGGER.debug('OPEN ORIENTDB uri=%s', database_type)
+            block_db = OrientDatabase(
+                database_type,
+                BlockStore.serialize_block,
+                BlockStore.deserialize_block,
+                indexes=BlockStore.create_index_configuration(),
+                flag='c'
+                )
+            LOGGER.debug('OPEN ORIENT DB DONE %s',block_db)
         block_store = BlockStore(block_db)
         # The cache keep time for the journal's block cache must be greater
         # than the cache keep time used by the completer.

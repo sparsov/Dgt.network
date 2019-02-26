@@ -35,6 +35,7 @@ def load_default_validator_config():
         endpoint=None,
         peering='static',
         scheduler='serial',
+        database=None, 
         minimum_peer_connectivity=3,
         maximum_peer_connectivity=10,
         state_pruning_block_depth=100,
@@ -64,7 +65,7 @@ def load_toml_validator_config(filename):
     toml_config = toml.loads(raw_config)
     invalid_keys = set(toml_config.keys()).difference(
         ['bind', 'endpoint', 'peering', 'seeds', 'peers', 'network_public_key',
-         'network_private_key', 'scheduler', 'permissions', 'roles',
+         'network_private_key', 'scheduler', 'database', 'permissions', 'roles',
          'opentsdb_url', 'opentsdb_db', 'opentsdb_username',
          'opentsdb_password', 'minimum_peer_connectivity',
          'maximum_peer_connectivity', 'state_pruning_block_depth',
@@ -104,6 +105,7 @@ def load_toml_validator_config(filename):
         network_public_key=network_public_key,
         network_private_key=network_private_key,
         scheduler=toml_config.get("scheduler", None),
+        database=toml_config.get("database", None),
         permissions=parse_permissions(toml_config.get("permissions", None)),
         roles=toml_config.get("roles", None),
         opentsdb_url=toml_config.get("opentsdb_url", None),
@@ -139,6 +141,7 @@ def merge_validator_config(configs):
     network_public_key = None
     network_private_key = None
     scheduler = None
+    database = None
     permissions = None
     roles = None
     opentsdb_url = None
@@ -171,6 +174,8 @@ def merge_validator_config(configs):
             network_private_key = config.network_private_key
         if config.scheduler is not None:
             scheduler = config.scheduler
+        if config.database is not None:
+            database = config.database
         if config.permissions is not None or config.permissions == {}:
             permissions = config.permissions
         if config.roles is not None:
@@ -203,6 +208,7 @@ def merge_validator_config(configs):
         network_public_key=network_public_key,
         network_private_key=network_private_key,
         scheduler=scheduler,
+        database=database,
         permissions=permissions,
         roles=roles,
         opentsdb_url=opentsdb_url,
@@ -258,7 +264,7 @@ class ValidatorConfig:
                  endpoint=None, peering=None, seeds=None,
                  peers=None, network_public_key=None,
                  network_private_key=None,
-                 scheduler=None, permissions=None,
+                 scheduler=None,database=None, permissions=None,
                  roles=None, opentsdb_url=None, opentsdb_db=None,
                  opentsdb_username=None, opentsdb_password=None,
                  minimum_peer_connectivity=None,
@@ -276,6 +282,7 @@ class ValidatorConfig:
         self._network_public_key = network_public_key
         self._network_private_key = network_private_key
         self._scheduler = scheduler
+        self._database  = database
         self._permissions = permissions
         self._roles = roles
         self._opentsdb_url = opentsdb_url
@@ -327,6 +334,11 @@ class ValidatorConfig:
     def scheduler(self):
         return self._scheduler
 
+
+    @property
+    def database(self):
+        return self._database
+
     @property
     def permissions(self):
         return self._permissions
@@ -373,7 +385,7 @@ class ValidatorConfig:
             "{}(bind_network={}, bind_component={}, bind_consensus={}, "
             "endpoint={}, peering={}, seeds={}, peers={}, "
             "network_public_key={}, network_private_key={}, "
-            "scheduler={}, permissions={}, roles={} "
+            "scheduler={},database={}, permissions={}, roles={} "
             "opentsdb_url={}, opentsdb_db={}, opentsdb_username={}, "
             "minimum_peer_connectivity={}, maximum_peer_connectivity={}, "
             "state_pruning_block_depth={}, "
@@ -390,6 +402,7 @@ class ValidatorConfig:
             repr(self._network_public_key),
             repr(self._network_private_key),
             repr(self._scheduler),
+            repr(self._database),
             repr(self._permissions),
             repr(self._roles),
             repr(self._opentsdb_url),
@@ -413,6 +426,7 @@ class ValidatorConfig:
             ('network_public_key', self._network_public_key),
             ('network_private_key', self._network_private_key),
             ('scheduler', self._scheduler),
+            ('database', self._database),
             ('permissions', self._permissions),
             ('roles', self._roles),
             ('opentsdb_url', self._opentsdb_url),

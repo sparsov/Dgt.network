@@ -105,7 +105,7 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
         self._consensus_notifier = consensus_notifier
 
     def handle_request(self, request, response):
-        LOGGER.debug('ConsensusRegisterHandler: proxy.register')
+        #LOGGER.debug('ConsensusRegisterHandler: proxy.register')
         startup_info = self._proxy.register()
 
         if startup_info is None:

@@ -35,6 +35,7 @@ services:
       - /orientdb/databases:/opt/orientdb/databases
       - /orientdb/backup:/opt/orientdb/backup
 
+# test_orient_block_store  test_orientdb test_block_cache test_block_tracker
   unit-validator:
     build:
       context: ../../..
@@ -55,7 +56,7 @@ services:
     command: nose2-3
         -c /project/${BGX_TOP}/bgx/validator-dag/nose2.cfg
         -v
-        -s /project/${BGX_TOP}/bgx/validator-dag/tests/test_orientdb 
+        -s /project/${BGX_TOP}/bgx/validator-dag/tests/test_orient_block_store 
     environment:
         PYTHONPATH: "/project/${BGX_TOP}/signing:\
             /project/${BGX_TOP}:\

@@ -66,6 +66,7 @@ class PermissionVerifier:
         """
         if state_root is None:
             state_root = self._current_root_func()
+            LOGGER.debug("authorized Chain head is %s.",state_root)
             if state_root == INIT_ROOT_KEY:
                 LOGGER.debug("Chain head is not set yet. Permit all.")
                 return True
@@ -276,6 +277,7 @@ class PermissionVerifier:
                     network
         """
         state_root = self._current_root_func()
+        LOGGER.debug("role Chain head is %s.",state_root)
         if state_root == INIT_ROOT_KEY:
             LOGGER.debug("Chain head is not set yet. Permit all.")
             return True
