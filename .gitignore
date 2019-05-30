@@ -27,7 +27,7 @@
 
 /bgx/**/__pycache__/
 /data-bgx/
-
+/data-bgx2/
 /**/build/
 
 /cli/build/
