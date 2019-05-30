@@ -44,6 +44,7 @@ def main(args=None):
     protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
     protoc(proto_dir, "validator", "sawtooth_validator/protobuf")
     protoc(proto_dir, "bgx/validator", "sawtooth_validator/protobuf")
+    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
     protoc(proto_dir, "rest_api", "sawtooth_rest_api/protobuf")
     # for rest-api-stub
     protoc(proto_dir, "bgx/rest-api-stub", "sawtooth_rest_api/protobuf")

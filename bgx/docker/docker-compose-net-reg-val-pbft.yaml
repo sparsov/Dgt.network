@@ -196,7 +196,7 @@ services:
         python3 setup.py build
         sawadm keygen
         sawtooth keygen my_key
-        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=pbft sawtooth.consensus.pbft.node=plink sawtooth.consensus.pbft.max_log_size=20
+        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=devmode sawtooth.consensus.pbft.node=plink sawtooth.consensus.pbft.max_log_size=20
         sawset genesis -k /root/.sawtooth/keys/my_key.priv 
         sawadm genesis config-genesis.batch  sawset.batch
         validator-bgx -vv  \

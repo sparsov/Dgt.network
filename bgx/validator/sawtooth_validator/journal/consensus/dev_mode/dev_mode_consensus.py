@@ -100,6 +100,7 @@ class BlockPublisher(BlockPublisherInterface):
         self._start_time = time.time()
         self._wait_time = random.uniform(
             self._min_wait_time, self._max_wait_time)
+        LOGGER.debug("DEV-MODE:initialize_block")
         return True
 
     def check_publish_block(self, block_header):
@@ -137,6 +138,7 @@ class BlockPublisher(BlockPublisherInterface):
         Returns:
             True
         """
+        LOGGER.debug("DEV-MODE:finalize_block")
         return True
 
 
@@ -160,6 +162,7 @@ class BlockVerifier(BlockVerifierInterface):
             validator_id)
 
     def verify_block(self, block_wrapper):
+        LOGGER.debug("DEV-MODE:verify_block")
         return block_wrapper.header.consensus == b"Devmode"
 
 
@@ -203,7 +206,7 @@ class ForkResolver(ForkResolverInterface):
             bool: True if choosing the new chain head, False if choosing
             the current chain head.
         """
-
+        LOGGER.debug("DEV-MODE:compare_forks cur~new=%s~%s",cur_fork_head.identifier[:8],new_fork_head.identifier[:8])
         # If the new fork head is not DevMode consensus, bail out.  This should
         # never happen, but we need to protect against it.
         if new_fork_head.consensus != b"Devmode":

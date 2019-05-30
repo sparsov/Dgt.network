@@ -564,6 +564,7 @@ class _ChainThread(InstrumentedThread):
             while True:
                 try:
                     block = self._block_queue.get(timeout=1)
+                    LOGGER.debug("_ChainThread NEW BLOCK: %s",block)
                     self._chain_controller.on_block_received(block)
                 except queue.Empty:
                     # If getting a block times out, just try again.
@@ -698,6 +699,7 @@ class ChainController(object):
 
     def start(self):
         self._set_chain_head_from_block_store()
+        LOGGER.debug("ChainController:START...")
         self._notify_on_chain_updated(self._chain_head)
 
         self._chain_thread = _ChainThread(

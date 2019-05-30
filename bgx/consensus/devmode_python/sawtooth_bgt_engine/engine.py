@@ -38,7 +38,7 @@ class BgtEngine(Engine):
         self._component_endpoint = component_endpoint
         self._service = None
         self._oracle = None
-
+        self._skip   = False
         # state variables
         self._exit = False
         self._published = False
@@ -74,7 +74,8 @@ class BgtEngine(Engine):
             #return False
         except exceptions.InvalidState :
             LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
-            #return False
+            self._skip = True
+            return False
         return True
 
     def _check_consensus(self, block):
@@ -190,7 +191,7 @@ class BgtEngine(Engine):
         return self._oracle.check_publish_block(None)
 
     def start(self, updates, service, startup_state):
-        LOGGER.debug('BgtEngine: start service=%s...',service)
+        LOGGER.debug('BgtEngine: start service=%s startup_state=%s.',service,startup_state)
         self._service = service
         self._oracle = BgtOracle(
             service=service,
@@ -237,8 +238,8 @@ class BgtEngine(Engine):
                 #self._try_to_publish()
                 if not self._published:
                     #self._service.initialize_block()
-                    self._initialize_block() 
-                    self._published = True
+                    if not self._skip and self._initialize_block() :  
+                        self._published = True
                 elif not self._building:
                     sum_cnt += 1
                     if sum_cnt > 10:

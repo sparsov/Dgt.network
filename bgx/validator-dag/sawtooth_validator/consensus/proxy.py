@@ -43,6 +43,7 @@ class ConsensusProxy:
         self._public_key = self._identity_signer.get_public_key().as_bytes()
         self._settings_view_factory = settings_view_factory
         self._state_view_factory = state_view_factory
+        LOGGER.debug('ConsensusProxy:: _block_publisher=%s',self._block_publisher)
 
     def register(self):
         chain_head = self._chain_controller.chain_head

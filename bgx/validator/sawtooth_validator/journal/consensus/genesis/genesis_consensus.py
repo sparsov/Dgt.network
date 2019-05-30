@@ -20,6 +20,8 @@ from sawtooth_validator.journal.consensus.consensus import \
 from sawtooth_validator.journal.consensus.consensus import \
     ForkResolverInterface
 
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class BlockPublisher(BlockPublisherInterface):
     """The Genesis BlockPublisher is the basic publisher used only during the
@@ -49,6 +51,7 @@ class BlockPublisher(BlockPublisherInterface):
         Returns:
             Boolean: `True` as the candidate block should always be built.
         """
+        LOGGER.debug("GENESIS:initialize_block")
         block_header.consensus = b"Genesis"
         return block_header.previous_block_id == NULL_BLOCK_IDENTIFIER
 
@@ -61,6 +64,7 @@ class BlockPublisher(BlockPublisherInterface):
         """Returns `True`, as the genesis block is always considered good by the
         genesis node.
         """
+        LOGGER.debug("GENESIS:finalize_block")
         return block_header.previous_block_id == NULL_BLOCK_IDENTIFIER
 
 
@@ -113,4 +117,5 @@ class ForkResolver(ForkResolverInterface):
     def compare_forks(self, cur_fork_head, new_fork_head):
         """Returns False, acception only the current fork.
         """
+        LOGGER.debug("GENESIS:compare_forks")
         return False

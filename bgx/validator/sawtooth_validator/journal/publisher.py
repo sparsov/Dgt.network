@@ -81,6 +81,7 @@ class _PublisherThread(InstrumentedThread):
             # to frequently.
             next_check_publish_block_time = time.time() + \
                 self._check_publish_block_frequency
+            LOGGER.debug("_PublisherThread:run _check_publish_block_frequency=%s",self._check_publish_block_frequency)
             while True:
                 try:
                     batch = self._batch_queue.get(
@@ -542,7 +543,7 @@ class BlockPublisher(object):
         state_view = BlockWrapper.state_view_for_block(
             chain_head,
             self._state_view_factory)
-        LOGGER.debug("BlockPublisher: _build_candidate_block ")
+        LOGGER.debug("BlockPublisher: _build_candidate_block...")
         consensus_module = ConsensusFactory.get_configured_consensus_module(
             chain_head.header_signature,
             state_view)
@@ -607,6 +608,7 @@ class BlockPublisher(object):
         :param batch: the new pending batch
         :return: None
         """
+        LOGGER.debug("BlockPublisher:on_batch_received (%s)",batch)
         with self._lock:
             self._queued_batch_ids = self._queued_batch_ids[:1]
             if self._permission_verifier.is_batch_signer_authorized(batch):
@@ -617,6 +619,8 @@ class BlockPublisher(object):
                 # execution.
                 if self._candidate_block and \
                         self._candidate_block.can_add_batch:
+                    #
+                    # there is block candidate and we can add batch into them
                     self._candidate_block.add_batch(batch)
             else:
                 LOGGER.debug("Batch has an unauthorized signer. Batch: %s",
@@ -712,6 +716,7 @@ class BlockPublisher(object):
         :return:
             None
         """
+        #LOGGER.debug("BlockPublisher:on_check_publish_block ...")
         try:
             with self._lock:
                 if (self._chain_head is not None
@@ -730,6 +735,7 @@ class BlockPublisher(object):
                     block = self._candidate_block.finalize_block(
                         self._identity_signer,
                         pending_batches)
+                    LOGGER.debug("BlockPublisher: after finalize_block")
                     self._candidate_block = None
                     # Update the _pending_batches to reflect what we learned.
 
