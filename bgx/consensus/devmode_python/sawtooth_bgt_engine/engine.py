@@ -164,15 +164,16 @@ class BgtEngine(Engine):
             #LOGGER.debug('Block not ready to be summarized')
             return None
         LOGGER.debug('Can FINALIZE NOW')
-        consensus = b'devmode' #self._oracle.finalize_block(summary)
+        consensus = b'Devmode' #self._oracle.finalize_block(summary)
 
         if consensus is None:
             return None
 
         try:
             block_id = self._service.finalize_block(consensus)
-            LOGGER.info('Finalized block=%s with ',_short_id(block_id.hex())) #json.loads(consensus.decode())
-            self._building = True
+            LOGGER.info('Finalized block_id=%s',_short_id(block_id.hex())) #json.loads(consensus.decode())
+            self._building = False # ONLY for testing new version - normal True
+            self._published = False # ONLY for testing new version
             # broadcast 
             #LOGGER.debug('broadcast ...')
             #self._service.broadcast('message_type',b'payload')

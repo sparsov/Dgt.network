@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # FOR BGX VALIDATOR with DAG but without Rust (project validator-bgx)
+# 
 version: '3.6'
 
 services:
@@ -187,7 +188,7 @@ services:
     ports:
       - "4004:4004"
       - "8800:8800"
-    # start the validator with an empty genesis batch
+    # start the validator with an empty genesis batch sawtooth.consensus.algorithm=devmode and ADD sawtooth.consensus.version=0.1
     command: |
       bash -c "
         bgx/bin/protogen
@@ -197,7 +198,7 @@ services:
         python3 setup.py build
         sawadm keygen
         sawtooth keygen my_key
-        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=devmode sawtooth.consensus.pbft.node=plink sawtooth.consensus.pbft.max_log_size=20
+        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=Devmode sawtooth.consensus.version=0.1 sawtooth.consensus.pbft.node=plink sawtooth.consensus.pbft.max_log_size=20
         sawset genesis -k /root/.sawtooth/keys/my_key.priv 
         sawadm genesis config-genesis.batch  sawset.batch
         validator-dbgx -vv  \
