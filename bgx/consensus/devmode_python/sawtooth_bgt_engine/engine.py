@@ -171,9 +171,9 @@ class BgtEngine(Engine):
 
         try:
             block_id = self._service.finalize_block(consensus)
-            LOGGER.info('Finalized block_id=%s',_short_id(block_id.hex())) #json.loads(consensus.decode())
-            self._building = False # ONLY for testing new version - normal True
-            self._published = False # ONLY for testing new version
+            LOGGER.info('Finalized summary=%s block_id=%s',summary,_short_id(block_id.hex())) #json.loads(consensus.decode())
+            self._building = True # ONLY for testing new version - normal True
+            self._published = True # ONLY for testing new version
             # broadcast 
             #LOGGER.debug('broadcast ...')
             #self._service.broadcast('message_type',b'payload')
@@ -282,8 +282,11 @@ class BgtEngine(Engine):
         LOGGER.info('=> NEW_BLOCK:Received %s', _short_id(block.block_id.hex()))
 
         if self._check_consensus(block):
-            LOGGER.info('Passed consensus check: %s', _short_id(block.block_id.hex()))
-            self._check_block(block.block_id)
+            # at this point state PREPARED
+            LOGGER.info('Passed consensus check in state PREPARED: %s ', _short_id(block.block_id.hex()))
+            self._check_block(block.block_id) # this message send chain controller message for continue block validation
+            # waiting block valid message
+            #self._commit_block(block.block_id)
         else:
             LOGGER.info('Failed consensus check: %s', _short_id(block.block_id.hex()))
             self._fail_block(block.block_id)
