@@ -16,6 +16,7 @@
 import ctypes
 import logging
 from enum import IntEnum
+from sawtooth_validator.consensus.proxy import UnknownBlock
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class MissingPredecessorInBranch(Exception):
 class MissingInput(Exception):
     pass
 
-
+"""
 class UnknownBlock(Exception):
     pass
 
@@ -63,7 +64,29 @@ class _PutEntry(ctypes.Structure):
             block_bytes,
             len(block_bytes)
         )
+"""
 
+class ManagedBlock(object):
+        def __init__(self, value):
+            self.value = value.SerializeToString()
+            #self.timestamp = time.time()  # the time this State was created,
+            # used for house keeping, ie when to flush this from the cache.
+            self.count = 0
+
+        def touch(self):
+            """
+            Mark this entry as accessed.
+            """
+            pass #self.timestamp = time.time()
+
+        def inc_count(self):
+            self.count += 1
+            self.touch()
+
+        def dec_count(self):
+            if self.count > 0:
+                self.count -= 1
+            self.touch()
 
 class BlockManager():
 
@@ -83,16 +106,20 @@ class BlockManager():
                    ctypes.py_object(block_store))
         """
         self._name = name
-        #self._block_store = block_store if block_store is not None else {}
+        self._block_store = {} # block_store if block_store is not None else {} 
         LOGGER.debug("BlockManager: add_store name=%s",name)
 
     def put(self, branch):
+        """
         c_put_items = (ctypes.POINTER(_PutEntry) * len(branch))()
         for (i, block) in enumerate(branch):
             c_put_items[i] = ctypes.pointer(_PutEntry.new(
                 block.SerializeToString(),
             ))
-        LOGGER.debug("BlockManager: put branch=%s",branch)
+        """
+        for (i, block) in enumerate(branch): 
+            LOGGER.debug("BlockManager: put block[%s]=%s",i,block.header_signature[:8])
+            self._block_store[block.header_signature] = ManagedBlock(block)
         """
         _libexec("block_manager_put",
                  self.pointer,
@@ -101,18 +128,35 @@ class BlockManager():
 
     # Raises UnknownBlock if the block is not found
     def ref_block(self, block_id):
-        LOGGER.debug("BlockManager: ref_block block_id=%s",block_id)
+        """
+        use for keeping block until it's need 
+        mark parent block of new block 
+        """
+        LOGGER.debug("BlockManager: ref_block block_id=%s",block_id[:8])
+        if block_id in self._block_store:
+            LOGGER.debug("BlockManager: ref_block contain block_id=%s",block_id[:8])
+        else:
+            raise UnknownBlock
         """
         _libexec(
             "block_manager_ref_block",
             self.pointer,
             ctypes.c_char_p(block_id.encode()))
         """
-        self._block = self._block_store._get_block(block_id)
-        LOGGER.debug("BlockManager: ref_block block=(%s)",self._block) 
+        #self._block = self._block_store._get_block(block_id)
+        #LOGGER.debug("BlockManager: ref_block block=(%s)",self._block) 
+
     # Raises UnknownBlock if the block is not found
     def unref_block(self, block_id):
-        LOGGER.debug("BlockManager: unref_block block_id=%s",block_id)
+        """
+        mark block as could be free
+        """
+        LOGGER.debug("BlockManager: unref_block block_id=%s",block_id[:8])
+        if block_id in self._block_store:
+            LOGGER.debug("BlockManager: ref_block contain block_id=%s",block_id[:8])
+        else:
+            raise UnknownBlock
+
         """
         _libexec(
             "block_manager_unref_block",
@@ -128,8 +172,9 @@ class BlockManager():
                  ctypes.c_char_p(store_name.encode()))
         """
     def __contains__(self, block_id):
-        LOGGER.debug("BlockManager: __contains__ block_id=%s (say YES in any case)",block_id)
-        contains = ctypes.c_bool(True)
+        LOGGER.debug("BlockManager: __contains__ block_id=%s (say YES in any case)",block_id[:8])
+        #contains = ctypes.c_bool(True)
+        contains = True if block_id in self._block_store else False
         """
         _libexec(
             "block_manager_contains",
@@ -141,7 +186,7 @@ class BlockManager():
 
     def get(self, block_ids):
         LOGGER.debug("BlockManager: get block_ids=%s",block_ids)
-        return _GetBlockIterator(self.pointer, block_ids,self._block_store)
+        return _GetBlockIterator(block_ids,self._block_store)
 
     def branch(self, tip):
         LOGGER.debug("BlockManager: branch tip=%s",tip)
@@ -188,62 +233,35 @@ class _BlockIterator:
     def __del__(self):
         if self._c_iter_ptr:
             LOGGER.debug("_BlockIterator: __del__ ptr=%s",self._c_iter_ptr)
-            """
-            _libexec("{}_drop".format(self.name), self._c_iter_ptr)
-            """
 
     def __iter__(self):
-        LOGGER.debug("_BlockIterator: __iter__ ptr=%s ....",self)
+        #LOGGER.debug("_BlockIterator: __iter__ ptr=%s ....",self)
         return self
 
     def __next__(self):
         if not self._c_iter_ptr:
+            LOGGER.debug("_BlockIterator: StopIteration ")
             raise StopIteration()
-        LOGGER.debug("_BlockIterator: __next__ ptr=%s",self._c_iter_ptr)
-        """
-        (vec_ptr, vec_len, vec_cap) = ffi.prepare_vec_result()
-
-        _libexec("{}_next".format(self.name),
-                 self._c_iter_ptr,
-                 ctypes.byref(vec_ptr),
-                 ctypes.byref(vec_len),
-                 ctypes.byref(vec_cap))
-
-        # Check if NULL
-        if not vec_ptr:
+        #LOGGER.debug("_BlockIterator: __next__ ptr=%s",self._c_iter_ptr)
+        block_id = next(self._c_iter_ptr)
+        #LOGGER.debug("_BlockIterator: next=%s",block_id)
+        if block_id in self._block_store:
+            mblock = self._block_store[block_id]   
+            block = Block()
+            block.ParseFromString(mblock.value)
+        else:
+            LOGGER.debug("_BlockIterator:not in store  StopIteration ")
             raise StopIteration()
 
-        payload = ffi.from_rust_vec(vec_ptr, vec_len, vec_cap)
-        """
-        payload = next(self._c_iter_ptr)
-        LOGGER.debug("_BlockIterator: next=%s",payload)
-        block = Block()
-        #block.ParseFromString(payload)
-
-        return block
+        return block 
 
 
 class _GetBlockIterator(_BlockIterator):
-
     name = "block_manager_get_iterator"
-
-    def __init__(self, block_manager_ptr, block_ids,block_store = None):
-
-        c_block_ids = (ctypes.c_char_p * len(block_ids))()
-        for i, block_id in enumerate(block_ids):
-            c_block_ids[i] = ctypes.c_char_p(block_id.encode())
-
-        #self._c_iter_ptr = 1 #fake
-        self._c_iter_ptr = block_store.get_block_iter(start_block=None) if block_store else None #start_block=block_ids[0]
-        """
-        self._c_iter_ptr = ctypes.c_void_p()
-        _libexec("{}_new".format(self.name),
-                 block_manager_ptr,
-                 c_block_ids,
-                 ctypes.c_size_t(len(block_ids)),
-                 ctypes.byref(self._c_iter_ptr))
-        """
-        LOGGER.debug("_GetBlockIterator: __init__ block_manager_ptr=%s block_ids=%s iter=%s",block_manager_ptr,block_ids,self._c_iter_ptr)
+    def __init__(self, block_ids,block_store = None):
+        self._c_iter_ptr = iter(block_ids)
+        self._block_store = block_store
+        #LOGGER.debug("_GetBlockIterator: __init__ block_ids=%s",self._c_iter_ptr)
 
 class _BranchDiffIterator(_BlockIterator):
 

@@ -17,6 +17,9 @@
 from collections import namedtuple
 
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
+from sawtooth_validator.journal.block_wrapper import BlockWrapper
+from sawtooth_validator.journal.block_wrapper import BlockStatus
+
 import logging
 LOGGER = logging.getLogger(__name__)
 
@@ -75,9 +78,14 @@ class ConsensusProxy:
     def initialize_block(self, previous_id):
         if previous_id:
             try:
-                has = self._chain_controller.has_block(previous_id.hex())
-                LOGGER.debug("ConsensusProxy:initialize_block HAS=%s (%s)",has,previous_id.hex())
-                previous_block = self._chain_controller.get_block_from_cache(previous_id.hex()) if has else None #next(self._block_manager.get([previous_id.hex()]))
+                
+                LOGGER.debug("ConsensusProxy:initialize_block (%s)",previous_id.hex())
+                #has = self._chain_controller.has_block(previous_id.hex())
+                #previous_block1 = self._chain_controller.get_block_from_cache(previous_id.hex()) if has else None
+                block = next(self._block_manager.get([previous_id.hex()])) 
+                previous_block = BlockWrapper(block=block, status=BlockStatus.Unknown)
+                #LOGGER.debug("ConsensusProxy:initialize_block previous_block=(%s~%s)",type(previous_block),type(previous_block1))
+                
             except StopIteration:
                 raise UnknownBlock()
             
@@ -212,12 +220,10 @@ class ConsensusProxy:
         return result
 
     def _get_blocks(self, block_ids):
-        LOGGER.debug("ConsensusProxy:_get_blocks %s",block_ids)
-        """
+        LOGGER.debug("ConsensusProxy:_get_blocks %s\n",block_ids)
         block_iter = self._block_manager.get(block_ids)
         blocks = [b for b in block_iter]
-        """
-        blocks = self._chain_controller.get_blocks_validation(block_ids)
+        #blocks = self._chain_controller.get_blocks_validation(block_ids)
         if len(blocks) != len(block_ids):
             LOGGER.debug("ConsensusProxy:_get_blocks UnknownBlock")
             raise UnknownBlock()

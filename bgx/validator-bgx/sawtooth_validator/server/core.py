@@ -317,12 +317,14 @@ class Validator(object):
                 settings_observer
             ],
             metrics_registry=metrics_registry,
-            consensus_notifier=consensus_notifier)# for external engine control
+            consensus_notifier=consensus_notifier,
+            block_manager=block_manager)# for external engine control
 
         genesis_controller = GenesisController(
             context_manager=context_manager,
             transaction_executor=executor,
             completer=completer,
+            block_manager=block_manager,
             block_store=block_store,
             state_view_factory=state_view_factory,
             identity_signer=identity_signer,

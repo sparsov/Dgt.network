@@ -39,6 +39,7 @@ from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
 from sawtooth_validator.state.merkle import INIT_ROOT_KEY
 from sawtooth_validator.protobuf.block_pb2 import Block
+from sawtooth_validator.consensus.proxy import UnknownBlock
 
 LOGGER = logging.getLogger(__name__)
 
@@ -101,7 +102,8 @@ class BlockValidator(object):
                  data_dir,
                  config_dir,
                  permission_verifier,
-                 metrics_registry=None):
+                 metrics_registry=None,
+                 block_manager=None):
         """Initialize the BlockValidator
         Args:
              consensus_module: The consensus module that contains
@@ -124,6 +126,7 @@ class BlockValidator(object):
             None
         """
         self._consensus_module = consensus_module
+        self._block_manager = block_manager
         self._verifier = None # for proxy only
         self._fork_resolver = None
         self._block_cache = block_cache
@@ -627,7 +630,8 @@ class ChainController(object):
                  chain_observers,
                  thread_pool=None,
                  metrics_registry=None,
-                 consensus_notifier=None):
+                 consensus_notifier=None,
+                 block_manager=None):
         """Initialize the ChainController
         Args:
             block_cache: The cache of all recent blocks and the processing
@@ -684,7 +688,7 @@ class ChainController(object):
         self._chain_observers = chain_observers
         self._metrics_registry = metrics_registry
         self._consensus_notifier = consensus_notifier # for external consensus
-
+        self._block_manager = block_manager
         if metrics_registry:
             self._chain_head_gauge = GaugeWrapper(
                 metrics_registry.gauge('chain_head', default='no chain head'))
@@ -777,6 +781,19 @@ class ChainController(object):
                 consensus_module = ConsensusFactory.try_configured_proxy_consensus()
                 consensus_module._CONSENSUS_NAME_ = consensus_name[0]
                 consensus_module._consensus_notifier = self._consensus_notifier
+                if self._block_manager:
+                    # add NEW block into block manager 
+                    blk = blkw.get_block()
+                    self._block_manager.put([blk])
+                    self._block_manager.ref_block(blk.header_signature)
+                    """
+                    mark parent block ref_block(blk.previous_block_id) 
+                    """
+                    self._block_manager.ref_block(blkw.header.previous_block_id)
+                    #block_iter = self._block_manager.get([blk.header_signature])
+                    #blocks = [b for b in block_iter]
+                    #blocks = next(self._block_manager.get([blk.header_signature]))
+                    #LOGGER.debug("BlockValidator:validate_block blocks=%s",blocks)
 
             validator = BlockValidator(
                 consensus_module=consensus_module,
@@ -790,7 +807,8 @@ class ChainController(object):
                 data_dir=self._data_dir,
                 config_dir=self._config_dir,
                 permission_verifier=self._permission_verifier,
-                metrics_registry=self._metrics_registry)
+                metrics_registry=self._metrics_registry,
+                block_manager=self._block_manager)
             self._blocks_processing[blkw.block.header_signature] = validator
             self._thread_pool.submit(validator.run)
 
@@ -846,6 +864,7 @@ class ChainController(object):
             validator.on_commit_block()
         else:
             LOGGER.debug("ChainController:commit_block undefined id=%s",block_id)
+            raise UnknownBlock
 
     def ignore_block(self, block):   
         # for external consensus     
@@ -855,6 +874,7 @@ class ChainController(object):
             validator.on_ignore_block()
         else:
             LOGGER.debug("ChainController:ignore_block undefined id=%s",block_id)
+            raise UnknownBlock
 
     def fail_block(self,block):
         # for external consensus     
@@ -864,6 +884,7 @@ class ChainController(object):
             validator.on_fail_block()
         else:
             LOGGER.debug("ChainController:fail_block undefined id=%s",block_id)
+            raise UnknownBlock
 
     def on_block_validated(self, commit_new_block, result):
         """
@@ -1086,6 +1107,13 @@ class ChainController(object):
                     ConsensusFactory.get_configured_consensus_module(
                         NULL_BLOCK_IDENTIFIER,
                         state_view)
+
+                if self._block_manager:
+                    # add NEW blkw into block manager 
+                    LOGGER.debug("ChainController: _set_genesis ADD NEW BLOCK\n")
+                    blk = blkw.get_block()
+                    self._block_manager.put([blk])
+                    self._block_manager.ref_block(blk.header_signature)
 
                 validator = BlockValidator(
                     consensus_module=consensus_module,
