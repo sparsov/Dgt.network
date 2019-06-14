@@ -44,7 +44,7 @@ class BgtEngine(Engine):
         self._published = False
         self._building = False
         self._committing = False
-
+        self._can_fail_block = True #False # True for testing
         self._pending_forks_to_resolve = PendingForks()
         LOGGER.debug('BgtEngine: init done')
 
@@ -79,6 +79,9 @@ class BgtEngine(Engine):
         return True
 
     def _check_consensus(self, block):
+        if block.block_num == 2 and self._can_fail_block:
+            self._can_fail_block = False
+            return False
         return True
         #return self._oracle.verify_block(block)
 
@@ -209,6 +212,7 @@ class BgtEngine(Engine):
         handlers = {
             Message.CONSENSUS_NOTIFY_BLOCK_NEW: self._handle_new_block,
             Message.CONSENSUS_NOTIFY_BLOCK_VALID: self._handle_valid_block,
+            Message.CONSENSUS_NOTIFY_BLOCK_INVALID : self._handle_invalid_block,
             Message.CONSENSUS_NOTIFY_BLOCK_COMMIT:self._handle_committed_block,
             Message.CONSENSUS_NOTIFY_PEER_CONNECTED:self._handle_peer_connected,
             Message.CONSENSUS_NOTIFY_PEER_MESSAGE:self._handle_peer_message,
@@ -289,15 +293,24 @@ class BgtEngine(Engine):
             #self._commit_block(block.block_id)
         else:
             LOGGER.info('Failed consensus check: %s', _short_id(block.block_id.hex()))
+            self.reset_state()
             self._fail_block(block.block_id)
 
     def _handle_valid_block(self, block_id):
-        LOGGER.info('handle_valid_block:Received %s', _short_id(block_id.hex()))
+        LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(block_id.hex()))
         block = self._get_block(block_id)
 
         self._pending_forks_to_resolve.push(block)
 
         self._process_pending_forks()
+
+    def _handle_invalid_block(self,block_id):
+        LOGGER.info('=> INVALID_BLOCK:Received id=%s\n', _short_id(block_id.hex()))
+        try:
+            block = self._get_block(block_id)
+        except :
+            LOGGER.info('=> INVALID_BLOCK: undefined \n')
+        self.reset_state()
 
     def _process_pending_forks(self):
         LOGGER.info('_process_pending_forks ..')
@@ -320,17 +333,20 @@ class BgtEngine(Engine):
             self._committing = True
         else:
             LOGGER.info('Ignoring block_%s', _short_id(block.block_id.hex()))
+            self.reset_state()
             self._ignore_block(block.block_id)
+
+    def reset_state(self):
+        self._building = False   
+        self._published = False  
+        self._committing = False 
+
 
     def _handle_committed_block(self, block_id):
         LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress',_short_id(block_id.hex()))
 
         self._cancel_block()
-
-        self._building = False
-        self._published = False
-        self._committing = False
-
+        self.reset_state()
         self._process_pending_forks()
 
     def _handle_peer_connected(self, block):

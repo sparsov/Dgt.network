@@ -44,3 +44,4 @@ smart-bgt transfer 0236bd0b2f6041338ffe5a2236be89f369ec3094e5247bb40aad3aaa18ff2
 docker-compose -f bgx/docker/docker-compose-net-odb-dev-loc.yaml up
 # user validator without rust
 docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
+# docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml 

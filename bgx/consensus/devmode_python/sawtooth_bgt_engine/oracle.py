@@ -64,6 +64,7 @@ class BgtOracle:
 
         self._batch_publisher = _BatchPublisherProxy(stream, self._signer)
         self._publisher = None
+        self._can_fail_block = True
         LOGGER.debug('BgtOracle:validator=%s init DONE',_short_id(self._validator_id))
 
     def initialize_block(self, previous_block):
@@ -100,6 +101,9 @@ class BgtOracle:
     def switch_forks(self, cur_fork_head, new_fork_head):
         '''"compare_forks" is not an intuitive name.'''
         LOGGER.debug('BgtOracle: switch_forks %s',cur_fork_head)
+        if self._can_fail_block and new_fork_head.block_num == 2:
+            self._can_fail_block = False
+            return False # FOR TESTING ONLY
         if new_fork_head.block_num > cur_fork_head.block_num or (new_fork_head.block_num == cur_fork_head.block_num and new_fork_head.block_id > cur_fork_head.block_id) :
             LOGGER.debug('BgtOracle: switch_forks new-num=%s cur-num=%s new-id=%s cur-id=%s',new_fork_head.block_num,cur_fork_head.block_num,_short_id(new_fork_head.block_id.hex()),_short_id(cur_fork_head.block_id.hex()))
             return True
