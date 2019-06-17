@@ -132,10 +132,10 @@ class ZmqService(Service):
             raise exceptions.ReceiveError(
                 'Failed with status {}'.format(status))
 
-        return response.summary
+        return (response.summary,response.block_id)
 
-    def finalize_block(self, data):
-        request = consensus_pb2.ConsensusFinalizeBlockRequest(data=data)
+    def finalize_block(self,block_id, data):
+        request = consensus_pb2.ConsensusFinalizeBlockRequest(data=data,block_id=block_id)
 
         response_type = consensus_pb2.ConsensusFinalizeBlockResponse
 
@@ -284,8 +284,8 @@ class ZmqService(Service):
             for block in response.blocks
         }
 
-    def get_chain_head(self):
-        request = consensus_pb2.ConsensusChainHeadGetRequest()
+    def get_chain_head(self,parent_id = None):
+        request = consensus_pb2.ConsensusChainHeadGetRequest(parent_id=parent_id)
 
         response_type = consensus_pb2.ConsensusChainHeadGetResponse
 

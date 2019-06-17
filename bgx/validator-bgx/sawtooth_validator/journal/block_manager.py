@@ -71,7 +71,11 @@ class ManagedBlock(object):
             self.value = value.SerializeToString()
             #self.timestamp = time.time()  # the time this State was created,
             # used for house keeping, ie when to flush this from the cache.
-            self.count = 0
+            self._count = 0
+
+        @property
+        def cnt(self):
+            return self._count
 
         def touch(self):
             """
@@ -80,12 +84,12 @@ class ManagedBlock(object):
             pass #self.timestamp = time.time()
 
         def inc_count(self):
-            self.count += 1
+            self._count += 1
             self.touch()
 
         def dec_count(self):
-            if self.count > 0:
-                self.count -= 1
+            if self._count > 0:
+                self._count -= 1
             self.touch()
 
 class BlockManager():
@@ -134,7 +138,9 @@ class BlockManager():
         """
         LOGGER.debug("BlockManager: ref_block block_id=%s",block_id[:8])
         if block_id in self._block_store:
-            LOGGER.debug("BlockManager: ref_block contain block_id=%s",block_id[:8])
+            mblk = self._block_store[block_id] 
+            mblk.inc_count()
+            LOGGER.debug("BlockManager: ref_block contain block_id=%s ref=%s",block_id[:8],mblk.cnt)
         else:
             raise UnknownBlock
         """
@@ -153,7 +159,9 @@ class BlockManager():
         """
         LOGGER.debug("BlockManager: unref_block block_id=%s",block_id[:8])
         if block_id in self._block_store:
-            LOGGER.debug("BlockManager: ref_block contain block_id=%s",block_id[:8])
+            mblk = self._block_store[block_id] 
+            mblk.dec_count()
+            LOGGER.debug("BlockManager: ref_block contain block_id=%s ref=%s",block_id[:8],mblk.cnt)
         else:
             raise UnknownBlock
 

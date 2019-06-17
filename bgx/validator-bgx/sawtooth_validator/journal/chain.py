@@ -647,7 +647,7 @@ class ChainController(object):
                 under them. This lock is only for core Journal components
                 (BlockPublisher and ChainController), other components should
                 handle block not found errors from the BlockStore explicitly.
-            on_chain_updated: The callback to call to notify the rest of the
+            block_publisher.on_chain_updated: The callback to call to notify the rest of the
                  system the head block in the chain has been changed.
                  squash_handler: a parameter passed when creating transaction
                  schedulers.
@@ -730,7 +730,7 @@ class ChainController(object):
 
     def start(self):
         self._set_chain_head_from_block_store()
-        LOGGER.debug("ChainController:START call _notify_on_chain_updated\n")
+        LOGGER.debug("ChainController:START call _notify PUBLISHER on_chain_updated ID=%s\n",self._chain_head.identifier[:8])
         self._notify_on_chain_updated(self._chain_head)
 
         self._chain_thread = _ChainThread(
@@ -945,15 +945,12 @@ class ChainController(object):
                         self._chain_head = new_block
 
                         # update the the block store to have the new chain
-                        self._block_store.update_chain(result["new_chain"],
-                                                       result["cur_chain"])
+                        self._block_store.update_chain(result["new_chain"],result["cur_chain"])
 
                         # make sure old chain is in the block_caches
                         self._block_cache.add_chain(result["cur_chain"])
 
-                        LOGGER.info(
-                            "Chain head updated to: %s",
-                            self._chain_head)
+                        LOGGER.info("Chain head updated to: %s",self._chain_head)
 
                         self._chain_head_gauge.set_value(
                             self._chain_head.identifier[:8])
@@ -963,7 +960,7 @@ class ChainController(object):
 
                         self._block_num_gauge.set_value(
                             self._chain_head.block_num)
-                        LOGGER.debug("ChainController: call _notify_on_chain_updated from on_block_validated\n")
+                        LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s\n",self._chain_head.identifier[:8])
                         # tell the BlockPublisher else the chain is updated
                         self._notify_on_chain_updated(
                             self._chain_head,
@@ -1136,7 +1133,7 @@ class ChainController(object):
                             block.identifier)
                     self._block_store.update_chain([block])
                     self._chain_head = block
-                    LOGGER.debug("ChainController: _notify_on_chain_updated\n")
+                    LOGGER.debug("ChainController: _notify_on_chain_updated GENESIS ID=%s\n",self._chain_head.identifier[:8])
                     self._notify_on_chain_updated(self._chain_head)
                 else:
                     LOGGER.warning("The genesis block is not valid. Cannot "

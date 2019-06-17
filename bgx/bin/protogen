@@ -37,6 +37,9 @@ TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__fil
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
+
+    
+
     # Generate and distribute top-level protos
     proto_dir = JOIN(TOP_DIR, "protos")
     print('protogen TOP_DIR=',TOP_DIR)
@@ -79,6 +82,11 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "bgx/protos/pbft")
     protoc(proto_dir, "bgx/consensus/pbft_python", "bgx_pbft_common/protobuf")
 
+    # Generate common protos for new validator - can change some proto from /protos
+    proto_dir = JOIN(TOP_DIR, "bgx/protos/common")
+    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
+    protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
+    
     # Generate Smart BGT token  protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/families/smart_bgt")
     protoc(proto_dir, "bgx/families/bgt_python", "bgt_common/protobuf")

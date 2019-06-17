@@ -228,8 +228,8 @@ class ConsensusSummarizeBlockHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             #LOGGER.debug('ConsensusSummarizeBlockHandler: proxy:summarize_block')
-            summary = self._proxy.summarize_block()
-            response.summary = summary
+            summary,parent = self._proxy.summarize_block()
+            response.summary,response.block_id = summary,bytes.fromhex(parent)
         except BlockNotInitialized:
             LOGGER.debug('ConsensusSummarizeBlockHandler: BlockNotInitialized')
             response.status =\
@@ -257,7 +257,7 @@ class ConsensusFinalizeBlockHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             LOGGER.debug('ConsensusFinalizeBlockHandler: proxy:finalize_block')
-            response.block_id = self._proxy.finalize_block(request.data)
+            response.block_id = self._proxy.finalize_block(request.data,request.block_id)
         except BlockNotInitialized:
             response.status =\
                 consensus_pb2.ConsensusFinalizeBlockResponse.INVALID_STATE
@@ -467,8 +467,8 @@ class ConsensusChainHeadGetHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusChainHeadGetHandler: proxy')
-            chain_head = self._proxy.chain_head_get()
+            LOGGER.debug('ConsensusChainHeadGetHandler: proxy parent_id=%s',request.parent_id)
+            chain_head = self._proxy.chain_head_get(request.parent_id)
 
             block_header = BlockHeader()
             """

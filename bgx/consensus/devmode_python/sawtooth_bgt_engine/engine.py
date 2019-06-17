@@ -44,7 +44,7 @@ class BgtEngine(Engine):
         self._published = False
         self._building = False
         self._committing = False
-        self._can_fail_block = True #False # True for testing
+        self._can_fail_block = False #True #False # True for testing
         self._pending_forks_to_resolve = PendingForks()
         LOGGER.debug('BgtEngine: init done')
 
@@ -61,8 +61,11 @@ class BgtEngine(Engine):
 
     def _initialize_block(self):
         LOGGER.debug('BgtEngine: _initialize_block')
-        chain_head = self._get_chain_head()
-        LOGGER.debug('BgtEngine: _initialize_block ID=%s chain_head=%s',_short_id(chain_head.block_id.hex()),chain_head)
+        """
+        getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
+        """
+        chain_head = self._get_chain_head() # get MAIN chain_head. chain_head.block_id is ID of parent's block 
+        LOGGER.debug('BgtEngine: _initialize_block ID=%s chain_head=(%s)',_short_id(chain_head.block_id.hex()),chain_head)
         #initialize = True #self._oracle.initialize_block(chain_head)
 
         #if initialize:
@@ -129,18 +132,19 @@ class BgtEngine(Engine):
             return self._service.summarize_block()
         except exceptions.InvalidState as err:
             LOGGER.warning(err)
-            return None
+            return None,None
         except exceptions.BlockNotReady:
             #LOGGER.debug('exceptions.BlockNotReady')
-            return None
+            return None,None
 
     def _finalize_block(self):
-        summary = self._summarize_block()
+        
+        summary,parent = self._summarize_block()
 
         if summary is None:
             #LOGGER.debug('Block not ready to be summarized')
             return None
-
+        LOGGER.debug('_finalize_block for parent=%s',_short_id(parent.hex()))
         consensus = self._oracle.finalize_block(summary)
 
         if consensus is None:
@@ -161,19 +165,23 @@ class BgtEngine(Engine):
 
 
     def _my_finalize_block(self):
-        summary = self._summarize_block()
+        """
+        in case DAG we should return parent for block which is ready  
+        because we ask one of the initialized block
+        """
+        summary,parent_id = self._summarize_block()
 
         if summary is None:
             #LOGGER.debug('Block not ready to be summarized')
             return None
-        LOGGER.debug('Can FINALIZE NOW')
+        LOGGER.debug('Can FINALIZE NOW parent=%s',_short_id(parent_id.hex()))
         consensus = b'Devmode' #self._oracle.finalize_block(summary)
 
         if consensus is None:
             return None
 
         try:
-            block_id = self._service.finalize_block(consensus)
+            block_id = self._service.finalize_block(parent_id,consensus)
             LOGGER.info('Finalized summary=%s block_id=%s',summary,_short_id(block_id.hex())) #json.loads(consensus.decode())
             self._building = True # ONLY for testing new version - normal True
             self._published = True # ONLY for testing new version
