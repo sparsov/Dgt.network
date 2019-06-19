@@ -144,7 +144,7 @@ class BgtEngine(Engine):
         if summary is None:
             #LOGGER.debug('Block not ready to be summarized')
             return None
-        LOGGER.debug('_finalize_block for parent=%s',_short_id(parent.hex()))
+        LOGGER.debug('_finalize_block for parent=%s summary=%s',_short_id(parent.hex()),summary)
         consensus = self._oracle.finalize_block(summary)
 
         if consensus is None:

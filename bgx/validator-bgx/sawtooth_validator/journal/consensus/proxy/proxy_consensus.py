@@ -161,7 +161,7 @@ class BlockPublisher(BlockPublisherInterface):
         LOGGER.debug("PROXY:finalize_block inform external engine header=%s",block_header)
         self._publisher.on_finalize_block(block_header)
         self._is_finalize_complete = None
-        LOGGER.debug("PROXY:finalize_block wait proxy reply...\n")
+        LOGGER.debug("PROXY:finalize_block wait proxy reply via finalize_block_complete...\n")
         with self._condition:
             return self._condition.wait_for(self._finalize_complete)
         return True

@@ -751,8 +751,9 @@ class ChainController(object):
         """
         New block has been received, queue it with the chain controller
         for processing.
+        from publisher.on_check_publish_block() 
         """
-        LOGGER.debug("ChainController: queue BLOCK=%s",type(block))
+        LOGGER.debug("ChainController: queue BLOCK=%s",block.identifier[:8])
         self._block_queue.put(block)
 
     @property
@@ -1046,10 +1047,10 @@ class ChainController(object):
 
                 self._block_cache[block.identifier] = block
                 self._blocks_pending[block.identifier] = []
-                LOGGER.debug("Block received: %s", block)
+                LOGGER.debug("Block received: id=%s", block.identifier[:8])
                 if (block.previous_block_id in self._blocks_processing
                         or block.previous_block_id in self._blocks_pending):
-                    LOGGER.debug('Block pending: %s', block)
+                    LOGGER.debug('Block pending: id=%s', block.identifier[:8])
                     # if the previous block is being processed, put it in a
                     # wait queue, Also need to check if previous block is
                     # in the wait queue.

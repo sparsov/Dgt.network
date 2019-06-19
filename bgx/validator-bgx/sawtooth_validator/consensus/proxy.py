@@ -123,7 +123,7 @@ class ConsensusProxy:
             raise UnknownBlock(key_error.args[0])
 
     def commit_block(self, block_id):
-        LOGGER.debug("ConsensusProxy:commit_block %s",block_id)
+        LOGGER.debug("ConsensusProxy:commit_block %s",block_id.hex()[:8])
         """
         try:
             block = next(self._block_manager.get([block_id.hex()]))
