@@ -352,7 +352,8 @@ class BgtEngine(Engine):
 
     def _handle_committed_block(self, block_id):
         LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress',_short_id(block_id.hex()))
-
+        # for DAG new head for branch will be this block_id
+        # and we should use it for asking chain head for this branch 
         self._cancel_block()
         self.reset_state()
         self._process_pending_forks()

@@ -158,10 +158,11 @@ class ConsensusProxy:
     def chain_head_get(self,parent_id=None):
         """
         Returns the main chain head in case parent_id == None.
-        and new branch in case parent_id is not None
+        and branch head in case parent_id is not None 
+        if parent_id undefined create new chain head 
         """
         
-        chain_head = self._chain_controller.chain_head
+        chain_head = self._chain_controller.get_chain_head(parent_id if parent_id != b'' else None)
         LOGGER.debug("ConsensusProxy:chain_head_get head=%s for=%s\n",chain_head,parent_id)
         if chain_head is None:
             raise UnknownBlock()

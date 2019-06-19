@@ -127,13 +127,13 @@ class BlockValidator(object):
         """
         self._consensus_module = consensus_module
         self._block_manager = block_manager
-        self._verifier = None # for proxy only
-        self._fork_resolver = None
+        self._verifier = None      # for proxy only
+        self._fork_resolver = None # for proxy only
         self._block_cache = block_cache
         self._chain_commit_state = ChainCommitState(
             self._block_cache.block_store, [])
         self._new_block = new_block
-
+        LOGGER.debug('BlockValidator: init new_block=%s',type(new_block))
         # Set during execution of the of the  BlockValidation to the current
         # chain_head at that time.
         self._chain_head = None
@@ -334,16 +334,16 @@ class BlockValidator(object):
                 if valid:
                     public_key = \
                         self._identity_signer.get_public_key().as_hex()
-                    consensus = self._consensus_module.BlockVerifier(
+                    verifier = self._consensus_module.BlockVerifier(
                         block_cache=self._block_cache,
                         state_view_factory=self._state_view_factory,
                         data_dir=self._data_dir,
                         config_dir=self._config_dir,
                         validator_id=public_key)
-                    self._verifier = consensus # save for reply from external consensus
+                    self._verifier = verifier # save for reply from external consensus
 
                     LOGGER.debug("BlockValidator:validate_block -> verify_block")
-                    valid = consensus.verify_block(blkw)
+                    valid = verifier.verify_block(blkw)
                     LOGGER.debug("BlockValidator:validate_block <- verify_block=%s",valid)
                     #
                     # maybe use proxy engine for verification and maybe here send message NEW_BLOCK
@@ -363,8 +363,8 @@ class BlockValidator(object):
                     raise ChainHeadUpdated()
 
                 blkw.status = BlockStatus.Valid if valid else BlockStatus.Invalid
-                if not valid and hasattr(consensus, 'verify_block_invalid'):
-                    consensus.verify_block_invalid(blkw)
+                if not valid and hasattr(verifier, 'verify_block_invalid'):
+                    verifier.verify_block_invalid(blkw)
 
                 LOGGER.debug("BlockValidator:validate_block valid=%s",valid)
                 return valid
@@ -482,30 +482,28 @@ class BlockValidator(object):
         so that the change over can be made if necessary.
         """
         try:
-            LOGGER.info("BlockValidator:run Starting block validation of :%s", self._new_block)
+            branch_id = self._new_block.previous_block_id
+            LOGGER.info("BlockValidator:run Starting validation NEW BLOCK=%s for BRANCH=%s",self._new_block.identifier[:8],branch_id[:8])
             cur_chain = self._result["cur_chain"]  # ordered list of the
             # current chain blocks
-            new_chain = self._result["new_chain"]  # ordered list of the new
-            # chain blocks
-
-            # get the current chain_head.
+            new_chain = self._result["new_chain"]  # ordered list of the new chain blocks
+            """
+            get the current chain_head .For DAG we should take head for branch relating to _new_block
+            """
             self._chain_head = self._block_cache.block_store.chain_head
             self._result['chain_head'] = self._chain_head
-            LOGGER.info("BlockValidator::_chain_head=%s", self._chain_head)
+            LOGGER.info("BlockValidator:: try to add new block chain_head=%s~%s", self._chain_head.identifier[:8],branch_id[:8])
             # 1) Find the common ancestor block, the root of the fork.
             # walk back till both chains are the same height
-            (new_blkw, cur_blkw) = self._find_common_height(new_chain,
-                                                            cur_chain)
+            (new_blkw, cur_blkw) = self._find_common_height(new_chain,cur_chain)
 
             # 2) Walk back until we find the common ancestor
-            self._find_common_ancestor(new_blkw, cur_blkw,
-                                       new_chain, cur_chain)
+            self._find_common_ancestor(new_blkw, cur_blkw,new_chain, cur_chain)
 
             # 3) Determine the validity of the new fork
             # build the transaction cache to simulate the state of the
             # chain at the common root.
-            self._chain_commit_state = ChainCommitState(
-                self._block_cache.block_store, cur_chain)
+            self._chain_commit_state = ChainCommitState(self._block_cache.block_store, cur_chain)
 
             valid = True
             for block in reversed(new_chain):
@@ -682,8 +680,8 @@ class ChainController(object):
         # scheduled for validation.
         self._chain_id_manager = chain_id_manager
 
-        self._chain_head = None
-
+        self._chain_head = None # main branch
+        self._chain_heads = {} # for DAG only
         self._permission_verifier = permission_verifier
         self._chain_observers = chain_observers
         self._metrics_registry = metrics_registry
@@ -718,14 +716,13 @@ class ChainController(object):
         try:
             self._chain_head = self._block_store.chain_head
             if self._chain_head is not None:
-                LOGGER.info("Chain controller initialized with chain head: %s",
-                            self._chain_head)
-                self._chain_head_gauge.set_value(
-                    self._chain_head.identifier[:8])
+                LOGGER.info("Chain controller initialized with chain head: %s",self._chain_head)
+                hid = self._chain_head.identifier
+                # add main branch for DAG chain
+                self._chain_heads[hid] = self._chain_head
+                self._chain_head_gauge.set_value(hid[:8])
         except Exception:
-            LOGGER.exception(
-                "Invalid block store. Head of the block chain cannot be"
-                " determined")
+            LOGGER.exception("Invalid block store. Head of the block chain cannot be determined")
             raise
 
     def start(self):
@@ -755,6 +752,20 @@ class ChainController(object):
         """
         LOGGER.debug("ChainController: queue BLOCK=%s",block.identifier[:8])
         self._block_queue.put(block)
+
+    def get_chain_head(self,parent_id=None):
+        # for DAG version
+        if parent_id is None:
+            return self._chain_head
+        if parent_id in self._chain_heads:
+            return self._chain_heads[parent_id]
+        # create new branch for DAG
+        if block_id in self._block_cache:
+            # mark block into block_store as new DAG branch 
+            new_head = self._block_cache[block_id]
+            self._chain_heads[parent_id] = new_head
+            return new_head
+        return None
 
     @property
     def chain_head(self):
@@ -913,6 +924,7 @@ class ChainController(object):
                     self._blocks_pending.pop(new_block.identifier, [])
 
                 # if the head has changed, since we started the work.
+                # FIXME for DAG check branch relating to new block 
                 if result["chain_head"].identifier != \
                         self._chain_head.identifier:
                     LOGGER.info(
@@ -941,8 +953,15 @@ class ChainController(object):
 
                 # If the head is to be updated to the new block.
                 elif commit_new_block:
-                    LOGGER.debug("ChainController:on_block_validated COMMIT_NEW_BLOCK\n")
+                    bid = new_block.previous_block_id 
+                    nid = new_block.identifier
+                    LOGGER.debug("ChainController:on_block_validated COMMIT NEW BLOCK=%s for BRANCH=%s\n",nid[:8],bid[:8])
                     with self._chain_head_lock:
+                        # FIXME - change head for branch==bid into self._chain_heads
+                        #
+                        if bid in self._chain_heads:
+                            LOGGER.debug("ChainController:update head for BRANCH=%s",bid[:8])
+
                         self._chain_head = new_block
 
                         # update the the block store to have the new chain
@@ -951,18 +970,16 @@ class ChainController(object):
                         # make sure old chain is in the block_caches
                         self._block_cache.add_chain(result["cur_chain"])
 
-                        LOGGER.info("Chain head updated to: %s",self._chain_head)
+                        LOGGER.info("Chain head branch=%s updated to: %s",bid[:8],self._chain_head)
 
-                        self._chain_head_gauge.set_value(
-                            self._chain_head.identifier[:8])
+                        self._chain_head_gauge.set_value(self._chain_head.identifier[:8])
 
-                        self._committed_transactions_count.inc(
-                            result["num_transactions"])
+                        self._committed_transactions_count.inc(result["num_transactions"])
 
-                        self._block_num_gauge.set_value(
-                            self._chain_head.block_num)
+                        self._block_num_gauge.set_value(self._chain_head.block_num)
+
                         LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s\n",self._chain_head.identifier[:8])
-                        # tell the BlockPublisher else the chain is updated
+                        # tell the BlockPublisher else the chain for branch is updated
                         self._notify_on_chain_updated(
                             self._chain_head,
                             result["committed_batches"],
@@ -1125,7 +1142,8 @@ class ChainController(object):
                     data_dir=self._data_dir,
                     config_dir=self._config_dir,
                     permission_verifier=self._permission_verifier,
-                    metrics_registry=self._metrics_registry)
+                    metrics_registry=self._metrics_registry,
+                    block_manager=self._block_manager)
 
                 valid = validator.validate_block(block)
                 if valid:
