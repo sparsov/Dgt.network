@@ -282,8 +282,8 @@ class ConsensusCancelBlockHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusCancelBlockHandler: proxy:cancel_block')
-            self._proxy.cancel_block()
+            LOGGER.debug('ConsensusCancelBlockHandler: proxy:cancel_block ')
+            self._proxy.cancel_block(request.branch_id)
         except BlockNotInitialized:
             response.status =\
                 consensus_pb2.ConsensusCancelBlockResponse.INVALID_STATE
@@ -467,7 +467,7 @@ class ConsensusChainHeadGetHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusChainHeadGetHandler: proxy parent_id=%s',request.parent_id)
+            LOGGER.debug('ConsensusChainHeadGetHandler: proxy parent_id=%s',request.parent_id.hex()[:8])
             chain_head = self._proxy.chain_head_get(request.parent_id)
 
             block_header = BlockHeader()

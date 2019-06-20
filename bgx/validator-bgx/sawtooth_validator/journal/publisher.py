@@ -1008,7 +1008,10 @@ class BlockPublisher(object):
         """
         cancel block only for branch 
         """
-        LOGGER.debug('BlockPublisher:cancel_block %s',self._candidate_block)
+        bid = branch_id.hex() 
+        LOGGER.debug('BlockPublisher:cancel_block for BRANCH=%s',bid[:8])
+        if bid in self._candidate_blocks:
+            LOGGER.debug('BlockPublisher:cancel_block for BRANCH=%s',bid[:8])
         if self._candidate_block is not None:
             LOGGER.debug('BlockPublisher:cancel_block Stop adding batches to the current block and abandon it')
             # need new block candidate

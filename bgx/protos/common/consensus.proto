@@ -274,7 +274,9 @@ message ConsensusFinalizeBlockResponse {
 }
 
 // Stop adding batches to the current block and abandon it.
-message ConsensusCancelBlockRequest {}
+message ConsensusCancelBlockRequest {
+bytes branch_id = 1;
+}
 
 message ConsensusCancelBlockResponse {
   enum Status {

@@ -155,7 +155,7 @@ services:
       - validator-bgx
     command: |
       bash -c "
-        ls -l;sawtooth keygen --force &&
+        sawtooth keygen --force &&
         tail -f /dev/null
       "
     stop_signal: SIGKILL

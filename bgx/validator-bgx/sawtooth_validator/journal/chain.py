@@ -759,10 +759,13 @@ class ChainController(object):
             return self._chain_head
         if parent_id in self._chain_heads:
             return self._chain_heads[parent_id]
+        else:
+            LOGGER.debug("ChainController: get_chain_head BRANCHES=%s",self._chain_heads)
         # create new branch for DAG
-        if block_id in self._block_cache:
+        if parent_id in self._block_cache:
             # mark block into block_store as new DAG branch 
-            new_head = self._block_cache[block_id]
+            LOGGER.debug("ChainController: get_chain_head NEW BRANCH=%s",parent_id[:8])
+            new_head = self._block_cache[parent_id]
             self._chain_heads[parent_id] = new_head
             return new_head
         return None

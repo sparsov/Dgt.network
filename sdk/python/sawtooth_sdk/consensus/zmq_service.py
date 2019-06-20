@@ -160,8 +160,8 @@ class ZmqService(Service):
 
         return response.block_id
 
-    def cancel_block(self):
-        request = consensus_pb2.ConsensusCancelBlockRequest()
+    def cancel_block(self,branch_id=None):
+        request = consensus_pb2.ConsensusCancelBlockRequest(branch_id=branch_id)
 
         response_type = consensus_pb2.ConsensusCancelBlockResponse
 

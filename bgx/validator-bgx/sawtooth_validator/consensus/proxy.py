@@ -99,8 +99,8 @@ class ConsensusProxy:
     def finalize_block(self, consensus_data,block_id):
         return bytes.fromhex(self._block_publisher.finalize_block(consensus=consensus_data,block_id=block_id))
 
-    def cancel_block(self):
-        self._block_publisher.cancel_block()
+    def cancel_block(self,branch_id):
+        self._block_publisher.cancel_block(branch_id)
 
     def check_blocks(self, block_ids):
         for block_id in block_ids:
@@ -162,8 +162,8 @@ class ConsensusProxy:
         if parent_id undefined create new chain head 
         """
         
-        chain_head = self._chain_controller.get_chain_head(parent_id if parent_id != b'' else None)
-        LOGGER.debug("ConsensusProxy:chain_head_get head=%s for=%s\n",chain_head,parent_id)
+        chain_head = self._chain_controller.get_chain_head(parent_id.hex() if parent_id != b'' else None)
+        LOGGER.debug("ConsensusProxy:chain_head_get head=%s\n",chain_head)
         if chain_head is None:
             raise UnknownBlock()
 
