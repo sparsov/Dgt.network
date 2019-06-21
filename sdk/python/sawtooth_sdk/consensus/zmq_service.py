@@ -298,7 +298,8 @@ class ZmqService(Service):
 
         if status == response_type.NO_CHAIN_HEAD:
             raise exceptions.NoChainHead()
-
+        if status == response_type.TOO_MANY_BRANCH:
+            raise exceptions.TooManyBranch()
         if status != response_type.OK:
             raise exceptions.ReceiveError(
                 'Failed with status {}'.format(status))

@@ -422,6 +422,7 @@ message ConsensusChainHeadGetResponse {
     NOT_READY = 4;
 
     NO_CHAIN_HEAD = 5;
+    TOO_MANY_BRANCH = 6;
   }
 
   Status status = 1;

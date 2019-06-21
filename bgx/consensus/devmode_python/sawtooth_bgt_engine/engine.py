@@ -32,15 +32,33 @@ LOGGER = logging.getLogger(__name__)
 
 class BranchState(object):
 
-    def __init__(self,bid,service,oracle):
+    def __init__(self,bid,parent,service,oracle,ind):
         self._head_id = bid
+        self._ind = ind
+        self._parent_id = parent
         self._service = service
         self._oracle  = oracle
         self._committing = False
         self._building   = False
         self._published = True
         self._can_fail_block = False
-        LOGGER.debug('BranchState: init branch for %s',bid[:8])
+        # for testing branch
+        self._try_branch = True
+        self._make_branch = False
+        self._freeze_block = None
+        self._num_block = 0
+        LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
+
+    def un_freeze_block(self):
+        # for testing only
+        block_id,parent_id = None,None
+        if self._freeze_block is not None:
+            LOGGER.warning("un_freeze_block: un freeze block for BRANCH=%s\n",self._head_id[:8])
+            self.check_block(self._freeze_block.block_id)
+            block_id = self._freeze_block.block_id.hex()
+            parent_id = self._freeze_block.previous_block_id
+            self._freeze_block = None
+        return block_id,parent_id
 
     def check_consensus(self,block):
         
@@ -51,18 +69,25 @@ class BranchState(object):
         return True
 
     def check_block(self,block_id):
+        # send in case of consensus was reached
         LOGGER.warning("check_block: block_id=%s\n",_short_id(block_id.hex()))
         self._service.check_blocks([block_id])
 
     def fail_block(self, block_id):
+        # send in case of consensus was not reached
         self._service.fail_block(block_id)
 
     def new_block(self,block):
         if self.check_consensus(block):
             # at this point state PREPARED
             LOGGER.info('Passed consensus check in state PREPARED: %s ', _short_id(block.block_id.hex()))
-            self.check_block(block.block_id) # this message send chain controller message for continue block validation
-            # waiting block valid message
+            if block.block_num == 3 and self._try_branch:
+                # try make branch pause current block for main branch
+                self._make_branch = True
+                self._freeze_block = block
+            else:
+                self.check_block(block.block_id) # this message send chain controller message for continue block validation
+                # waiting block valid message
             return True
         else:
             LOGGER.info('Failed consensus blk=%s branch=%s', _short_id(block.block_id.hex()),self._head_id[:8])
@@ -72,9 +97,12 @@ class BranchState(object):
     
     def cancel_block(self,head_id):
         try:
-            LOGGER.warning("cancel_block: for branch=%s\n",self._head_id[:8])
+            
             self._service.cancel_block(bytes.fromhex(self._head_id))
+            # set new branch HEAD 
             self._head_id = head_id 
+            self._num_block += 1 
+            LOGGER.warning("cancel_block: for branch[%s]=%s NUM HANDLED BLOCKS=%s\n",self._ind,self._head_id[:8],self._num_block)
         except exceptions.InvalidState:
             LOGGER.warning("cancel_block:  InvalidState\n")
             pass
@@ -84,6 +112,7 @@ class BranchState(object):
         self._service.commit_block(block_id)
 
     def ignore_block(self, block_id):
+        # send in case fork was not resolved
         self._service.ignore_block(block_id)
 
     def finalize_block(self,parent_id,summary):
@@ -132,6 +161,7 @@ class BranchState(object):
             return False
 
     def reset_state(self):
+        LOGGER.info('reset_state: for BRANCH[%s]=%s\n', self._ind,self._head_id[:8])
         self._building = False   
         self._published = False  
         self._committing = False
@@ -154,7 +184,10 @@ class BgtEngine(Engine):
         self._building = False
         self._committing = False
         self._can_fail_block = False #True #False # True for testing
+        self._make_branch = True
+        self._TOTAL_BLOCK = 0
         self._pending_forks_to_resolve = PendingForks()
+        self._num_branches = 0 #
         LOGGER.debug('BgtEngine: init done')
 
     def name(self):
@@ -169,11 +202,18 @@ class BgtEngine(Engine):
         self._exit = True
 
     def _initialize_block(self,branch=None):
-        LOGGER.debug('BgtEngine: _initialize_block branch[%s]',branch[:8] if branch is not None else None)
+        LOGGER.debug('BgtEngine: _initialize_block branch[%s]',branch.hex()[:8] if branch is not None else None)
         """
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
-        chain_head = self._get_chain_head(branch) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
+        try:
+            chain_head = self._get_chain_head(branch) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
+        except exceptions.TooManyBranch:
+            LOGGER.debug('BgtEngine: CANT CREATE NEW BRANCH')
+            return False
+        except exceptions.NoChainHead:
+            LOGGER.debug('BgtEngine: CANT GET CHAIN HEAD')
+            return False
         LOGGER.debug('BgtEngine: _initialize_block ID=%s chain_head=(%s)',_short_id(chain_head.block_id.hex()),chain_head)
         #initialize = True #self._oracle.initialize_block(chain_head)
 
@@ -181,14 +221,18 @@ class BgtEngine(Engine):
         try:
             self._service.initialize_block(previous_id=chain_head.block_id)
             bid = chain_head.block_id.hex()
+            parent = chain_head.previous_block_id 
             if bid in self._branches:
                 #branch = self._branches[bid]
                 LOGGER.debug('BgtEngine: _initialize_block USE Branch=%s',bid[:8])
                 branch = self._branches[bid]
                 branch._published = True
+                branch._parent_id = parent
             else:
                 LOGGER.debug('BgtEngine: _initialize_block NEW Branch=%s',bid[:8])
-                self._branches[bid] = BranchState(bid, self._service, self._oracle)
+                self._branches[bid] = BranchState(bid,parent, self._service, self._oracle,self._num_branches)
+                self._branches[bid]._try_branch = self._make_branch
+                self._num_branches += 1
             
         except exceptions.UnknownBlock:
             LOGGER.debug('BgtEngine: _initialize_block ERROR UnknownBlock')
@@ -295,7 +339,7 @@ class BgtEngine(Engine):
     def _my_finalize_block(self):
         """
         in case DAG we should return parent for block which is ready  
-        because we ask one of the initialized block
+        because we ask one of the initialized blocks
         """
         summary,parent_id = self._summarize_block()
 
@@ -388,10 +432,21 @@ class BgtEngine(Engine):
                     if not self._skip and self._initialize_block() :  
                         self._published = True
                 else: 
-                    for bid,branch in self._branches.items():
+                    for bid,branch in list(self._branches.items()):
                         if not branch._published:
                             self._initialize_block(bytes.fromhex(bid))
-
+                        else: # already published
+                            if branch._make_branch:
+                                # create branch for testing - only one
+                                LOGGER.debug('BgtEngine: CREATE NEW BRANCH: (%s)\n',branch._parent_id[:8])
+                                branch._make_branch = False
+                                self._make_branch = False
+                                self._initialize_block(bytes.fromhex(branch._parent_id))
+                            if self._TOTAL_BLOCK == 5:
+                                # for testing only
+                                (block_id,parent_id) = branch.un_freeze_block()
+                                if block_id is not None:
+                                    self.un_freeze_block(block_id,parent_id)
 
                 if self.is_not_build(): # there is not build one
                     sum_cnt += 1
@@ -429,6 +484,10 @@ class BgtEngine(Engine):
                     self._cancel_block()
                     self._building = False
     """
+    def un_freeze_block(self,block_id,parent_id):
+        self._new_heads[block_id] = parent_id
+        LOGGER.info('   NEW_HEAD=%s for BRANCh=%s AFTER FREEZE', block_id[:8],parent_id[:8])
+
     def _handle_new_block(self, block):
         block = BgtBlock(block)
         block_id = block.block_id.hex()
@@ -468,6 +527,11 @@ class BgtEngine(Engine):
         LOGGER.info('=> INVALID_BLOCK:Received id=%s\n', _short_id(block_id.hex()))
         try:
             block = self._get_block(block_id)
+            if block.previous_block_id in self._branches:
+                branch = self._branches[block.previous_block_id]
+                branch.reset_state()
+
+
         except :
             LOGGER.info('=> INVALID_BLOCK: undefined \n')
         self.reset_state()
@@ -520,8 +584,10 @@ class BgtEngine(Engine):
                 branch = self._branches.pop(hid)
                 branch.cancel_block(bid) 
                 branch.reset_state()    
-                self._branches[bid] = branch 
-                LOGGER.info('   set new head=%s for BRANCH=%s',bid[:8],hid[:8])
+                self._branches[bid] = branch
+                self._TOTAL_BLOCK += 1 
+                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s',bid[:8],hid[:8],self._TOTAL_BLOCK)
+
         #self._cancel_block()
         self.reset_state()
         self._process_pending_forks()

@@ -39,10 +39,11 @@ from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
 from sawtooth_validator.state.merkle import INIT_ROOT_KEY
 from sawtooth_validator.protobuf.block_pb2 import Block
-from sawtooth_validator.consensus.proxy import UnknownBlock
+from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch
 
 LOGGER = logging.getLogger(__name__)
 
+MAX_DAG_BRANCH = 3 # for DAG 
 
 class BlockValidationAborted(Exception):
     """
@@ -147,7 +148,7 @@ class BlockValidator(object):
         self._config_dir = config_dir
         self._result = {
             'new_block': new_block,
-            'chain_head': None,
+            'chain_head': None ,  # start with this head
             'new_chain': [],
             'cur_chain': [],
             'committed_batches': [],
@@ -357,9 +358,11 @@ class BlockValidator(object):
                 # since changes to the chain-head can change the state of the
                 # blocks in BlockStore we have to revalidate this block.
                 block_store = self._block_cache.block_store
+                #FIXME for DAG - think about block_store.chain_head 
                 if (self._chain_head is not None
                         and self._chain_head.identifier !=
                         block_store.chain_head.identifier):
+                    LOGGER.debug("BlockValidator:validate_block raise ChainHeadUpdated")
                     raise ChainHeadUpdated()
 
                 blkw.status = BlockStatus.Valid if valid else BlockStatus.Invalid
@@ -381,6 +384,7 @@ class BlockValidator(object):
         same height as the other chain.
         The blocks are recorded in the corresponding lists
         and the blocks at the same height are returned
+        FIXME for DAG version
         """
         new_blkw = self._new_block
         cur_blkw = self._chain_head
@@ -418,13 +422,13 @@ class BlockValidator(object):
 
     def _find_common_ancestor(self, new_blkw, cur_blkw, new_chain, cur_chain):
         """ Finds a common ancestor of the two chains.
+            FIXME for DAG version
         """
         while cur_blkw.identifier != new_blkw.identifier:
             if (cur_blkw.previous_block_id == NULL_BLOCK_IDENTIFIER
                     or new_blkw.previous_block_id == NULL_BLOCK_IDENTIFIER):
                 # We are at a genesis block and the blocks are not the same
-                LOGGER.info(
-                    "Block rejected due to wrong genesis: %s %s",
+                LOGGER.info("Block rejected due to wrong genesis: %s %s",
                     cur_blkw, new_blkw)
                 for b in new_chain:
                     b.status = BlockStatus.Invalid
@@ -488,10 +492,11 @@ class BlockValidator(object):
             # current chain blocks
             new_chain = self._result["new_chain"]  # ordered list of the new chain blocks
             """
-            get the current chain_head .For DAG we should take head for branch relating to _new_block
+            FIXME get the current chain_head .For DAG we should take head for branch relating to _new_block
             """
             self._chain_head = self._block_cache.block_store.chain_head
             self._result['chain_head'] = self._chain_head
+            
             LOGGER.info("BlockValidator:: try to add new block chain_head=%s~%s", self._chain_head.identifier[:8],branch_id[:8])
             # 1) Find the common ancestor block, the root of the fork.
             # walk back till both chains are the same height
@@ -520,7 +525,7 @@ class BlockValidator(object):
                 self._done_cb(False, self._result)
                 return
 
-            LOGGER.info("Block is Valid send message BLOCK_VALID '%s' ",self._new_block)
+            LOGGER.info("Block is Valid new_chain=%s cur_chain=%s",len(new_chain),len(cur_chain))
             # 4) Evaluate the 2 chains to see if the new chain should be
             # committed
             LOGGER.info("Comparing current chain head '%s' against new block '%s'",self._chain_head, self._new_block)
@@ -704,7 +709,7 @@ class ChainController(object):
 
         self._block_queue = queue.Queue()
         self._thread_pool = (
-            InstrumentedThreadPoolExecutor(1)
+            InstrumentedThreadPoolExecutor(max_workers=MAX_DAG_BRANCH, name='Validating')
             if thread_pool is None else thread_pool
         )
         self._chain_thread = None
@@ -714,11 +719,12 @@ class ChainController(object):
 
     def _set_chain_head_from_block_store(self):
         try:
+            # main chain head
             self._chain_head = self._block_store.chain_head
             if self._chain_head is not None:
-                LOGGER.info("Chain controller initialized with chain head: %s",self._chain_head)
+                LOGGER.info("Chain controller initialized with main chain head: %s",self._chain_head)
                 hid = self._chain_head.identifier
-                # add main branch for DAG chain
+                # add main BRANCH for DAG chain
                 self._chain_heads[hid] = self._chain_head
                 self._chain_head_gauge.set_value(hid[:8])
         except Exception:
@@ -761,6 +767,11 @@ class ChainController(object):
             return self._chain_heads[parent_id]
         else:
             LOGGER.debug("ChainController: get_chain_head BRANCHES=%s",self._chain_heads)
+
+        if len(self._chain_heads) >= MAX_DAG_BRANCH:
+            LOGGER.debug("ChainController: TOO MANY NEW BRANCH %s ",len(self._chain_heads))
+            raise TooManyBranch
+            #return None
         # create new branch for DAG
         if parent_id in self._block_cache:
             # mark block into block_store as new DAG branch 
@@ -772,21 +783,24 @@ class ChainController(object):
 
     @property
     def chain_head(self):
+        # FIXME - investigate what we should return for DAG here
         return self._chain_head
 
     def _submit_blocks_for_verification(self, blocks):
         for blkw in blocks:
+            branch_id = blkw.previous_block_id
+            chain_head = self._chain_heads[branch_id]
             state_view = BlockWrapper.state_view_for_block(
-                self.chain_head,
+                chain_head,
                 self._state_view_factory)
-            LOGGER.debug("ChainController: _submit_blocks_for_verification get Consensus module")
+            LOGGER.debug("ChainController: _submit_blocks_for_verification BRANCH=%s head=%s",branch_id[:8],chain_head == self.chain_head)
             """
             consensus_module = \
                 ConsensusFactory.get_configured_consensus_module(
                     self.chain_head.header_signature,
                     state_view)
             """
-            consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(self.chain_head.header_signature,state_view)
+            consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_head.header_signature,state_view)
             
             if not consensus_module:
                 # there is no internal consensus 
@@ -826,6 +840,7 @@ class ChainController(object):
                 block_manager=self._block_manager)
             self._blocks_processing[blkw.block.header_signature] = validator
             self._thread_pool.submit(validator.run)
+            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE block=%s",blkw.block.header_signature[:8])
 
     """
     for external consensus
@@ -835,8 +850,9 @@ class ChainController(object):
 
     def on_check_block(self,block_id):
         # for external consensus - say that verification was done
-        LOGGER.debug('ChainController: on_check_block\n')
         bid = block_id.hex()
+        LOGGER.debug('ChainController: on_check_block block=%s num=%s\n',bid[:8],len(self._blocks_processing))
+        
         if bid in self._blocks_processing : 
             validator = self._blocks_processing[bid]
             validator.on_check_block()
@@ -928,11 +944,9 @@ class ChainController(object):
 
                 # if the head has changed, since we started the work.
                 # FIXME for DAG check branch relating to new block 
-                if result["chain_head"].identifier != \
-                        self._chain_head.identifier:
-                    LOGGER.info(
-                        'Chain head updated from %s to %s while processing '
-                        'block: %s',
+                # result["chain_head"] is value from BlockValidator  for DAG we should analize here corresponding BRANCH 
+                if result["chain_head"].identifier not in self._chain_heads: # OLD result["chain_head"].identifier != self._chain_head.identifier
+                    LOGGER.info('Chain head updated from %s to %s while processing block: %s',
                         result["chain_head"],
                         self._chain_head,
                         new_block)
@@ -963,8 +977,11 @@ class ChainController(object):
                         # FIXME - change head for branch==bid into self._chain_heads
                         #
                         if bid in self._chain_heads:
-                            LOGGER.debug("ChainController:update head for BRANCH=%s",bid[:8])
-
+                            # update head for branch bid
+                            del self._chain_heads[bid]
+                            self._chain_heads[nid] = new_block
+                            LOGGER.debug("ChainController:update head for BRANCH=%s->%s num=%s",bid[:8],nid[:8],len(self._chain_heads))
+                        # for DAG self._chain_head just last update branch's head it could be local variable 
                         self._chain_head = new_block
 
                         # update the the block store to have the new chain
@@ -1035,13 +1052,16 @@ class ChainController(object):
                 # don't want it as the chain head.
                 else:
                     LOGGER.info('Rejected new chain head: %s', new_block)
-
+                    if self._consensus_notifier is not None:
+                        # say external consensus
+                        self._consensus_notifier.notify_block_invalid(new_block.header_signature)
                     # Submit for verification any immediate descendant blocks
                     # that arrived while we were processing this block.
                     LOGGER.debug(
                         'Verify descendant blocks: %s (%s)',
                         new_block,
                         [block.identifier[:8] for block in descendant_blocks])
+                    LOGGER.info('Rejected descendant_blocks num=%s',len(descendant_blocks))
                     self._submit_blocks_for_verification(descendant_blocks)
 
         # pylint: disable=broad-except

@@ -669,9 +669,10 @@ class BlockPublisher(object):
                 self._pending_batch_gauge.set_value(len(self._pending_batches))
                 # if we are building a block then send schedule it for
                 # execution.
-                LOGGER.debug("BlockPublisher:on_batch_received _candidate_block(%s) num=%s",self._candidate_block,len(self._candidate_blocks))
+                LOGGER.debug("BlockPublisher:on_batch_received _candidate_block(%s) num=%s heads=%s",self._candidate_block,len(self._candidate_blocks),len(self._chain_heads))
                 """
                 choice block candidate for adding batch from self._candidate_blocks
+                FIXME - USE some strategy for choicing candidate
                 """
                 for candidate in self._candidate_blocks.values():
                     if candidate and candidate.can_add_batch:
@@ -750,7 +751,7 @@ class BlockPublisher(object):
                     also change _chain_heads for branch branch_candidate_id
                     """
                     branch_candidate_id = chain_head.previous_block_id
-                    LOGGER.info('Now building on top of block: %s-->%s',branch_candidate_id[:8],chain_head.identifier[:8])
+                    LOGGER.info('Now building on top of block: %s-->%s num branch=%s',branch_candidate_id[:8],chain_head.identifier[:8],len(self._chain_heads))
                     if branch_candidate_id in self._chain_heads:
                         del self._chain_heads[branch_candidate_id]
                         LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
@@ -763,7 +764,7 @@ class BlockPublisher(object):
                     clean _chain_heads for branch_id
                     """
                     branch_candidate_id = branch_id
-                    LOGGER.info('Block publishing is suspended until new chain head for %s arrives.',branch_id)
+                    LOGGER.info('Block publishing is suspended until new chain head for %s arrives.',branch_id[:8])
 
                 if branch_candidate_id in self._candidate_blocks:
                     LOGGER.info('Update DAG branch head for ID=%s\n',branch_candidate_id[:8])
@@ -822,13 +823,16 @@ class BlockPublisher(object):
                         # for case when block candidate was dropped by mistakes
                         LOGGER.debug("BlockPublisher: on_check_publish_block BUILD CANDIDATE BLOCK for head=%d\n",hid[:8])
                         self._build_candidate_block(head)
-
+                """
+                # old version
                 if (self._chain_head is not None
                         and self._candidate_block is None
                         and self._chain_head.identifier in self._engine_ask_candidate 
                         and self._pending_batches):
                     LOGGER.debug("BlockPublisher: on_check_publish_block BUILD CANDIDATE BLOCK\n")
                     self._build_candidate_block(self._chain_head)
+                """
+
                 """
                 for DAG we should check all branches here and try to publish it for chain controller
                 """
@@ -868,7 +872,7 @@ class BlockPublisher(object):
                             # we succeeded. Otherwise try again, this
                             # can happen in cases where txn dependencies
                             # did not validate when building the block.
-                            LOGGER.info("on_check_publish_block: on_chain_updated(None)")
+                            LOGGER.info("on_check_publish_block: on_chain_updated(None) BRANCH=%s",bid[:8])
                             """
                             for DAG we stop processing only for this branch (self._candidate_block.identifier) 
                             send branch id as additional argument for on_chain_updated()
@@ -880,8 +884,9 @@ class BlockPublisher(object):
                             so we should create new candidate for this BID in this function
                             also _chain_heads has head for branch bid
                             """ 
+                            LOGGER.info("on_check_publish_block: was not finalize branch=%s",bid[:8])
                             self._engine_ask_candidate[bid] = True
-                            del self._candidate_block[bid]
+                            del self._candidate_blocks[bid]
 
 
         # pylint: disable=broad-except
@@ -982,8 +987,8 @@ class BlockPublisher(object):
             candidate = self._candidate_blocks[bid]
             LOGGER.debug('BlockPublisher: compare candidate=%s',candidate==self._candidate_block)
         else:
-            # raise exception
-            pass
+            raise BlockNotInitialized
+            
 
         # now we can send block to chain controller
         # 
@@ -1009,9 +1014,9 @@ class BlockPublisher(object):
         cancel block only for branch 
         """
         bid = branch_id.hex() 
-        LOGGER.debug('BlockPublisher:cancel_block for BRANCH=%s',bid[:8])
+        LOGGER.debug('BlockPublisher:cancel_block ASK cancel for BRANCH=%s num=%s',bid[:8],len(self._candidate_blocks))
         if bid in self._candidate_blocks:
-            LOGGER.debug('BlockPublisher:cancel_block for BRANCH=%s',bid[:8])
+            LOGGER.debug('BlockPublisher:cancel_block DO cancel for BRANCH=%s',bid[:8])
         if self._candidate_block is not None:
             LOGGER.debug('BlockPublisher:cancel_block Stop adding batches to the current block and abandon it')
             # need new block candidate

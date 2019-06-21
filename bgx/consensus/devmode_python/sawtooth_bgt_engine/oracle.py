@@ -64,7 +64,7 @@ class BgtOracle:
 
         self._batch_publisher = _BatchPublisherProxy(stream, self._signer)
         self._publisher = None
-        self._can_fail_block = True #True
+        self._can_fail_block = False #True
         LOGGER.debug('BgtOracle:validator=%s init DONE',_short_id(self._validator_id))
 
     def initialize_block(self, previous_block):

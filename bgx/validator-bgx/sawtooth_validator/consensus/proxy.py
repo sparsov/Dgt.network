@@ -26,6 +26,9 @@ LOGGER = logging.getLogger(__name__)
 class UnknownBlock(Exception):
     """The given block could not be found."""
 
+class TooManyBranch(Exception):
+    """Ask too many branch for DAG."""
+
 
 StartupInfo = namedtuple(
     'SignupInfo',
@@ -124,6 +127,7 @@ class ConsensusProxy:
 
     def commit_block(self, block_id):
         LOGGER.debug("ConsensusProxy:commit_block %s",block_id.hex()[:8])
+        # we can use block manager but we can get this block from _blocks_processing by id
         """
         try:
             block = next(self._block_manager.get([block_id.hex()]))
@@ -133,6 +137,7 @@ class ConsensusProxy:
         self._chain_controller.commit_block(block_id) # (block)
 
     def ignore_block(self, block_id):
+        # we can use block manager but we can get this block from _blocks_processing by id
         """
         try:
             block = next(self._block_manager.get([block_id.hex()]))
@@ -142,6 +147,7 @@ class ConsensusProxy:
         self._chain_controller.ignore_block(block_id) # (block)
 
     def fail_block(self, block_id):
+        # we can use block manager but we can get this block from _blocks_processing by id
         """
         try:
             block = next(self._block_manager.get([block_id.hex()]))

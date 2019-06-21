@@ -1,4 +1,4 @@
-# Copyright 2017 Intel Corporation
+# Copyright 2019 NTRLab
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import logging
 
 from google.protobuf.message import DecodeError
 
-from sawtooth_validator.consensus.proxy import UnknownBlock
+from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch
 
 from sawtooth_validator.protobuf import consensus_pb2
 from sawtooth_validator.protobuf import validator_pb2
@@ -484,13 +484,13 @@ class ConsensusChainHeadGetHandler(ConsensusServiceHandler):
                 bytes.fromhex(block_header.signer_public_key)
             response.block.block_num = block_header.block_num
             response.block.payload = block_header.consensus
+        except TooManyBranch:
+            response.status = consensus_pb2.ConsensusChainHeadGetResponse.TOO_MANY_BRANCH
         except UnknownBlock:
-            response.status =\
-                consensus_pb2.ConsensusChainHeadGetResponse.NO_CHAIN_HEAD
+            response.status = consensus_pb2.ConsensusChainHeadGetResponse.NO_CHAIN_HEAD
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusChainHeadGet")
-            response.status =\
-                consensus_pb2.ConsensusChainHeadGetResponse.SERVICE_ERROR
+            response.status = consensus_pb2.ConsensusChainHeadGetResponse.SERVICE_ERROR
 
 
 class ConsensusSettingsGetHandler(ConsensusServiceHandler):
