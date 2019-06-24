@@ -669,7 +669,8 @@ class BlockPublisher(object):
                 self._pending_batch_gauge.set_value(len(self._pending_batches))
                 # if we are building a block then send schedule it for
                 # execution.
-                LOGGER.debug("BlockPublisher:on_batch_received _candidate_block(%s) num=%s heads=%s",self._candidate_block,len(self._candidate_blocks),len(self._chain_heads))
+                
+                LOGGER.debug("BlockPublisher:on_batch_received _candidate_block(%s) num=%s heads=%s",self._candidate_block,len(self._candidate_blocks),[key[:8] for key in self._chain_heads.keys()])
                 """
                 choice block candidate for adding batch from self._candidate_blocks
                 FIXME - USE some strategy for choicing candidate
@@ -914,7 +915,7 @@ class BlockPublisher(object):
             with self._lock:
                 if chain_head is not None:
                     #self._chain_head = chain_head
-                    LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],self._chain_heads)
+                    LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],[key[:8] for key in self._chain_heads.keys()])
                     self._build_candidate_block(chain_head)
 
         # pylint: disable=broad-except

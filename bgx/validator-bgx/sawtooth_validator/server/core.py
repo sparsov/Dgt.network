@@ -81,6 +81,7 @@ class Validator(object):
                  permissions,
                  minimum_peer_connectivity,
                  maximum_peer_connectivity,
+                 max_dag_branch,
                  network_public_key=None,
                  network_private_key=None,
                  roles=None,
@@ -318,7 +319,8 @@ class Validator(object):
             ],
             metrics_registry=metrics_registry,
             consensus_notifier=consensus_notifier,
-            block_manager=block_manager)# for external engine control
+            block_manager=block_manager,
+            max_dag_branch=max_dag_branch)# for external engine control
 
         genesis_controller = GenesisController(
             context_manager=context_manager,

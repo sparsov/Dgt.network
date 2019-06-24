@@ -208,6 +208,7 @@ def create_validator_config(opts):
         opentsdb_db=opts.opentsdb_db,
         minimum_peer_connectivity=opts.minimum_peer_connectivity,
         maximum_peer_connectivity=opts.maximum_peer_connectivity
+        #max_dag_branch=opts.max_dag_branch
     )
 
 
@@ -361,6 +362,7 @@ def main(args=None):
         validator_config.permissions,
         validator_config.minimum_peer_connectivity,
         validator_config.maximum_peer_connectivity,
+        validator_config.max_dag_branch,
         validator_config.network_public_key,
         validator_config.network_private_key,
         roles=validator_config.roles,

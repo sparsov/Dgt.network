@@ -67,6 +67,8 @@ minimum_peer_connectivity = 3
 # The maximum number of peers that will be accepted.
 maximum_peer_connectivity = 10
 
+# DAG branches 
+max_dag_branch=3
 # The host and port for Open TSDB database used for metrics
 # opentsdb_url = ""
 

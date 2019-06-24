@@ -634,7 +634,8 @@ class ChainController(object):
                  thread_pool=None,
                  metrics_registry=None,
                  consensus_notifier=None,
-                 block_manager=None):
+                 block_manager=None,
+                 max_dag_branch=None):
         """Initialize the ChainController
         Args:
             block_cache: The cache of all recent blocks and the processing
@@ -692,6 +693,8 @@ class ChainController(object):
         self._metrics_registry = metrics_registry
         self._consensus_notifier = consensus_notifier # for external consensus
         self._block_manager = block_manager
+        self._max_dag_branch = max_dag_branch if max_dag_branch is not None else MAX_DAG_BRANCH
+        LOGGER.info("Chain controller initialized with max_dag_branch=%s",self._max_dag_branch)
         if metrics_registry:
             self._chain_head_gauge = GaugeWrapper(
                 metrics_registry.gauge('chain_head', default='no chain head'))
@@ -709,7 +712,7 @@ class ChainController(object):
 
         self._block_queue = queue.Queue()
         self._thread_pool = (
-            InstrumentedThreadPoolExecutor(max_workers=MAX_DAG_BRANCH, name='Validating')
+            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch, name='Validating')
             if thread_pool is None else thread_pool
         )
         self._chain_thread = None
@@ -766,10 +769,10 @@ class ChainController(object):
         if parent_id in self._chain_heads:
             return self._chain_heads[parent_id]
         else:
-            LOGGER.debug("ChainController: get_chain_head BRANCHES=%s",self._chain_heads)
+            LOGGER.debug("ChainController: get_chain_head BRANCHES=%s",[key[:8] for key in self._chain_heads.keys()])
 
-        if len(self._chain_heads) >= MAX_DAG_BRANCH:
-            LOGGER.debug("ChainController: TOO MANY NEW BRANCH %s ",len(self._chain_heads))
+        if len(self._chain_heads) >= self._max_dag_branch :
+            LOGGER.debug("ChainController: TOO MANY NEW BRANCH %s ",[key[:8] for key in self._chain_heads.keys()])
             raise TooManyBranch
             #return None
         # create new branch for DAG
