@@ -49,12 +49,17 @@ class BranchState(object):
         self._num_block = 0
         LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
 
+    @property
+    def ind(self):
+        return self._ind
+
     def un_freeze_block(self):
         # for testing only
         block_id,parent_id = None,None
         if self._freeze_block is not None:
             LOGGER.warning("un_freeze_block: un freeze block for BRANCH=%s\n",self._head_id[:8])
-            self.check_block(self._freeze_block.block_id)
+            #self.check_block(self._freeze_block.block_id) # commit freeze block
+            self.fail_block(self._freeze_block.block_id)  # fail block 
             block_id = self._freeze_block.block_id.hex()
             parent_id = self._freeze_block.previous_block_id
             self._freeze_block = None
@@ -84,6 +89,7 @@ class BranchState(object):
             if block.block_num == 3 and self._try_branch:
                 # try make branch pause current block for main branch
                 self._make_branch = True
+                self._try_branch = False
                 self._freeze_block = block
             else:
                 self.check_block(block.block_id) # this message send chain controller message for continue block validation
@@ -224,12 +230,13 @@ class BgtEngine(Engine):
             parent = chain_head.previous_block_id 
             if bid in self._branches:
                 #branch = self._branches[bid]
-                LOGGER.debug('BgtEngine: _initialize_block USE Branch=%s',bid[:8])
+                
                 branch = self._branches[bid]
                 branch._published = True
                 branch._parent_id = parent
+                LOGGER.debug('BgtEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
-                LOGGER.debug('BgtEngine: _initialize_block NEW Branch=%s',bid[:8])
+                LOGGER.debug('BgtEngine: _initialize_block NEW Branch[%s]=%s',self._num_branches,bid[:8])
                 self._branches[bid] = BranchState(bid,parent, self._service, self._oracle,self._num_branches)
                 self._branches[bid]._try_branch = self._make_branch
                 self._num_branches += 1
@@ -436,9 +443,9 @@ class BgtEngine(Engine):
                         if not branch._published:
                             self._initialize_block(bytes.fromhex(bid))
                         else: # already published
-                            if branch._make_branch:
+                            if self._make_branch and branch._make_branch:
                                 # create branch for testing - only one
-                                LOGGER.debug('BgtEngine: CREATE NEW BRANCH: (%s)\n',branch._parent_id[:8])
+                                LOGGER.debug('BgtEngine: CREATE NEW BRANCH[%s] (%s)\n',branch.ind,branch._parent_id[:8])
                                 branch._make_branch = False
                                 self._make_branch = False
                                 self._initialize_block(bytes.fromhex(branch._parent_id))
@@ -491,7 +498,7 @@ class BgtEngine(Engine):
     def _handle_new_block(self, block):
         block = BgtBlock(block)
         block_id = block.block_id.hex()
-        LOGGER.info('=> NEW_BLOCK:Received %s', _short_id(block_id))
+        LOGGER.info('=> NEW_BLOCK:Received %s num=%s', _short_id(block_id),block.block_num)
         # find branch for this block 
         if block.previous_block_id in self._branches:
             branch = self._branches[block.previous_block_id]

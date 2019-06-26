@@ -151,6 +151,10 @@ class _CandidateBlock(object):
         return self._identifier
 
     @property
+    def block_num(self):
+        return self._block_builder.block_num
+
+    @property
     def previous_block_id(self):
         return self._block_builder.previous_block_id
 
@@ -480,6 +484,7 @@ class BlockPublisher(object):
         self._chain_heads = {}
         # the next block in potential chain
         self._block_cache = block_cache
+        self._block_store = block_cache.block_store
         self._state_view_factory = state_view_factory
         self._settings_cache = settings_cache
         self._transaction_executor = transaction_executor
@@ -514,7 +519,7 @@ class BlockPublisher(object):
         self._batch_observers = batch_observers
         self._check_publish_block_frequency = check_publish_block_frequency
         self._publisher_thread = None
-        LOGGER.debug("BlockPublisher: INIT chain_head=%s",chain_head)
+        LOGGER.debug("BlockPublisher: INIT chain_head=%s block_store=%s\n",chain_head,type(self._block_store))
 
     def start(self):
         self._publisher_thread = _PublisherThread(
@@ -586,7 +591,7 @@ class BlockPublisher(object):
             consensus_module = ConsensusFactory.try_configured_proxy_consensus()
             LOGGER.debug("BlockPublisher:_build_candidate_block External consensus was registered=%s",consensus_name)
         bid = chain_head.identifier
-        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for(%s) consensus_module=(%s,%s) ask_candidate=%s",bid[:8],consensus_name,consensus_module,self._engine_ask_candidate)
+        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for[%s]=%s consensus_module=(%s,%s) ask_candidate=%s",chain_head.block_num,bid[:8],consensus_name,consensus_module,self._engine_ask_candidate)
         # using chain_head so so we can use the setting_cache
         max_batches = int(self._settings_cache.get_setting(
             'sawtooth.publisher.max_batches_per_block',
@@ -611,26 +616,32 @@ class BlockPublisher(object):
 
         batch_injectors = []
         if self._batch_injector_factory is not None:
-            batch_injectors = self._batch_injector_factory.create_injectors(
-                chain_head.identifier)
+            batch_injectors = self._batch_injector_factory.create_injectors(chain_head.identifier)
             if batch_injectors:
                 LOGGER.debug("Loaded batch injectors: %s", batch_injectors)
-
+        """
+        For DAG version we should ask block_num for last node into sorted graph - FIXME
+        block_num for new candidate should be more then block_num of its parent
+        """
+        
+        block_num = self._block_store.block_num(chain_head.block_num)
+        LOGGER.debug("make header for block (%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
         block_header = BlockHeader(
-            block_num=chain_head.block_num + 1,
+            block_num=block_num , # ask last block number from store
             previous_block_id=chain_head.header_signature,
             signer_public_key=public_key)
         block_builder = BlockBuilder(block_header)
         if not consensus.initialize_block(block_builder.block_header):
             # for proxy consensus waiting until reply fron consensus
+            # return reserved block num
             LOGGER.debug("Consensus not ready to build candidate block.")
+            self._block_store.pop_block_number(block_num)
             return None
 
         # switch of marker from proxy engine
         del self._engine_ask_candidate[bid] 
         # create a new scheduler
-        scheduler = self._transaction_executor.create_scheduler(
-            self._squash_handler, chain_head.state_root_hash)
+        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, chain_head.state_root_hash)
 
         # build the TransactionCommitCache
         committed_txn_cache = TransactionCommitCache(
@@ -647,7 +658,7 @@ class BlockPublisher(object):
             bid)
         # add new candidate into list
         self._candidate_blocks[bid] = self._candidate_block
-        LOGGER.debug("_build_candidate_block: NEW _candidate_block=%s",self._candidate_block)
+        LOGGER.debug("NEW candidate block[%s]=%s candidates=%s",self._candidate_block.block_num,bid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
         for batch in self._pending_batches:
             if self._candidate_block.can_add_batch:
                 self._candidate_block.add_batch(batch)
@@ -670,7 +681,7 @@ class BlockPublisher(object):
                 # if we are building a block then send schedule it for
                 # execution.
                 
-                LOGGER.debug("BlockPublisher:on_batch_received _candidate_block(%s) num=%s heads=%s",self._candidate_block,len(self._candidate_blocks),[key[:8] for key in self._chain_heads.keys()])
+                LOGGER.debug("BlockPublisher:on_batch_received candidate block's num=%s heads=%s",len(self._candidate_blocks),[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 """
                 choice block candidate for adding batch from self._candidate_blocks
                 FIXME - USE some strategy for choicing candidate
@@ -681,7 +692,9 @@ class BlockPublisher(object):
                         there is block candidate and we can add batch into them
                         for DAG we should choice one of the block candidate
                         """
+                        LOGGER.debug("BlockPublisher:on_batch_received use condidate=%s from=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
                         candidate.add_batch(batch)
+                        break
             else:
                 LOGGER.debug("Batch has an unauthorized signer. Batch: %s",batch.header_signature)
 
@@ -768,7 +781,7 @@ class BlockPublisher(object):
                     LOGGER.info('Block publishing is suspended until new chain head for %s arrives.',branch_id[:8])
 
                 if branch_candidate_id in self._candidate_blocks:
-                    LOGGER.info('Update DAG branch head for ID=%s\n',branch_candidate_id[:8])
+                    LOGGER.info('Update DAG branch head for ID=%s heads=%s\n',branch_candidate_id[:8],[key[:8] for key in self._chain_heads.keys()])
                     del self._candidate_blocks[branch_candidate_id]
 
                 """
@@ -846,7 +859,7 @@ class BlockPublisher(object):
                         last_batch = candidate.last_batch
                         LOGGER.debug("BlockPublisher: before finalize_block batchs=%s for BRANCH=%s\n",len(pending_batches),bid[:8])
                         block = candidate.finalize_block(self._identity_signer,pending_batches)
-                        LOGGER.debug("BlockPublisher: after finalize_block batchs=%s block=%s",len(pending_batches),block is not None)
+                        LOGGER.debug("BlockPublisher: after finalize_block batchs=%s block=%s",len(self._pending_batches),block is not None)
 
                         self._candidate_block = None
                     
@@ -879,6 +892,7 @@ class BlockPublisher(object):
                             send branch id as additional argument for on_chain_updated()
                             """
                             self.on_chain_updated(None,branch_id=bid)
+                            LOGGER.info("on_check_publish_block: after update candidates=%s heads=%s",[key[:8] for key in self._candidate_blocks.keys()],[key[:8] for key in self._chain_heads.keys()])
                         else:
                             """
                             candidate.finalize_block() return None but external consensus don't know about this and use bid for reply summarize()
@@ -915,7 +929,7 @@ class BlockPublisher(object):
             with self._lock:
                 if chain_head is not None:
                     #self._chain_head = chain_head
-                    LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],[key[:8] for key in self._chain_heads.keys()])
+                    LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                     self._build_candidate_block(chain_head)
 
         # pylint: disable=broad-except
@@ -935,7 +949,7 @@ class BlockPublisher(object):
         """
         we are know parent's ID from chain_head_get()
         """
-        LOGGER.debug('BlockPublisher: initialize_block for parent=%s\n', block.identifier[:8])
+        LOGGER.debug('BlockPublisher: initialize_block for parent[%s]=%s\n',block.block_num, block.identifier[:8])
         """
         self._py_call('initialize_block', ctypes.py_object(block))
         """

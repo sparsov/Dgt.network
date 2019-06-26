@@ -58,6 +58,13 @@ class BlockBuilder(object):
         """
         return self.block_header.previous_block_id
 
+    @property
+    def block_num(self):
+        """
+        Returns the identifier of the previous block.
+        """
+        return self.block_header.block_num
+
     def set_state_hash(self, state_hash):
         self.block_header.state_root_hash = state_hash
 

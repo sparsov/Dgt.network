@@ -14,13 +14,14 @@
 # ------------------------------------------------------------------------------
 
 # pylint: disable=no-name-in-module
+import logging
 from collections.abc import MutableMapping
 
 from sawtooth_validator.journal.block_wrapper import BlockStatus
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.state.merkle import INIT_ROOT_KEY
-
+LOGGER = logging.getLogger(__name__)
 
 class BlockStore(MutableMapping):
     """
@@ -31,7 +32,9 @@ class BlockStore(MutableMapping):
 
     def __init__(self, block_db):
         self._block_store = block_db
-
+        self._chain_heads = {} # for DAG
+        self._block_nums  = [] # for DAG - list of reserved block candidate number  
+        self._free_block_nums  = [] # for DAG - list of free block number's 
     def __setitem__(self, key, value):
         if key != value.identifier:
             raise KeyError(
@@ -123,14 +126,72 @@ class BlockStore(MutableMapping):
 
         self._block_store.update(add_pairs, del_keys)
 
+    def add_branch(self,block_id,block):
+        # for DAG version - add new branch from block with block_id
+        self._chain_heads[block_id] = block
+
+    def update_chain_heads(self,hid,new_block):
+        #for DAG only - main head not in _chain_heads
+        if hid in self._chain_heads:
+            del self._chain_heads[hid]
+            self._chain_heads[hid] = new_block
+        else:
+            self._chain_heads[hid] = new_block
+
+    def get_chain_head(self,branch_id):
+        return self._chain_heads[branch_id]
+
+    @property
+    def chain_heads(self):
+        return self._chain_heads
+
     @property
     def chain_head(self):
         """
         Return the head block of the current chain.
+        for DAG return last from sorted node's list
         """
         with self._block_store.cursor(index='block_num') as curs:
             curs.last()
             return curs.value()
+
+    
+    def block_num(self,parent_num):
+        """
+        for DAG version
+        Return the last head block of sorted graph and reserve this number because others branch can ask this number
+        """
+        LOGGER.debug("BlockStore:block_nums=%s free=%s for=%s",self._block_nums,self._free_block_nums,parent_num)
+        if len(self._free_block_nums) > 0 and max(self._free_block_nums) > parent_num:
+            for num in sorted(self._free_block_nums):
+                if num > parent_num:
+                    self._free_block_nums.remove(num)
+                    LOGGER.debug("BlockStore: num=%s free=%s",num,self._free_block_nums)
+                    return num
+
+        head = self.chain_head
+        block_num = head.block_num + 1
+        while block_num in self._block_nums:
+            # already reserved by some branch
+            block_num += 1
+        # add into reserved list
+        self._block_nums.append(block_num)
+        LOGGER.debug("BlockStore: num=%s block_nums=%s",block_num,self._block_nums)
+        return block_num
+
+    def pop_block_number(self,block_num):
+        if block_num in self._block_nums:
+            self._block_nums.remove(block_num)
+            LOGGER.debug("BlockStore:pop_block_number  num=%s nums=%s",block_num,self._block_nums)
+
+    def free_block_number(self,block_num):
+        # free block number - because block was not validated
+        self.pop_block_number(block_num)
+        head = self.chain_head
+        if block_num < head.block_num + 1:
+            # put into free block num list
+            self._free_block_nums.append(block_num)
+            LOGGER.debug("BlockStore:free_block_number  num=%s nums=%s",block_num,self._free_block_nums)
 
     def chain_head_state_root(self):
         """
