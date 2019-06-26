@@ -411,6 +411,7 @@ message ConsensusBlocksGetResponse {
 // Retrieve consensus-related information about the chain head.
 message ConsensusChainHeadGetRequest {
   bytes parent_id = 1;
+  bytes new_parent_id = 2;
 }
 
 message ConsensusChainHeadGetResponse {

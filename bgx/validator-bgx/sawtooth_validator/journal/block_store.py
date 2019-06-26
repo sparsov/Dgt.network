@@ -130,6 +130,13 @@ class BlockStore(MutableMapping):
         # for DAG version - add new branch from block with block_id
         self._chain_heads[block_id] = block
 
+    def update_branch(self,hid,new_hid,block):
+        # for DAG version - update branch to another point
+        if hid in self._chain_heads:
+            del self._chain_heads[hid]
+            self._chain_heads[new_hid] = block
+            LOGGER.debug("BlockStore: update_branch=%s",hid[:8])
+
     def update_chain_heads(self,hid,new_block):
         #for DAG only - main head not in _chain_heads
         if hid in self._chain_heads:

@@ -304,6 +304,7 @@ class Validator(object):
             transaction_executor=executor,
             chain_head_lock=block_publisher.chain_head_lock,
             on_chain_updated=block_publisher.on_chain_updated,
+            on_head_updated=block_publisher.on_head_updated,
             squash_handler=context_manager.get_squash_handler(),
             chain_id_manager=chain_id_manager,
             identity_signer=identity_signer,

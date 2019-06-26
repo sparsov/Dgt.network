@@ -1,4 +1,4 @@
-# Copyright 2017 Intel Corporation
+# Copyright NTRLab NTR
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -414,7 +414,7 @@ class _CandidateBlock(object):
             pending_batches.extend([x for x in self._pending_batches
                                     if x not in bad_batches])
             return None
-        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block() DONE\n")
+        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block() DONE state_hash=%s\n",state_hash)
         builder.set_state_hash(state_hash)
         self._sign_block(builder, identity_signer)
         return builder.build_block()
@@ -920,6 +920,14 @@ class BlockPublisher(object):
     """
     for proxy consensus interface
     """
+    def on_head_updated(self,hid,new_hid,chain_head):
+        with self._lock:
+            # update head of branch
+            del self._chain_heads[hid]
+            self._chain_heads[new_hid] = chain_head
+            LOGGER.info('UPDATE HEAD for branch=%s heads=%s\n',hid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+            
+
     def on_initialize_build_candidate(self, chain_head = None):
         """
         build only after request from consensus engine and for chain_head only 

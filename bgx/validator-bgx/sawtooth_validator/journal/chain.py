@@ -627,6 +627,7 @@ class ChainController(object):
                  transaction_executor,
                  chain_head_lock,
                  on_chain_updated,
+                 on_head_updated,
                  squash_handler,
                  chain_id_manager,
                  identity_signer,
@@ -677,6 +678,7 @@ class ChainController(object):
         self._block_sender = block_sender
         self._transaction_executor = transaction_executor
         self._notify_on_chain_updated = on_chain_updated
+        self._notify_on_head_updated = on_head_updated
         self._squash_handler = squash_handler
         self._identity_signer = identity_signer
         self._data_dir = data_dir
@@ -766,17 +768,30 @@ class ChainController(object):
         LOGGER.debug("ChainController: queue BLOCK=%s",block.identifier[:8])
         self._block_queue.put(block)
 
-    def get_chain_head(self,parent_id=None):
-        # for DAG version
+    def get_chain_head(self,parent_id=None,new_parent_id=None):
+        """
+        for DAG version - in case new_parent_id != None - switch parent_id to new_parent_id block as new branch 
+        """ 
         if parent_id is None:
             return self._chain_head
         if parent_id in self._chain_heads:
+            if new_parent_id is not None and new_parent_id in self._block_cache:
+                # switch 'parent_id' head to new point 
+                LOGGER.debug("ChainController: switch BRANCH %s->%s heads=%s",parent_id[:8],new_parent_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                new_head = self._block_cache[new_parent_id]
+                del self._chain_heads[parent_id]
+                self._chain_heads[new_parent_id] = new_head
+                self._block_store.update_branch(parent_id,new_parent_id,new_head)
+                self._notify_on_head_updated(parent_id,new_parent_id,new_head)
+                LOGGER.debug("ChainController: swithed BRANCH %s",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                return new_head
+
             return self._chain_heads[parent_id]
         else:
             LOGGER.debug("ChainController: get_chain_head BRANCHES=%s",[key[:8] for key in self._chain_heads.keys()])
 
         if len(self._chain_heads) >= self._max_dag_branch :
-            LOGGER.debug("ChainController: TOO MANY NEW BRANCH %s ",[key[:8] for key in self._chain_heads.keys()])
+            LOGGER.debug("ChainController: TOO MANY NEW BRANCH %s ",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
             raise TooManyBranch
             #return None
         # create new branch for DAG
@@ -1060,6 +1075,7 @@ class ChainController(object):
                 # don't want it as the chain head.
                 else:
                     LOGGER.info('Rejected new chain head: %s', new_block)
+                    self._block_store.free_block_number(new_block.block_num)
                     if self._consensus_notifier is not None:
                         # say external consensus 
                         self._consensus_notifier.notify_block_invalid(new_block.header_signature)

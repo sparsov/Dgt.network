@@ -207,13 +207,14 @@ class BgtEngine(Engine):
     def stop(self):
         self._exit = True
 
-    def _initialize_block(self,branch=None):
+    def _initialize_block(self,branch=None,new_branch=None):
         LOGGER.debug('BgtEngine: _initialize_block branch[%s]',branch.hex()[:8] if branch is not None else None)
         """
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
         try:
-            chain_head = self._get_chain_head(branch) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
+            # for switch current branch to another node add argument new_branch
+            chain_head = self._get_chain_head(branch,new_branch) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
         except exceptions.TooManyBranch:
             LOGGER.debug('BgtEngine: CANT CREATE NEW BRANCH')
             return False
@@ -226,7 +227,8 @@ class BgtEngine(Engine):
         #if initialize:
         try:
             self._service.initialize_block(previous_id=chain_head.block_id)
-            bid = chain_head.block_id.hex()
+            # for remove this branch to another point 
+            bid = branch.hex() if branch is not None else chain_head.block_id.hex()
             parent = chain_head.previous_block_id 
             if bid in self._branches:
                 #branch = self._branches[bid]
@@ -234,6 +236,9 @@ class BgtEngine(Engine):
                 branch = self._branches[bid]
                 branch._published = True
                 branch._parent_id = parent
+                if new_branch is not None :
+                    del self._branches[bid]
+                    self._branches[new_branch.hex()] = branch 
                 LOGGER.debug('BgtEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
                 LOGGER.debug('BgtEngine: _initialize_block NEW Branch[%s]=%s',self._num_branches,bid[:8])
@@ -284,8 +289,8 @@ class BgtEngine(Engine):
         self._service.fail_block(block_id)
     """
 
-    def _get_chain_head(self,bid=None):
-        return BgtBlock(self._service.get_chain_head(bid))
+    def _get_chain_head(self,bid=None,nbid=None):
+        return BgtBlock(self._service.get_chain_head(bid,nbid))
 
     def _get_block(self, block_id):
         return BgtBlock(self._service.get_blocks([block_id])[block_id])
@@ -354,7 +359,7 @@ class BgtEngine(Engine):
             #LOGGER.debug('Block not ready to be summarized')
             return None
         bid = parent_id.hex()
-        LOGGER.debug('Can FINALIZE NOW parent=%s',_short_id(bid))
+        LOGGER.debug('Can FINALIZE NOW parent=%s branches=%s',_short_id(bid),[key[:8] for key in self._branches.keys()])
         if bid in self._branches:
             LOGGER.debug('FINALIZE BRANCH=%s',bid[:8])
             branch = self._branches[bid]
@@ -441,7 +446,12 @@ class BgtEngine(Engine):
                 else: 
                     for bid,branch in list(self._branches.items()):
                         if not branch._published:
-                            self._initialize_block(bytes.fromhex(bid))
+                            if self._TOTAL_BLOCK == 5 and branch.ind > 0:
+                                # for testing only - try switch branch
+                                LOGGER.debug('BgtEngine: TRY SWITCH BRANCH[%s] (%s->%s)\n',branch.ind,bid[:8],branch._parent_id[:8]) 
+                                self._initialize_block(bytes.fromhex(bid),bytes.fromhex(branch._parent_id))
+                            else:
+                                self._initialize_block(bytes.fromhex(bid))
                         else: # already published
                             if self._make_branch and branch._make_branch:
                                 # create branch for testing - only one
@@ -450,7 +460,7 @@ class BgtEngine(Engine):
                                 self._make_branch = False
                                 self._initialize_block(bytes.fromhex(branch._parent_id))
                             if self._TOTAL_BLOCK == 5:
-                                # for testing only
+                                # for testing only - un freeze branch 0 and 
                                 (block_id,parent_id) = branch.un_freeze_block()
                                 if block_id is not None:
                                     self.un_freeze_block(block_id,parent_id)
@@ -589,7 +599,7 @@ class BgtEngine(Engine):
             LOGGER.info('   update chain head for BRANCH=%s->%s',hid[:8],bid[:8])
             if hid in self._branches:
                 branch = self._branches.pop(hid)
-                branch.cancel_block(bid) 
+                branch.cancel_block(bid) # change parent_id too 
                 branch.reset_state()    
                 self._branches[bid] = branch
                 self._TOTAL_BLOCK += 1 
