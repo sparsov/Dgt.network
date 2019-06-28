@@ -58,8 +58,8 @@ class BranchState(object):
         block_id,parent_id = None,None
         if self._freeze_block is not None:
             LOGGER.warning("un_freeze_block: un freeze block for BRANCH=%s\n",self._head_id[:8])
-            #self.check_block(self._freeze_block.block_id) # commit freeze block
-            self.fail_block(self._freeze_block.block_id)  # fail block 
+            self.check_block(self._freeze_block.block_id) # commit freeze block
+            #self.fail_block(self._freeze_block.block_id)  # fail block 
             block_id = self._freeze_block.block_id.hex()
             parent_id = self._freeze_block.previous_block_id
             self._freeze_block = None

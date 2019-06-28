@@ -272,6 +272,20 @@ class _ClientRequestHandler(Handler, metaclass=abc.ABCMeta):
 
         # Traverse block chain to build results for most scenarios
         else:
+            """
+            for DAG when we are using 'Traverse block chain' we should pay attention on fact - following previous_block_id we don't reach all blocks
+            we will return only one branch 
+            when we ask all tree this new version works good - but when we ask branch this version can return more then one branch FIXME    
+            """
+            LOGGER.debug('_list_store_resources: head_id=%s',head_id[:8])
+            if head_id in self._block_store:
+                head = self._block_store[head_id]
+                #LOGGER.debug('_list_store_resources: head=%s',type(head))
+                for block in self._block_store.get_block_iter(head):
+                    #LOGGER.debug('_list_store_resources: block=%s',block)
+                    resources += block_xform(block)
+                    
+            """
             current_id = head_id
             while current_id in self._block_store:
                 block = self._block_store[current_id].block
@@ -279,7 +293,7 @@ class _ClientRequestHandler(Handler, metaclass=abc.ABCMeta):
                 header = BlockHeader()
                 header.ParseFromString(block.header)
                 current_id = header.previous_block_id
-
+            """
         # If filtering by head AND ids, the traverse results must be winnowed
         if request.head_id and filter_ids:
             matches = {
@@ -677,10 +691,11 @@ class StateListRequest(_ClientRequestHandler):
 
         # Fetch entries and encode as protobuf
         self._validate_namespace(request.address)
+        #FIXME FOR DAG version
         entries = [
             client_state_pb2.ClientStateListResponse.Entry(address=a, data=v)
             for a, v in self._tree.leaves(request.address or '').items()]
-
+        LOGGER.debug('StateListRequest: entries=%s', len(entries))
         # Order entries, remove if tree.entries refactored to be ordered
         entries.sort(key=lambda l: l.address)
 
@@ -731,9 +746,10 @@ class StateGetRequest(_ClientRequestHandler):
         # Fetch leaf value
         self._validate_namespace(request.address)
         try:
+            LOGGER.debug('find entry at address "%s"', request.address)
             value = self._tree.get(request.address)
         except KeyError:
-            LOGGER.debug('Unable to find entry at address %s', request.address)
+            LOGGER.debug('Unable to find entry at address "%s"', request.address)
             return self._status.NO_RESOURCE
         except ValueError:
             LOGGER.debug('Address %s is a nonleaf', request.address)
@@ -939,7 +955,7 @@ class BatchListRequest(_ClientRequestHandler):
             request.batch_ids,
             self._block_store.get_batch,
             lambda block: [a for a in block.batches])
-
+        LOGGER.debug('BatchListRequest: batches=%s',len(batches))
         if self.is_reverse(request.sorting, self._status.INVALID_SORT):
             batches.reverse()
 
@@ -1001,14 +1017,14 @@ class TransactionListRequest(_ClientRequestHandler):
     def _respond(self, request):
         head_id = self._get_head_block(request).header_signature
         self._validate_ids(request.transaction_ids)
-
+        
         transactions = self._list_store_resources(
             request,
             head_id,
             request.transaction_ids,
             self._block_store.get_transaction,
             lambda block: [t for a in block.batches for t in a.transactions])
-
+        LOGGER.debug('TransactionListRequest: head_id=%s num=%s', head_id[:8],len(transactions))
         if self.is_reverse(request.sorting, self._status.INVALID_SORT):
             transactions.reverse()
 

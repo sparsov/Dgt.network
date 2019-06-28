@@ -139,6 +139,7 @@ class MerkleDatabase(object):
         )
 
     def _get_by_addr(self, address):
+        #LOGGER.debug('MerkleDatabase:_get_by_addr address "%s"', address)
         tokens = self._tokenize_address(address)
 
         node = self._root_node
@@ -174,6 +175,7 @@ class MerkleDatabase(object):
         return nodes
 
     def delete(self, address):
+        LOGGER.debug('MerkleDatabase:delete address "%s"', address)
         path_map = self._get_path_by_addr(address)
 
         batch = []
@@ -221,9 +223,11 @@ class MerkleDatabase(object):
 
         if delete_items is not None:
             for del_address in delete_items:
+                LOGGER.debug('MerkleDatabase:del address "%s"', del_address)
                 path_map.update(self._get_path_by_addr(del_address))
 
             for del_address in delete_items:
+                LOGGER.debug('MerkleDatabase:del1 address "%s"', del_address)
                 del path_map[del_address]
 
                 path_branch = del_address[-TOKEN_SIZE:]
@@ -259,6 +263,7 @@ class MerkleDatabase(object):
         return key_hash
 
     def _set_by_addr(self, address, value):
+        LOGGER.debug('MerkleDatabase:_set_by_addr address "%s"', address)
         tokens = list(self._tokenize_address(address))
 
         path_addresses = [
@@ -309,6 +314,7 @@ class MerkleDatabase(object):
 
     def leaves(self, prefix):
         leaves = {}
+        #FIXME for DAG version
         for address, value in self._yield_iter(prefix, self._root_hash):
             leaves[address] = value
         return leaves

@@ -52,6 +52,7 @@ class BlockStore(MutableMapping):
         return x in self._block_store
 
     def __iter__(self):
+        
         return self.get_block_iter()
 
     def __len__(self):
@@ -104,6 +105,10 @@ class BlockStore(MutableMapping):
             bytes: the serialized bytes
         """
         return blkw.block.SerializeToString()
+
+    @staticmethod
+    def wrap_block(blk):
+        return BlockWrapper.wrap(blk)
 
     def update_chain(self, new_chain, old_chain=None):
         """
@@ -249,6 +254,7 @@ class BlockStore(MutableMapping):
             ValueError: If start_block or start_block_num do not specify a
                 valid block
         """
+        LOGGER.debug("BlockStore: get_block_iter...")
         with self._block_store.cursor(index='block_num') as curs:
             if start_block:
                 start_block_num = BlockStore.block_num_to_hex(

@@ -333,7 +333,7 @@ class SerialScheduler(Scheduler):
             state_hash (str): The merkle root calculated from the previous
                 state hash and the state changes from the context_id
         """
-
+        LOGGER.debug('_compute_merkle_root: state=%s',required_state_root)
         state_hash = None
         if self._previous_valid_batch_c_id is not None:
             publishing_or_genesis = self._always_persist or \

@@ -353,6 +353,7 @@ class ContextManager(object):
                 if not self.address_is_valid(address=add):
                     raise AuthorizationException(address=add)
                 add_value_dict[add] = val
+        LOGGER.debug("context.set_direct  %s",add_value_dict)
         context.set_direct(add_value_dict)
         return True
 
@@ -362,6 +363,15 @@ class ContextManager(object):
             contexts_in_chain.extend(context_ids)
             context_ids_already_searched = []
             context_ids_already_searched.extend(context_ids)
+
+            # for testing
+            # check state for testing
+            tree = MerkleDatabase(self._database, state_root)
+            try:
+                tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
+                LOGGER.debug('_SQUASH: ADDRESS YES BEFORE\n')
+            except :
+                LOGGER.debug('_SQUASH: ADDRESS NO BEFORE\n')
 
             # There is only one exit condition and that is when all the
             # contexts have been accessed once.
@@ -394,8 +404,8 @@ class ContextManager(object):
                         contexts_in_chain.append(c_id)
                         context_ids_already_searched.append(c_id)
 
-            tree = MerkleDatabase(self._database, state_root)
-
+            #tree = MerkleDatabase(self._database, state_root)  # was here
+            
             # filter the delete list to just those items in the tree
             deletes = [addr for addr in deletes if addr in tree]
 
@@ -403,10 +413,19 @@ class ContextManager(object):
                 state_hash = state_root
             else:
                 virtual = not persist
+                LOGGER.debug('_SQUASH: updates=%s deletes=%s\n',updates,deletes)
                 state_hash = tree.update(updates, deletes, virtual=virtual)
 
             if clean_up:
                 self.delete_contexts(context_ids_already_searched)
+
+            # check state for testing
+            try:
+                tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
+                LOGGER.debug('_SQUASH: ADDRESS YES\n')
+            except :
+                LOGGER.debug('_SQUASH: ADDRESS NO\n')
+
             return state_hash
         return _squash
 

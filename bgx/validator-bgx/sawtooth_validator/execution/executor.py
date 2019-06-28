@@ -124,7 +124,7 @@ class TransactionExecutorThread(object):
                     type=transaction_receipt_pb2.StateChange.DELETE)
                 for addr in state_deletes
             ]
-
+            LOGGER.debug("_future_done_callback:set_transaction_execution_result changes=%s",state_changes)
             self._scheduler.set_transaction_execution_result(
                 txn_signature=req.signature,
                 is_valid=True,
