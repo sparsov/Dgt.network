@@ -169,8 +169,11 @@ class BlockValidator(object):
     def _get_previous_block_root_state_hash(self, blkw):
         if blkw.previous_block_id == NULL_BLOCK_IDENTIFIER:
             return INIT_ROOT_KEY
-
-        return self._block_cache[blkw.previous_block_id].state_root_hash
+        # for DAG use last block state root hash
+        main_head = self._block_cache.block_store.chain_head
+        LOGGER.debug('BlockValidator: get block root state for BLOCK=%s STATE=%s<==%s\n',blkw.identifier[:8],main_head.block_num,self._block_cache[blkw.previous_block_id].block_num)
+        return main_head.state_root_hash
+        #return self._block_cache[blkw.previous_block_id].state_root_hash
 
     def _txn_header(self, txn):
         txn_hdr = TransactionHeader()
@@ -208,18 +211,18 @@ class BlockValidator(object):
 
     def _verify_block_batches(self, blkw):
         if blkw.block.batches:
-            # check again using proc of transactions
+            """
+            check again using proc of transactions
+            FOR DAG prev_state could be different from merkle state which was used into publisher FIXME 
+            """
             prev_state = self._get_previous_block_root_state_hash(blkw)
-            scheduler = self._executor.create_scheduler(
-                self._squash_handler, prev_state)
+            scheduler = self._executor.create_scheduler(self._squash_handler, prev_state)
             self._executor.execute(scheduler)
+            LOGGER.debug("Have processed transactions again for block %s STATE=%s",blkw.identifier[:8],prev_state[:10])
             try:
                 for batch, has_more in look_ahead(blkw.block.batches):
-                    if self._chain_commit_state.has_batch(
-                            batch.header_signature):
-                        LOGGER.debug("Block(%s) rejected due to duplicate "
-                                     "batch, batch: %s", blkw,
-                                     batch.header_signature[:8])
+                    if self._chain_commit_state.has_batch(batch.header_signature):
+                        LOGGER.debug("Block(%s) rejected due to duplicate batch, batch: %s", blkw,batch.header_signature[:8])
                         raise InvalidBatch()
 
                     self._verify_batch_transactions(batch)
@@ -228,12 +231,11 @@ class BlockValidator(object):
                     if has_more:
                         scheduler.add_batch(batch)
                     else:
-                        scheduler.add_batch(batch, blkw.state_root_hash)
+                        # for DAG mode blkw.state_root_hash is older then prev_state - try use prev_state
+                        LOGGER.debug("_verify_block_batches: add batch for block=%s STATE=%s~%s",blkw.identifier[:8],blkw.state_root_hash[:10],prev_state[:10])
+                        scheduler.add_batch(batch, blkw.state_root_hash) # prev_state
             except InvalidBatch:
-                LOGGER.debug("Invalid batch %s encountered during "
-                             "verification of block %s",
-                             batch.header_signature[:8],
-                             blkw)
+                LOGGER.debug("Invalid batch %s encountered during verification of block %s",batch.header_signature[:8],blkw)
                 scheduler.cancel()
                 return False
             except Exception:
@@ -245,22 +247,18 @@ class BlockValidator(object):
             state_hash = None
 
             for batch in blkw.batches:
-                batch_result = scheduler.get_batch_execution_result(
-                    batch.header_signature)
+                batch_result = scheduler.get_batch_execution_result(batch.header_signature)
                 if batch_result is not None and batch_result.is_valid:
-                    txn_results = \
-                        scheduler.get_transaction_execution_results(
-                            batch.header_signature)
+                    txn_results = scheduler.get_transaction_execution_results(batch.header_signature)
                     blkw.execution_results.extend(txn_results)
                     state_hash = batch_result.state_hash
                     blkw.num_transactions += len(batch.transactions)
                 else:
                     return False
             if blkw.state_root_hash != state_hash:
-                LOGGER.debug("Block(%s) rejected due to state root hash "
-                             "mismatch: %s != %s", blkw, blkw.state_root_hash,
-                             state_hash)
-                return False
+                # for DAG state could be different
+                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash,state_hash)
+                #return False
         return True
 
     def _validate_permissions(self, blkw):
@@ -344,11 +342,13 @@ class BlockValidator(object):
                     self._verifier = verifier # save for reply from external consensus
 
                     LOGGER.debug("BlockValidator:validate_block -> verify_block")
+                    """
+                    use proxy engine for verification and send message NEW_BLOCK to consensus
+                    when we got return from verifier.verify_block() consensus already say OK or BAD for this block     
+                    """
                     valid = verifier.verify_block(blkw)
                     LOGGER.debug("BlockValidator:validate_block <- verify_block=%s",valid)
-                    #
-                    # maybe use proxy engine for verification and maybe here send message NEW_BLOCK
-                    #
+                    
                 if valid:
                     valid = self._validate_on_chain_rules(blkw)
 
@@ -813,9 +813,8 @@ class ChainController(object):
         for blkw in blocks:
             branch_id = blkw.previous_block_id
             chain_head = self._chain_heads[branch_id]
-            state_view = BlockWrapper.state_view_for_block(
-                chain_head,
-                self._state_view_factory)
+            main_head = main_head = self._block_cache.block_store.chain_head
+            state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # for DAG use main_head instead chain_head
             LOGGER.debug("ChainController: _submit_blocks_for_verification BRANCH=%s head=%s",branch_id[:8],chain_head == self.chain_head)
             """
             consensus_module = \

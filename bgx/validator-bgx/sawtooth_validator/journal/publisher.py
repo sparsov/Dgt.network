@@ -265,8 +265,7 @@ class _CandidateBlock(object):
         # dropped.
         if self._is_batch_already_committed(batch):
             # batch is already committed.
-            LOGGER.debug("Dropping previously committed batch: %s",
-                         batch.header_signature)
+            LOGGER.debug("Dropping previously committed batch: %s",batch.header_signature)
             return
         elif self._check_batch_dependencies(batch, self._committed_txn_cache):
             batches_to_add = []
@@ -283,6 +282,7 @@ class _CandidateBlock(object):
                 self._pending_batch_ids.add(b.header_signature)
                 try:
                     injected = b.header_signature in self._injected_batch_ids
+                    LOGGER.debug("add_batch: add batch branch=%s",self._identifier[:8])
                     self._scheduler.add_batch(b, required=injected)
                 except SchedulerError as err:
                     LOGGER.debug("Scheduler error processing batch: %s", err)
@@ -571,13 +571,11 @@ class BlockPublisher(object):
         wrapper.
         For DAG build candidate for chain_head.identifier branch
         """
-
-        state_view = BlockWrapper.state_view_for_block(
-            chain_head,
-            self._state_view_factory)
-        consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(
-            chain_head.header_signature,
-            state_view)
+        main_head = self._block_cache.block_store.chain_head
+        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main_head=%s",chain_head.block_num,chain_head.identifier[:8],main_head.block_num)
+        
+        state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # FOR DAG use main_head instead chain_head
+        consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_head.header_signature,state_view)
         if not consensus_module:
             # there is no internal consensus 
             # check may consensus engine already was registred
@@ -591,11 +589,11 @@ class BlockPublisher(object):
             consensus_module = ConsensusFactory.try_configured_proxy_consensus()
             LOGGER.debug("BlockPublisher:_build_candidate_block External consensus was registered=%s",consensus_name)
         bid = chain_head.identifier
-        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for[%s]=%s consensus_module=(%s,%s) ask_candidate=%s",chain_head.block_num,bid[:8],consensus_name,consensus_module,self._engine_ask_candidate)
+        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for[%s]=%s consensus_module=(%s) ask_candidate=%s",chain_head.block_num,bid[:8],consensus_name,self._engine_ask_candidate)
         # using chain_head so so we can use the setting_cache
         max_batches = int(self._settings_cache.get_setting(
             'sawtooth.publisher.max_batches_per_block',
-            chain_head.state_root_hash,
+            main_head.state_root_hash,# for DAG  chain_head.state_root_hash,
             default_value=0))
 
         public_key = self._identity_signer.get_public_key().as_hex()
@@ -616,7 +614,7 @@ class BlockPublisher(object):
 
         batch_injectors = []
         if self._batch_injector_factory is not None:
-            batch_injectors = self._batch_injector_factory.create_injectors(chain_head.identifier)
+            batch_injectors = self._batch_injector_factory.create_injectors(main_head.identifier) # FOR DAG main_head instead of chain_head.identifier
             if batch_injectors:
                 LOGGER.debug("Loaded batch injectors: %s", batch_injectors)
         """
@@ -641,7 +639,10 @@ class BlockPublisher(object):
         # switch of marker from proxy engine
         del self._engine_ask_candidate[bid] 
         # create a new scheduler
-        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, chain_head.state_root_hash)
+        # for DAG we should use state_root_hash from head with max number
+        main_head = self._block_cache.block_store.chain_head
+        LOGGER.debug("Use BLOCK=%s ROOT STATE=%s for _transaction_executor",main_head.block_num,main_head.state_root_hash[:10])
+        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, main_head.state_root_hash)
 
         # build the TransactionCommitCache
         committed_txn_cache = TransactionCommitCache(

@@ -82,8 +82,7 @@ class SerialScheduler(Scheduler):
         with self._condition:
             if (self._in_progress_transaction is None or
                     self._in_progress_transaction != txn_signature):
-                LOGGER.debug('Received result for %s, but was unscheduled',
-                             txn_signature)
+                LOGGER.debug('Received result for %s, but was unscheduled',txn_signature)
                 return
 
             self._in_progress_transaction = None
@@ -129,8 +128,8 @@ class SerialScheduler(Scheduler):
     def add_batch(self, batch, state_hash=None, required=False):
         with self._condition:
             if self._final:
-                raise SchedulerError("Scheduler is finalized. Cannot take"
-                                     " new batches")
+                raise SchedulerError("Scheduler is finalized. Cannot take new batches")
+
             preserve = required
             if not required:
                 # If this is the first non-required batch, it is preserved for
@@ -148,7 +147,7 @@ class SerialScheduler(Scheduler):
             if state_hash is not None:
                 self._required_state_hashes[batch_signature] = state_hash
             batch_length = len(batch.transactions)
-            LOGGER.debug("SerialScheduler::add_batch: batch_length=%s",batch_length)
+            LOGGER.debug("SerialScheduler::add_batch: batch_length=%s state_hash=%s",batch_length,state_hash)
             for idx, txn in enumerate(batch.transactions):
                 if idx == batch_length - 1:
                     self._last_in_batch.append(txn.header_signature)
@@ -312,8 +311,7 @@ class SerialScheduler(Scheduler):
             self._condition.notify_all()
 
         if incomplete_batches:
-            LOGGER.debug('Removed %s incomplete batches from the schedule',
-                         len(incomplete_batches))
+            LOGGER.debug('Removed %s incomplete batches from the schedule',len(incomplete_batches))
 
     def finalize(self):
         with self._condition:
@@ -333,7 +331,7 @@ class SerialScheduler(Scheduler):
             state_hash (str): The merkle root calculated from the previous
                 state hash and the state changes from the context_id
         """
-        LOGGER.debug('_compute_merkle_root: state=%s',required_state_root)
+        #LOGGER.debug('_compute_merkle_root: state=%s',required_state_root)
         state_hash = None
         if self._previous_valid_batch_c_id is not None:
             publishing_or_genesis = self._always_persist or \

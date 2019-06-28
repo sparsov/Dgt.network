@@ -353,7 +353,8 @@ class ContextManager(object):
                 if not self.address_is_valid(address=add):
                     raise AuthorizationException(address=add)
                 add_value_dict[add] = val
-        LOGGER.debug("context.set_direct  %s",add_value_dict)
+        # check ADDR for testing
+        #LOGGER.debug("context.set_direct  %s",add_value_dict)
         context.set_direct(add_value_dict)
         return True
 
@@ -363,7 +364,7 @@ class ContextManager(object):
             contexts_in_chain.extend(context_ids)
             context_ids_already_searched = []
             context_ids_already_searched.extend(context_ids)
-
+            """
             # for testing
             # check state for testing
             tree = MerkleDatabase(self._database, state_root)
@@ -372,7 +373,7 @@ class ContextManager(object):
                 LOGGER.debug('_SQUASH: ADDRESS YES BEFORE\n')
             except :
                 LOGGER.debug('_SQUASH: ADDRESS NO BEFORE\n')
-
+            """
             # There is only one exit condition and that is when all the
             # contexts have been accessed once.
             updates = dict()
@@ -404,7 +405,7 @@ class ContextManager(object):
                         contexts_in_chain.append(c_id)
                         context_ids_already_searched.append(c_id)
 
-            #tree = MerkleDatabase(self._database, state_root)  # was here
+            tree = MerkleDatabase(self._database, state_root)  # was here
             
             # filter the delete list to just those items in the tree
             deletes = [addr for addr in deletes if addr in tree]
@@ -413,19 +414,19 @@ class ContextManager(object):
                 state_hash = state_root
             else:
                 virtual = not persist
-                LOGGER.debug('_SQUASH: updates=%s deletes=%s\n',updates,deletes)
+                #LOGGER.debug('_SQUASH: updates=%s deletes=%s\n',updates,deletes)
                 state_hash = tree.update(updates, deletes, virtual=virtual)
 
             if clean_up:
                 self.delete_contexts(context_ids_already_searched)
-
+            """
             # check state for testing
             try:
                 tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
                 LOGGER.debug('_SQUASH: ADDRESS YES\n')
             except :
                 LOGGER.debug('_SQUASH: ADDRESS NO\n')
-
+            """
             return state_hash
         return _squash
 
@@ -498,12 +499,24 @@ class _ContextReader(InstrumentedThread):
         self._inflated_addresses = inflated_addresses
 
     def run(self):
+        # start once and works all time
+        #LOGGER.debug('_ContextReader: run \n')
         while True:
             context_state_addresslist_tuple = self._addresses.get(block=True)
             if context_state_addresslist_tuple is _SHUTDOWN_SENTINEL:
                 break
             c_id, state_hash, address_list = context_state_addresslist_tuple
+            #LOGGER.debug('_ContextReader: run state_hash=%s\n',state_hash)
             tree = MerkleDatabase(self._database, state_hash)
+            """
+            # for testing only
+            # check state for testing
+            try:
+                tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
+                LOGGER.debug('_ContextReader: ADDRESS YES \n')
+            except :
+                LOGGER.debug('_ContextReader: ADDRESS NO \n')
+            """
             return_values = []
             for address in address_list:
                 value = None
@@ -534,6 +547,8 @@ class _ContextWriter(InstrumentedThread):
         self._contexts = contexts
 
     def run(self):
+        # start once and works all time
+        #LOGGER.debug('_ContextWriter: run \n')
         while True:
             context_id_list_tuple = self._inflated_addresses.get(
                 block=True)
