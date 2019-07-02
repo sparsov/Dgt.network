@@ -98,7 +98,9 @@ class BlockValidator(object):
                  state_view_factory,
                  done_cb,
                  executor,
+                 recompute_context,
                  squash_handler,
+                 context_handler,
                  check_merkle,
                  identity_signer,
                  data_dir,
@@ -135,7 +137,7 @@ class BlockValidator(object):
         self._chain_commit_state = ChainCommitState(
             self._block_cache.block_store, [])
         self._new_block = new_block
-        LOGGER.debug('BlockValidator: init new_block=%s',type(new_block))
+        
         # Set during execution of the of the  BlockValidation to the current
         # chain_head at that time.
         self._chain_head = None
@@ -143,7 +145,9 @@ class BlockValidator(object):
         self._state_view_factory = state_view_factory
         self._done_cb = done_cb
         self._executor = executor
+        self._recompute_context = recompute_context
         self._squash_handler = squash_handler
+        self._context_handler = context_handler 
         self._check_merkle = check_merkle
         self._identity_signer = identity_signer
         self._data_dir = data_dir
@@ -157,6 +161,7 @@ class BlockValidator(object):
             'uncommitted_batches': [],
             'num_transactions': 0
         }
+        LOGGER.debug('BlockValidator: init _recompute_context=%s new_block=%s',self._recompute_context,type(new_block))
         self._permission_verifier = permission_verifier
 
         self._validation_rule_enforcer = \
@@ -213,12 +218,19 @@ class BlockValidator(object):
             FOR DAG prev_state could be different from merkle state which was used into publisher FIXME 
             """
             prev_state = self._get_previous_block_root_state_hash(blkw)
-            # Use root state from previous block
-            scheduler = self._executor.create_scheduler(self._squash_handler, prev_state)
-            self._executor.execute(scheduler)
+            # Use root state from previous block for DAG use last state
+            # 
             LOGGER.debug("Have processed transactions again for block %s STATE=%s",blkw.identifier[:8],prev_state[:10])
+            scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handler)
+            recomputed_state = scheduler.recompute_merkle_root(prev_state,self._recompute_context)
+            
+            if recomputed_state != blkw.state_root_hash:
+                LOGGER.debug("recomputed STATE=%s does not compare with state from block",recomputed_state[:10])
+                scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
+            self._executor.execute(scheduler)
+            
             # testing
-            self._check_merkle(blkw.state_root_hash,'NEW before execution')
+            #self._check_merkle(blkw.state_root_hash,'NEW before execution')
 
             try:
                 for batch, has_more in look_ahead(blkw.block.batches):
@@ -232,10 +244,10 @@ class BlockValidator(object):
                     if has_more:
                         scheduler.add_batch(batch)
                     else:
-                        # for DAG mode blkw.state_root_hash is older then prev_state - try use prev_state
-                        # blkw.state_root_hash - this is new root state
-                        LOGGER.debug("_verify_block_batches: add batch for block=%s STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
-                        scheduler.add_batch(batch, blkw.state_root_hash) # prev_state
+                        # blkw.state_root_hash - new state calculated into publisher - for DAG it could be incorrect 
+                        # we should recalculate it  
+                        LOGGER.debug("VERIFY BLOCK BATCHES: add batch for block=%s  STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
+                        scheduler.add_batch(batch,recomputed_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash) # prev_state
             except InvalidBatch:
                 LOGGER.debug("Invalid batch %s encountered during verification of block %s",batch.header_signature[:8],blkw)
                 scheduler.cancel()
@@ -251,7 +263,7 @@ class BlockValidator(object):
             # at this point new block state appeared into state database
             # testing
             self._check_merkle(prev_state,'_verify_block_batches OLD root')
-            self._check_merkle(blkw.state_root_hash,'_verify_block_batches NEW root')
+            self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
 
             for batch in blkw.batches:
                 batch_result = scheduler.get_batch_execution_result(batch.header_signature)
@@ -260,10 +272,11 @@ class BlockValidator(object):
                     blkw.execution_results.extend(txn_results)
                     state_hash = batch_result.state_hash
                     blkw.num_transactions += len(batch.transactions)
+                    LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw.identifier[:8],state_hash[:10])
                 else:
                     return False
-            if blkw.state_root_hash != state_hash:
-                # for DAG state could be different
+            if recomputed_state != state_hash: # blkw.state_root_hash != state_hash
+                # for DAG this states could be different
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash[:10],state_hash[:10])
                 #return False
         return True
@@ -641,7 +654,9 @@ class ChainController(object):
                  chain_head_lock,
                  on_chain_updated,
                  on_head_updated,
+                 get_recompute_context,
                  squash_handler,
+                 context_handler,
                  check_merkle,
                  chain_id_manager,
                  identity_signer,
@@ -693,7 +708,9 @@ class ChainController(object):
         self._transaction_executor = transaction_executor
         self._notify_on_chain_updated = on_chain_updated
         self._notify_on_head_updated = on_head_updated
+        self._get_recompute_context = get_recompute_context
         self._squash_handler = squash_handler
+        self._context_handler=context_handler
         self._check_merkle = check_merkle
         self._identity_signer = identity_signer
         self._data_dir = data_dir
@@ -868,7 +885,9 @@ class ChainController(object):
                 state_view_factory=self._state_view_factory,
                 done_cb=self.on_block_validated,
                 executor=self._transaction_executor,
+                recompute_context=self._get_recompute_context(branch_id),
                 squash_handler=self._squash_handler,
+                context_handler=self._context_handler,
                 check_merkle=self._check_merkle,
                 identity_signer=self._identity_signer,
                 data_dir=self._data_dir,

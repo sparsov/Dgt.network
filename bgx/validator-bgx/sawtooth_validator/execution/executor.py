@@ -287,7 +287,7 @@ class TransactionExecutorThread(object):
                     context_id=None)
                 continue
             # send request for tnx processor
-            LOGGER.debug("_execute_schedule:send tnx=%s to tnx processor",txn.header_signature)
+            LOGGER.debug("Execute schedule:send tnx=%s to tnx processor",txn.header_signature)
             content = processor_pb2.TpProcessRequest(
                 header=header,
                 payload=txn.payload,
@@ -414,12 +414,14 @@ class TransactionExecutor(object):
     def create_scheduler(self,
                          squash_handler,
                          first_state_root,
+                         context_handlers=None,
                          always_persist=False):
         if self._scheduler_type == "serial":
             return SerialScheduler(
                 squash_handler=squash_handler,
                 first_state_hash=first_state_root,
-                always_persist=always_persist)
+                always_persist=always_persist,
+                context_handlers=context_handlers)
         elif self._scheduler_type == "parallel":
             return ParallelScheduler(
                 squash_handler=squash_handler,

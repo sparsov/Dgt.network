@@ -140,6 +140,7 @@ class _CandidateBlock(object):
         self._max_batches = max_batches
         self._batch_injectors = batch_injectors
         self._identifier = identifier
+        self._recompute_context = None
 
     def __del__(self):
         # Cancel the scheduler if it is not complete
@@ -332,7 +333,10 @@ class _CandidateBlock(object):
         #
         self._scheduler.finalize()
         self._scheduler.complete(block=True)
-
+        # for DAG get context for recompute merkle state
+        self._recompute_context = self._scheduler.get_state_hash_context()
+        #sth = self._scheduler.recompute_merkle_root(self._scheduler.previous_state_hash,self._recompute_context)
+        #LOGGER.debug("_CandidateBlock::get_state_hash_context recompute_context=%s\n",self._recompute_context)
         # this is a transaction cache to track the transactions committed
         # up to this batch. Only valid transactions that were processed
         # by the scheduler are added.
@@ -417,7 +421,7 @@ class _CandidateBlock(object):
             pending_batches.extend([x for x in self._pending_batches
                                     if x not in bad_batches])
             return None
-        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()<-- DONE STATE=%s\n",state_hash[:10])
+        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()<-- DONE NEW ROOT STATE=%s\n",state_hash[:10])
         #
         # this is new root state for this block
         #
@@ -425,6 +429,10 @@ class _CandidateBlock(object):
         self._sign_block(builder, identity_signer)
         return builder.build_block()
 
+    @property
+    def recompute_context(self):
+        # for DAG only
+        return self._recompute_context
 
 class BlockPublisher(object):
     """
@@ -440,6 +448,7 @@ class BlockPublisher(object):
                  block_sender,
                  batch_sender,
                  squash_handler,
+                 context_handler,
                  chain_head,
                  identity_signer,
                  data_dir,
@@ -488,6 +497,7 @@ class BlockPublisher(object):
         self._candidate_blocks = {} # all active branches - for DAG version only 
         self._candidate_block = None  # _CandidateBlock helper,
         self._chain_heads = {}
+        self._recompute_contexts = {} # for DAG - save context for recompute merkle tree
         # the next block in potential chain
         self._block_cache = block_cache
         self._block_store = block_cache.block_store
@@ -504,6 +514,7 @@ class BlockPublisher(object):
 
         self._chain_head = chain_head  # block (BlockWrapper)
         self._squash_handler = squash_handler
+        self._context_handler = context_handler
         self._identity_signer = identity_signer
         self._data_dir = data_dir
         self._config_dir = config_dir
@@ -653,7 +664,7 @@ class BlockPublisher(object):
         # for DAG we should use state_root_hash from head with max number
         main_head = self._block_cache.block_store.chain_head
         LOGGER.debug("Use for executor BRANCH=%s:%s ROOT STATE=%s:%s~%s\n",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
-        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, main_head.state_root_hash) # for DAG try use main_head.state_root_hash 
+        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, main_head.state_root_hash,self._context_handler) # for DAG try use main_head.state_root_hash 
 
         # build the TransactionCommitCache
         committed_txn_cache = TransactionCommitCache(
@@ -889,7 +900,9 @@ class BlockPublisher(object):
                             """
                             send block to chain controller where we will do consensus
                             external engine after this moment will be waiting NEW BLOCK message
+                            also save recompute context
                             """
+                            self._recompute_contexts[bid] = candidate.recompute_context
                             self._block_sender.send(blkw.block)
                             self._blocks_published_count.inc()
                     
@@ -938,7 +951,15 @@ class BlockPublisher(object):
             del self._chain_heads[hid]
             self._chain_heads[new_hid] = chain_head
             LOGGER.info('UPDATE HEAD for branch=%s heads=%s\n',hid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
-            
+
+    def get_recompute_context(self,bid):
+        # for DAG only
+        if bid in self._recompute_contexts:
+            context = self._recompute_contexts[bid]
+            del self._recompute_contexts[bid] 
+            return context
+        else:
+            LOGGER.info('get_recompute_context NO BRANCH=%s HEAD CONTEXT\n',bid[:8])
 
     def on_initialize_build_candidate(self, chain_head = None):
         """
