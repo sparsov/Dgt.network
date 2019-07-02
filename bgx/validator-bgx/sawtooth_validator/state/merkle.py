@@ -260,6 +260,7 @@ class MerkleDatabase(object):
         if not virtual:
             # Apply all new hash, value pairs to the database
             self._database.put_multi(update_batch)
+        LOGGER.debug('MerkleDatabase:update STATE=%s virtual=%s',key_hash[:10],virtual)
         return key_hash
 
     def _set_by_addr(self, address, value):

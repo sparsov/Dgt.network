@@ -306,6 +306,7 @@ class Validator(object):
             on_chain_updated=block_publisher.on_chain_updated,
             on_head_updated=block_publisher.on_head_updated,
             squash_handler=context_manager.get_squash_handler(),
+            check_merkle = context_manager.get_check_merkle_handler(),
             chain_id_manager=chain_id_manager,
             identity_signer=identity_signer,
             data_dir=data_dir,

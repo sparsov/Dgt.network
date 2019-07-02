@@ -147,7 +147,7 @@ class SerialScheduler(Scheduler):
             if state_hash is not None:
                 self._required_state_hashes[batch_signature] = state_hash
             batch_length = len(batch.transactions)
-            LOGGER.debug("SerialScheduler::add_batch: batch_length=%s state_hash=%s",batch_length,state_hash)
+            LOGGER.debug("SerialScheduler::add_batch: batch_length=%s STATE=%s",batch_length,state_hash[:10] if state_hash is not None else None)
             for idx, txn in enumerate(batch.transactions):
                 if idx == batch_length - 1:
                     self._last_in_batch.append(txn.header_signature)
@@ -331,7 +331,7 @@ class SerialScheduler(Scheduler):
             state_hash (str): The merkle root calculated from the previous
                 state hash and the state changes from the context_id
         """
-        #LOGGER.debug('_compute_merkle_root: state=%s',required_state_root)
+        LOGGER.debug('_compute_merkle_root: STATE=%s',required_state_root[:10] if required_state_root is not None else None)
         state_hash = None
         if self._previous_valid_batch_c_id is not None:
             publishing_or_genesis = self._always_persist or \
@@ -354,9 +354,8 @@ class SerialScheduler(Scheduler):
                 return
             last_txn_signature = self._last_in_batch[-1]
             batch_id = self._txn_to_batch[last_txn_signature]
-            required_state_hash = self._required_state_hashes.get(
-                batch_id)
-
+            required_state_hash = self._required_state_hashes.get(batch_id)
+            LOGGER.debug('_calculate_state_root_if_not_already_done: STATE=%s',required_state_hash[:10] if required_state_hash is not None else None)
             state_hash = self._compute_merkle_root(required_state_hash)
             self._already_calculated = True
             for t_id in self._last_in_batch[::-1]:

@@ -327,6 +327,9 @@ class _CandidateBlock(object):
         """
         LOGGER.debug("_CandidateBlock::finalize_block for BRANCH=%s", self._identifier[:8])
         self._scheduler.unschedule_incomplete_batches()
+        #
+        # at this point all batch will be done
+        #
         self._scheduler.finalize()
         self._scheduler.complete(block=True)
 
@@ -406,7 +409,7 @@ class _CandidateBlock(object):
         """
         After this point in case PROXY consensus we should inform consensus engine about possibility finalize block
         """
-        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()\n")
+        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()-->\n")
         if not self._consensus.finalize_block(builder.block_header):
             LOGGER.debug("Abandoning block %s, consensus failed to finalize it", builder)
             # return all valid batches to the pending_batches list
@@ -414,7 +417,10 @@ class _CandidateBlock(object):
             pending_batches.extend([x for x in self._pending_batches
                                     if x not in bad_batches])
             return None
-        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block() DONE state_hash=%s\n",state_hash)
+        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()<-- DONE STATE=%s\n",state_hash[:10])
+        #
+        # this is new root state for this block
+        #
         builder.set_state_hash(state_hash)
         self._sign_block(builder, identity_signer)
         return builder.build_block()
@@ -572,9 +578,14 @@ class BlockPublisher(object):
         For DAG build candidate for chain_head.identifier branch
         """
         main_head = self._block_cache.block_store.chain_head
-        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main_head=%s",chain_head.block_num,chain_head.identifier[:8],main_head.block_num)
-        
-        state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # FOR DAG use main_head instead chain_head
+        bid = chain_head.identifier
+        LOGGER.debug("BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main=%s STATE=%s~%s",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
+        try:
+            state_view = BlockWrapper.state_view_for_block(main_head ,self._state_view_factory) # main_head FOR DAG use main_head instead chain_head
+        except KeyError:
+            
+            state_view = BlockWrapper.state_view_for_block(chain_head ,self._state_view_factory)
+
         consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_head.header_signature,state_view)
         if not consensus_module:
             # there is no internal consensus 
@@ -588,8 +599,8 @@ class BlockPublisher(object):
             self._consensus = consensus_name[0] # save consensus name
             consensus_module = ConsensusFactory.try_configured_proxy_consensus()
             LOGGER.debug("BlockPublisher:_build_candidate_block External consensus was registered=%s",consensus_name)
-        bid = chain_head.identifier
-        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK for[%s]=%s consensus_module=(%s) ask_candidate=%s",chain_head.block_num,bid[:8],consensus_name,self._engine_ask_candidate)
+        
+        LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK BRANCH=%s:%s consensus_module=(%s) ask_candidate=%s",chain_head.block_num,bid[:8],consensus_name,self._engine_ask_candidate)
         # using chain_head so so we can use the setting_cache
         max_batches = int(self._settings_cache.get_setting(
             'sawtooth.publisher.max_batches_per_block',
@@ -641,8 +652,8 @@ class BlockPublisher(object):
         # create a new scheduler
         # for DAG we should use state_root_hash from head with max number
         main_head = self._block_cache.block_store.chain_head
-        LOGGER.debug("Use BLOCK=%s ROOT STATE=%s for _transaction_executor",main_head.block_num,main_head.state_root_hash[:10])
-        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, main_head.state_root_hash)
+        LOGGER.debug("Use for executor BRANCH=%s:%s ROOT STATE=%s:%s~%s\n",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
+        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, main_head.state_root_hash) # for DAG try use main_head.state_root_hash 
 
         # build the TransactionCommitCache
         committed_txn_cache = TransactionCommitCache(

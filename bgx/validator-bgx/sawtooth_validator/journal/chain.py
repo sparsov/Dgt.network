@@ -99,6 +99,7 @@ class BlockValidator(object):
                  done_cb,
                  executor,
                  squash_handler,
+                 check_merkle,
                  identity_signer,
                  data_dir,
                  config_dir,
@@ -143,6 +144,7 @@ class BlockValidator(object):
         self._done_cb = done_cb
         self._executor = executor
         self._squash_handler = squash_handler
+        self._check_merkle = check_merkle
         self._identity_signer = identity_signer
         self._data_dir = data_dir
         self._config_dir = config_dir
@@ -169,7 +171,10 @@ class BlockValidator(object):
     def _get_previous_block_root_state_hash(self, blkw):
         if blkw.previous_block_id == NULL_BLOCK_IDENTIFIER:
             return INIT_ROOT_KEY
-        # for DAG use last block state root hash
+        """
+        for DAG use last root state fixed in the merkle
+        because self._block_cache[blkw.previous_block_id].state_root_hash could be not correct 
+        """
         main_head = self._block_cache.block_store.chain_head
         LOGGER.debug('BlockValidator: get block root state for BLOCK=%s STATE=%s<==%s\n',blkw.identifier[:8],main_head.block_num,self._block_cache[blkw.previous_block_id].block_num)
         return main_head.state_root_hash
@@ -193,19 +198,11 @@ class BlockValidator(object):
         for txn in batch.transactions:
             txn_hdr = self._txn_header(txn)
             if self._chain_commit_state.has_transaction(txn.header_signature):
-                LOGGER.debug(
-                    "Block rejected due to duplicate"
-                    " transaction, transaction: %s",
-                    txn.header_signature[:8])
+                LOGGER.debug("Block rejected due to duplicate transaction, transaction: %s",txn.header_signature[:8])
                 raise InvalidBatch()
             for dep in txn_hdr.dependencies:
                 if not self._chain_commit_state.has_transaction(dep):
-                    LOGGER.debug(
-                        "Block rejected due to missing "
-                        "transaction dependency, transaction %s "
-                        "depends on %s",
-                        txn.header_signature[:8],
-                        dep[:8])
+                    LOGGER.debug("Block rejected due to missing transaction dependency, transaction %s depends on %s",txn.header_signature[:8],dep[:8])
                     raise InvalidBatch()
             self._chain_commit_state.add_txn(txn.header_signature)
 
@@ -216,9 +213,13 @@ class BlockValidator(object):
             FOR DAG prev_state could be different from merkle state which was used into publisher FIXME 
             """
             prev_state = self._get_previous_block_root_state_hash(blkw)
+            # Use root state from previous block
             scheduler = self._executor.create_scheduler(self._squash_handler, prev_state)
             self._executor.execute(scheduler)
             LOGGER.debug("Have processed transactions again for block %s STATE=%s",blkw.identifier[:8],prev_state[:10])
+            # testing
+            self._check_merkle(blkw.state_root_hash,'NEW before execution')
+
             try:
                 for batch, has_more in look_ahead(blkw.block.batches):
                     if self._chain_commit_state.has_batch(batch.header_signature):
@@ -232,7 +233,8 @@ class BlockValidator(object):
                         scheduler.add_batch(batch)
                     else:
                         # for DAG mode blkw.state_root_hash is older then prev_state - try use prev_state
-                        LOGGER.debug("_verify_block_batches: add batch for block=%s STATE=%s~%s",blkw.identifier[:8],blkw.state_root_hash[:10],prev_state[:10])
+                        # blkw.state_root_hash - this is new root state
+                        LOGGER.debug("_verify_block_batches: add batch for block=%s STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
                         scheduler.add_batch(batch, blkw.state_root_hash) # prev_state
             except InvalidBatch:
                 LOGGER.debug("Invalid batch %s encountered during verification of block %s",batch.header_signature[:8],blkw)
@@ -245,6 +247,11 @@ class BlockValidator(object):
             scheduler.finalize()
             scheduler.complete(block=True)
             state_hash = None
+            #
+            # at this point new block state appeared into state database
+            # testing
+            self._check_merkle(prev_state,'_verify_block_batches OLD root')
+            self._check_merkle(blkw.state_root_hash,'_verify_block_batches NEW root')
 
             for batch in blkw.batches:
                 batch_result = scheduler.get_batch_execution_result(batch.header_signature)
@@ -257,7 +264,7 @@ class BlockValidator(object):
                     return False
             if blkw.state_root_hash != state_hash:
                 # for DAG state could be different
-                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash,state_hash)
+                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash[:10],state_hash[:10])
                 #return False
         return True
 
@@ -272,8 +279,7 @@ class BlockValidator(object):
             try:
                 state_root = self._get_previous_block_root_state_hash(blkw)
             except KeyError:
-                LOGGER.info(
-                    "Block rejected due to missing predecessor: %s", blkw)
+                LOGGER.info("Block rejected due to missing predecessor: %s", blkw)
                 return False
 
             for batch in blkw.batches:
@@ -292,9 +298,9 @@ class BlockValidator(object):
             try:
                 state_root = self._get_previous_block_root_state_hash(blkw)
             except KeyError:
-                LOGGER.debug(
-                    "Block rejected due to missing" + " predecessor: %s", blkw)
+                LOGGER.debug("Block rejected due to missing" + " predecessor: %s", blkw)
                 return False
+
             return self._validation_rule_enforcer.validate(blkw, state_root)
         return True
 
@@ -370,12 +376,12 @@ class BlockValidator(object):
                     verifier.verify_block_invalid(blkw)
 
                 LOGGER.debug("BlockValidator:validate_block valid=%s",valid)
+
                 return valid
         except ChainHeadUpdated as chu:
             raise chu
         except Exception:
-            LOGGER.exception(
-                "Unhandled exception BlockPublisher.validate_block()")
+            LOGGER.exception("Unhandled exception BlockPublisher.validate_block()")
             return False
 
     def _find_common_height(self, new_chain, cur_chain):
@@ -541,6 +547,9 @@ class BlockValidator(object):
                     new = new_chain[i].header_signature[:8]
                     num = new_chain[i].block_num
                 LOGGER.info("Fork comparison at height %s is between %s and %s",num, cur, new)
+            # testing
+            #self._check_merkle(self._new_block.state_root_hash,'_test_commit_new_chain')
+
             # fork_resolver - for proxy send message  
             commit_new_chain = self._test_commit_new_chain()
 
@@ -555,10 +564,14 @@ class BlockValidator(object):
                     self._moved_to_fork_count.inc()
 
             # 6) Tell the journal we are done.
-            LOGGER.info("_done_cb  commit_new_chain=%s",commit_new_chain)
+            LOGGER.info("_done_cb  commit_new_chain=%s\n",commit_new_chain)
+            #self._check_merkle(self._new_block.state_root_hash)
             self._done_cb(commit_new_chain, self._result)
 
-            LOGGER.info("Finished block validation of: %s",self._new_block)
+            LOGGER.info("Finished block=%s validation STATE=%s\n",self._new_block.block_num,self._new_block.state_root_hash)
+            self._check_merkle(self._new_block.state_root_hash)
+            
+
         except BlockValidationAborted:
             self._done_cb(False, self._result)
             return
@@ -629,6 +642,7 @@ class ChainController(object):
                  on_chain_updated,
                  on_head_updated,
                  squash_handler,
+                 check_merkle,
                  chain_id_manager,
                  identity_signer,
                  data_dir,
@@ -680,6 +694,7 @@ class ChainController(object):
         self._notify_on_chain_updated = on_chain_updated
         self._notify_on_head_updated = on_head_updated
         self._squash_handler = squash_handler
+        self._check_merkle = check_merkle
         self._identity_signer = identity_signer
         self._data_dir = data_dir
         self._config_dir = config_dir
@@ -854,6 +869,7 @@ class ChainController(object):
                 done_cb=self.on_block_validated,
                 executor=self._transaction_executor,
                 squash_handler=self._squash_handler,
+                check_merkle=self._check_merkle,
                 identity_signer=self._identity_signer,
                 data_dir=self._data_dir,
                 config_dir=self._config_dir,

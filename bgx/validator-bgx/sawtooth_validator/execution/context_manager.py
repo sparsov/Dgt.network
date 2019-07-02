@@ -358,6 +358,22 @@ class ContextManager(object):
         context.set_direct(add_value_dict)
         return True
 
+    def get_check_merkle_handler(self):
+        def _check_merkle(state_root,context=''):
+            # for testing
+            # check state for testing
+            try:
+                tree = MerkleDatabase(self._database, state_root)
+            except :
+                LOGGER.debug('_CHECK: BAD STATE=%s ROOT %s\n',state_root[:10],context)
+                return
+            try:
+                tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
+                LOGGER.debug('_CHECK: ADDRESS YES CHECK STATE=%s %s\n',state_root[:10],context)
+            except :
+                LOGGER.debug('_CHECK: ADDRESS NO CHECK STATE=%s %s\n',state_root[:10],context)
+        return _check_merkle
+
     def get_squash_handler(self):
         def _squash(state_root, context_ids, persist, clean_up):
             contexts_in_chain = deque()
@@ -407,6 +423,13 @@ class ContextManager(object):
 
             tree = MerkleDatabase(self._database, state_root)  # was here
             
+            # check state for testing
+            try:
+                tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
+                LOGGER.debug('_SQUASH: ADDRESS YES STATE=%s\n',state_root[:10] if state_root is not None else None)
+            except :
+                LOGGER.debug('_SQUASH: ADDRESS NO STATE=%s\n',state_root[:10] if state_root is not None else None)
+            
             # filter the delete list to just those items in the tree
             deletes = [addr for addr in deletes if addr in tree]
 
@@ -414,19 +437,19 @@ class ContextManager(object):
                 state_hash = state_root
             else:
                 virtual = not persist
-                #LOGGER.debug('_SQUASH: updates=%s deletes=%s\n',updates,deletes)
+                LOGGER.debug('_SQUASH: virtual=%s updates=%s deletes=%s\n',virtual,updates,deletes)
                 state_hash = tree.update(updates, deletes, virtual=virtual)
 
             if clean_up:
                 self.delete_contexts(context_ids_already_searched)
-            """
+            
             # check state for testing
             try:
                 tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
-                LOGGER.debug('_SQUASH: ADDRESS YES\n')
+                LOGGER.debug('_SQUASH: ADDRESS YES AFTER STATE=%s\n',state_root[:10] if state_root is not None else None)
             except :
-                LOGGER.debug('_SQUASH: ADDRESS NO\n')
-            """
+                LOGGER.debug('_SQUASH: ADDRESS NO AFTER STATE=%s\n',state_root[:10] if state_root is not None else None)
+            
             return state_hash
         return _squash
 

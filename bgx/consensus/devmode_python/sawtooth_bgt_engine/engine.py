@@ -47,6 +47,7 @@ class BranchState(object):
         self._make_branch = False
         self._freeze_block = None
         self._num_block = 0
+        self._freeze = False # True for freeze block 3
         LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
 
     @property
@@ -90,7 +91,10 @@ class BranchState(object):
                 # try make branch pause current block for main branch
                 self._make_branch = True
                 self._try_branch = False
-                self._freeze_block = block
+                if self._freeze:
+                    self._freeze_block = block
+                else:
+                    self.check_block(block.block_id)
             else:
                 self.check_block(block.block_id) # this message send chain controller message for continue block validation
                 # waiting block valid message

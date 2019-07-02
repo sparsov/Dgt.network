@@ -489,8 +489,7 @@ class ParallelScheduler(Scheduler):
                         contexts,
                         persist=False,
                         clean_up=False)
-                    if self._is_state_hash_correct(state_hash,
-                                                   batch_signature):
+                    if self._is_state_hash_correct(state_hash,batch_signature):
                         self._squash(
                             self._first_state_hash,
                             contexts,
