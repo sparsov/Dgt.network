@@ -47,7 +47,7 @@ class BranchState(object):
         self._make_branch = False
         self._freeze_block = None
         self._num_block = 0
-        self._freeze = False # True for freeze block 3
+        self._freeze = True # True for freeze block 3
         LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
 
     @property

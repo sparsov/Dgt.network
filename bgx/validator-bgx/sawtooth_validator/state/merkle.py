@@ -21,6 +21,7 @@ import cbor
 LOGGER = logging.getLogger(__name__)
 
 INIT_ROOT_KEY = ''
+MERKLE_ROOT_KEY = '_merkle_root_' # for DAG - we should save real last root
 
 # prototype node with value and list of child branch:hash pairs
 NODE_PROTO = {
@@ -96,6 +97,14 @@ class MerkleDatabase(object):
 
         return True
 
+    @staticmethod
+    def get_real_merkle_root(database):
+        return database[MERKLE_ROOT_KEY]
+
+    @property
+    def real_merkle_root(self):
+        return self._database[MERKLE_ROOT_KEY]
+
     def get_merkle_root(self):
         return self._root_hash
 
@@ -104,6 +113,13 @@ class MerkleDatabase(object):
             self._root_hash = self._set_kv()
             self._root_node = self._get_by_hash(self._root_hash)
         else:
+            # for DAG we should use mapping for some merkle_roots from block.state_root_hash  
+            if merkle_root in self._database:
+                new_root = self._database[merkle_root]
+                if isinstance(new_root,str):
+                    # remap root for DAG 
+                    LOGGER.debug('MerkleDatabase:THERE IS MAPPING for STATE=%s->%s', merkle_root[:10],new_root[:10])
+                    merkle_root = new_root
             self._root_node = self._get_by_hash(merkle_root)
             self._root_hash = merkle_root
 
@@ -259,8 +275,12 @@ class MerkleDatabase(object):
 
         if not virtual:
             # Apply all new hash, value pairs to the database
+            # for DAG save real last merkle root
+            update_batch.append((MERKLE_ROOT_KEY, key_hash))
             self._database.put_multi(update_batch)
-        LOGGER.debug('MerkleDatabase:update STATE=%s virtual=%s',key_hash[:10],virtual)
+            #LOGGER.debug('MerkleDatabase:updated STATE=%s',key_hash[:10])
+            
+        
         return key_hash
 
     def _set_by_addr(self, address, value):

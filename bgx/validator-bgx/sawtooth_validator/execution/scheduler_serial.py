@@ -59,9 +59,12 @@ class SerialScheduler(Scheduler):
         self._previous_context_id = None
         self._previous_valid_batch_c_id = None
         self._squash = squash_handler
+        self._merkle_root = None
         if context_handlers is not None:
             self._recompute_state_hash_handler = context_handlers['recompute_state'] 
+            self._update_state_hash = context_handlers['update_state']
             self._update_state_hash = context_handlers['update_state'] 
+            self._merkle_root       = context_handlers['merkle_root'] 
 
         self._condition = Condition()
         # contains all txn.signatures where txn is
@@ -99,7 +102,7 @@ class SerialScheduler(Scheduler):
                 raise ValueError("transaction not in any batches: {}".format(txn_signature))
 
             if txn_signature not in self._txn_results:
-                LOGGER.debug('TxnExecutionResult STATE=%s STATE CHANGES=%s',self._previous_state_hash[:10] if is_valid else None,state_changes)
+                LOGGER.debug('TxnExecutionResult PREV STATE=%s',self._previous_state_hash[:10] if is_valid else None)
                 self._txn_results[txn_signature] = TxnExecutionResult(
                     signature=txn_signature,
                     is_valid=is_valid,
@@ -123,7 +126,7 @@ class SerialScheduler(Scheduler):
                     # because of the else clause above, txn is valid here
                     self._previous_valid_batch_c_id = self._previous_context_id
                     state_hash = self._calculate_state_root_if_required(batch_id=batch_signature)
-                    LOGGER.debug('calculate_state_root_if_required -> STATE=%s',state_hash[:10] if state_hash is not None else None)
+                    #LOGGER.debug('calculate_state_root_if_required -> STATE=%s',state_hash[:10] if state_hash is not None else None)
                     self._batch_statuses[batch_signature] = BatchExecutionResult(is_valid=True,state_hash=state_hash)
 
                 else:
@@ -265,11 +268,13 @@ class SerialScheduler(Scheduler):
                     txn = None
 
             self._in_progress_transaction = txn.header_signature
-            base_contexts = [] if self._previous_context_id is None \
-                else [self._previous_context_id]
+            base_contexts = [] if self._previous_context_id is None else [self._previous_context_id]
+            # for DAG we should use real merkle root
+            real_state_hash = self._merkle_root() if self._merkle_root else ''
+            LOGGER.debug('next_transaction:PREV STATE=%s~%s\n',self._previous_state_hash[:10],real_state_hash[:10])
             txn_info = TxnInformation(
                 txn=txn,
-                state_hash=self._previous_state_hash,
+                state_hash=self._previous_state_hash if real_state_hash == '' else real_state_hash,
                 base_context_ids=base_contexts)
             self._scheduled_transactions.append(txn_info)
             return txn_info
@@ -337,9 +342,11 @@ class SerialScheduler(Scheduler):
             state_hash (str): The merkle root calculated from the previous
                 state hash and the state changes from the context_id
         """
+        """
         LOGGER.debug('Compute merkle root: PREV=%s STATE=%s always=%s previous_valid_batch_c_id=%s',self._previous_state_hash[:10] if self._previous_state_hash is not None else None,
                       required_state_root[:10] if required_state_root is not None else None,self._always_persist,
                       self._previous_valid_batch_c_id)
+        """
         state_hash = None
         if self._previous_valid_batch_c_id is not None:
             publishing_or_genesis = self._always_persist or required_state_root is None
@@ -379,7 +386,7 @@ class SerialScheduler(Scheduler):
     
     def update_state_hash(self,old,new):
         # for DAG correct state hash
-        LOGGER.debug('update_state_hash: STATE=%s->',old[:10],new[:10])
+        LOGGER.debug('update_state_hash: STATE=%s->%s',old[:10],new[:10])
         self._update_state_hash(old,new)
 
     def _calculate_state_root_if_not_already_done(self):
@@ -389,9 +396,9 @@ class SerialScheduler(Scheduler):
             last_txn_signature = self._last_in_batch[-1]
             batch_id = self._txn_to_batch[last_txn_signature]
             required_state_hash = self._required_state_hashes.get(batch_id)
-            LOGGER.debug('Calculate_state_root_if_not_already_done: ...')
+            #LOGGER.debug('Calculate_state_root_if_not_already_done: ...')
             state_hash = self._compute_merkle_root(required_state_hash)
-            LOGGER.debug('Calculate_state_root_if_not_already_done: REQUIRED=%s STATE=%s',required_state_hash[:10] if required_state_hash is not None else None,state_hash[:10] if state_hash is not None else None)
+            #LOGGER.debug('Calculate_state_root_if_not_already_done: REQUIRED=%s STATE=%s',required_state_hash[:10] if required_state_hash is not None else None,state_hash[:10] if state_hash is not None else None)
             self._already_calculated = True
             for t_id in self._last_in_batch[::-1]:
                 b_id = self._txn_to_batch[t_id]

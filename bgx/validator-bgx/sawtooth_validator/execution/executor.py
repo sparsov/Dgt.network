@@ -124,7 +124,7 @@ class TransactionExecutorThread(object):
                     type=transaction_receipt_pb2.StateChange.DELETE)
                 for addr in state_deletes
             ]
-            LOGGER.debug("_future_done_callback:set_transaction_execution_result changes=%s",state_changes)
+            #LOGGER.debug("_future_done_callback:set_transaction_execution_result changes=%s",state_changes)
             self._scheduler.set_transaction_execution_result(
                 txn_signature=req.signature,
                 is_valid=True,
@@ -264,6 +264,7 @@ class TransactionExecutorThread(object):
                     continue
 
             try:
+                LOGGER.debug('_execute_schedule: STATE=%s\n',txn_info.state_hash[:10])
                 context_id = self._context_manager.create_context(
                     state_hash=txn_info.state_hash,
                     base_contexts=txn_info.base_context_ids,

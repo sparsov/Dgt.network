@@ -98,7 +98,7 @@ class ContextManager(object):
         Returns:
             context_id (str): the unique context_id of the session
         """
-
+        LOGGER.debug('create_context: STATE=%s',state_hash[:10])
         for address in inputs:
             if not self.namespace_is_valid(address):
                 raise CreateContextException(
@@ -358,7 +358,32 @@ class ContextManager(object):
         context.set_direct(add_value_dict)
         return True
 
-    def get_check_merkle_handler(self):
+    def get_context_handlers(self):
+        # list of handlers for DAG version
+        def _recompute_state_hash(state_root,context=None):
+            # for DAG only - recompute state
+            state_hash = None
+            try:
+                tree = MerkleDatabase(self._database, state_root)
+                state_hash = tree.update(context['updates'],context['deletes'], virtual=True)
+                LOGGER.debug('_recompute_state_hash: STATE=%s->%s\n',state_root[:10],state_hash[:10])
+            except :
+                LOGGER.debug('_recompute_state_hash: BAD STATE=%s\n',state_root[:10])
+
+            return state_hash  
+          
+        def _update_state(old,new):
+            # for DAG only - make virtual root state correction for block state using mapping
+            #LOGGER.debug('_update_state: OLD STATE=%s\n',old[:10])
+            if old in self._database:
+                LOGGER.debug('_update_state:THERE IS MAPPING FOR STATE=%s !!!!!!!!\n\n',old[:10])
+            else:
+                LOGGER.debug('_update_state:ADD MAPPING FOR STATE=%s->%s\n',old[:10],new[:10])
+                self._database.put(old,new)
+
+        def get_merkle_root():
+            return MerkleDatabase.get_real_merkle_root(self._database)
+
         def _check_merkle(state_root,context=''):
             # for testing
             # check state for testing
@@ -372,25 +397,8 @@ class ContextManager(object):
                 LOGGER.debug('_CHECK: ADDRESS YES CHECK STATE=%s %s\n',state_root[:10],context)
             except :
                 LOGGER.debug('_CHECK: ADDRESS NO CHECK STATE=%s %s\n',state_root[:10],context)
-        return _check_merkle
-
-    def get_context_handler(self):
-        def _recompute_state_hash(state_root,context=None):
-            # for DAG only - recompute state
-            state_hash = None
-            try:
-                tree = MerkleDatabase(self._database, state_root)
-                state_hash = tree.update(context['updates'],context['deletes'], virtual=True)
-            except :
-                LOGGER.debug('_recompute_state_hash: BAD STATE=%s\n',state_root[:10])
-
-            return state_hash  
-          
-        def _update_state(old,new):
-            # for DAG only - make virtual root state correction for block state using mapping
-            LOGGER.debug('_update_state: OLD STATE=%s\n',old[:10])
-
-        return {'recompute_state':_recompute_state_hash,'update_state':_update_state}
+        
+        return {'recompute_state':_recompute_state_hash,'update_state':_update_state,'merkle_root':get_merkle_root,'check_merkle':_check_merkle}
 
     def get_squash_handler(self):
         def _squash(state_root, context_ids, persist, clean_up):
@@ -410,7 +418,7 @@ class ContextManager(object):
             """
             # There is only one exit condition and that is when all the
             # contexts have been accessed once.
-            LOGGER.debug('_SQUASH: persist=%s clean_up=%s \n',persist,clean_up)
+            #LOGGER.debug('_SQUASH: persist=%s clean_up=%s \n',persist,clean_up)
             updates = dict()
             deletes = set()
             while contexts_in_chain:
@@ -458,7 +466,7 @@ class ContextManager(object):
                 virtual = not persist
                 # for compute new state - we can save updates, deletes for recompute it for DAG
                 state_hash = tree.update(updates, deletes, virtual=virtual)
-                LOGGER.debug('_SQUASH: virtual=%s updates=%s deletes=%s STATE=%s\n',virtual,updates,deletes,state_hash[:10])
+                #LOGGER.debug('_SQUASH: virtual=%s updates=%s deletes=%s STATE=%s\n',virtual,updates,deletes,state_hash[:10])
 
             if clean_up:
                 self.delete_contexts(context_ids_already_searched)

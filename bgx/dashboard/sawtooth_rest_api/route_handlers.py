@@ -262,11 +262,11 @@ class RouteHandler:
             paging: Paging info and nav, like total resources and a next link
         """
         paging_controls = self._get_paging_controls(request)
-
+        # FIXME for DAG - ask real merkle state
         head, root = await self._head_to_root(request.url.query.get(
             'head', None))
         validator_query = client_state_pb2.ClientStateListRequest(
-            state_root=root,
+            state_root='',#root,
             address=request.url.query.get('address', None),
             sorting=self._get_sorting_message(request, "default"),
             paging=self._make_paging_message(paging_controls))
@@ -304,11 +304,13 @@ class RouteHandler:
         head = request.url.query.get('head', None)
 
         head, root = await self._head_to_root(head)
+        # FIXME for DAG - ask real merkle state
         response = await self._query_validator(
             Message.CLIENT_STATE_GET_REQUEST,
             client_state_pb2.ClientStateGetResponse,
             client_state_pb2.ClientStateGetRequest(
-                state_root=root, address=address),
+                state_root='',#root,
+                address=address),
             error_traps)
 
         return self._wrap_response(

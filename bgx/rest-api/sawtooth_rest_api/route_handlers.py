@@ -262,11 +262,13 @@ class RouteHandler:
             paging: Paging info and nav, like total resources and a next link
         """
         paging_controls = self._get_paging_controls(request)
-
-        head, root = await self._head_to_root(request.url.query.get(
-            'head', None))
+        # for DAG ask head of chain for getting merkle root is incorrect way 
+        # FIXME - add special method for asking real merkle root
+        head, root = await self._head_to_root(request.url.query.get('head', None))
+        LOGGER.debug('LIST_STATE STATE=%s',root[:10])
+                
         validator_query = client_state_pb2.ClientStateListRequest(
-            state_root=root,
+            state_root='',#root,
             address=request.url.query.get('address', None),
             sorting=self._get_sorting_message(request, "default"),
             paging=self._make_paging_message(paging_controls))
@@ -302,13 +304,15 @@ class RouteHandler:
 
         address = request.match_info.get('address', '')
         head = request.url.query.get('head', None)
-
+        LOGGER.debug('fetch_state head=%s',head[:8] if head is not None else None)
+        #FIXME for DAG we should ask real merkle root
         head, root = await self._head_to_root(head)
         response = await self._query_validator(
             Message.CLIENT_STATE_GET_REQUEST,
             client_state_pb2.ClientStateGetResponse,
             client_state_pb2.ClientStateGetRequest(
-                state_root=root, address=address),
+                state_root='',#root,
+                address=address),
             error_traps)
 
         return self._wrap_response(
@@ -665,6 +669,8 @@ class RouteHandler:
                 error_traps)
             block = self._expand_block(response['block'])
         else:
+            LOGGER.debug('_head_to_root ask list block')
+                
             response = await self._query_validator(
                 Message.CLIENT_BLOCK_LIST_REQUEST,
                 client_block_pb2.ClientBlockListResponse,

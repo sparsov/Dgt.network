@@ -100,8 +100,7 @@ class BlockValidator(object):
                  executor,
                  recompute_context,
                  squash_handler,
-                 context_handler,
-                 check_merkle,
+                 context_handlers,
                  identity_signer,
                  data_dir,
                  config_dir,
@@ -147,8 +146,9 @@ class BlockValidator(object):
         self._executor = executor
         self._recompute_context = recompute_context
         self._squash_handler = squash_handler
-        self._context_handler = context_handler 
-        self._check_merkle = check_merkle
+        self._context_handlers = context_handlers 
+        self._check_merkle = context_handlers['check_merkle']
+        self._get_merkle_root = context_handlers['merkle_root']
         self._identity_signer = identity_signer
         self._data_dir = data_dir
         self._config_dir = config_dir
@@ -179,10 +179,12 @@ class BlockValidator(object):
         """
         for DAG use last root state fixed in the merkle
         because self._block_cache[blkw.previous_block_id].state_root_hash could be not correct 
+        because of concurrence block with max number could has not last merkle root, so take root from merkle directly
         """
         main_head = self._block_cache.block_store.chain_head
-        LOGGER.debug('BlockValidator: get block root state for BLOCK=%s STATE=%s<==%s\n',blkw.identifier[:8],main_head.block_num,self._block_cache[blkw.previous_block_id].block_num)
-        return main_head.state_root_hash
+        state_root_hash = self._get_merkle_root()
+        LOGGER.debug('BlockValidator: get block root state for BLOCK=%s STATE=%s:%s REAL=%s\n',blkw.identifier[:8],main_head.block_num,main_head.state_root_hash[:10],state_root_hash[:10])
+        return state_root_hash #main_head.state_root_hash
         #return self._block_cache[blkw.previous_block_id].state_root_hash
 
     def _txn_header(self, txn):
@@ -221,12 +223,13 @@ class BlockValidator(object):
             # Use root state from previous block for DAG use last state
             # 
             LOGGER.debug("Have processed transactions again for block %s STATE=%s",blkw.identifier[:8],prev_state[:10])
-            scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handler)
+            scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
             recomputed_state = scheduler.recompute_merkle_root(prev_state,self._recompute_context)
             
             if recomputed_state != blkw.state_root_hash:
-                LOGGER.debug("recomputed STATE=%s does not compare with state from block",recomputed_state[:10])
+                LOGGER.debug("recomputed STATE=%s is not match with state hash from block",recomputed_state[:10])
                 scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
+
             self._executor.execute(scheduler)
             
             # testing
@@ -246,7 +249,7 @@ class BlockValidator(object):
                     else:
                         # blkw.state_root_hash - new state calculated into publisher - for DAG it could be incorrect 
                         # we should recalculate it  
-                        LOGGER.debug("VERIFY BLOCK BATCHES: add batch for block=%s  STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
+                        #LOGGER.debug("VERIFY BLOCK BATCHES: add batch for block=%s  STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
                         scheduler.add_batch(batch,recomputed_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash) # prev_state
             except InvalidBatch:
                 LOGGER.debug("Invalid batch %s encountered during verification of block %s",batch.header_signature[:8],blkw)
@@ -262,8 +265,8 @@ class BlockValidator(object):
             #
             # at this point new block state appeared into state database
             # testing
-            self._check_merkle(prev_state,'_verify_block_batches OLD root')
-            self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
+            #self._check_merkle(prev_state,'_verify_block_batches OLD root')
+            #self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
 
             for batch in blkw.batches:
                 batch_result = scheduler.get_batch_execution_result(batch.header_signature)
@@ -272,13 +275,14 @@ class BlockValidator(object):
                     blkw.execution_results.extend(txn_results)
                     state_hash = batch_result.state_hash
                     blkw.num_transactions += len(batch.transactions)
-                    LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw.identifier[:8],state_hash[:10])
+                    #LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw.identifier[:8],state_hash[:10])
                 else:
                     return False
             if recomputed_state != state_hash: # blkw.state_root_hash != state_hash
                 # for DAG this states could be different
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash[:10],state_hash[:10])
-                #return False
+                return False
+
         return True
 
     def _validate_permissions(self, blkw):
@@ -581,7 +585,7 @@ class BlockValidator(object):
             #self._check_merkle(self._new_block.state_root_hash)
             self._done_cb(commit_new_chain, self._result)
 
-            LOGGER.info("Finished block=%s validation STATE=%s\n",self._new_block.block_num,self._new_block.state_root_hash)
+            LOGGER.info("Finished new block=%s validation STATE=%s\n",self._new_block.block_num,self._new_block.state_root_hash)
             self._check_merkle(self._new_block.state_root_hash)
             
 
@@ -656,8 +660,7 @@ class ChainController(object):
                  on_head_updated,
                  get_recompute_context,
                  squash_handler,
-                 context_handler,
-                 check_merkle,
+                 context_handlers,
                  chain_id_manager,
                  identity_signer,
                  data_dir,
@@ -710,8 +713,7 @@ class ChainController(object):
         self._notify_on_head_updated = on_head_updated
         self._get_recompute_context = get_recompute_context
         self._squash_handler = squash_handler
-        self._context_handler=context_handler
-        self._check_merkle = check_merkle
+        self._context_handlers=context_handlers
         self._identity_signer = identity_signer
         self._data_dir = data_dir
         self._config_dir = config_dir
@@ -887,8 +889,7 @@ class ChainController(object):
                 executor=self._transaction_executor,
                 recompute_context=self._get_recompute_context(branch_id),
                 squash_handler=self._squash_handler,
-                context_handler=self._context_handler,
-                check_merkle=self._check_merkle,
+                context_handlers=self._context_handlers,
                 identity_signer=self._identity_signer,
                 data_dir=self._data_dir,
                 config_dir=self._config_dir,
@@ -1219,6 +1220,7 @@ class ChainController(object):
                     done_cb=self.on_block_validated,
                     executor=self._transaction_executor,
                     squash_handler=self._squash_handler,
+                    context_handlers=self._context_handlers, 
                     identity_signer=self._identity_signer,
                     data_dir=self._data_dir,
                     config_dir=self._config_dir,

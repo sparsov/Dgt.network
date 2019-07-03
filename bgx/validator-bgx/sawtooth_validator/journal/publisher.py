@@ -277,7 +277,7 @@ class _CandidateBlock(object):
                     self._block_builder.previous_block_id), batches_to_add)
 
             batches_to_add.append(batch)
-            LOGGER.debug("ADD_BATCH INTO BRANCH[%s]: len=%s batch=%s",self._identifier[:8],len(batches_to_add), batch.header_signature)
+            LOGGER.debug("ADD_BATCH INTO BRANCH[%s]: len=%s batch=%s",self._identifier[:8],len(batches_to_add), batch.header_signature[:8])
             for b in batches_to_add:
                 self._pending_batches.append(b)
                 self._pending_batch_ids.add(b.header_signature)
@@ -448,7 +448,7 @@ class BlockPublisher(object):
                  block_sender,
                  batch_sender,
                  squash_handler,
-                 context_handler,
+                 context_handlers,
                  chain_head,
                  identity_signer,
                  data_dir,
@@ -514,7 +514,8 @@ class BlockPublisher(object):
 
         self._chain_head = chain_head  # block (BlockWrapper)
         self._squash_handler = squash_handler
-        self._context_handler = context_handler
+        self._context_handlers = context_handlers
+        self._get_merkle_root = context_handlers['merkle_root']
         self._identity_signer = identity_signer
         self._data_dir = data_dir
         self._config_dir = config_dir
@@ -556,7 +557,7 @@ class BlockPublisher(object):
         New batch has been received, queue it with the BlockPublisher for
         inclusion in the next block.
         """
-        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s",batch.header_signature)
+        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s",batch.header_signature[:10])
         self._batch_queue.put(batch)
         self._queued_batch_ids.append(batch.header_signature)
         for observer in self._batch_observers:
@@ -591,12 +592,9 @@ class BlockPublisher(object):
         main_head = self._block_cache.block_store.chain_head
         bid = chain_head.identifier
         LOGGER.debug("BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main=%s STATE=%s~%s",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
-        try:
-            state_view = BlockWrapper.state_view_for_block(main_head ,self._state_view_factory) # main_head FOR DAG use main_head instead chain_head
-        except KeyError:
-            
-            state_view = BlockWrapper.state_view_for_block(chain_head ,self._state_view_factory)
 
+        state_view = BlockWrapper.state_view_for_block(main_head ,self._state_view_factory) # main_head FOR DAG use main_head instead chain_head
+        
         consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_head.header_signature,state_view)
         if not consensus_module:
             # there is no internal consensus 
@@ -660,15 +658,18 @@ class BlockPublisher(object):
 
         # switch of marker from proxy engine
         del self._engine_ask_candidate[bid] 
-        # create a new scheduler
-        # for DAG we should use state_root_hash from head with max number
+        """
+        create a new scheduler
+        for DAG we should use state_root_hash from head with last updated merkle root 
+        because of concurrence block with max number could has not last merkle root, so take root from merkle directly  
+        """
         main_head = self._block_cache.block_store.chain_head
-        LOGGER.debug("Use for executor BRANCH=%s:%s ROOT STATE=%s:%s~%s\n",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
-        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, main_head.state_root_hash,self._context_handler) # for DAG try use main_head.state_root_hash 
+        state_root_hash = self._get_merkle_root()
+        LOGGER.debug("Use for executor BRANCH=%s:%s ROOT STATE=%s:%s~%s max_batches=%s\n",chain_head.block_num,bid[:8],main_head.block_num,state_root_hash[:10],main_head.state_root_hash[:10],max_batches)
+        scheduler = self._transaction_executor.create_scheduler(self._squash_handler, state_root_hash,self._context_handlers) # for DAG try use main_head.state_root_hash 
 
         # build the TransactionCommitCache
-        committed_txn_cache = TransactionCommitCache(
-            self._block_cache.block_store)
+        committed_txn_cache = TransactionCommitCache(self._block_cache.block_store)
         LOGGER.debug("_build_candidate_block:  self._transaction_executor.execute(scheduler) parent=%s",bid[:8]) 
         self._transaction_executor.execute(scheduler)
         self._candidate_block = _CandidateBlock(

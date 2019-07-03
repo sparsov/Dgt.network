@@ -215,10 +215,13 @@ class _ClientRequestHandler(Handler, metaclass=abc.ABCMeta):
         """
         if request.state_root:
             root = request.state_root
+            LOGGER.debug('_set_root:  root=%s from request\n',root[:10])
         else:
+            # for DAG chain head isn't contain real merkle root
             head = self._get_chain_head()
-            root = head.state_root_hash
-
+            froot = head.state_root_hash
+            root = self._tree.real_merkle_root
+            LOGGER.debug('_set_root: root=%s real root=%s\n',froot[:10],root[:10])    
         try:
             self._tree.set_merkle_root(root)
         except KeyError as e:
@@ -695,7 +698,7 @@ class StateListRequest(_ClientRequestHandler):
         entries = [
             client_state_pb2.ClientStateListResponse.Entry(address=a, data=v)
             for a, v in self._tree.leaves(request.address or '').items()]
-        LOGGER.debug('StateListRequest: entries=%s', len(entries))
+        LOGGER.debug('StateListRequest: entries=%s for STATE=%s', len(entries),state_root[:10])
         # Order entries, remove if tree.entries refactored to be ordered
         entries.sort(key=lambda l: l.address)
 
