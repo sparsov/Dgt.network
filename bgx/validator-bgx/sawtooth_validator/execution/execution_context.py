@@ -263,7 +263,7 @@ class ExecutionContext(object):
             address_value_dict (dict of str: bytes): The unique
                 full addresses that the bytes values should be set with.
         """
-        LOGGER.debug('set_from_tree: %s\n',address_value_dict)
+        #LOGGER.debug('set_from_tree: %s\n',address_value_dict)
         for address, value in address_value_dict.items():
             if address in self._state:
                 self._state[address].set_result(result=value,

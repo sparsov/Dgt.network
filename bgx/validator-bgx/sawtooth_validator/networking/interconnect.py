@@ -215,24 +215,16 @@ class _SendReceive(object):
              in self._last_message_times.items()
              if check_time - timestamp > self._heartbeat_interval]
         for zmq_identity, elapsed in expired:
-            if self._is_connection_lost(
-                    self._last_message_times[zmq_identity]):
-                LOGGER.info("No response from %s in %s seconds"
-                            " - removing connection.",
-                            self._identity_to_connection_id(
-                                zmq_identity),
-                            elapsed)
+
+            if self._is_connection_lost(self._last_message_times[zmq_identity]):
+                LOGGER.info("No response from %s in %s seconds - removing connection.",self._identity_to_connection_id(zmq_identity),elapsed)
                 self.remove_connected_identity(zmq_identity)
             else:
                 # This should only log the start of the heartbeat interval, so
                 # as to keep the message from  occurring
                 # _connection_timeout / _heartbeat_interval # times
                 if elapsed < 2 * self._heartbeat_interval:
-                    LOGGER.debug("No response from %s in %s seconds"
-                                 " - beginning heartbeat pings.",
-                                 self._identity_to_connection_id(
-                                     zmq_identity),
-                                 elapsed)
+                    LOGGER.debug("No response from %s in %s seconds - beginning heartbeat pings.",self._identity_to_connection_id(zmq_identity),elapsed)
                 message = validator_pb2.Message(
                     correlation_id=_generate_id(),
                     # Ping request is an empty message, so an empty byte string
@@ -255,10 +247,7 @@ class _SendReceive(object):
     def _do_dealer_heartbeat(self):
         if self._last_message_time and \
                 self._is_connection_lost(self._last_message_time):
-            LOGGER.info("No response from %s in %s seconds"
-                        " - removing connection.",
-                        self._connection,
-                        self._last_message_time)
+            LOGGER.info("No response from %s in %s seconds - removing connection.",self._connection,self._last_message_time)
             connection_id = hashlib.sha512(
                 self.connection.encode()).hexdigest()
             if connection_id in self._connections:

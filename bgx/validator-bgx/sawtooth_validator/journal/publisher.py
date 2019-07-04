@@ -1,4 +1,4 @@
-# Copyright NTRLab NTR
+# Copyright NTRLab 2019
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -655,9 +655,9 @@ class BlockPublisher(object):
             LOGGER.debug("Consensus not ready to build candidate block.")
             self._block_store.pop_block_number(block_num)
             return None
-
-        # switch of marker from proxy engine
-        del self._engine_ask_candidate[bid] 
+        if hasattr(consensus, 'set_publisher'):
+            # switch of marker from proxy engine
+            del self._engine_ask_candidate[bid] 
         """
         create a new scheduler
         for DAG we should use state_root_hash from head with last updated merkle root 

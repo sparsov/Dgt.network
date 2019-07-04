@@ -1,4 +1,4 @@
-# Copyright 2017 Intel Corporation
+# Copyright NTRLab 2019
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -846,6 +846,7 @@ class ChainController(object):
     def _submit_blocks_for_verification(self, blocks):
         for blkw in blocks:
             branch_id = blkw.previous_block_id
+            LOGGER.debug("_submit_blocks_for_verification BRANCH=%s chain heads=%s",branch_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
             chain_head = self._chain_heads[branch_id]
             main_head = main_head = self._block_cache.block_store.chain_head
             state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # for DAG use main_head instead chain_head
