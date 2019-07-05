@@ -201,7 +201,7 @@ services:
         if [ -f 'lib/libsawtooth_validator.so' ]; then echo 'Already copied'; else cp ./target/release/libsawtooth_validator.so lib/libsawtooth_validator.so; fi
         sawadm keygen
         sawtooth keygen my_key
-        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=pbft sawtooth.consensus.pbft.max_log_size=20 sawtooth.consensus.pbft.nodes=\"{'0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba': 'leader','028c7e06db3af50a9958390e3e29f166b1cf6198586acf37cde46c8ea54e4a79ef': 'plink'}\"
+        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=pbft sawtooth.consensus.pbft.max_log_size=20 sawtooth.consensus.pbft.nodes=\"{'025058be7f70453eac89a1c9b23e6099231912f404b031a5747a64abb855d9631a': 'leader','02357d03f7866b623a6f73ce53fd2788f9d57303949194df55245bf66ccbbb0504': 'plink'}\"
         sawset genesis -k /root/.sawtooth/keys/my_key.priv
         #ls -l /var/lib/
         rm -f ../data-bgx/data/* ../data-bgx/logs/*.log*;sawadm genesis config-genesis.batch sawset.batch 

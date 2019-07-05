@@ -144,6 +144,7 @@ class BlockValidator(object):
         self._state_view_factory = state_view_factory
         self._done_cb = done_cb
         self._executor = executor
+        # for external block recompute_context == None
         self._recompute_context = recompute_context
         self._squash_handler = squash_handler
         self._context_handlers = context_handlers 
@@ -161,15 +162,13 @@ class BlockValidator(object):
             'uncommitted_batches': [],
             'num_transactions': 0
         }
-        LOGGER.debug('BlockValidator: init _recompute_context=%s new_block=%s',self._recompute_context,type(new_block))
+        LOGGER.debug('BlockValidator: init _recompute_context=%s new_block=%s',self._recompute_context,new_block.identifier[:8])
         self._permission_verifier = permission_verifier
 
-        self._validation_rule_enforcer = \
-            ValidationRuleEnforcer(SettingsViewFactory(state_view_factory))
+        self._validation_rule_enforcer = ValidationRuleEnforcer(SettingsViewFactory(state_view_factory))
 
         if metrics_registry:
-            self._moved_to_fork_count = CounterWrapper(
-                metrics_registry.counter('chain_head_moved_to_fork_count'))
+            self._moved_to_fork_count = CounterWrapper(metrics_registry.counter('chain_head_moved_to_fork_count'))
         else:
             self._moved_to_fork_count = CounterWrapper()
 
@@ -214,8 +213,10 @@ class BlockValidator(object):
             self._chain_commit_state.add_txn(txn.header_signature)
 
     def _verify_block_batches(self, blkw):
-        if blkw.block.batches:
+        if blkw.block.batches and self._recompute_context is not None:
+
             """
+            skip checking for external block
             check again using proc of transactions
             FOR DAG prev_state could be different from merkle state which was used into publisher FIXME 
             """
@@ -224,8 +225,12 @@ class BlockValidator(object):
             # 
             LOGGER.debug("Have processed transactions again for block %s STATE=%s",blkw.identifier[:8],prev_state[:10])
             scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
-            recomputed_state = scheduler.recompute_merkle_root(prev_state,self._recompute_context)
-            
+            if self._recompute_context is not None:
+                recomputed_state = scheduler.recompute_merkle_root(prev_state,self._recompute_context)
+            else:
+                recomputed_state = blkw.state_root_hash
+                LOGGER.debug("_verify_block_batches:EXTERNAL block=%s",blkw.identifier[:8])
+
             if recomputed_state != blkw.state_root_hash:
                 LOGGER.debug("recomputed STATE=%s is not match with state hash from block",recomputed_state[:10])
                 scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
@@ -443,7 +448,7 @@ class BlockValidator(object):
                 cur_blkw = self._block_cache[cur_blkw.previous_block_id]
         return (new_blkw, cur_blkw)
 
-    def _find_common_ancestor(self, new_blkw, cur_blkw, new_chain, cur_chain):
+    def _find_common_ancestor(self, new_blkw, cur_blkw, new_chain, cur_chain,is_external=False):
         """ Finds a common ancestor of the two chains.
             FIXME for DAG version
         """
@@ -451,24 +456,30 @@ class BlockValidator(object):
             if (cur_blkw.previous_block_id == NULL_BLOCK_IDENTIFIER
                     or new_blkw.previous_block_id == NULL_BLOCK_IDENTIFIER):
                 # We are at a genesis block and the blocks are not the same
+                # it could be external genesis block
+                if is_external:
+                    new_chain.append(new_blkw)
+                    break
                 LOGGER.info("Block rejected due to wrong genesis: %s %s",cur_blkw, new_blkw)
                 for b in new_chain:
                     b.status = BlockStatus.Invalid
                 raise BlockValidationAborted()
+
             new_chain.append(new_blkw)
+            # for external genesis block there is no predecessor
             try:
                 new_blkw = self._block_cache[new_blkw.previous_block_id]
             except KeyError:
-                LOGGER.info(
-                    "Block %s rejected due to missing predecessor %s",
+                LOGGER.info("Block %s rejected due to missing predecessor %s",
                     new_blkw,
                     new_blkw.previous_block_id)
                 for b in new_chain:
                     b.status = BlockStatus.Invalid
                 raise BlockValidationAborted()
+                
 
             cur_chain.append(cur_blkw)
-            cur_blkw = self._block_cache[cur_blkw.previous_block_id]
+            cur_blkw = self._block_cache[cur_blkw.previous_block_id] # prev curr block
 
     def _test_commit_new_chain(self):
         """ Compare the two chains and determine which should be the head.
@@ -517,10 +528,18 @@ class BlockValidator(object):
             FIXME get the current chain_head .For DAG we should take head for branch relating to _new_block
             """
             self._chain_head = self._block_cache.block_store.chain_head
+            is_external = False
             if self._chain_head.identifier != branch_id:
                 # this is DAG version 
-                self._chain_head = self._block_cache.block_store.get_chain_head(branch_id) 
+                try:
+                    self._chain_head = self._block_cache.block_store.get_chain_head(branch_id) 
+                except KeyError:
+                    # for external block 
+                    is_external = True
+                    LOGGER.info("External block there is no HEAD for BRANCH=%s\n",branch_id[:8])
+                         
                 LOGGER.info("BlockValidator:run get head for BRANCH=%s num=%s",self._chain_head.identifier[:8],self._chain_head.block_num)
+
             self._result['chain_head'] = self._chain_head
             
             LOGGER.info("BlockValidator:: try to add new block chain_head=%s~%s head num=%s", self._chain_head.identifier[:8],branch_id[:8],self._chain_head.block_num)
@@ -529,7 +548,8 @@ class BlockValidator(object):
             (new_blkw, cur_blkw) = self._find_common_height(new_chain,cur_chain)
 
             # 2) Walk back until we find the common ancestor
-            self._find_common_ancestor(new_blkw, cur_blkw,new_chain, cur_chain)
+            # for external genesis block
+            self._find_common_ancestor(new_blkw, cur_blkw,new_chain, cur_chain,is_external)
 
             # 3) Determine the validity of the new fork
             # build the transaction cache to simulate the state of the
@@ -586,7 +606,7 @@ class BlockValidator(object):
             self._done_cb(commit_new_chain, self._result)
 
             LOGGER.info("Finished new block=%s validation STATE=%s\n",self._new_block.block_num,self._new_block.state_root_hash)
-            self._check_merkle(self._new_block.state_root_hash)
+            #self._check_merkle(self._new_block.state_root_hash)
             
 
         except BlockValidationAborted:
@@ -845,10 +865,19 @@ class ChainController(object):
 
     def _submit_blocks_for_verification(self, blocks):
         for blkw in blocks:
+            """
+            blkw could be from another nodes
+            """
             branch_id = blkw.previous_block_id
             LOGGER.debug("_submit_blocks_for_verification BRANCH=%s chain heads=%s",branch_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
-            chain_head = self._chain_heads[branch_id]
-            main_head = main_head = self._block_cache.block_store.chain_head
+            main_head = self._block_cache.block_store.chain_head
+            if branch_id in self._chain_heads:
+                # block fron our publisher
+                chain_head = self._chain_heads[branch_id]
+            else:
+                # block fron another node - try to use last head
+                chain_head = main_head
+
             state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # for DAG use main_head instead chain_head
             LOGGER.debug("ChainController: _submit_blocks_for_verification BRANCH=%s head=%s",branch_id[:8],chain_head == self.chain_head)
             """
@@ -873,9 +902,12 @@ class ChainController(object):
                     self._block_manager.put([blk])
                     self._block_manager.ref_block(blk.header_signature)
                     """
-                    mark parent block ref_block(blk.previous_block_id) 
+                    mark parent block ref_block(blk.previous_block_id) in case it external block previous_block_id don't exists
                     """
-                    self._block_manager.ref_block(blkw.header.previous_block_id)
+                    try:
+                        self._block_manager.ref_block(blkw.header.previous_block_id)
+                    except UnknownBlock:
+                        LOGGER.debug("External block=%s with out parent",blkw.identifier[:8])
                     #block_iter = self._block_manager.get([blk.header_signature])
                     #blocks = [b for b in block_iter]
                     #blocks = next(self._block_manager.get([blk.header_signature]))
@@ -1033,35 +1065,38 @@ class ChainController(object):
                         #
                         # say that block number really used
                         self._block_store.pop_block_number(new_block.block_num)
+                        is_external = False
                         if bid in self._chain_heads:
                             # update head for branch bid
                             del self._chain_heads[bid]
                             self._chain_heads[nid] = new_block
                             self._block_store.update_chain_heads(nid,new_block)
                             LOGGER.debug("ChainController:update head for BRANCH=%s->%s num=%s cur=%s",bid[:8],nid[:8],len(self._chain_heads),len(result["cur_chain"]))
-                        # for DAG self._chain_head just last update branch's head it could be local variable 
-                        self._chain_head = new_block
-
+                            # for DAG self._chain_head just last update branch's head it could be local variable 
+                            self._chain_head = new_block
+                            LOGGER.info("Chain head branch=%s updated to: %s",bid[:8],self._chain_head)
+                        else:
+                            LOGGER.debug("COMMIT NEW EXTERNAL BLOCK=%s",nid[:8])
+                            is_external = True
                         # update the the block store to have the new chain
                         self._block_store.update_chain(result["new_chain"],result["cur_chain"])
 
                         # make sure old chain is in the block_caches
                         self._block_cache.add_chain(result["cur_chain"])
 
-                        LOGGER.info("Chain head branch=%s updated to: %s",bid[:8],self._chain_head)
-
-                        self._chain_head_gauge.set_value(self._chain_head.identifier[:8])
+                        self._chain_head_gauge.set_value(self._chain_head.identifier[:8]) # FIXME for external block
 
                         self._committed_transactions_count.inc(result["num_transactions"])
 
                         self._block_num_gauge.set_value(self._chain_head.block_num)
 
-                        LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s\n",self._chain_head.identifier[:8])
-                        # tell the BlockPublisher else the chain for branch is updated
-                        self._notify_on_chain_updated(
-                            self._chain_head,
-                            result["committed_batches"],
-                            result["uncommitted_batches"])
+                        if not is_external:
+                            # tell the BlockPublisher else the chain for branch is updated
+                            LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s\n",self._chain_head.identifier[:8])
+                            self._notify_on_chain_updated(
+                                self._chain_head,
+                                result["committed_batches"],
+                                result["uncommitted_batches"])
 
                         for batch in new_block.batches:
                             if batch.trace:
@@ -1070,10 +1105,7 @@ class ChainController(object):
                                              self.__class__.__name__)
 
                     # Submit any immediate descendant blocks for verification
-                    LOGGER.debug(
-                        'Verify descendant blocks: %s (%s)',
-                        new_block,
-                        [block.identifier[:8] for block in descendant_blocks])
+                    LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
                     self._submit_blocks_for_verification(descendant_blocks)
 
                     for block in reversed(result["new_chain"]):

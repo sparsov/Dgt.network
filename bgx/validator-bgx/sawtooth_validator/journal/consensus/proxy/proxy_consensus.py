@@ -268,10 +268,10 @@ class ForkResolver(ForkResolverInterface):
             bool: True if choosing the new chain head, False if choosing
             the current chain head.
         """
-        LOGGER.debug("PROXY:compare_forks cur~new=%s~%s",cur_fork_head.identifier[:8],new_fork_head.identifier[:8])
+        LOGGER.debug("PROXY:compare_forks cur~new=%s~%s new fork consensus=%s~%s",cur_fork_head.identifier[:8],new_fork_head.identifier[:8],new_fork_head.consensus,self._consensus)
         # If the new fork head is not DevMode consensus, bail out.  This should
         # never happen, but we need to protect against it.
-        if new_fork_head.consensus != self._consensus:
+        if new_fork_head.consensus != self._consensus and new_fork_head.consensus != b"Genesis":
             raise TypeError('New fork head {} is not a {} block'.format(new_fork_head.identifier[:8],_CONSENSUS_NAME_))
 
         self._is_compare_forks = None

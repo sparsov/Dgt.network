@@ -193,6 +193,8 @@ class BgtEngine(Engine):
         # components
         self._branches = {} # for DAG 
         self._new_heads = {}
+        self._peers = {}
+        self._peers_branches = {}
         self._path_config = path_config
         self._component_endpoint = component_endpoint
         self._service = None
@@ -257,9 +259,9 @@ class BgtEngine(Engine):
                 LOGGER.debug('BgtEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
                 LOGGER.debug('BgtEngine: _initialize_block NEW Branch[%s]=%s',self._num_branches,bid[:8])
-                self._branches[bid] = BranchState(bid,parent, self._service, self._oracle,self._num_branches)
+                self._branches[bid] = self.create_branch(bid,parent)
                 self._branches[bid]._try_branch = self._make_branch
-                self._num_branches += 1
+                
             
         except exceptions.UnknownBlock:
             LOGGER.debug('BgtEngine: _initialize_block ERROR UnknownBlock')
@@ -269,6 +271,11 @@ class BgtEngine(Engine):
             self._skip = True
             return False
         return True
+
+    def create_branch(self,bid,parent):
+        branch = BranchState(bid,parent, self._service, self._oracle,self._num_branches)
+        self._num_branches += 1
+        return branch
 
     def is_not_build(self):
         for branch in self._branches.values():
@@ -532,18 +539,15 @@ class BgtEngine(Engine):
                 LOGGER.info('Failed consensus check: %s', _short_id(block_id))
                 # Don't reset now - wait message INVALID_BLOCK
                 #self.reset_state()
-        """     
-        if self._check_consensus(block):
-            # at this point state PREPARED
-            LOGGER.info('Passed consensus check in state PREPARED: %s ', _short_id(block.block_id.hex()))
-            self._check_block(block.block_id) # this message send chain controller message for continue block validation
-            # waiting block valid message
-            #self._commit_block(block.block_id)
         else:
-            LOGGER.info('Failed consensus check: %s', _short_id(block.block_id.hex()))
-            self.reset_state()
-            self._fail_block(block.block_id)
-        """
+            # external block from another node 
+            signer_id = block.signer_id.hex()
+            LOGGER.info('EXTERNAL NEW BLOCK=%s num=%s peer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
+            if block_id not in self._peers_branches:
+                branch = self.create_branch('','')
+                self._peers_branches[block_id] = branch
+                LOGGER.info('START CONSENSUS for BLOCK=%s:%s branch=%s',_short_id(signer_id),_short_id(block_id),branch.ind)
+                branch.new_block(block)
 
     def _handle_valid_block(self, block_id):
         LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(block_id.hex()))
@@ -552,6 +556,7 @@ class BgtEngine(Engine):
         self._pending_forks_to_resolve.push(block)
 
         self._process_pending_forks()
+        LOGGER.info('VALID_BLOCK  pending_forks=%s.',self._pending_forks_to_resolve)
 
     def _handle_invalid_block(self,block_id):
         LOGGER.info('=> INVALID_BLOCK:Received id=%s\n', _short_id(block_id.hex()))
@@ -560,7 +565,12 @@ class BgtEngine(Engine):
             if block.previous_block_id in self._branches:
                 branch = self._branches[block.previous_block_id]
                 branch.reset_state()
-
+            else:
+                LOGGER.info('=> INVALID_BLOCK: external \n')
+                if block_id not in self._peers_branches:
+                    branch = self._peers_branches[block_id]
+                    branch = self.reset_state()
+                    del self._peers_branches[block_id]
 
         except :
             LOGGER.info('=> INVALID_BLOCK: undefined \n')
@@ -578,24 +588,29 @@ class BgtEngine(Engine):
     def _resolve_fork(self, block):
         # ask head for branch bid
         bid = block.previous_block_id
-        chain_head = self._get_chain_head(bytes.fromhex(bid))
         if bid in self._branches:
+            chain_head = self._get_chain_head(bytes.fromhex(bid))
             branch = self._branches[bid]
             if branch.resolve_fork(chain_head,block):
                 self._committing = True
             else:
                 self.reset_state()
-        """
-        LOGGER.info('Choosing between chain heads -- current: %s -- new: %s',_short_id(chain_head.block_id.hex()),_short_id(block.block_id.hex()))
-        if self._switch_forks(chain_head, block):
-            LOGGER.info('Committing block=%s', _short_id(block.block_id.hex()))
-            self._commit_block(block.block_id)
-            self._committing = True
         else:
-            LOGGER.info('Ignoring block_%s', _short_id(block.block_id.hex()))
-            self.reset_state()
-            self._ignore_block(block.block_id)
-        """
+            # external block 
+            block_id = block.block_id.hex()
+            signer_id = block.signer_id.hex()
+            LOGGER.info('EXTERNAL BLOCK=%s num=%s peer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
+            if block_id in self._peers_branches:
+                chain_head = self._get_chain_head() # ask main head
+                branch = self._peers_branches[block_id] 
+                LOGGER.info('RESOLVE FORK for BLOCK=%s:%s branch=%s',_short_id(signer_id),_short_id(block_id),branch.ind)
+                if branch.resolve_fork(chain_head,block):
+                    self._committing = True
+                else:
+                    self.reset_state()
+                
+
+
     def reset_state(self):
         self._building = False   
         #self._published = False  
@@ -603,30 +618,41 @@ class BgtEngine(Engine):
 
 
     def _handle_committed_block(self, block_id):
-        bid = block_id.hex()
-        LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress',_short_id(bid))
+        block_id = block_id.hex()
+        LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress',_short_id(block_id))
         # for DAG new head for branch will be this block_id
         # and we should use it for asking chain head for this branch 
-        if bid in self._new_heads:
-            hid = self._new_heads.pop(bid)
-            LOGGER.info('   update chain head for BRANCH=%s->%s',hid[:8],bid[:8])
+        if block_id in self._new_heads:
+            hid = self._new_heads.pop(block_id)
+            LOGGER.info('   update chain head for BRANCH=%s->%s',hid[:8],block_id[:8])
             if hid in self._branches:
                 branch = self._branches.pop(hid)
-                branch.cancel_block(bid) # change parent_id too 
+                branch.cancel_block(block_id) # change parent_id too 
                 branch.reset_state()    
-                self._branches[bid] = branch
+                self._branches[block_id] = branch
                 self._TOTAL_BLOCK += 1 
-                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s',bid[:8],hid[:8],self._TOTAL_BLOCK)
-
-        #self._cancel_block()
-        self.reset_state()
+                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK)
+        else:
+            # external block
+            if block_id in self._peers_branches:
+                branch = self._peers_branches[block_id]
+                branch.cancel_block(block_id) # change parent_id too 
+                branch.reset_state()
+                del self._peers_branches[block_id] 
+                 
+        
+        LOGGER.info('=> BLOCK_COMMIT')
         self._process_pending_forks()
+        self.reset_state()
 
     def _handle_peer_connected(self, block):
         #block = BgtBlock(block)
         pinfo = ConsensusNotifyPeerConnected()
         #info = pinfo.ParseFromString(block)
-        LOGGER.info('_handle_peer_connected:Received %s', _short_id(block.peer_id.hex()))
+        pid = block.peer_id.hex()
+        if pid not in self._peers:
+            self._peers[pid] = True
+            LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
 
     def _handle_peer_message(self, block):
         #block = BgtBlock(block)
