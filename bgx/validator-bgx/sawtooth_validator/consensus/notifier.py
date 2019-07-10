@@ -34,13 +34,13 @@ class ConsensusNotifier:
         self._registered_engines = ConcurrentSet()
 
     def _notify(self, message_type, message):
-        LOGGER.debug('ConsensusNotifier: _notify all peers')
+        #LOGGER.debug('ConsensusNotifier: _notify all peers')
         if self._registered_engines:
-            LOGGER.debug('ConsensusNotifier: _notify %s',message_type)
+            #LOGGER.debug('ConsensusNotifier: _notify %s',message_type)
             futures = self._service.send_all(
                 message_type,
                 message.SerializeToString())
-            LOGGER.debug('ConsensusNotifier: sent _notify to num=%s peers',len(futures))
+            #LOGGER.debug('ConsensusNotifier: sent _notify to num=%s peers',len(futures))
             for future in futures:
                 future.result()
 
@@ -76,7 +76,7 @@ class ConsensusNotifier:
         summary = hashlib.sha256()
         for batch in block.batches:
             summary.update(batch.header_signature.encode())
-        LOGGER.debug('ConsensusNotifier: notify_block_new summary=%s block=%s',summary.digest().hex()[:10],block.header_signature[:8])
+        LOGGER.debug('ConsensusNotifier: notify_block_new block=%s summary=%s\n',block.header_signature[:8],summary.digest().hex()[:10])
         block_header = BlockHeader()
         block_header.ParseFromString(block.header)
         self._notify(
@@ -92,7 +92,7 @@ class ConsensusNotifier:
 
     def notify_block_valid(self, block_id):
         """This block can be committed successfully"""
-        LOGGER.debug('ConsensusNotifier: notify_block_valid')
+        LOGGER.debug('ConsensusNotifier: notify_block_valid block=%s\n',block_id[:8])
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_BLOCK_VALID,
             consensus_pb2.ConsensusNotifyBlockValid(
@@ -100,7 +100,7 @@ class ConsensusNotifier:
 
     def notify_block_invalid(self, block_id):
         """This block cannot be committed successfully"""
-        LOGGER.debug('ConsensusNotifier: notify_block_invalid')
+        LOGGER.debug('ConsensusNotifier: notify_block_invalid block=%s\n',block_id[:8])
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_BLOCK_INVALID,
             consensus_pb2.ConsensusNotifyBlockInvalid(
@@ -108,7 +108,7 @@ class ConsensusNotifier:
 
     def notify_block_commit(self, block_id):
         """This block has been committed"""
-        LOGGER.debug('ConsensusNotifier: notify_block_commit')
+        LOGGER.debug('ConsensusNotifier: notify_block_commit block=%s\n',block_id[:8])
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_BLOCK_COMMIT,
             consensus_pb2.ConsensusNotifyBlockCommit(

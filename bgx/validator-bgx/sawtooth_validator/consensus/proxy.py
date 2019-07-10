@@ -163,14 +163,14 @@ class ConsensusProxy:
         '''Returns a list of blocks.'''
         return self._get_blocks([block_id.hex() for block_id in block_ids])
 
-    def chain_head_get(self,parent_id=None,new_parent_id=None):
+    def chain_head_get(self,parent_id=None,new_parent_id=None,is_new=False):
         """
         Returns the main chain head in case parent_id == None.
         and branch head in case parent_id is not None 
         if parent_id undefined create new chain head 
         """
         
-        chain_head = self._chain_controller.get_chain_head(parent_id.hex() if parent_id != b'' else None,new_parent_id.hex() if new_parent_id != b'' else None)
+        chain_head = self._chain_controller.get_chain_head(parent_id.hex() if parent_id != b'' else None,new_parent_id.hex() if new_parent_id != b'' else None,is_new)
         LOGGER.debug("ConsensusProxy:chain_head_get head=%s\n",chain_head)
         if chain_head is None:
             raise UnknownBlock()

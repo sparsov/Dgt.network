@@ -30,6 +30,7 @@ from sawtooth_bgt_common.utils import _short_id
 
 LOGGER = logging.getLogger(__name__)
 CHAIN_LEN_FOR_BRANCH = 2 # after this len make a new branch 
+NULL_BLOCK_IDENTIFIER = "0000000000000000"
 
 class BranchState(object):
 
@@ -232,14 +233,14 @@ class BgtEngine(Engine):
     def stop(self):
         self._exit = True
 
-    def _initialize_block(self,branch=None,new_branch=None):
+    def _initialize_block(self,branch=None,new_branch=None,is_new = False):
         LOGGER.debug('BgtEngine: _initialize_block branch[%s]',branch.hex()[:8] if branch is not None else None)
         """
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
         try:
             # for switch current branch to another node add argument new_branch
-            chain_head = self._get_chain_head(branch,new_branch) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
+            chain_head = self._get_chain_head(branch,new_branch,is_new) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
         except exceptions.TooManyBranch:
             LOGGER.debug('BgtEngine: CANT CREATE NEW BRANCH (limit is reached)')
             self._make_branch = False
@@ -316,7 +317,7 @@ class BgtEngine(Engine):
 
     """
 
-    def _get_chain_head(self,bid=None,nbid=None):
+    def _get_chain_head(self,bid=None,nbid=None,is_new=False):
         return BgtBlock(self._service.get_chain_head(bid,nbid))
 
     def _get_block(self, block_id):
@@ -438,7 +439,7 @@ class BgtEngine(Engine):
                         LOGGER.debug('BgtEngine: TRY CREATE NEW BRANCH[%s] (%s)\n',branch.ind,branch._parent_id[:8])
                         #branch._make_branch = False
                         #self._make_branch = False
-                        if self._initialize_block(bytes.fromhex(branch._parent_id)) :
+                        if self._initialize_block(bytes.fromhex(branch._parent_id),is_new=True) :
                             branch.reset_chain_len()
 
                     if False and self._TOTAL_BLOCK == 5:
@@ -559,7 +560,7 @@ class BgtEngine(Engine):
             if block_id not in self._peers_branches:
                 branch = self.create_branch('','',block.block_num)
                 self._peers_branches[block_id] = branch
-                LOGGER.info('START CONSENSUS for BLOCK=%s:%s branch=%s',_short_id(signer_id),_short_id(block_id),branch.ind)
+                LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
                 branch.new_block(block)
 
     def _handle_valid_block(self, block_id):
@@ -604,10 +605,12 @@ class BgtEngine(Engine):
     def _resolve_fork(self, block):
         # ask head for branch bid
         bid = block.previous_block_id
+        bbid = bytes.fromhex(bid)
         signer_id  = block.signer_id.hex()
         if signer_id == self._validator_id:
             if bid in self._branches:
-                chain_head = self._get_chain_head(bytes.fromhex(bid))
+                # head could be already changed - we can get new head for this branch
+                chain_head = self._get_chain_head(bbid)
                 branch = self._branches[bid]
                 if branch.resolve_fork(chain_head,block):
                     self._committing = True
@@ -616,11 +619,12 @@ class BgtEngine(Engine):
         else:
             # external block 
             block_id = block.block_id.hex()
-            LOGGER.info('EXTERNAL BLOCK=%s num=%s signer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
+            LOGGER.info('EXTERNAL BLOCK=%s(%s) num=%s prev=%s', _short_id(block_id),signer_id[:8],block.block_num,bid[:8])
             if block_id in self._peers_branches:
-                chain_head = self._get_chain_head() # ask main head
+                # head could be already changed - we can get new head for this branch
+                chain_head = self._get_chain_head(None if bid == NULL_BLOCK_IDENTIFIER else bbid) # ask head for branch
                 branch = self._peers_branches[block_id] 
-                LOGGER.info('RESOLVE FORK for BLOCK=%s:%s branch=%s',_short_id(signer_id),_short_id(block_id),branch.ind)
+                LOGGER.info('RESOLVE FORK for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
                 if branch.resolve_fork(chain_head,block):
                     self._committing = True
                 else:

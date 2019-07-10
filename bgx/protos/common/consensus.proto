@@ -412,6 +412,7 @@ message ConsensusBlocksGetResponse {
 message ConsensusChainHeadGetRequest {
   bytes parent_id = 1;
   bytes new_parent_id = 2;
+  bool  is_new = 3;  // ask new branch or switch head of branch
 }
 
 message ConsensusChainHeadGetResponse {

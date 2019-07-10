@@ -284,8 +284,8 @@ class ZmqService(Service):
             for block in response.blocks
         }
 
-    def get_chain_head(self,parent_id = None,new_parent_id=None):
-        request = consensus_pb2.ConsensusChainHeadGetRequest(parent_id=parent_id,new_parent_id=new_parent_id)
+    def get_chain_head(self,parent_id = None,new_parent_id=None,is_new=False):
+        request = consensus_pb2.ConsensusChainHeadGetRequest(parent_id=parent_id,new_parent_id=new_parent_id,is_new=is_new)
 
         response_type = consensus_pb2.ConsensusChainHeadGetResponse
 

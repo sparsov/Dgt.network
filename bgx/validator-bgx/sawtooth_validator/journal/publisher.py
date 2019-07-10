@@ -790,11 +790,10 @@ class BlockPublisher(object):
                     also change _chain_heads for branch branch_candidate_id
                     """
                     branch_candidate_id = chain_head.previous_block_id
-                    LOGGER.info('Now building on top of block: %s-->%s num branch=%s',branch_candidate_id[:8],chain_head.identifier[:8],len(self._chain_heads))
-                    if chain_head.signer_id == self._validator_id:
-                        if branch_candidate_id in self._chain_heads:
-                            del self._chain_heads[branch_candidate_id]
-                            LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
+                    LOGGER.info('Now building on top of block: %s-->%s heads=%s',branch_candidate_id[:8],chain_head.identifier[:8],[key[:8] for key in self._chain_heads.keys()])
+                    if branch_candidate_id in self._chain_heads:
+                        del self._chain_heads[branch_candidate_id]
+                        LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
                     else:
                         LOGGER.info('SWITCH BLOCK CONDIDATE ON EXTERNAL BLOCK=(%s) AS HEAD for BRANCH=%s\n',chain_head.identifier[:8],branch_candidate_id[:8])
                         for key,head in self._chain_heads.items():
