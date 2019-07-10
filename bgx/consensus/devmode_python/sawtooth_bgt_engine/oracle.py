@@ -82,6 +82,10 @@ class BgtOracle:
 
         return self._publisher.initialize_block(block_header)
 
+    @property
+    def validator_id(self):
+        return self._validator_id
+
     def check_publish_block(self, block):
         return self._publisher.check_publish_block(block)
 

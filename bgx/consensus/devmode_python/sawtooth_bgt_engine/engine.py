@@ -33,10 +33,11 @@ CHAIN_LEN_FOR_BRANCH = 2 # after this len make a new branch
 
 class BranchState(object):
 
-    def __init__(self,bid,parent,service,oracle,ind):
+    def __init__(self,bid,parent,block_num,service,oracle,ind):
         self._head_id = bid
         self._ind = ind
         self._parent_id = parent
+        self._block_num = block_num
         self._service = service
         self._oracle  = oracle
         self._committing = False
@@ -55,6 +56,14 @@ class BranchState(object):
     @property
     def ind(self):
         return self._ind
+
+    @property
+    def parent(self):
+        return self._parent_id
+
+    @property
+    def block_num(self):
+        return self._block_num
 
     @property
     def is_time_to_make_branch(self):
@@ -246,20 +255,22 @@ class BgtEngine(Engine):
             self._service.initialize_block(previous_id=chain_head.block_id)
             # for remove this branch to another point 
             bid = branch.hex() if branch is not None else chain_head.block_id.hex()
-            parent = chain_head.previous_block_id 
+            parent = chain_head.previous_block_id
+            block_num = chain_head.block_num 
             if bid in self._branches:
                 #branch = self._branches[bid]
                 
                 branch = self._branches[bid]
                 branch._published = True
                 branch._parent_id = parent
+                branch._block_num = block_num
                 if new_branch is not None :
                     del self._branches[bid]
                     self._branches[new_branch.hex()] = branch 
                 LOGGER.debug('BgtEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
                 LOGGER.debug('BgtEngine: _initialize_block NEW Branch[%s]=%s',self._num_branches,bid[:8])
-                self._branches[bid] = self.create_branch(bid,parent)
+                self._branches[bid] = self.create_branch(bid,parent,block_num)
                 self._branches[bid]._try_branch = self._make_branch
                 
             
@@ -272,8 +283,8 @@ class BgtEngine(Engine):
             return False
         return True
 
-    def create_branch(self,bid,parent):
-        branch = BranchState(bid,parent, self._service, self._oracle,self._num_branches)
+    def create_branch(self,bid,parent,block_num):
+        branch = BranchState(bid,parent,block_num, self._service, self._oracle,self._num_branches)
         self._num_branches += 1
         return branch
 
@@ -449,6 +460,7 @@ class BgtEngine(Engine):
             config_dir=self._path_config.config_dir,
             data_dir=self._path_config.data_dir,
             key_dir=self._path_config.key_dir)
+        self._validator_id = self._oracle.validator_id
 
         # 1. Wait for an incoming message.
         # 2. Check for exit.
@@ -466,7 +478,7 @@ class BgtEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug('BgtEngine: start wait message in %s mode.','REAL' if self.is_real_mode else 'TEST')
+        LOGGER.debug('BgtEngine: start wait message in %s mode validator=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8])
         #self._service.initialize_block()
         while True:
             try:
@@ -528,23 +540,24 @@ class BgtEngine(Engine):
     def _handle_new_block(self, block):
         block = BgtBlock(block)
         block_id = block.block_id.hex()
-        LOGGER.info('=> NEW_BLOCK:Received %s num=%s', _short_id(block_id),block.block_num)
-        # find branch for this block 
-        if block.previous_block_id in self._branches:
-            branch = self._branches[block.previous_block_id]
-            if branch.new_block(block):
-                self._new_heads[block_id] = block.previous_block_id
-                LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', _short_id(block_id),block.previous_block_id[:8])
-            else:
-                LOGGER.info('Failed consensus check: %s', _short_id(block_id))
-                # Don't reset now - wait message INVALID_BLOCK
-                #self.reset_state()
+        signer_id  = block.signer_id.hex()
+        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s',block.block_num,_short_id(block_id),signer_id[:8])
+        if signer_id == self._validator_id:
+            # find branch for this block 
+            if block.previous_block_id in self._branches:
+                branch = self._branches[block.previous_block_id]
+                if branch.new_block(block):
+                    self._new_heads[block_id] = block.previous_block_id
+                    LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', _short_id(block_id),block.previous_block_id[:8])
+                else:
+                    LOGGER.info('Failed consensus check: %s', _short_id(block_id))
+                    # Don't reset now - wait message INVALID_BLOCK
+                    #self.reset_state()
         else:
             # external block from another node 
-            signer_id = block.signer_id.hex()
             LOGGER.info('EXTERNAL NEW BLOCK=%s num=%s peer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
             if block_id not in self._peers_branches:
-                branch = self.create_branch('','')
+                branch = self.create_branch('','',block.block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s:%s branch=%s',_short_id(signer_id),_short_id(block_id),branch.ind)
                 branch.new_block(block)
@@ -554,17 +567,20 @@ class BgtEngine(Engine):
         block = self._get_block(block_id)
 
         self._pending_forks_to_resolve.push(block)
-
+        self._committing = False
         self._process_pending_forks()
-        LOGGER.info('VALID_BLOCK  pending_forks=%s.',self._pending_forks_to_resolve)
+        LOGGER.info('VALID_BLOCK  pending_forks DONE.')
 
     def _handle_invalid_block(self,block_id):
-        LOGGER.info('=> INVALID_BLOCK:Received id=%s\n', _short_id(block_id.hex()))
+        
         try:
             block = self._get_block(block_id)
-            if block.previous_block_id in self._branches:
-                branch = self._branches[block.previous_block_id]
-                branch.reset_state()
+            signer_id  = block.signer_id.hex()
+            LOGGER.info('=> INVALID_BLOCK:Received id=%s signer=%s\n', _short_id(block_id.hex()),signer_id[:8])
+            if signer_id == self._validator_id:
+                if block.previous_block_id in self._branches:
+                    branch = self._branches[block.previous_block_id]
+                    branch.reset_state()
             else:
                 LOGGER.info('=> INVALID_BLOCK: external \n')
                 if block_id not in self._peers_branches:
@@ -573,7 +589,7 @@ class BgtEngine(Engine):
                     del self._peers_branches[block_id]
 
         except :
-            LOGGER.info('=> INVALID_BLOCK: undefined \n')
+            LOGGER.info('=> INVALID_BLOCK: undefined id=%s\n', _short_id(block_id.hex()))
         self.reset_state()
 
     def _process_pending_forks(self):
@@ -588,18 +604,19 @@ class BgtEngine(Engine):
     def _resolve_fork(self, block):
         # ask head for branch bid
         bid = block.previous_block_id
-        if bid in self._branches:
-            chain_head = self._get_chain_head(bytes.fromhex(bid))
-            branch = self._branches[bid]
-            if branch.resolve_fork(chain_head,block):
-                self._committing = True
-            else:
-                self.reset_state()
+        signer_id  = block.signer_id.hex()
+        if signer_id == self._validator_id:
+            if bid in self._branches:
+                chain_head = self._get_chain_head(bytes.fromhex(bid))
+                branch = self._branches[bid]
+                if branch.resolve_fork(chain_head,block):
+                    self._committing = True
+                else:
+                    self.reset_state()
         else:
             # external block 
             block_id = block.block_id.hex()
-            signer_id = block.signer_id.hex()
-            LOGGER.info('EXTERNAL BLOCK=%s num=%s peer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
+            LOGGER.info('EXTERNAL BLOCK=%s num=%s signer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
             if block_id in self._peers_branches:
                 chain_head = self._get_chain_head() # ask main head
                 branch = self._peers_branches[block_id] 
@@ -639,6 +656,16 @@ class BgtEngine(Engine):
                 branch.cancel_block(block_id) # change parent_id too 
                 branch.reset_state()
                 del self._peers_branches[block_id] 
+                # update _branches
+                block = self._get_block(bytes.fromhex(block_id))
+                for key,branch in self._branches.items():
+                    if branch.block_num == block.block_num:
+                        LOGGER.info('   update chain head for BRANCH=%s -> %s',branch.ind,block_id[:8])
+                        branch = self._branches.pop(key)
+                        branch._parent_id = block_id
+                        branch._block_num = block.block_num
+                        self._branches[block_id] = branch
+                        break
                  
         
         LOGGER.info('=> BLOCK_COMMIT')

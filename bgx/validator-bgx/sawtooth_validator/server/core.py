@@ -138,6 +138,8 @@ class Validator(object):
             flag='c',
             indexes=BlockStore.create_index_configuration())
         block_store = BlockStore(block_db)
+        # for DAG set mercle db 
+        block_store.set_global_state_db(global_state_db)
         block_cache = BlockCache(block_store, keep_time=300, purge_frequency=30)
         # The cache keep time for the journal's block cache must be greater
         # than the cache keep time used by the completer.

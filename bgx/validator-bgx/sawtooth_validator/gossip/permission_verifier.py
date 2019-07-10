@@ -61,6 +61,7 @@ class PermissionVerifier(object):
                     this is None, the current state root hash will be
                     retrieved.
         """
+        LOGGER.debug("is_batch_signer_authorized: state_root=%s.",state_root)
         if state_root is None:
             state_root = self._current_root_func()
             if state_root == INIT_ROOT_KEY:
@@ -336,6 +337,7 @@ class BatchListPermissionVerifier(Handler):
                 message_type=Message.CLIENT_BATCH_SUBMIT_RESPONSE)
 
         try:
+            LOGGER.debug("BatchListPermissionVerifier: CLIENT_BATCH_SUBMIT_REQUEST ...\n")
             request = client_batch_submit_pb2.ClientBatchSubmitRequest()
             request.ParseFromString(message_content)
             for batch in request.batches:

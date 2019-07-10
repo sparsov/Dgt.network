@@ -130,7 +130,7 @@ class Gossip(object):
         self._maximum_peer_connectivity = maximum_peer_connectivity
         self._topology_check_frequency = topology_check_frequency
         self._settings_cache = settings_cache
-        self._current_root_func = current_root_func
+        self._current_root_func = current_root_func # block_store.chain_head_state_root
         self._consensus_notifier = consensus_notifier
 
         self._topology = None

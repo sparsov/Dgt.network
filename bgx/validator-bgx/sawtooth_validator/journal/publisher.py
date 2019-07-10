@@ -517,6 +517,7 @@ class BlockPublisher(object):
         self._context_handlers = context_handlers
         self._get_merkle_root = context_handlers['merkle_root']
         self._identity_signer = identity_signer
+        self._validator_id = identity_signer.get_public_key().as_hex()
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._permission_verifier = permission_verifier
@@ -537,7 +538,7 @@ class BlockPublisher(object):
         self._batch_observers = batch_observers
         self._check_publish_block_frequency = check_publish_block_frequency
         self._publisher_thread = None
-        LOGGER.debug("BlockPublisher: INIT chain_head=%s block_store=%s\n",chain_head,type(self._block_store))
+        LOGGER.debug("BlockPublisher: INIT chain_head=%s block_store=%s validator=%s\n",chain_head,type(self._block_store),self._validator_id[:8])
 
     def start(self):
         self._publisher_thread = _PublisherThread(
@@ -615,8 +616,8 @@ class BlockPublisher(object):
             'sawtooth.publisher.max_batches_per_block',
             main_head.state_root_hash,# for DAG  chain_head.state_root_hash,
             default_value=0))
-
-        public_key = self._identity_signer.get_public_key().as_hex()
+        # this is my signer_id
+        public_key = self._validator_id #self._identity_signer.get_public_key().as_hex()
         consensus = consensus_module.\
             BlockPublisher(block_cache=self._block_cache,
                            state_view_factory=self._state_view_factory,
@@ -790,11 +791,25 @@ class BlockPublisher(object):
                     """
                     branch_candidate_id = chain_head.previous_block_id
                     LOGGER.info('Now building on top of block: %s-->%s num branch=%s',branch_candidate_id[:8],chain_head.identifier[:8],len(self._chain_heads))
-                    if branch_candidate_id in self._chain_heads:
-                        del self._chain_heads[branch_candidate_id]
-                        LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
+                    if chain_head.signer_id == self._validator_id:
+                        if branch_candidate_id in self._chain_heads:
+                            del self._chain_heads[branch_candidate_id]
+                            LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
+                    else:
+                        LOGGER.info('SWITCH BLOCK CONDIDATE ON EXTERNAL BLOCK=(%s) AS HEAD for BRANCH=%s\n',chain_head.identifier[:8],branch_candidate_id[:8])
+                        for key,head in self._chain_heads.items():
+                            if head.block_num == chain_head.block_num:
+                                del self._chain_heads[key]
+                                branch_candidate_id = key # drop old candidate  
+                                candidate = self._candidate_blocks[key]
+                                # return unused block num 
+                                self._block_store.pop_block_number(candidate.block_num)
+                                LOGGER.info('DEL OLD HEAD=%s by block num branch=%s.%s\n',head.block_num,key[:8])
+                                self._engine_ask_candidate[chain_head.identifier] = True # mark try because consensus engine will switch branch on new head too
+                                break
                     # update head for DAG branch
                     self._chain_heads[chain_head.identifier] = chain_head
+                    LOGGER.info('Current HEADS=%s\n',[key[:8] for key in self._chain_heads.keys()])
                     
                 else:
                     """
@@ -897,7 +912,7 @@ class BlockPublisher(object):
                     
                         if block:
                             blkw = BlockWrapper(block)
-                            LOGGER.info("Claimed Block: for branch=%s (%s)",blkw.identifier[:8],block)
+                            LOGGER.info("Claimed Block: for branch=%s NEW BLOCK=%s (%s)",bid[:8],blkw.identifier[:8],block)
                             """
                             send block to chain controller where we will do consensus
                             external engine after this moment will be waiting NEW BLOCK message

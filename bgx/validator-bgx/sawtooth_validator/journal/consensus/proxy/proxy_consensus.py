@@ -276,7 +276,7 @@ class ForkResolver(ForkResolverInterface):
 
         self._is_compare_forks = None
         _consensus_notifier.notify_block_valid(new_fork_head.identifier)
-        LOGGER.debug("PROXY:compare_forks waiting consensus reply\n")
+        LOGGER.debug("PROXY:compare_forks waiting consensus reply for new head=%s\n",new_fork_head.identifier[:8])
         with self._condition:
             if self._condition.wait_for(self._compare_forks_complete) :
                 if self._is_compare_forks:

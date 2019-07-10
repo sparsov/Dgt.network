@@ -76,7 +76,7 @@ class ConsensusNotifier:
         summary = hashlib.sha256()
         for batch in block.batches:
             summary.update(batch.header_signature.encode())
-        LOGGER.debug('ConsensusNotifier: notify_block_new summary=%s block=%s',summary.digest().hex()[:10],block)
+        LOGGER.debug('ConsensusNotifier: notify_block_new summary=%s block=%s',summary.digest().hex()[:10],block.header_signature[:8])
         block_header = BlockHeader()
         block_header.ParseFromString(block.header)
         self._notify(

@@ -20,7 +20,7 @@ from collections.abc import MutableMapping
 from sawtooth_validator.journal.block_wrapper import BlockStatus
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.protobuf.block_pb2 import Block
-from sawtooth_validator.state.merkle import INIT_ROOT_KEY
+from sawtooth_validator.state.merkle import MerkleDatabase,INIT_ROOT_KEY
 LOGGER = logging.getLogger(__name__)
 
 class BlockStore(MutableMapping):
@@ -148,6 +148,13 @@ class BlockStore(MutableMapping):
             del self._chain_heads[hid]
             self._chain_heads[hid] = new_block
         else:
+            # could be for external block
+
+            for key,head in self._chain_heads.items():
+                if head.block_num == new_block.block_num:
+                    LOGGER.debug("BlockStore: update_chain_heads EXTERNAL del old block=%s.%s",head.block_num,key[:8])
+                    del self._chain_heads[key]
+                    break
             self._chain_heads[hid] = new_block
 
     def get_chain_head(self,branch_id):
@@ -206,13 +213,19 @@ class BlockStore(MutableMapping):
             self._free_block_nums.append(block_num)
             LOGGER.debug("BlockStore:free_block_number  num=%s nums=%s",block_num,self._free_block_nums)
 
+    def set_global_state_db(self,global_state_db):
+        # for DAG - use mercle database for getting root state
+        self._global_state_db = global_state_db
+
     def chain_head_state_root(self):
         """
         Return the state hash of the head block of the current chain.
+        FIXME - for DAG use real merkle root state
         """
         chain_head = self.chain_head
         if chain_head is not None:
-            return chain_head.state_root_hash
+            return MerkleDatabase.get_real_merkle_root(self._global_state_db)
+            #return chain_head.state_root_hash
         return INIT_ROOT_KEY
 
     @property

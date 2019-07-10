@@ -21,7 +21,7 @@ from collections import OrderedDict
 
 
 def _short_id(id):
-    return '/' + id[:8] + '..' + id[-8:] + '/'
+    return '/' + id[:8] + '/' # '/' + id[:8] + '..' + id[-8:] + '/'
 
 
 def pretty_print_dict(dictionary):

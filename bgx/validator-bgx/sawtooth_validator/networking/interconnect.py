@@ -224,7 +224,8 @@ class _SendReceive(object):
                 # as to keep the message from  occurring
                 # _connection_timeout / _heartbeat_interval # times
                 if elapsed < 2 * self._heartbeat_interval:
-                    LOGGER.debug("No response from %s in %s seconds - beginning heartbeat pings.",self._identity_to_connection_id(zmq_identity),elapsed)
+                    pass 
+                    #LOGGER.debug("No response from %s in %s seconds - beginning heartbeat pings.",self._identity_to_connection_id(zmq_identity),elapsed)
                 message = validator_pb2.Message(
                     correlation_id=_generate_id(),
                     # Ping request is an empty message, so an empty byte string

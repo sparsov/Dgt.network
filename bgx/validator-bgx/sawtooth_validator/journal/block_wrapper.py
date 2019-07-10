@@ -119,6 +119,9 @@ class BlockWrapper(object):
         Returns the identifier of the previous block.
         """
         return self.header.previous_block_id
+    @property 
+    def signer_id(self):
+        return self.header.signer_public_key
 
     @staticmethod
     def state_view_for_block(block_wrapper, state_view_factory):
@@ -157,9 +160,10 @@ class BlockWrapper(object):
                    self.state_root_hash, self.previous_block_id)
 
     def __str__(self):
-        return "{} (block_num:{}, state:{}, previous_block_id:{})".format(
-            self.identifier,
+        return "{} (block_num:{}, state:{}, previous_block_id:{}, signer:{})".format(
+            self.identifier[:8],
             self.block_num,
-            self.state_root_hash,
-            self.previous_block_id,
+            self.state_root_hash[:10],
+            self.previous_block_id[:8],
+            self.signer_id[:8],
         )

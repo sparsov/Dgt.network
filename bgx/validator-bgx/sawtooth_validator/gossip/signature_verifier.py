@@ -173,13 +173,11 @@ class GossipBlockResponseSignatureVerifier(Handler):
         block = Block()
         block.ParseFromString(block_response_message.content)
         if block.header_signature in self._seen_cache:
-            LOGGER.debug("Drop already validated block: %s",
-                         block.header_signature)
+            LOGGER.debug("Drop already validated block: %s",block.header_signature[:10])
             return HandlerResult(status=HandlerStatus.DROP)
 
         if not is_valid_block(block):
-            LOGGER.debug("requested block's signature is invalid: %s",
-                         block.header_signature)
+            LOGGER.debug("requested block's signature is invalid: %s",block.header_signature[:10])
             return HandlerResult(status=HandlerStatus.DROP)
 
         self._seen_cache = TimedCache()
@@ -197,13 +195,11 @@ class GossipBatchResponseSignatureVerifier(Handler):
         batch = Batch()
         batch.ParseFromString(batch_response_message.content)
         if batch.header_signature in self._seen_cache:
-            LOGGER.debug("Drop already validated batch: %s",
-                         batch.header_signature)
+            LOGGER.debug("Drop already validated batch: %s",batch.header_signature[:10])
             return HandlerResult(status=HandlerStatus.DROP)
 
         if not is_valid_batch(batch):
-            LOGGER.debug("requested batch's signature is invalid: %s",
-                         batch.header_signature)
+            LOGGER.debug("requested batch's signature is invalid: %s",batch.header_signature[:10])
             return HandlerResult(status=HandlerStatus.DROP)
 
         self._seen_cache[batch.header_signature] = None

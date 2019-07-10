@@ -138,12 +138,14 @@ class ConsensusProxy:
 
     def ignore_block(self, block_id):
         # we can use block manager but we can get this block from _blocks_processing by id
-        """
+        # in case of external block _chain_controller does not contain external block
+        
         try:
             block = next(self._block_manager.get([block_id.hex()]))
+            LOGGER.debug("ignore_block:contains in block manager ID=%s",block.header_signature[:10])
         except StopIteration:
             raise UnknownBlock()
-        """
+        
         self._chain_controller.ignore_block(block_id) # (block)
 
     def fail_block(self, block_id):
