@@ -23,8 +23,7 @@ from queue import Queue
 from sawtooth_validator.concurrent.thread import InstrumentedThread
 from sawtooth_validator.state.merkle import MerkleDatabase
 
-from sawtooth_validator.execution.execution_context \
-    import AuthorizationException
+from sawtooth_validator.execution.execution_context import AuthorizationException
 from sawtooth_validator.execution.execution_context import ExecutionContext
 
 
@@ -379,6 +378,11 @@ class ContextManager(object):
                 LOGGER.debug('_update_state:THERE IS MAPPING FOR STATE=%s !!!!!!!!\n\n',old[:10])
             else:
                 LOGGER.debug('_update_state:ADD MAPPING FOR STATE=%s->%s\n',old[:10],new[:10])
+                if new in self._database:
+                    ref = self._database[new]
+                    if isinstance(ref,str):
+                        new = ref
+                        LOGGER.debug('_update_state: TIGHT REF ON REAL STATE=%s\n',ref[:10])
                 self._database.put(old,new)
 
         def get_merkle_root():

@@ -55,7 +55,7 @@ class BgtOracle:
         LOGGER.debug('BgtOracle: Stream key_dir=%s',key_dir)
         self._signer = _load_identity_signer(key_dir, 'validator')
         self._validator_id = self._signer.get_public_key().as_hex()
-
+        self._service = service
         LOGGER.debug('BgtOracle: Stream component_endpoint=%s',component_endpoint)
         stream = Stream(component_endpoint)
 
@@ -117,7 +117,7 @@ class BgtOracle:
             chain_block = cur_fork_head
             LOGGER.debug('BgtOracle: new_fork_head.block_num < cur_fork_head.block_num')
             while(True): 
-                chain_block = BgtBlock(self._service.get_blocks([chain_block.block_id])[chain_block.block_id]) 
+                chain_block = BgtBlock(self._service.get_blocks([chain_block.previous_id])[chain_block.previous_id]) 
                 if chain_block.block_num == new_fork_head.block_num :
                     LOGGER.debug('BgtOracle: found block')
                     break
@@ -156,7 +156,7 @@ class BgtBlock:
         self.header_signature = identifier
         self.previous_block_id = previous_block_id
         self.signer_public_key = signer_public_key
-        LOGGER.debug('BgtBlock: block=%s',_short_id(self.block_id.hex()))
+        LOGGER.debug('BgtBlock: block=%s.%s(%s)',self.block_num,_short_id(identifier),signer_public_key[:8])
         self.header = _DummyHeader(
             consensus=block.payload,
             signer_public_key=signer_public_key,

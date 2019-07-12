@@ -29,11 +29,17 @@ from sawtooth_bgt_engine.pending import PendingForks
 from sawtooth_bgt_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 
 from sawtooth_bgt_common.utils import _short_id
+from enum import Enum
 
 LOGGER = logging.getLogger(__name__)
-CHAIN_LEN_FOR_BRANCH = 2 # after this len make a new branch 
+CHAIN_LEN_FOR_BRANCH = 12 # after this len make a new branch 
 NULL_BLOCK_IDENTIFIER = "0000000000000000"
 CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
+
+class Consensus(Enum):
+    done = 0
+    fail = 1
+    pending = 2
 
 class BranchState(object):
 
@@ -55,7 +61,7 @@ class BranchState(object):
         self._num_block = 0
         self._chain_len = 0   # for chain lenght
         self._freeze = False # True for freeze block 3
-        self.sequence_number = 0
+        self._sequence_number = 0
         self._validator_id = validator_id
         LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
 
@@ -103,8 +109,8 @@ class BranchState(object):
         messageInfo = PbftMessageInfo(
                     msg_type = PbftMessageInfo.PRE_PREPARE_MSG,
                     view     = 0,
-                    seq_num  = self.sequence_number,
-                    signer_id = self._validator_id
+                    seq_num  = self._sequence_number,
+                    signer_id = bytes.fromhex(self._validator_id)
             ) 
         blockMessage = PbftBlockMessage(
                     block_id  = block.block_id,
@@ -114,6 +120,22 @@ class BranchState(object):
             )
         self._broadcast(PbftMessage(info=messageInfo,block=blockMessage),PbftMessageInfo.PRE_PREPARE_MSG,block.block_id)
 
+    def _send_prepare(self,block):
+        # send PREPARE message 
+        messageInfo = PbftMessageInfo(
+                    msg_type = PbftMessageInfo.PREPARE_MSG,
+                    view     = 0,
+                    seq_num  = self._sequence_number,
+                    signer_id = bytes.fromhex(self._validator_id)
+            ) 
+        blockMessage = PbftBlockMessage(
+                    block_id  = block.block_id,
+                    signer_id =  block.signer_id,
+                    block_num = block.block_num,
+                    summary   = block.summary 
+            )
+        self._broadcast(PbftMessage(info=messageInfo,block=blockMessage),PbftMessageInfo.PREPARE_MSG,block.block_id) 
+
     def check_consensus(self,block):
         
         if block.block_num == 2 and self._can_fail_block:
@@ -121,6 +143,18 @@ class BranchState(object):
             LOGGER.warning("check_consensus: MAKE BLOCK fail FOR TEST\n")
             return False
         return True
+
+    def start_consensus(self,block):
+        self._state = 0
+        self._send_pre_prepare(block)
+
+    def finish_consensus(self,block,block_id):
+        if self._state == 0:
+            self._state += 1
+            LOGGER.warning("finish_consensus:branch[%s] for block_id=%s\n",self._ind,block_id[:8])
+            self.check_block(block.block_id)
+        else:
+            LOGGER.warning("finish_consensus: IGNORE block_id=%s\n",block_id[:8])
 
     def check_block(self,block_id):
         # send in case of consensus was reached
@@ -131,7 +165,12 @@ class BranchState(object):
         # send in case of consensus was not reached
         self._service.fail_block(block_id)
 
-    def new_block(self,block):
+    def new_block(self,block,peers):
+        if len(peers) > 0:
+            # start consensus for active peers
+            self.start_consensus(block)
+            return False
+
         if self.check_consensus(block):
             # at this point state PREPARED
             LOGGER.info('Passed consensus check in state PREPARED: %s ', _short_id(block.block_id.hex()))
@@ -224,6 +263,8 @@ class BranchState(object):
         self._building = False   
         self._published = False  
         self._committing = False
+        self._state = 0
+        self._sequence_number = 0
 
      
         
@@ -234,6 +275,7 @@ class BgtEngine(Engine):
         self._new_heads = {}
         self._peers = {}
         self._peers_branches = {}
+        self._pre_prepare_msgs = {}
         self._path_config = path_config
         self._component_endpoint = component_endpoint
         self._service = None
@@ -539,30 +581,7 @@ class BgtEngine(Engine):
                 LOGGER.exception("BgtEngine:Unhandled exception in message loop")
 
         LOGGER.debug('BgtEngine: start DONE')
-    """
-    def _try_to_publish(self):
-        if self._published:
-            return
 
-        if not self._building:
-            if self._initialize_block():
-                self._building = True
-                LOGGER.debug('BgtEngine: _initialize_block DONE')
-
-        if self._building:
-            LOGGER.debug('BgtEngine: _check_publish_block ..')
-            if self._check_publish_block():
-                LOGGER.debug('BgtEngine: _finalize_block ..')
-                block_id = self._finalize_block()
-                if block_id:
-                    LOGGER.info("Published block %s", _short_id(block_id.hex()))
-                    self._published = True
-                    self._building = False
-                else:
-                    LOGGER.debug('BgtEngine: _cancel_block')
-                    self._cancel_block()
-                    self._building = False
-    """
     def un_freeze_block(self,block_id,parent_id):
         self._new_heads[block_id] = parent_id
         LOGGER.info('   NEW_HEAD=%s for BRANCh=%s AFTER FREEZE', block_id[:8],parent_id[:8])
@@ -576,11 +595,20 @@ class BgtEngine(Engine):
             # find branch for this block 
             if block.previous_block_id in self._branches:
                 branch = self._branches[block.previous_block_id]
-                if branch.new_block(block):
+                self._peers_branches[block_id] = branch # add ref on branch for block 
+                result =  branch.new_block(block,self._peers)
+                if result == Consensus.done:
+                    # refer for block on branch
                     self._new_heads[block_id] = block.previous_block_id
-                    LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', _short_id(block_id),block.previous_block_id[:8])
+                    LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', block_id[:8],block.previous_block_id[:8])
+                elif result == Consensus.fail:
+                    LOGGER.info('Failed consensus check: %s', block_id[:8])
                 else:
-                    LOGGER.info('Failed consensus check: %s', _short_id(block_id))
+                    LOGGER.info('consensus started for block=%s->%s', block_id[:8],block.previous_block_id[:8])
+                    self._new_heads[block_id] = block.previous_block_id
+                    if block_id in self._pre_prepare_msgs:
+                        msg = self._pre_prepare_msgs.pop(block_id)
+                        branch._send_prepare(msg)
                     # Don't reset now - wait message INVALID_BLOCK
                     #self.reset_state()
         else:
@@ -590,7 +618,12 @@ class BgtEngine(Engine):
                 branch = self.create_branch('','',block.block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
-                branch.new_block(block)
+                branch.new_block(block,self._peers)
+                self._new_heads[block_id] = block.previous_block_id
+                LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', block_id[:8],block.previous_block_id[:8])
+                if block_id in self._pre_prepare_msgs:
+                    msg = self._pre_prepare_msgs.pop(block_id)
+                    branch._send_prepare(msg)
 
     def _handle_valid_block(self, block_id):
         LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(block_id.hex()))
@@ -669,12 +702,26 @@ class BgtEngine(Engine):
 
     def _handle_committed_block(self, block_id):
         block_id = block_id.hex()
-        LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress',_short_id(block_id))
+        
+
+        def _update_head_branch(prev_num,block_num):
+            LOGGER.info('   _update_head_branch check=%s',prev_num)
+            for key,branch in self._branches.items():
+                if branch.block_num == prev_num:
+                    LOGGER.info('   update chain head for BRANCH=%s -> %s',branch.ind,block_id[:8])
+                    branch = self._branches.pop(key)
+                    branch._parent_id = block_id
+                    branch._block_num = block_num
+                    self._branches[block_id] = branch
+                    return True
+            return False
+
+        LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress heads=%s',_short_id(block_id),[key[:8] for key in self._new_heads.keys()])
         # for DAG new head for branch will be this block_id
         # and we should use it for asking chain head for this branch 
         if block_id in self._new_heads:
-            hid = self._new_heads.pop(block_id)
-            LOGGER.info('   update chain head for BRANCH=%s->%s',hid[:8],block_id[:8])
+            hid = self._new_heads.pop(block_id) # hid is parent of this block
+            LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s',hid[:8],block_id[:8],[key[:8] for key in self._branches.keys()])
             if hid in self._branches:
                 branch = self._branches.pop(hid)
                 branch.cancel_block(block_id) # change parent_id too 
@@ -682,24 +729,25 @@ class BgtEngine(Engine):
                 self._branches[block_id] = branch
                 self._TOTAL_BLOCK += 1 
                 LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK)
-        else:
-            # external block
-            if block_id in self._peers_branches:
-                branch = self._peers_branches[block_id]
-                branch.cancel_block(block_id) # change parent_id too 
-                branch.reset_state()
-                del self._peers_branches[block_id] 
-                # update _branches
-                block = self._get_block(bytes.fromhex(block_id))
-                for key,branch in self._branches.items():
-                    if branch.block_num == block.block_num:
-                        LOGGER.info('   update chain head for BRANCH=%s -> %s',branch.ind,block_id[:8])
-                        branch = self._branches.pop(key)
-                        branch._parent_id = block_id
-                        branch._block_num = block.block_num
-                        self._branches[block_id] = branch
-                        break
-                 
+            else:
+                # external block
+                LOGGER.info('head updated for=%s  peers branches=%s',_short_id(block_id),[key[:8] for key in self._peers_branches.keys()])
+                if block_id in self._peers_branches:
+                    branch = self._peers_branches[block_id]
+                    branch.cancel_block(block_id) # change parent_id too 
+                    branch.reset_state()
+                    del self._peers_branches[block_id] 
+                    # update _branches
+                    block = self._get_block(bytes.fromhex(block_id))
+                    prev = block
+                    while not _update_head_branch(prev.block_num,block.block_num):
+                        prev = self._get_block(bytes.fromhex(prev.previous_block_id))
+
+
+                    
+                
+                
+                     
         
         LOGGER.info('=> BLOCK_COMMIT')
         self._process_pending_forks()
@@ -714,7 +762,35 @@ class BgtEngine(Engine):
             self._peers[pid] = True
             LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
 
-    def _handle_peer_message(self, block):
-        #block = BgtBlock(block)
-        LOGGER.info('_handle_peer_message:Received %s', type(block))
+    def _handle_peer_message(self, msg):
+        """
+        consensuse message: PrePrepare, Prepare, Commit, Checkpoint 
+        """
+        #LOGGER.info('_handle_peer_message:Received %s', type(msg))
+        p2p_mesg = msg[0]
+        payload = PbftMessage()
+        payload.ParseFromString(p2p_mesg.content)
+        info,block = payload.info,payload.block
+        msg_type = info.msg_type
+        block_id = block.block_id.hex()
+        signer_id = block.signer_id.hex()
+        summary  = block.summary.hex()
+        peer_id = info.signer_id.hex()
+        LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8])
+        if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
+            # send reply 
+            LOGGER.debug("=>SEND PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            if block_id in self._branches:
+                self._branches[block_id]._send_prepare(block)
+            elif block_id in self._peers_branches:
+                self._peers_branches[block_id]._send_prepare(block)
+            elif block_id not in self._pre_prepare_msgs:
+                # message arrive before corresponding block appeared
+                self._pre_prepare_msgs[block_id] = block  
+
+        elif msg_type == PbftMessageInfo.PREPARE_MSG:
+            # continue consensus 
+            LOGGER.debug("=>FINISHING CONSENSUS for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            if block_id in self._peers_branches:
+                self._peers_branches[block_id].finish_consensus(block,block_id)
 

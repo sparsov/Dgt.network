@@ -274,6 +274,7 @@ class BlockValidator(object):
                         #LOGGER.debug("VERIFY BLOCK BATCHES: add batch for block=%s  STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
                         scheduler.add_batch(batch,recomputed_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash) # prev_state
             except InvalidBatch:
+                #the same block was already commited
                 LOGGER.debug("Invalid batch %s encountered during verification of block %s",batch.header_signature[:8],blkw)
                 scheduler.cancel()
                 return False
@@ -1003,7 +1004,7 @@ class ChainController(object):
             LOGGER.debug("ChainController:block_validation_result validator=%s",validator._new_block.status)
             return validator._new_block.status #BlockStatus.Valid
         else:
-            LOGGER.debug("ChainController:block_validation_result id=%s blocks_processing=%s",block_id.hex(),self._blocks_processing)
+            LOGGER.debug("ChainController:block_validation_result id=%s blocks_processing=%s",block_id[:8],self._blocks_processing)
             return BlockStatus.Unknown #BlockStatus(status.value)
 
     def get_blocks_validation(self, block_ids):
@@ -1042,7 +1043,8 @@ class ChainController(object):
         head = self.get_real_head_of_branch(head_id)
         if head is not None:
             if head.summary == new_block.summary:
-                LOGGER.debug("_is_the_same_block_commited: the same block=%s commited", head.identifier[:8])
+                LOGGER.debug("_is_the_same_block_commited: the same block=%s commited num EQUAL=%s", head.identifier[:8],head.block_num == new_block.block_num)
+                
                 return True
         return False
 
@@ -1120,10 +1122,12 @@ class ChainController(object):
 
                     else:
                         # check may be the same block was already commited - ignore
-                        if new_block.status == BlockStatus.Invalid :
+                        if not commit_new_block: # new_block.status == BlockStatus.Invalid :
                             LOGGER.debug("ChainController:on_block_validated BLOCK=%s INVALID\n",new_block.identifier[:8])
                             on_block_invalid(new_block,descendant_blocks)
                         elif self._is_the_same_block_commited(new_block,result["chain_head"].identifier):
+                            # if another block was already commited and new block was commited too - it means that new block has ID > OLD ID 
+                            # and we should update previous block
                             LOGGER.debug("ChainController:on_block_validated THE SAME BLOCK=%s was commited\n",new_block.identifier[:8])
                             on_block_invalid(new_block,descendant_blocks)
                         else:
@@ -1220,9 +1224,7 @@ class ChainController(object):
                         pending_block = descendant_blocks.pop()
                         pending_block.status = BlockStatus.Invalid
 
-                        LOGGER.debug(
-                            'Marking descendant block invalid: %s',
-                            pending_block)
+                        LOGGER.debug('Marking descendant block invalid: %s',pending_block)
 
                         descendant_blocks.extend(
                             self._blocks_pending.pop(
