@@ -811,8 +811,7 @@ class ConnectionManager(InstrumentedThread):
                              connection_id)
                 self._remove_temporary_connection(connection_id)
             elif ack.status == ack.OK:
-                LOGGER.debug("Peering request to %s was successful",
-                             connection_id)
+                LOGGER.debug("Peering request to %s was successful",connection_id)
                 if endpoint:
                     try:
                         self._gossip.register_peer(connection_id, endpoint)

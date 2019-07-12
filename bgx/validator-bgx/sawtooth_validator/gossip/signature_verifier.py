@@ -51,8 +51,7 @@ def is_valid_block(block):
     if not context.verify(block.header_signature,
                           block.header,
                           public_key):
-        LOGGER.debug("block failed signature validation: %s",
-                     block.header_signature)
+        LOGGER.debug("block failed signature validation: %s",block.header_signature)
         return False
 
     # validate all batches in block. These are not all batches in the
@@ -131,13 +130,11 @@ class GossipMessageSignatureVerifier(Handler):
             block.ParseFromString(gossip_message.content)
 
             if block.header_signature in self._seen_cache:
-                LOGGER.debug("Drop already validated block: %s",
-                             block.header_signature)
+                LOGGER.debug("Drop already validated block: %s cache=%s",block.header_signature[:8],[sig[:8] for sig in self._seen_cache])
                 return HandlerResult(status=HandlerStatus.DROP)
 
             if not is_valid_block(block):
-                LOGGER.debug("block signature is invalid: %s",
-                             block.header_signature)
+                LOGGER.debug("block signature is invalid: %s",block.header_signature[:8])
                 return HandlerResult(status=HandlerStatus.DROP)
 
             self._seen_cache[block.header_signature] = None
@@ -147,13 +144,11 @@ class GossipMessageSignatureVerifier(Handler):
             batch = Batch()
             batch.ParseFromString(gossip_message.content)
             if batch.header_signature in self._seen_cache:
-                LOGGER.debug("Drop already validated batch: %s",
-                             batch.header_signature)
+                LOGGER.debug("Drop already validated batch: %s",batch.header_signature[:8])
                 return HandlerResult(status=HandlerStatus.DROP)
 
             if not is_valid_batch(batch):
-                LOGGER.debug("batch signature is invalid: %s",
-                             batch.header_signature)
+                LOGGER.debug("batch signature is invalid: %s",batch.header_signature[:8])
                 return HandlerResult(status=HandlerStatus.DROP)
 
             self._seen_cache[batch.header_signature] = None

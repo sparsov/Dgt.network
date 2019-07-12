@@ -259,6 +259,7 @@ class BlockValidator(object):
             try:
                 for batch, has_more in look_ahead(blkw.block.batches):
                     if self._chain_commit_state.has_batch(batch.header_signature):
+                        # was already commited block with the same batch
                         LOGGER.debug("Block(%s) rejected due to duplicate batch, batch: %s", blkw,batch.header_signature[:8])
                         raise InvalidBatch()
 
@@ -1037,6 +1038,14 @@ class ChainController(object):
             LOGGER.debug("ChainController:ignore_block id=%s undefined\n",block_id[:9])
             #raise UnknownBlock
 
+    def _is_the_same_block_commited(self,new_block,head_id):
+        head = self.get_real_head_of_branch(head_id)
+        if head is not None:
+            if head.summary == new_block.summary:
+                LOGGER.debug("_is_the_same_block_commited: the same block=%s commited", head.identifier[:8])
+                return True
+        return False
+
     def fail_block(self,block):
         # for external consensus     
         block_id = block.hex()
@@ -1060,14 +1069,29 @@ class ChainController(object):
         Returns:
             None
         """
+        def on_block_invalid(new_block,descendant_blocks):
+            self._block_store.free_block_number(new_block.block_num)
+            while descendant_blocks:
+                pending_block = descendant_blocks.pop()
+                pending_block.status = BlockStatus.Invalid
+
+                LOGGER.debug('Marking descendant block invalid: %s',pending_block)
+
+                descendant_blocks.extend(
+                    self._blocks_pending.pop(
+                        pending_block.identifier,
+                        []))
+            if self._consensus_notifier is not None:
+                # say external consensus 
+                self._consensus_notifier.notify_block_invalid(new_block.header_signature)
         try:
             with self._lock:
                 self._blocks_considered_count.inc()
                 new_block = result["new_block"]
                 signer_id = new_block.signer_id
                 is_external = (signer_id != self._validator_id) 
-                LOGGER.info('on_block_validated: block=%s(%s) external=%s chain_head=%s heads=%s',new_block.identifier[:8],signer_id[:8],is_external,result["chain_head"].identifier[:8],
-                            [str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()]
+                LOGGER.info('on_block_validated: block=%s(%s) external=%s chain_head=%s status=%s heads=%s',new_block.identifier[:8],signer_id[:8],is_external,result["chain_head"].identifier[:8],
+                            new_block.status,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()]
                 )
                 # remove from the processing list
                 del self._blocks_processing[new_block.identifier]
@@ -1095,9 +1119,17 @@ class ChainController(object):
                         self._submit_blocks_for_verification(descendant_blocks)
 
                     else:
-                        LOGGER.debug('Verify block again:chain head changed block=%s', new_block)
-                        self._blocks_pending[new_block.identifier] = []
-                        self._submit_blocks_for_verification([new_block])
+                        # check may be the same block was already commited - ignore
+                        if new_block.status == BlockStatus.Invalid :
+                            LOGGER.debug("ChainController:on_block_validated BLOCK=%s INVALID\n",new_block.identifier[:8])
+                            on_block_invalid(new_block,descendant_blocks)
+                        elif self._is_the_same_block_commited(new_block,result["chain_head"].identifier):
+                            LOGGER.debug("ChainController:on_block_validated THE SAME BLOCK=%s was commited\n",new_block.identifier[:8])
+                            on_block_invalid(new_block,descendant_blocks)
+                        else:
+                            LOGGER.debug('Verify block again:chain head changed block=%s', new_block)
+                            self._blocks_pending[new_block.identifier] = []
+                            self._submit_blocks_for_verification([new_block])
 
                 # If the head is to be updated to the new block.
                 elif commit_new_block:

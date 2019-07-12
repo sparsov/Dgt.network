@@ -26,15 +26,18 @@ from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 
 from sawtooth_bgt_engine.oracle import BgtOracle, BgtBlock
 from sawtooth_bgt_engine.pending import PendingForks
+from sawtooth_bgt_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
+
 from sawtooth_bgt_common.utils import _short_id
 
 LOGGER = logging.getLogger(__name__)
 CHAIN_LEN_FOR_BRANCH = 2 # after this len make a new branch 
 NULL_BLOCK_IDENTIFIER = "0000000000000000"
+CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
 class BranchState(object):
 
-    def __init__(self,bid,parent,block_num,service,oracle,ind):
+    def __init__(self,bid,parent,block_num,service,oracle,validator_id,ind):
         self._head_id = bid
         self._ind = ind
         self._parent_id = parent
@@ -52,6 +55,8 @@ class BranchState(object):
         self._num_block = 0
         self._chain_len = 0   # for chain lenght
         self._freeze = False # True for freeze block 3
+        self.sequence_number = 0
+        self._validator_id = validator_id
         LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
 
     @property
@@ -84,6 +89,30 @@ class BranchState(object):
             parent_id = self._freeze_block.previous_block_id
             self._freeze_block = None
         return block_id,parent_id
+
+    def _broadcast(self,payload,msg_type,block_id):
+        # broadcast message 
+        block_id = block_id.hex()
+        #state.shift_sequence_number(block_id,self._consensus_state_store)
+        mgs_type = CONSENSUS_MSG[msg_type]
+        LOGGER.debug("BROADCAST =>> '%s' for block_id=%s",mgs_type,_short_id(block_id))
+        self._service.broadcast(mgs_type,payload.SerializeToString())
+
+    def _send_pre_prepare(self,block):
+        # send PRE_PREPARE message 
+        messageInfo = PbftMessageInfo(
+                    msg_type = PbftMessageInfo.PRE_PREPARE_MSG,
+                    view     = 0,
+                    seq_num  = self.sequence_number,
+                    signer_id = self._validator_id
+            ) 
+        blockMessage = PbftBlockMessage(
+                    block_id  = block.block_id,
+                    signer_id =  block.signer_id,
+                    block_num = block.block_num,
+                    summary   = block.summary 
+            )
+        self._broadcast(PbftMessage(info=messageInfo,block=blockMessage),PbftMessageInfo.PRE_PREPARE_MSG,block.block_id)
 
     def check_consensus(self,block):
         
@@ -285,7 +314,7 @@ class BgtEngine(Engine):
         return True
 
     def create_branch(self,bid,parent,block_num):
-        branch = BranchState(bid,parent,block_num, self._service, self._oracle,self._num_branches)
+        branch = BranchState(bid, parent, block_num, self._service, self._oracle, self._validator_id,self._num_branches)
         self._num_branches += 1
         return branch
 

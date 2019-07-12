@@ -15,6 +15,7 @@
 from enum import Enum
 
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
+import hashlib
 
 NULL_BLOCK_IDENTIFIER = "0000000000000000"
 
@@ -122,6 +123,14 @@ class BlockWrapper(object):
     @property 
     def signer_id(self):
         return self.header.signer_public_key
+
+    @property
+    def summary(self):
+        summary = hashlib.sha256()
+        for batch in self.block.batches:
+            summary.update(batch.header_signature.encode())
+        return summary.digest().hex()
+        #LOGGER.debug('ConsensusNotifier: notify_block_new block=%s summary=%s\n',block.header_signature[:8],summary.digest().hex()[:10])
 
     @staticmethod
     def state_view_for_block(block_wrapper, state_view_factory):

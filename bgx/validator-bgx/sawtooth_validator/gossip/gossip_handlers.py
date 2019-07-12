@@ -168,11 +168,12 @@ class GossipBlockResponseHandler(Handler):
         block.ParseFromString(block_response_message.content)
 
         block_id = block.header_signature
-
+        LOGGER.debug("GossipBlockResponseHandler: BLOCK=%s", block_id[:8])
         ack = NetworkAcknowledgement()
         ack.status = ack.OK
 
         if not self._has_open_requests(block_id) and self._has_block(block_id):
+            LOGGER.debug("GossipBlockResponseHandler: ALREADY HAS BLOCK=%s\n", block_id[:8])
             return HandlerResult(
                 HandlerStatus.RETURN,
                 message_out=ack,
@@ -262,14 +263,13 @@ class GossipBroadcastHandler(Handler):
             #LOGGER.debug("GossipBroadcastHandler:handle BLOCK !!!")
             block = Block()
             block.ParseFromString(gossip_message.content)
-            LOGGER.debug("GossipBroadcastHandler:handle BLOCK=%s!!!",block)
+            LOGGER.debug("GossipBroadcastHandler:handle BLOCK=%s !!!",block.header_signature[:8])
             # If we already have this block, don't forward it
             if not self._completer.get_block(block.header_signature):
                 LOGGER.debug("GossipBroadcastHandler:.broadcast_block!!!")
                 self._gossip.broadcast_block(block, exclude)
         else:
-            LOGGER.info("received %s, not BATCH or BLOCK",
-                        gossip_message.content_type)
+            LOGGER.info("received %s, not BATCH or BLOCK",gossip_message.content_type)
         return HandlerResult(status=HandlerStatus.PASS)
 
 

@@ -91,19 +91,18 @@ class BlockResponderHandler(Handler):
         block_request_message = network_pb2.GossipBlockRequest()
         block_request_message.ParseFromString(message_content)
         if block_request_message.nonce in self._seen_requests:
-            LOGGER.debug("Received repeat GossipBlockRequest from %s",
-                         connection_id)
+            LOGGER.debug("Received repeat GossipBlockRequest from %s",connection_id)
 
             return HandlerResult(HandlerStatus.DROP)
 
         block_id = block_request_message.block_id
         block = self._responder.check_for_block(block_id)
+        LOGGER.debug("BlockResponderHandler:ID=%s BLOCK=%s.",block_id if block_id == "HEAD" else block_id[:8],block)
         if block is None:
             # No block found, broadcast original message to other peers
             # and add to pending requests
             if block_id == "HEAD":
-                LOGGER.debug("No chain head available. Cannot respond to block"
-                             " requests.")
+                LOGGER.debug("No chain head available. Cannot respond to block requests.")
             else:
                 if not self._responder.already_requested(block_id):
                     if block_request_message.time_to_live > 0:
@@ -119,13 +118,12 @@ class BlockResponderHandler(Handler):
 
                         self._responder.add_request(block_id, connection_id)
                 else:
-                    LOGGER.debug("Block %s has already been requested",
-                                 block_id)
+                    LOGGER.debug("Block %s has already been requested",block_id[:8])
 
                     self._responder.add_request(block_id, connection_id)
         else:
-            LOGGER.debug("Responding to block requests: %s",
-                         block.get_block().header_signature)
+            # peer as block 
+            LOGGER.debug("Responding to block requests: block=%s",block.get_block().header_signature[:8])
 
             block_response = network_pb2.GossipBlockResponse(
                 content=block.get_block().SerializeToString())

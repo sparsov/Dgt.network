@@ -46,7 +46,7 @@ class ConsensusNotifier:
 
     def notify_peer_connected(self, peer_id):
         """A new peer was added"""
-        LOGGER.debug('ConsensusNotifier: notify_peer_connected peer_id=%s',peer_id)
+        LOGGER.debug('ConsensusNotifier: notify_peer_connected peer_id=%s',peer_id[:10])
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,
             consensus_pb2.ConsensusNotifyPeerConnected(
@@ -55,7 +55,7 @@ class ConsensusNotifier:
 
     def notify_peer_disconnected(self, peer_id):
         """An existing peer was dropped"""
-        LOGGER.debug('ConsensusNotifier: notify_peer_disconnected')
+        LOGGER.debug('ConsensusNotifier: notify_peer_disconnected peer_id=%s',peer_id[:10])
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_DISCONNECTED,
             consensus_pb2.ConsensusNotifyPeerDisconnected(
@@ -76,6 +76,7 @@ class ConsensusNotifier:
         summary = hashlib.sha256()
         for batch in block.batches:
             summary.update(batch.header_signature.encode())
+         
         LOGGER.debug('ConsensusNotifier: notify_block_new block=%s summary=%s\n',block.header_signature[:8],summary.digest().hex()[:10])
         block_header = BlockHeader()
         block_header.ParseFromString(block.header)
