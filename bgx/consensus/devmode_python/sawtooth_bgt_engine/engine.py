@@ -148,11 +148,15 @@ class BranchState(object):
         self._state = 0
         self._send_pre_prepare(block)
 
-    def finish_consensus(self,block,block_id):
+    def finish_consensus(self,block,block_id,consensus):
         if self._state == 0:
             self._state += 1
-            LOGGER.warning("finish_consensus:branch[%s] for block_id=%s\n",self._ind,block_id[:8])
-            self.check_block(block.block_id)
+            LOGGER.warning("finish_consensus:branch[%s] for block_id=%s consensus=%s\n",self._ind,block_id[:8],consensus)
+            if consensus:
+                self.check_block(bytes.fromhex(block_id))
+            else:
+                self.reset_state()
+                self.fail_block(bytes.fromhex(block_id))
         else:
             LOGGER.warning("finish_consensus: IGNORE block_id=%s\n",block_id[:8])
 
@@ -276,6 +280,7 @@ class BgtEngine(Engine):
         self._peers = {}
         self._peers_branches = {}
         self._pre_prepare_msgs = {}
+        self._prepare_msgs = {}
         self._path_config = path_config
         self._component_endpoint = component_endpoint
         self._service = None
@@ -590,7 +595,7 @@ class BgtEngine(Engine):
         block = BgtBlock(block)
         block_id = block.block_id.hex()
         signer_id  = block.signer_id.hex()
-        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s',block.block_num,_short_id(block_id),signer_id[:8])
+        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summ=%s',block.block_num,_short_id(block_id),signer_id[:8],block.summary.hex()[:8])
         if signer_id == self._validator_id:
             # find branch for this block 
             if block.previous_block_id in self._branches:
@@ -656,7 +661,7 @@ class BgtEngine(Engine):
         self.reset_state()
 
     def _process_pending_forks(self):
-        LOGGER.info('_process_pending_forks ..')
+        LOGGER.info('_process_pending_forks commiting=%s.',self._committing)
         while not self._committing:
             block = self._pending_forks_to_resolve.pop()
             if block is None:
@@ -669,6 +674,7 @@ class BgtEngine(Engine):
         bid = block.previous_block_id
         bbid = bytes.fromhex(bid)
         signer_id  = block.signer_id.hex()
+        block_id = block.block_id.hex()
         if signer_id == self._validator_id:
             if bid in self._branches:
                 # head could be already changed - we can get new head for this branch
@@ -678,9 +684,11 @@ class BgtEngine(Engine):
                     self._committing = True
                 else:
                     self.reset_state()
+            else:
+                LOGGER.info('HEAD FOR BLOCK=%s(%s) was changed',block.block_num, _short_id(block_id),signer_id[:8])
         else:
             # external block 
-            block_id = block.block_id.hex()
+            
             LOGGER.info('EXTERNAL BLOCK=%s(%s) num=%s prev=%s', _short_id(block_id),signer_id[:8],block.block_num,bid[:8])
             if block_id in self._peers_branches:
                 # head could be already changed - we can get new head for this branch
@@ -776,6 +784,7 @@ class BgtEngine(Engine):
         signer_id = block.signer_id.hex()
         summary  = block.summary.hex()
         peer_id = info.signer_id.hex()
+        block_num = block.block_num
         LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8])
         if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
             # send reply 
@@ -792,5 +801,32 @@ class BgtEngine(Engine):
             # continue consensus 
             LOGGER.debug("=>FINISHING CONSENSUS for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
-                self._peers_branches[block_id].finish_consensus(block,block_id)
+                if block_num == 0:
+                    self._peers_branches[block_id].finish_consensus(block,block_id,True)
+                else:
+                    # waiting until all block with equivalent summary will have prepare message
+                    LOGGER.debug("=>CHECK SUMMARY=%s ALL=%s",summary[:8],[key[:8] for key in self._prepare_msgs.keys()])
+                    if summary in self._prepare_msgs:
+                        #  add block for summary list
+                        blocks = self._prepare_msgs[summary]
+                        LOGGER.debug("=>SUMMARY=%s blocks=%s",summary[:8],[key[:8] for key in blocks.keys()])
+                        if block_id in blocks:
+                            LOGGER.debug("=>IGNORE BLOCK=%s FOR SUMMARY=%s",block_id[:8],summary[:8])
+                        else:
+                            blocks[block_id] = True
+                            if len(blocks) == len(self._peers) + 1:
+                                selected = max(blocks.items(), key = lambda x: x[0])[0]
+                                LOGGER.debug("We have all blocks for SUMMARY=%s select=%s blocks=%s",summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
+                                for bid in blocks.keys():
+                                    if bid == selected:
+                                        LOGGER.debug("COMMIT BLOCK=%s",bid[:8])
+                                        self._peers_branches[bid].finish_consensus(block,bid,True)
+                                    else:
+                                        LOGGER.debug("FAIL BLOCK=%s",bid[:8])
+                                        self._peers_branches[bid].finish_consensus(block,bid,False)
+
+
+                    else:
+                        LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s",block_id[:8],summary[:8])
+                        self._prepare_msgs[summary] = {block_id : True}
 

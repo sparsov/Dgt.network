@@ -336,7 +336,7 @@ class _CandidateBlock(object):
         # for DAG get context for recompute merkle state
         self._recompute_context = self._scheduler.get_state_hash_context()
         #sth = self._scheduler.recompute_merkle_root(self._scheduler.previous_state_hash,self._recompute_context)
-        #LOGGER.debug("_CandidateBlock::get_state_hash_context recompute_context=%s\n",self._recompute_context)
+        LOGGER.debug("_CandidateBlock::get_state_hash_context recompute_context=%s\n",self._recompute_context)
         # this is a transaction cache to track the transactions committed
         # up to this batch. Only valid transactions that were processed
         # by the scheduler are added.
@@ -404,8 +404,7 @@ class _CandidateBlock(object):
                     state_hash = result.state_hash
             else:
                 bad_batches.append(batch)
-                LOGGER.debug("Batch %s invalid, not added to block.",
-                             batch.header_signature)
+                LOGGER.debug("Batch %s invalid, not added to block.",batch.header_signature)
 
         if state_hash is None or not builder.batches:
             LOGGER.debug("Abandoning block %s: no batches added", builder)

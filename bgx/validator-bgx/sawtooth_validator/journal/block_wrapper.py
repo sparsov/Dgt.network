@@ -130,7 +130,7 @@ class BlockWrapper(object):
         for batch in self.block.batches:
             summary.update(batch.header_signature.encode())
         return summary.digest().hex()
-        #LOGGER.debug('ConsensusNotifier: notify_block_new block=%s summary=%s\n',block.header_signature[:8],summary.digest().hex()[:10])
+        
 
     @staticmethod
     def state_view_for_block(block_wrapper, state_view_factory):
