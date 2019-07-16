@@ -289,8 +289,7 @@ class Gossip(object):
             time_to_live=time_to_live)
         LOGGER.debug("Gossip::broadcast_batch ...")
 
-        self.broadcast(
-            gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
+        self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
     def broadcast_batch_by_transaction_id_request(self, transaction_ids):
         time_to_live = self.get_time_to_live()

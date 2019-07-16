@@ -255,7 +255,7 @@ class GossipBroadcastHandler(Handler):
             batch = Batch()
             batch.ParseFromString(gossip_message.content)
             # If we already have this batch, don't forward it
-            LOGGER.debug("GossipBroadcastHandler:handle BATCH !!!")
+            LOGGER.debug("GossipBroadcastHandler:handle BATCH=%s !!!",batch.header_signature[:8])
             if not self._completer.get_batch(batch.header_signature):
                 # this new batch for this node 
                 self._gossip.broadcast_batch(batch, exclude)

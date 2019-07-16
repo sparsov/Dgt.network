@@ -799,10 +799,15 @@ class BlockPublisher(object):
                         for key,head in self._chain_heads.items():
                             if head.block_num == chain_head.block_num:
                                 del self._chain_heads[key]
-                                branch_candidate_id = key # drop old candidate  
-                                candidate = self._candidate_blocks[key]
-                                # return unused block num 
-                                self._block_store.pop_block_number(candidate.block_num)
+                                branch_candidate_id = key # drop old candidate
+                                if key in self._candidate_blocks:
+                                    candidate = self._candidate_blocks[key]
+                                    # return unused block num 
+                                    self._block_store.pop_block_number(candidate.block_num)
+                                else:
+                                    # it could be external block
+                                    LOGGER.info('THERE IS NO CANDIDATE for key=%s candidates=%s\n',key[:8],[key[:8] for key in self._candidate_blocks.keys()])
+
                                 LOGGER.info('DEL OLD HEAD=%s by block num branch=%s.%s\n',head.block_num,key[:8])
                                 self._engine_ask_candidate[chain_head.identifier] = True # mark try because consensus engine will switch branch on new head too
                                 break

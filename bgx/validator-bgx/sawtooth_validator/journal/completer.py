@@ -358,9 +358,10 @@ class CompleterBatchListBroadcastHandler(Handler):
         request.ParseFromString(message_content)
         for batch in request.batches:
             if batch.trace:
-                LOGGER.debug("TRACE %s: %s", batch.header_signature,
-                             self.__class__.__name__)
+                LOGGER.debug("TRACE %s: %s", batch.header_signature,self.__class__.__name__)
             self._completer.add_batch(batch)
+            # send batch myself and peers - for DAG maybe good idea send batches to peers only after DAG branch will be chosen FIXME 
+            LOGGER.debug("CompleterBatchListBroadcastHandler: broadcast BATCH=%s", batch.header_signature[:8])
             self._gossip.broadcast_batch(batch)
         return HandlerResult(status=HandlerStatus.PASS)
 

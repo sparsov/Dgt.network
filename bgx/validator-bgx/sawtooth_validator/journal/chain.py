@@ -229,6 +229,11 @@ class BlockValidator(object):
             scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
             if blkw.signer_id != self._validator_id:
                 LOGGER.debug("SKIP processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:10],len(blkw.block.batches))
+                for batch, has_more in look_ahead(blkw.block.batches):
+                    if self._chain_commit_state.has_batch(batch.header_signature):
+                        # was already commited block with the same batch
+                        LOGGER.debug("Block(%s) should be rejected due to duplicate batch, batch: %s", blkw,batch.header_signature[:8])
+
                 if blkw.block_num == 0:
                     # for external genesis block add mapping to own genesis state 
                     # 
@@ -260,7 +265,8 @@ class BlockValidator(object):
                 for batch, has_more in look_ahead(blkw.block.batches):
                     if self._chain_commit_state.has_batch(batch.header_signature):
                         # was already commited block with the same batch
-                        LOGGER.debug("Block(%s) rejected due to duplicate batch, batch: %s", blkw,batch.header_signature[:8])
+                        blk = self._block_cache.block_store.get_block_by_batch_id(batch.header_signature)
+                        LOGGER.debug("Block(%s) rejected due to duplicate batch, batch: %s blk=%s", blkw,batch.header_signature[:8],blk)
                         raise InvalidBatch()
 
                     self._verify_batch_transactions(batch)
@@ -538,8 +544,7 @@ class BlockValidator(object):
         try:
             branch_id = self._new_block.previous_block_id
             LOGGER.info("BlockValidator:run Starting validation NEW BLOCK=%s for BRANCH=%s",self._new_block.identifier[:8],branch_id[:8])
-            cur_chain = self._result["cur_chain"]  # ordered list of the
-            # current chain blocks
+            cur_chain = self._result["cur_chain"]  # ordered list of the  current chain blocks
             new_chain = self._result["new_chain"]  # ordered list of the new chain blocks
             """
             FIXME get the current chain_head .For DAG we should take head for branch relating to _new_block
@@ -665,7 +670,7 @@ class _ChainThread(InstrumentedThread):
             while True:
                 try:
                     block = self._block_queue.get(timeout=1)
-                    LOGGER.debug("_ChainThread NEW BLOCK: %s",block)
+                    LOGGER.debug("_ChainThread: NEW BLOCK: %s",block)
                     self._chain_controller.on_block_received(block)
                 except queue.Empty:
                     # If getting a block times out, just try again.
@@ -848,6 +853,7 @@ class ChainController(object):
                 if branch.previous_block_id == branch_id :
                     LOGGER.debug("get_real_head_of_branch: head was changed=%s->%s",branch_id[:8],key[:8])
                     return head
+                LOGGER.debug("get_real_head_of_branch: GO BACK")
                 branch = self._block_cache[branch.previous_block_id]
         return None
 
@@ -910,7 +916,7 @@ class ChainController(object):
                     # block from our publisher
                     chain_head = self._chain_heads[branch_id]
                 else:
-                    # head of branch can be changed
+                    # head of branch can be changed because of commiting another block with the same summary
                     chain_head = self.get_real_head_of_branch(branch_id)
             else:
                 # block from another node - try to use last head
@@ -1045,18 +1051,18 @@ class ChainController(object):
             if head.summary == new_block.summary:
                 LOGGER.debug("_is_the_same_block_commited: the same block=%s commited num EQUAL=%s", head.identifier[:8],head.block_num == new_block.block_num)
                 
-                return True
-        return False
+                return head
+        return None
 
     def fail_block(self,block):
         # for external consensus     
         block_id = block.hex()
         if block_id in self._blocks_processing :
             validator = self._blocks_processing[block_id]
-            LOGGER.debug("ChainController:fail_block id=%s\n",block_id[:8])
+            LOGGER.debug("ChainController:FAIL block id=%s\n",block_id[:8])
             validator.on_fail_block()
         else:
-            LOGGER.debug("ChainController:fail_block id=%s undefined\n",block_id[:8])
+            LOGGER.debug("ChainController:FAIL block id=%s undefined\n",block_id[:8])
             raise UnknownBlock
 
     def on_block_validated(self, commit_new_block, result):
@@ -1072,6 +1078,15 @@ class ChainController(object):
             None
         """
         def on_block_invalid(new_block,descendant_blocks):
+            # Since the block is invalid, we will never accept any
+            # blocks that are descendants of this block.  We are going
+            # to go through the pending blocks and remove all
+            # descendants we find and mark the corresponding block
+            # as invalid.
+            #
+            # Block could be invalid in case of consensus fail
+            # we should inform external consensus
+            LOGGER.debug("ChainController:on_block_invalid BLOCK=%s INVALID\n",new_block.block_num)
             self._block_store.free_block_number(new_block.block_num)
             while descendant_blocks:
                 pending_block = descendant_blocks.pop()
@@ -1086,6 +1101,82 @@ class ChainController(object):
             if self._consensus_notifier is not None:
                 # say external consensus 
                 self._consensus_notifier.notify_block_invalid(new_block.header_signature)
+
+        def on_block_commit(new_block,bid,descendant_blocks,is_external):
+            """
+            block could be commited
+            """
+            nid = new_block.identifier
+            LOGGER.debug("on_block_commit COMMIT NEW BLOCK=%s.%s for BRANCH=%s\n",new_block.block_num,nid[:8],bid[:8])
+            with self._chain_head_lock:
+                # FIXME - change head for branch==bid into self._chain_heads
+                #
+                # say that block number really used - FIXME - think about external block
+                if not is_external:
+                    self._block_store.pop_block_number(new_block.block_num)
+                # add new head
+                self._chain_heads[nid] = new_block
+                self._block_store.update_chain_heads(nid,new_block)
+                LOGGER.debug("ChainController:update HEAD=%s->%s heads=%s",bid[:8],nid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                # for DAG self._chain_head just last update branch's head it could be local variable 
+                self._chain_head = new_block
+
+                if bid in self._chain_heads:
+                    # drop old head from list for external genesis this code does not work
+                    del self._chain_heads[bid]
+                    LOGGER.debug("COMMIT DROP OLD HEAD=%s",bid[:8])
+                else:
+                    """
+                    for  DAG we should update self._chain_heads using list of block from result["cur_chain"]
+                    in case if block from "cur_chain" there is in _chain_heads we should change this position
+                    """
+                    for key,head in self._chain_heads.items() :
+                        if head.block_num == new_block.block_num:
+                            del self._chain_heads[key]
+                            break
+                    LOGGER.debug("CHECK CUR CHAINS=%s HEADS=%s",[blkw.header_signature[:8] for blkw in result["cur_chain"]],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                    for blk in result["cur_chain"]:
+                        if blk.header_signature in self._chain_heads:
+                            LOGGER.debug("DROP EXTERNAL BLOCK=%s from _chain_heads",blk.header_signature[:8])   
+
+                    LOGGER.debug("COMMIT NEW EXTERNAL BLOCK=%s",nid[:8])
+
+                LOGGER.info("Chain head branch=%s updated heads=%s",bid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                # update the the block store to have the new chain
+                self._block_store.update_chain(result["new_chain"],result["cur_chain"])
+
+                # make sure old chain is in the block_caches
+                self._block_cache.add_chain(result["cur_chain"])
+
+                self._chain_head_gauge.set_value(self._chain_head.identifier[:8]) # FIXME for external block
+
+                self._committed_transactions_count.inc(result["num_transactions"])
+
+                self._block_num_gauge.set_value(self._chain_head.block_num)
+
+                # tell the BlockPublisher else the chain for branch is updated
+                LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s %s\n",new_block.identifier[:8],'EXTERNAL' if is_external else 'INTERNAL' )
+                self._notify_on_chain_updated(
+                    new_block,
+                    result["committed_batches"],
+                    result["uncommitted_batches"])
+
+                for batch in new_block.batches:
+                    if batch.trace:
+                        LOGGER.debug("TRACE %s: %s",batch.header_signature,self.__class__.__name__)
+
+            # Submit any immediate descendant blocks for verification
+            LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
+            self._submit_blocks_for_verification(descendant_blocks)
+
+            for block in reversed(result["new_chain"]):
+                receipts = self._make_receipts(block.execution_results)
+                # Update all chain observers
+                for observer in self._chain_observers:
+                    observer.chain_update(block, receipts)
+
+
+        # new block was validated
         try:
             with self._lock:
                 self._blocks_considered_count.inc()
@@ -1125,20 +1216,25 @@ class ChainController(object):
                         if not commit_new_block: # new_block.status == BlockStatus.Invalid :
                             LOGGER.debug("ChainController:on_block_validated BLOCK=%s INVALID\n",new_block.identifier[:8])
                             on_block_invalid(new_block,descendant_blocks)
-                        elif self._is_the_same_block_commited(new_block,result["chain_head"].identifier):
-                            # if another block was already commited and new block was commited too - it means that new block has ID > OLD ID 
-                            # and we should update previous block
-                            LOGGER.debug("ChainController:on_block_validated THE SAME BLOCK=%s was commited\n",new_block.identifier[:8])
-                            on_block_invalid(new_block,descendant_blocks)
                         else:
-                            LOGGER.debug('Verify block again:chain head changed block=%s', new_block)
-                            self._blocks_pending[new_block.identifier] = []
-                            self._submit_blocks_for_verification([new_block])
+                            real_head = self._is_the_same_block_commited(new_block,result["chain_head"].identifier)
+                            if real_head is not None:
+                                # if another block was already commited and new block was commited too - it means that new block has ID > OLD ID 
+                                # and we should update previous block
+                                LOGGER.debug("ChainController:on_block_validated THE SAME BLOCK=%s<-%s was commited\n",real_head.identifier[:8], new_block.identifier[:8])
+                                #on_block_invalid(new_block,descendant_blocks)
+                                bid = real_head.identifier 
+                                on_block_commit(new_block,bid,descendant_blocks,is_external)
+                            else:
+                                LOGGER.debug('Verify block again:chain head changed block=%s', new_block)
+                                self._blocks_pending[new_block.identifier] = []
+                                self._submit_blocks_for_verification([new_block])
 
                 # If the head is to be updated to the new block.
                 elif commit_new_block:
                     bid = new_block.previous_block_id 
-                    nid = new_block.identifier
+                    on_block_commit(new_block,bid,descendant_blocks,is_external)
+                    """
                     LOGGER.debug("ChainController:on_block_validated COMMIT NEW BLOCK=%s.%s(%s) for BRANCH=%s\n",new_block.block_num,nid[:8],signer_id[:8],bid[:8])
                     with self._chain_head_lock:
                         # FIXME - change head for branch==bid into self._chain_heads
@@ -1157,10 +1253,9 @@ class ChainController(object):
                             # drop old head from list for external genesis this code does not work
                             del self._chain_heads[bid]
                         else:
-                            """
-                            for  DAG we should update self._chain_heads using list of block from result["cur_chain"]
-                            in case if block from "cur_chain" there is in _chain_heads we should change this position
-                            """
+                            #for  DAG we should update self._chain_heads using list of block from result["cur_chain"]
+                            #in case if block from "cur_chain" there is in _chain_heads we should change this position
+                            
                             for key,head in self._chain_heads.items() :
                                 if head.block_num == new_block.block_num:
                                     del self._chain_heads[key]
@@ -1207,30 +1302,12 @@ class ChainController(object):
                         # Update all chain observers
                         for observer in self._chain_observers:
                             observer.chain_update(block, receipts)
-
+                """
                 # If the block was determine to be invalid.
                 elif new_block.status == BlockStatus.Invalid:
-                    # Since the block is invalid, we will never accept any
-                    # blocks that are descendants of this block.  We are going
-                    # to go through the pending blocks and remove all
-                    # descendants we find and mark the corresponding block
-                    # as invalid.
-                    #
-                    # Block could be invalid in case of consensus fail
-                    # we should inform external consensus
-                    LOGGER.debug("ChainController:on_block_validated BLOCK=%s INVALID\n",new_block.block_num)
-                    self._block_store.free_block_number(new_block.block_num)
-                    while descendant_blocks:
-                        pending_block = descendant_blocks.pop()
-                        pending_block.status = BlockStatus.Invalid
-
-                        LOGGER.debug('Marking descendant block invalid: %s',pending_block)
-
-                        descendant_blocks.extend(
-                            self._blocks_pending.pop(
-                                pending_block.identifier,
-                                []))
-
+                    
+                    on_block_invalid(new_block,descendant_blocks)
+ 
                 # The block is otherwise valid, but we have determined we
                 # don't want it as the chain head.
                 else:
@@ -1272,22 +1349,18 @@ class ChainController(object):
                 self._block_cache[block.identifier] = block
                 self._blocks_pending[block.identifier] = []
                 LOGGER.debug("Block received: id=%s", block.identifier[:8])
-                if (block.previous_block_id in self._blocks_processing
-                        or block.previous_block_id in self._blocks_pending):
+                if (block.previous_block_id in self._blocks_processing or block.previous_block_id in self._blocks_pending):
                     LOGGER.debug('Block pending: id=%s', block.identifier[:8])
                     # if the previous block is being processed, put it in a
                     # wait queue, Also need to check if previous block is
                     # in the wait queue.
-                    pending_blocks = self._blocks_pending.get(
-                        block.previous_block_id,
-                        [])
+                    pending_blocks = self._blocks_pending.get(block.previous_block_id,[])
                     # Though rare, the block may already be in the
                     # pending_block list and should not be re-added.
                     if block not in pending_blocks:
                         pending_blocks.append(block)
 
-                    self._blocks_pending[block.previous_block_id] = \
-                        pending_blocks
+                    self._blocks_pending[block.previous_block_id] = pending_blocks
                 else:
                     # schedule this block for validation.
                     self._submit_blocks_for_verification([block])
