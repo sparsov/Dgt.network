@@ -467,7 +467,7 @@ class ConsensusChainHeadGetHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusChainHeadGetHandler: proxy parent_id=(%s) new=(%s)',request.parent_id.hex()[:8],request.new_parent_id.hex()[:8])
+            LOGGER.debug('ConsensusChainHeadGetHandler: proxy parent_id=(%s) new_parent=(%s) is_new=%s',request.parent_id.hex()[:8],request.new_parent_id.hex()[:8],request.is_new)
             chain_head = self._proxy.chain_head_get(request.parent_id,request.new_parent_id,request.is_new)
 
             block_header = BlockHeader()

@@ -32,7 +32,7 @@ from sawtooth_bgt_common.utils import _short_id
 from enum import Enum
 
 LOGGER = logging.getLogger(__name__)
-CHAIN_LEN_FOR_BRANCH = 12 # after this len make a new branch 
+CHAIN_LEN_FOR_BRANCH = 2 # after this len make a new branch 
 NULL_BLOCK_IDENTIFIER = "0000000000000000"
 CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
@@ -155,7 +155,7 @@ class BranchState(object):
             if consensus:
                 self.check_block(bytes.fromhex(block_id))
             else:
-                self.reset_state()
+                #self.reset_state()
                 self.fail_block(bytes.fromhex(block_id))
         else:
             LOGGER.warning("finish_consensus: IGNORE block_id=%s\n",block_id[:8])
@@ -310,7 +310,7 @@ class BgtEngine(Engine):
         self._exit = True
 
     def _initialize_block(self,branch=None,new_branch=None,is_new = False):
-        LOGGER.debug('BgtEngine: _initialize_block branch[%s]',branch.hex()[:8] if branch is not None else None)
+        LOGGER.debug('BgtEngine: _initialize_block branch[%s] is_new=%s',branch.hex()[:8] if branch is not None else None,is_new)
         """
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
@@ -370,31 +370,9 @@ class BgtEngine(Engine):
             if branch._published and not branch._building:
                 return True
         return False
-    """
-    def _check_consensus(self, block):
-        if block.block_num == 2 and self._can_fail_block:
-            self._can_fail_block = False
-            return False
-        return True
-        #return self._oracle.verify_block(block)
-   
-
-    def _switch_forks(self, current_head, new_head):
-        try:
-            switch = self._oracle.switch_forks(current_head, new_head)
-        # The BGT fork resolver raises TypeErrors in certain cases,
-        # e.g. when it encounters non-BGT blocks.
-        except TypeError as err:
-            switch = False
-            LOGGER.warning('BGT fork resolution error: %s', err)
-
-        return switch
-    
-
-    """
 
     def _get_chain_head(self,bid=None,nbid=None,is_new=False):
-        return BgtBlock(self._service.get_chain_head(bid,nbid))
+        return BgtBlock(self._service.get_chain_head(bid,nbid,is_new))
 
     def _get_block(self, block_id):
         return BgtBlock(self._service.get_blocks([block_id])[block_id])
@@ -508,6 +486,14 @@ class BgtEngine(Engine):
                             branch.reset_chain_len()
                             LOGGER.debug('BgtEngine: SWITCHED BRANCH[%s]\n',branch.ind) 
                     else:
+                        # try to do new branch 
+                        if self._make_branch and branch.is_time_to_make_branch :
+                            # try to create new branch until limit of branch will be reached
+                            LOGGER.debug('BgtEngine: TRY1 CREATE NEW BRANCH[%s] (%s)\n',branch.ind,branch._parent_id[:8])
+                            #branch._make_branch = False
+                            #self._make_branch = False
+                            if self._initialize_block(bytes.fromhex(branch._parent_id),is_new=True) :
+                                branch.reset_chain_len()
                         self._initialize_block(bytes.fromhex(bid))
                 else: # already published
                     if self._make_branch and branch.is_time_to_make_branch :
@@ -515,8 +501,8 @@ class BgtEngine(Engine):
                         LOGGER.debug('BgtEngine: TRY CREATE NEW BRANCH[%s] (%s)\n',branch.ind,branch._parent_id[:8])
                         #branch._make_branch = False
                         #self._make_branch = False
-                        if self._initialize_block(bytes.fromhex(branch._parent_id),is_new=True) :
-                            branch.reset_chain_len()
+                        #if self._initialize_block(bytes.fromhex(branch._parent_id),is_new=True) :
+                        #    branch.reset_chain_len()
 
                     if False and self._TOTAL_BLOCK == 5:
                         # for testing only - un freeze branch 0 and 
@@ -648,7 +634,10 @@ class BgtEngine(Engine):
             if signer_id == self._validator_id:
                 if block.previous_block_id in self._branches:
                     branch = self._branches[block.previous_block_id]
-                    branch.reset_state()
+                    if block.block_num == 0:
+                        branch.reset_state()
+                    else:
+                        LOGGER.info('=> INVALID_BLOCK: DONT DO reset \n')
             else:
                 LOGGER.info('=> INVALID_BLOCK: external \n')
                 if block_id not in self._peers_branches:
@@ -817,11 +806,11 @@ class BgtEngine(Engine):
                             if len(blocks) == len(self._peers) + 1:
                                 selected = max(blocks.items(), key = lambda x: x[0])[0]
                                 LOGGER.debug("We have all blocks for SUMMARY=%s select=%s blocks=%s",summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
+                                LOGGER.debug("COMMIT BLOCK=%s",selected[:8])
+
+                                self._peers_branches[selected].finish_consensus(block,selected,True)
                                 for bid in blocks.keys():
-                                    if bid == selected:
-                                        LOGGER.debug("COMMIT BLOCK=%s",bid[:8])
-                                        self._peers_branches[bid].finish_consensus(block,bid,True)
-                                    else:
+                                    if bid != selected:
                                         LOGGER.debug("FAIL BLOCK=%s",bid[:8])
                                         self._peers_branches[bid].finish_consensus(block,bid,False)
 

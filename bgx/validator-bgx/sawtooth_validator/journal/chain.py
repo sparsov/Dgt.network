@@ -98,7 +98,7 @@ class BlockValidator(object):
                  state_view_factory,
                  done_cb,
                  executor,
-                 recompute_context,
+                 get_recompute_context,
                  squash_handler,
                  context_handlers,
                  identity_signer,
@@ -145,11 +145,12 @@ class BlockValidator(object):
         self._done_cb = done_cb
         self._executor = executor
         # for external block recompute_context == None
-        self._recompute_context = recompute_context
+        self._get_recompute_context = get_recompute_context
         self._squash_handler = squash_handler
         self._context_handlers = context_handlers 
         self._check_merkle = context_handlers['check_merkle']
         self._get_merkle_root = context_handlers['merkle_root']
+        self._update_state_hash = context_handlers['update_state']
         self._identity_signer = identity_signer
         self._validator_id = self._identity_signer.get_public_key().as_hex()
         self._data_dir = data_dir
@@ -163,7 +164,7 @@ class BlockValidator(object):
             'uncommitted_batches': [],
             'num_transactions': 0
         }
-        LOGGER.debug('BlockValidator: init _recompute_context=%s new_block=%s signer=%s',self._recompute_context,new_block.identifier[:8],self._validator_id[:8])
+        LOGGER.debug('BlockValidator: init new_block=%s signer=%s',new_block.identifier[:8],self._validator_id[:8])
         self._permission_verifier = permission_verifier
 
         self._validation_rule_enforcer = ValidationRuleEnforcer(SettingsViewFactory(state_view_factory))
@@ -226,31 +227,33 @@ class BlockValidator(object):
             # Use root state from previous block for DAG use last state
             # 
             LOGGER.debug("Have processed transactions again for block %s(%s) STATE=%s",blkw.identifier[:8],blkw.signer_id[:8],prev_state[:10])
-            scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
+            #scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
+            recompute_context = self._get_recompute_context(self._new_block.previous_block_id)
             if blkw.signer_id != self._validator_id:
-                LOGGER.debug("SKIP processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:10],len(blkw.block.batches))
-                for batch, has_more in look_ahead(blkw.block.batches):
-                    if self._chain_commit_state.has_batch(batch.header_signature):
-                        # was already commited block with the same batch
-                        LOGGER.debug("Block(%s) should be rejected due to duplicate batch, batch: %s", blkw,batch.header_signature[:8])
-
+                LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:10],len(blkw.block.batches))
                 if blkw.block_num == 0:
                     # for external genesis block add mapping to own genesis state 
                     # 
                     prev_state = self._block_cache.block_store.chain_head.state_root_hash 
+                    self._update_state_hash(blkw.state_root_hash,prev_state)
+                    return True
+                """
                 else:
                     # for NON genesis block we should use state corresponding to the same own block FIXME
-                    prev_state = self._block_cache.block_store.chain_head.state_root_hash
-                LOGGER.debug("MAPPING STATE %s->%s for EXTERNAL BLOCK=%s",blkw.state_root_hash[:10],prev_state[:10],blkw.identifier[:8])
-                scheduler.update_state_hash(blkw.state_root_hash,prev_state)
+                    if recompute_context is not None:
+                        recomputed_state = scheduler.recompute_merkle_root(prev_state,recompute_context)
+                        scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
+                        LOGGER.debug("MAPPING STATE %s->%s for EXTERNAL BLOCK=%s",blkw.state_root_hash[:10],recomputed_state[:10],blkw.identifier[:8])
+                
                 return True
-            else:
+                """
 
-                if self._recompute_context is not None:
-                    recomputed_state = scheduler.recompute_merkle_root(prev_state,self._recompute_context)
-                else:
-                    recomputed_state = blkw.state_root_hash
-                    LOGGER.debug("_verify_block_batches:EXTERNAL block=%s",blkw.identifier[:8])
+            scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
+            if recompute_context is not None:
+                recomputed_state = scheduler.recompute_merkle_root(prev_state,recompute_context)
+            else:
+                recomputed_state = blkw.state_root_hash
+                LOGGER.debug("_verify_block_batches:EXTERNAL block=%s",blkw.identifier[:8])
 
             if recomputed_state != blkw.state_root_hash:
                 LOGGER.debug("recomputed STATE=%s is not match with state hash from block",recomputed_state[:10])
@@ -395,10 +398,11 @@ class BlockValidator(object):
                     LOGGER.debug("BlockValidator:validate_block -> verify_block")
                     """
                     use proxy engine for verification and send message NEW_BLOCK to consensus
-                    when we got return from verifier.verify_block() consensus already say OK or BAD for this block     
+                    when we got return from verifier.verify_block() consensus already say OK or BAD for this block   
+                    and also we have already selected block (one of the the same block from all peer's block) for consensus                
                     """
                     valid = verifier.verify_block(blkw)
-                    LOGGER.debug("BlockValidator:validate_block <- verify_block=%s",valid)
+                    LOGGER.debug("BlockValidator:validate_block <- verify_block valid=%s",valid)
                     
                 if valid:
                     valid = self._validate_on_chain_rules(blkw)
@@ -418,7 +422,8 @@ class BlockValidator(object):
 
                 blkw.status = BlockStatus.Valid if valid else BlockStatus.Invalid
                 if not valid and hasattr(verifier, 'verify_block_invalid'):
-                    verifier.verify_block_invalid(blkw)
+                    pass
+                    #verifier.verify_block_invalid(blkw)
 
                 LOGGER.debug("BlockValidator:validate_block valid=%s",valid)
 
@@ -863,6 +868,7 @@ class ChainController(object):
         """ 
         if parent_id is None:
             return self._chain_head
+
         if parent_id in self._chain_heads:
             if new_parent_id is not None and new_parent_id in self._block_cache:
                 # switch 'parent_id' head to new point 
@@ -874,7 +880,7 @@ class ChainController(object):
                 self._notify_on_head_updated(parent_id,new_parent_id,new_head)
                 LOGGER.debug("ChainController: swithed BRANCH %s",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 return new_head
-
+            LOGGER.debug("ChainController: head=%s is_new=%s heads=%s",parent_id[:8],is_new,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
             return self._chain_heads[parent_id]
         elif is_new :
             # ask new branch
@@ -965,7 +971,7 @@ class ChainController(object):
                 state_view_factory=self._state_view_factory,
                 done_cb=self.on_block_validated,
                 executor=self._transaction_executor,
-                recompute_context=self._get_recompute_context(branch_id),
+                get_recompute_context=self._get_recompute_context, # from publisher candidate which is freezed
                 squash_handler=self._squash_handler,
                 context_handlers=self._context_handlers,
                 identity_signer=self._identity_signer,

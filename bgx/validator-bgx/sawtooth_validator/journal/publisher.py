@@ -979,6 +979,7 @@ class BlockPublisher(object):
             return context
         else:
             LOGGER.info('get_recompute_context NO BRANCH=%s HEAD CONTEXT\n',bid[:8])
+            return None
 
     def on_initialize_build_candidate(self, chain_head = None):
         """

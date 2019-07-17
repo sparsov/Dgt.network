@@ -15,7 +15,8 @@
 
 from abc import ABCMeta
 from abc import abstractmethod
-
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class Scheduler(object, metaclass=ABCMeta):
     """Abstract class for scheduling transaction execution.
@@ -227,8 +228,10 @@ class SchedulerIterator(object):
                 if txn is not None:
                     self._next_index += 1
                     return txn
-
+                LOGGER.debug('SchedulerIterator: WAITING')
                 self._condition.wait()
+                LOGGER.debug('SchedulerIterator: WAITING DONE')
+
 
 
 class BatchExecutionResult(object):

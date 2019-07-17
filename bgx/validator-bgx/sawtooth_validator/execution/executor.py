@@ -271,10 +271,7 @@ class TransactionExecutorThread(object):
                     inputs=list(header.inputs),
                     outputs=list(header.outputs))
             except KeyError:
-                LOGGER.warning(
-                    "Error creating context for transaction %s, "
-                    "scheduler provided a base context that was not "
-                    "in the context manager.", txn.header_signature)
+                LOGGER.warning("Error creating context for transaction %s, scheduler provided a base context that was not in the context manager.", txn.header_signature)
                 self._scheduler.set_transaction_execution_result(
                     txn_signature=txn.header_signature,
                     is_valid=False,
@@ -464,9 +461,7 @@ class TransactionExecutor(object):
                     try:
                         fut.result(timeout=10)
                     except FutureTimeoutError:
-                        LOGGER.info(
-                            "%s did not respond to the Ping, removing "
-                            "transaction processor.", futures[fut])
+                        LOGGER.info("%s did not respond to the Ping, removing transaction processor.", futures[fut])
                         self._remove_broken_connection(futures[fut])
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception('Unhandled exception while checking connections')
@@ -489,6 +484,7 @@ class TransactionExecutor(object):
             metrics_registry=self._metrics_registry)
         self._executing_threadpool.submit(t.execute_thread)
         with self._lock:
+            #LOGGER.debug('execute:append new thread\n')
             self._alive_threads.append(t)
 
     def stop(self):

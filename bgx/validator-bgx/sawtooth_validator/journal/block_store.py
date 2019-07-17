@@ -181,12 +181,12 @@ class BlockStore(MutableMapping):
         for DAG version
         Return the last head block of sorted graph and reserve this number because others branch can ask this number
         """
-        LOGGER.debug("BlockStore:block_nums=%s free=%s for=%s",self._block_nums,self._free_block_nums,parent_num)
+        LOGGER.debug("BlockStore:block_nums=%s free=%s for=%s",self._block_nums,sorted(self._free_block_nums),parent_num)
         if len(self._free_block_nums) > 0 and max(self._free_block_nums) > parent_num:
             for num in sorted(self._free_block_nums):
                 if num > parent_num:
                     self._free_block_nums.remove(num)
-                    LOGGER.debug("BlockStore: num=%s free=%s",num,self._free_block_nums)
+                    LOGGER.debug("BlockStore: use num=%s free=%s",num,self._free_block_nums)
                     return num
 
         head = self.chain_head

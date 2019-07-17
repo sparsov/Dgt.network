@@ -62,7 +62,6 @@ class SerialScheduler(Scheduler):
         self._merkle_root = None
         if context_handlers is not None:
             self._recompute_state_hash_handler = context_handlers['recompute_state'] 
-            self._update_state_hash = context_handlers['update_state']
             self._update_state_hash = context_handlers['update_state'] 
             self._merkle_root       = context_handlers['merkle_root'] 
 
