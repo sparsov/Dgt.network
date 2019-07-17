@@ -872,13 +872,13 @@ class ChainController(object):
         if parent_id in self._chain_heads:
             if new_parent_id is not None and new_parent_id in self._block_cache:
                 # switch 'parent_id' head to new point 
-                LOGGER.debug("ChainController: switch BRANCH %s->%s heads=%s",parent_id[:8],new_parent_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                LOGGER.debug("ChainController: SWITCH BRANCH %s->%s heads=%s",parent_id[:8],new_parent_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 new_head = self._block_cache[new_parent_id]
                 del self._chain_heads[parent_id]
                 self._chain_heads[new_parent_id] = new_head
                 self._block_store.update_branch(parent_id,new_parent_id,new_head)
                 self._notify_on_head_updated(parent_id,new_parent_id,new_head)
-                LOGGER.debug("ChainController: swithed BRANCH %s",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                LOGGER.debug("ChainController: SWITHED BRANCH %s",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 return new_head
             LOGGER.debug("ChainController: head=%s is_new=%s heads=%s",parent_id[:8],is_new,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
             return self._chain_heads[parent_id]
