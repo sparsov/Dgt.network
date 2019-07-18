@@ -54,3 +54,7 @@ class BatchPublisher(object):
             header_signature=signature)
 
         self._batch_sender.send(batch)
+
+    def send_batch(self,batch,candidate_id=None):
+
+        self._batch_sender.send_batch(batch,candidate_id)

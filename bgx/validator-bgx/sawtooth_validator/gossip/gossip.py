@@ -280,14 +280,15 @@ class Gossip(object):
                   connection_id,
                   one_way=True)
 
-    def broadcast_batch(self, batch, exclude=None, time_to_live=None):
+    def broadcast_batch(self, batch, exclude=None, time_to_live=None,candidate_id = None):
         if time_to_live is None:
             time_to_live = self.get_time_to_live()
         gossip_message = GossipMessage(
             content_type=GossipMessage.BATCH,
             content=batch.SerializeToString(),
-            time_to_live=time_to_live)
-        LOGGER.debug("Gossip::broadcast_batch ...")
+            time_to_live=time_to_live,
+            candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None)
+        LOGGER.debug("Gossip::broadcast_batch for candidate=%s",candidate_id[:8] if candidate_id is not None else None)
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 

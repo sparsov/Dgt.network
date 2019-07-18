@@ -342,8 +342,7 @@ class BatchListPermissionVerifier(Handler):
             request.ParseFromString(message_content)
             for batch in request.batches:
                 if batch.trace:
-                    LOGGER.debug("TRACE %s: %s", batch.header_signature,
-                                 self.__class__.__name__)
+                    LOGGER.debug("TRACE %s: %s", batch.header_signature,self.__class__.__name__)
             if not all(
                     self._verifier.check_off_chain_batch_roles(batch)
                     for batch in request.batches):

@@ -81,6 +81,10 @@ class BranchState(object):
     def is_time_to_make_branch(self):
         return self._chain_len > CHAIN_LEN_FOR_BRANCH # and self._make_branch
 
+    @property
+    def state(self):
+        return self._state
+
     def reset_chain_len(self):
         self._chain_len = 0
 
@@ -279,7 +283,7 @@ class BgtEngine(Engine):
         self._new_heads = {}
         self._peers = {}
         self._peers_branches = {}
-        self._pre_prepare_msgs = {}
+        self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
         self._path_config = path_config
         self._component_endpoint = component_endpoint
@@ -586,7 +590,7 @@ class BgtEngine(Engine):
             # find branch for this block 
             if block.previous_block_id in self._branches:
                 branch = self._branches[block.previous_block_id]
-                self._peers_branches[block_id] = branch # add ref on branch for block 
+                self._peers_branches[block_id] = branch # add ref on branch for own block 
                 result =  branch.new_block(block,self._peers)
                 if result == Consensus.done:
                     # refer for block on branch
@@ -630,21 +634,26 @@ class BgtEngine(Engine):
         try:
             block = self._get_block(block_id)
             signer_id  = block.signer_id.hex()
-            LOGGER.info('=> INVALID_BLOCK:Received id=%s signer=%s\n', _short_id(block_id.hex()),signer_id[:8])
+            bid = block_id.hex()
+            LOGGER.info('=> INVALID_BLOCK:Received id=%s signer=%s\n', _short_id(bid),signer_id[:8])
+            if bid in self._new_heads:
+                self._new_heads.pop(bid)
             if signer_id == self._validator_id:
                 if block.previous_block_id in self._branches:
                     branch = self._branches[block.previous_block_id]
+                    if bid in self._peers_branches:
+                        del self._peers_branches[bid]
                     if block.block_num == 0:
                         branch.reset_state()
                     else:
                         LOGGER.info('=> INVALID_BLOCK: DONT DO reset \n')
             else:
-                LOGGER.info('=> INVALID_BLOCK: external \n')
-                if block_id not in self._peers_branches:
-                    branch = self._peers_branches[block_id]
+                LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],[key[:8] for key in self._peers_branches.keys()])
+                if bid in self._peers_branches:
+                    branch = self._peers_branches[bid]
                     branch = self.reset_state()
-                    del self._peers_branches[block_id]
-
+                    del self._peers_branches[bid]
+            LOGGER.info('=> INVALID_BLOCK: branches=%s \n',[key[:8] for key in self._peers_branches.keys()])
         except :
             LOGGER.info('=> INVALID_BLOCK: undefined id=%s\n', _short_id(block_id.hex()))
         self.reset_state()
@@ -718,14 +727,16 @@ class BgtEngine(Engine):
         # and we should use it for asking chain head for this branch 
         if block_id in self._new_heads:
             hid = self._new_heads.pop(block_id) # hid is parent of this block
-            LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s',hid[:8],block_id[:8],[key[:8] for key in self._branches.keys()])
+            LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s+%s',hid[:8],block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if hid in self._branches:
                 branch = self._branches.pop(hid)
                 branch.cancel_block(block_id) # change parent_id too 
                 branch.reset_state()    
                 self._branches[block_id] = branch
                 self._TOTAL_BLOCK += 1 
-                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK)
+                if block_id in self._peers_branches:
+                    del self._peers_branches[block_id]
+                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s peers branches=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK,[key[:8] for key in self._peers_branches.keys()])
             else:
                 # external block
                 LOGGER.info('head updated for=%s  peers branches=%s',_short_id(block_id),[key[:8] for key in self._peers_branches.keys()])
@@ -746,7 +757,7 @@ class BgtEngine(Engine):
                 
                      
         
-        LOGGER.info('=> BLOCK_COMMIT')
+        LOGGER.info('=> BLOCK_COMMIT branches=%s+%s',[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
         self._process_pending_forks()
         self.reset_state()
 
@@ -788,11 +799,14 @@ class BgtEngine(Engine):
 
         elif msg_type == PbftMessageInfo.PREPARE_MSG:
             # continue consensus 
-            LOGGER.debug("=>FINISHING CONSENSUS for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
                 if block_num == 0:
                     self._peers_branches[block_id].finish_consensus(block,block_id,True)
                 else:
+                    if self._peers_branches[block_id].state > 0:
+                        # skip message after commit or fail
+                        return
                     # waiting until all block with equivalent summary will have prepare message
                     LOGGER.debug("=>CHECK SUMMARY=%s ALL=%s",summary[:8],[key[:8] for key in self._prepare_msgs.keys()])
                     if summary in self._prepare_msgs:
@@ -802,7 +816,8 @@ class BgtEngine(Engine):
                         if block_id in blocks:
                             LOGGER.debug("=>IGNORE BLOCK=%s FOR SUMMARY=%s",block_id[:8],summary[:8])
                         else:
-                            blocks[block_id] = True
+                            # add block into list and check number of blocks
+                            blocks[block_id] = True 
                             if len(blocks) == len(self._peers) + 1:
                                 selected = max(blocks.items(), key = lambda x: x[0])[0]
                                 LOGGER.debug("We have all blocks for SUMMARY=%s select=%s blocks=%s",summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
@@ -813,7 +828,9 @@ class BgtEngine(Engine):
                                     if bid != selected:
                                         LOGGER.debug("FAIL BLOCK=%s",bid[:8])
                                         self._peers_branches[bid].finish_consensus(block,bid,False)
-
+                                # drop list for summary
+                                self._prepare_msgs.pop(summary)
+                                LOGGER.debug("=>ALL SUMMARY=%s\n",[key[:8] for key in self._prepare_msgs.keys()])
 
                     else:
                         LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s",block_id[:8],summary[:8])

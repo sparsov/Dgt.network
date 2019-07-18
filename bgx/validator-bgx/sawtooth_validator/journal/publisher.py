@@ -251,12 +251,12 @@ class _CandidateBlock(object):
                     batch_list.append(b)
 
     def add_batch(self, batch):
-        """Add a batch to the _CandidateBlock
+        """
+        Add a batch to the _CandidateBlock
         :param batch: the batch to add to the block
         """
         if batch.trace:
-            LOGGER.debug("TRACE %s: %s", batch.header_signature,
-                         self.__class__.__name__)
+            LOGGER.debug("TRACE %s: %s", batch.header_signature[:8],self.__class__.__name__)
 
         # first we check if the transaction dependencies are satisfied
         # The completer should have taken care of making sure all
@@ -266,7 +266,7 @@ class _CandidateBlock(object):
         # dropped.
         if self._is_batch_already_committed(batch):
             # batch is already committed.
-            LOGGER.debug("Dropping previously committed batch: %s",batch.header_signature)
+            LOGGER.debug("Dropping previously committed batch: %s",batch.header_signature[:8])
             return
         elif self._check_batch_dependencies(batch, self._committed_txn_cache):
             batches_to_add = []
@@ -292,10 +292,10 @@ class _CandidateBlock(object):
                          batch.header_signature)
 
     def check_publish_block(self):
-        """Check if it is okay to publish this candidate.
         """
-        return self._consensus.check_publish_block(
-            self._block_builder.block_header)
+        Check if it is okay to publish this candidate.
+        """
+        return self._consensus.check_publish_block(self._block_builder.block_header)
 
     def _sign_block(self, block, identity_signer):
         """ The block should be complete and the final
@@ -534,6 +534,7 @@ class BlockPublisher(object):
 
         self._batch_queue = queue.Queue()
         self._queued_batch_ids = []
+        self._queued_batch_cand_ids = [] # for DAG - say about candidate
         self._batch_observers = batch_observers
         self._check_publish_block_frequency = check_publish_block_frequency
         self._publisher_thread = None
@@ -552,14 +553,15 @@ class BlockPublisher(object):
             self._publisher_thread.stop()
             self._publisher_thread = None
 
-    def queue_batch(self, batch):
+    def queue_batch(self, batch,candidate_id=None):
         """
         New batch has been received, queue it with the BlockPublisher for
         inclusion in the next block.
         """
-        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s",batch.header_signature[:10])
+        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s candidate_id=%s",batch.header_signature[:10],candidate_id[:8] if candidate_id is not None else None)
         self._batch_queue.put(batch)
         self._queued_batch_ids.append(batch.header_signature)
+        self._queued_batch_cand_ids.append(candidate_id if candidate_id is not None else '')
         for observer in self._batch_observers:
             observer.notify_batch_pending(batch)
 
@@ -695,9 +697,12 @@ class BlockPublisher(object):
         :param batch: the new pending batch
         :return: None
         """
-        LOGGER.debug("BlockPublisher:on_batch_received (%s)",batch)
+        LOGGER.debug("BlockPublisher:on_batch_received (%s) queued=%s",batch,len(self._queued_batch_ids))
         with self._lock:
+            cid = self._queued_batch_cand_ids[-1] # recomended branch
             self._queued_batch_ids = self._queued_batch_ids[:1]
+            self._queued_batch_cand_ids = self._queued_batch_cand_ids[:1]
+            LOGGER.debug("BlockPublisher: queued=%s",len(self._queued_batch_ids))
             if self._permission_verifier.is_batch_signer_authorized(batch):
                 self._pending_batches.append(batch)
                 self._pending_batch_ids.append(batch.header_signature)
@@ -705,7 +710,7 @@ class BlockPublisher(object):
                 # if we are building a block then send schedule it for
                 # execution.
                 
-                LOGGER.debug("BlockPublisher:on_batch_received candidate block's num=%s heads=%s",len(self._candidate_blocks),[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                LOGGER.debug("BlockPublisher:on_batch_received candidate block's CID=%s heads=%s ",cid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 """
                 choice block candidate for adding batch from self._candidate_blocks
                 FIXME - USE some strategy for choicing candidate
@@ -714,9 +719,11 @@ class BlockPublisher(object):
                     if candidate and candidate.can_add_batch:
                         """
                         there is block candidate and we can add batch into them
-                        for DAG we should choice one of the block candidate
+                        for DAG we should choice one of the block candidate and inform others peer about that choice
                         """
-                        LOGGER.debug("BlockPublisher:on_batch_received use condidate=%s from=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
+                        LOGGER.debug("BlockPublisher:on_batch_received use CANDIDATE=%s FROM=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
+                        # send batch to peers and say about selected branch 
+                        self._batch_publisher.send_batch(batch,candidate.identifier)
                         candidate.add_batch(batch)
                         break
             else:
@@ -860,7 +867,8 @@ class BlockPublisher(object):
             LOGGER.exception(exc)
 
     def on_check_publish_block(self, force=False):
-        """Ask the consensus module if it is time to claim the candidate block
+        """
+        Ask the consensus module if it is time to claim the candidate block
         if it is then, claim it and tell the world about it.
         :return:
             None
