@@ -336,7 +336,7 @@ class _CandidateBlock(object):
         # for DAG get context for recompute merkle state
         self._recompute_context = self._scheduler.get_state_hash_context()
         #sth = self._scheduler.recompute_merkle_root(self._scheduler.previous_state_hash,self._recompute_context)
-        LOGGER.debug("_CandidateBlock::get_state_hash_context recompute_context=%s\n",self._recompute_context)
+        #LOGGER.debug("_CandidateBlock::get_state_hash_context recompute_context=%s\n",self._recompute_context)
         # this is a transaction cache to track the transactions committed
         # up to this batch. Only valid transactions that were processed
         # by the scheduler are added.
@@ -382,7 +382,7 @@ class _CandidateBlock(object):
                 # still succeed validation. In which case we do not want
                 # to add it to the batch.
                 if not self._check_batch_dependencies(batch,committed_txn_cache):
-                    LOGGER.debug("Batch %s invalid, due to missing txn dependency.", batch.header_signature)
+                    LOGGER.debug("Batch %s invalid, due to missing txn dependency.", batch.header_signature[:8])
                     LOGGER.debug("Abandoning block %s: root state hash has invalid txn applied",builder)
                     # Update the pending batch list to be all the
                     # batches that passed validation to this point and
@@ -558,7 +558,7 @@ class BlockPublisher(object):
         New batch has been received, queue it with the BlockPublisher for
         inclusion in the next block.
         """
-        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s candidate_id=%s",batch.header_signature[:10],candidate_id[:8] if candidate_id is not None else None)
+        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s candidate_id=%s queue=%s",batch.header_signature[:10],candidate_id[:8] if candidate_id is not None else None,self.get_current_queue_info())
         self._batch_queue.put(batch)
         self._queued_batch_ids.append(batch.header_signature)
         self._queued_batch_cand_ids.append(candidate_id if candidate_id is not None else '')
@@ -697,12 +697,12 @@ class BlockPublisher(object):
         :param batch: the new pending batch
         :return: None
         """
-        LOGGER.debug("BlockPublisher:on_batch_received (%s) queued=%s",batch,len(self._queued_batch_ids))
+        LOGGER.debug("BlockPublisher:on_batch_received (%s) queued=%s",batch,self._queued_batch_cand_ids)
         with self._lock:
             cid = self._queued_batch_cand_ids[-1] # recomended branch
             self._queued_batch_ids = self._queued_batch_ids[:1]
             self._queued_batch_cand_ids = self._queued_batch_cand_ids[:1]
-            LOGGER.debug("BlockPublisher: queued=%s",len(self._queued_batch_ids))
+            LOGGER.debug("BlockPublisher: queued=%s",self._queued_batch_cand_ids)
             if self._permission_verifier.is_batch_signer_authorized(batch):
                 self._pending_batches.append(batch)
                 self._pending_batch_ids.append(batch.header_signature)
@@ -715,17 +715,25 @@ class BlockPublisher(object):
                 choice block candidate for adding batch from self._candidate_blocks
                 FIXME - USE some strategy for choicing candidate
                 """
-                for candidate in self._candidate_blocks.values():
-                    if candidate and candidate.can_add_batch:
-                        """
-                        there is block candidate and we can add batch into them
-                        for DAG we should choice one of the block candidate and inform others peer about that choice
-                        """
-                        LOGGER.debug("BlockPublisher:on_batch_received use CANDIDATE=%s FROM=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
-                        # send batch to peers and say about selected branch 
-                        self._batch_publisher.send_batch(batch,candidate.identifier)
-                        candidate.add_batch(batch)
-                        break
+                if cid != '' and cid in self._candidate_blocks and self._candidate_blocks[cid].can_add_batch:
+                    # use recomended candidate
+                    candidate = self._candidate_blocks[cid]
+                    LOGGER.debug("BlockPublisher:on_batch_received use recomended CANDIDATE=%s FROM=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
+                    # send batch to peers and say about selected branch 
+                    candidate.add_batch(batch)
+                else:
+                    # take first ready candidate
+                    for candidate in self._candidate_blocks.values():
+                        if candidate and candidate.can_add_batch:
+                            """
+                            there is block candidate and we can add batch into them
+                            for DAG we should choice one of the block candidate and inform others peer about that choice
+                            """
+                            LOGGER.debug("BlockPublisher:on_batch_received use CANDIDATE=%s FROM=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
+                            # send batch to peers and say about selected branch 
+                            self._batch_publisher.send_batch(batch,candidate.identifier)
+                            candidate.add_batch(batch)
+                            break
             else:
                 LOGGER.debug("Batch has an unauthorized signer. Batch: %s",batch.header_signature)
 
@@ -907,19 +915,21 @@ class BlockPublisher(object):
                         pending_batches = []  # will receive the list of batches
                         # that were not added to the block
                         last_batch = candidate.last_batch
-                        LOGGER.debug("BlockPublisher: before finalize_block batchs=%s for BRANCH=%s\n",len(pending_batches),bid[:8])
+                        LOGGER.debug("BlockPublisher: before finalize_block for BRANCH=%s last_batch=%s\n",bid[:8],last_batch.header_signature[:8])
                         block = candidate.finalize_block(self._identity_signer,pending_batches)
-                        LOGGER.debug("BlockPublisher: after finalize_block batchs=%s block=%s",len(self._pending_batches),block is not None)
+                        LOGGER.debug("BlockPublisher: after finalize_block pending batchs=%s block=%s",len(self._pending_batches),block is not None)
 
                         self._candidate_block = None
                     
                         # Update the _pending_batches to reflect what we learned.
-                    
-                        last_batch_index = self._pending_batches.index(last_batch)
-                        unsent_batches = self._pending_batches[last_batch_index + 1:]
-                        self._pending_batches = pending_batches + unsent_batches
-                    
-                        self._pending_batch_gauge.set_value(len(self._pending_batches))
+                        try:
+                            last_batch_index = self._pending_batches.index(last_batch)
+                            unsent_batches = self._pending_batches[last_batch_index + 1:]
+                            self._pending_batches = pending_batches + unsent_batches
+                        
+                            self._pending_batch_gauge.set_value(len(self._pending_batches))
+                        except ValueError:
+                            LOGGER.debug("BlockPublisher: last_batch=%s is not in list pending batches=%s!!!!\n",last_batch.header_signature[:8],len(self._pending_batches))
                     
                         if block:
                             blkw = BlockWrapper(block)

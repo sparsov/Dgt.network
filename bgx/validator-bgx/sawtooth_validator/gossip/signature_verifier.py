@@ -130,7 +130,7 @@ class GossipMessageSignatureVerifier(Handler):
             block.ParseFromString(gossip_message.content)
 
             if block.header_signature in self._seen_cache:
-                LOGGER.debug("Drop already validated block: %s cache=%s",block.header_signature[:8],[sig[:8] for sig in self._seen_cache])
+                LOGGER.debug("Drop already validated block: %s cache=%s",block.header_signature[:8],len(self._seen_cache)) #[sig[:8] for sig in self._seen_cache])
                 return HandlerResult(status=HandlerStatus.DROP)
 
             if not is_valid_block(block):

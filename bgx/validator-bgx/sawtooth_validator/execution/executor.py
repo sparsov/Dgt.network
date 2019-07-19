@@ -285,7 +285,7 @@ class TransactionExecutorThread(object):
                     context_id=None)
                 continue
             # send request for tnx processor
-            LOGGER.debug("Execute schedule:send tnx=%s to tnx processor",txn.header_signature)
+            LOGGER.debug("Execute schedule:send tnx=%s to tnx processor",txn.header_signature[:8])
             content = processor_pb2.TpProcessRequest(
                 header=header,
                 payload=txn.payload,
@@ -306,8 +306,7 @@ class TransactionExecutorThread(object):
         processor = self._processors.get_next_of_type(
             processor_type=processor_type)
         if processor is None:
-            LOGGER.debug("no transaction processors registered for "
-                         "processor type %s", processor_type)
+            LOGGER.debug("no transaction processors registered for processor type %s", processor_type)
             if processor_type not in self._waiters_by_type:
                 in_queue = queue.Queue()
                 in_queue.put_nowait((content, signature))

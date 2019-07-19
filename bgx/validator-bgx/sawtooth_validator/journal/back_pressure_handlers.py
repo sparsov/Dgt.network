@@ -54,10 +54,7 @@ class ClientBatchSubmitBackpressureHandler(Handler):
         if not self._can_accept():
             if not self._applying_backpressure:
                 self._applying_backpressure = True
-                LOGGER.info(
-                    'Applying back pressure on client submitted batches: '
-                    'current depth: %s, limit: %s',
-                    *self._queue_info())
+                LOGGER.info('Applying back pressure on client submitted batches: current depth: %s, limit: %s',*self._queue_info())
 
             self._batches_rejected_count.inc()
             self._batches_rejected_gauge.set_value(
@@ -74,9 +71,6 @@ class ClientBatchSubmitBackpressureHandler(Handler):
             if self._applying_backpressure:
                 self._applying_backpressure = False
                 self._batches_rejected_gauge.set_value(0)
-                LOGGER.info(
-                    'Ending back pressure on client submitted batches: '
-                    'current depth: %s, limit: %s',
-                    *self._queue_info())
+                LOGGER.info('Ending back pressure on client submitted batches: current depth: %s, limit: %s',*self._queue_info())
 
         return HandlerResult(status=HandlerStatus.PASS)

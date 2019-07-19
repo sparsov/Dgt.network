@@ -545,7 +545,7 @@ class BgtEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug('BgtEngine: start wait message in %s mode validator=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8])
+        LOGGER.debug('BgtEngine: start wait message in %s mode validator=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:10])
         #self._service.initialize_block()
         while True:
             try:
@@ -812,15 +812,16 @@ class BgtEngine(Engine):
                     if summary in self._prepare_msgs:
                         #  add block for summary list
                         blocks = self._prepare_msgs[summary]
-                        LOGGER.debug("=>SUMMARY=%s blocks=%s",summary[:8],[key[:8] for key in blocks.keys()])
+                        LOGGER.debug("=>SUMMARY=%s have blocks=%s",summary[:8],[key[:8] for key in blocks.keys()])
                         if block_id in blocks:
-                            LOGGER.debug("=>IGNORE BLOCK=%s FOR SUMMARY=%s",block_id[:8],summary[:8])
+                            LOGGER.debug("=>IGNORE BLOCK=%s FOR SUMMARY=%s (already has).",block_id[:8],summary[:8])
                         else:
                             # add block into list and check number of blocks
+                            LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s total=%s",block_id[:8],summary[:8],len(blocks))
                             blocks[block_id] = True 
-                            if len(blocks) == len(self._peers) + 1:
+                            if len(blocks) == (len(self._peers) + 1):
                                 selected = max(blocks.items(), key = lambda x: x[0])[0]
-                                LOGGER.debug("We have all blocks for SUMMARY=%s select=%s blocks=%s",summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
+                                LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
                                 LOGGER.debug("COMMIT BLOCK=%s",selected[:8])
 
                                 self._peers_branches[selected].finish_consensus(block,selected,True)

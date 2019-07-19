@@ -72,7 +72,7 @@ class BlockBuilder(object):
         self._header_signature = sig
 
     def __str__(self):
-        return "({}, S:{}, P:{})". \
+        return "(N:{}, S:{}, P:{})". \
             format(self.block_header.block_num,
                    self.block_header.state_root_hash[:8],
                    self.block_header.previous_block_id[:8])

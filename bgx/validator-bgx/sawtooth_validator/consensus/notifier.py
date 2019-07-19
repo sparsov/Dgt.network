@@ -63,7 +63,7 @@ class ConsensusNotifier:
 
     def notify_peer_message(self, message, sender_id):
         """A new message was received from a peer"""
-        LOGGER.debug('ConsensusNotifier: notify_peer_message sender_id=%s',sender_id)
+        # LOGGER.debug('ConsensusNotifier: notify_peer_message sender_id=%s',sender_id)
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_MESSAGE,
             consensus_pb2.ConsensusNotifyPeerMessage(
@@ -77,7 +77,7 @@ class ConsensusNotifier:
         for batch in block.batches:
             summary.update(batch.header_signature.encode())
          
-        LOGGER.debug('ConsensusNotifier: notify_block_new block=%s summary=%s\n',block.header_signature[:8],summary.digest().hex()[:10])
+        LOGGER.debug('ConsensusNotifier: notify_block_new BLOCK=%s SUMMARY=%s\n',block.header_signature[:8],summary.digest().hex()[:10])
         block_header = BlockHeader()
         block_header.ParseFromString(block.header)
         self._notify(
@@ -93,7 +93,7 @@ class ConsensusNotifier:
 
     def notify_block_valid(self, block_id):
         """This block can be committed successfully"""
-        LOGGER.debug('ConsensusNotifier: notify_block_valid block=%s\n',block_id[:8])
+        LOGGER.debug('ConsensusNotifier: notify_block_valid BLOCK=%s\n',block_id[:8])
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_BLOCK_VALID,
             consensus_pb2.ConsensusNotifyBlockValid(

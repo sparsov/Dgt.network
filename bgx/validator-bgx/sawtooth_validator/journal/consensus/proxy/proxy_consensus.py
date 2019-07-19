@@ -158,7 +158,7 @@ class BlockPublisher(BlockPublisherInterface):
         Returns:
             True
         """
-        LOGGER.debug("PROXY:finalize_block inform external engine header=%s",block_header)
+        LOGGER.debug("PROXY:finalize_block inform external engine header=%s",block_header.block_num)
         self._publisher.on_finalize_block(block_header)
         self._is_finalize_complete = None
         LOGGER.debug("PROXY:finalize_block wait proxy reply via finalize_block_complete...\n")
