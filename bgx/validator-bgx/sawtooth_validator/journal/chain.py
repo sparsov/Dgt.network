@@ -44,7 +44,7 @@ from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch
 LOGGER = logging.getLogger(__name__)
 
 MAX_DAG_BRANCH = 3 # for DAG 
-
+PEERS_NUM      = 3 # threads for peers  
 class BlockValidationAborted(Exception):
     """
     Indication that the validation of this fork has terminated for an
@@ -799,7 +799,7 @@ class ChainController(object):
 
         self._block_queue = queue.Queue()
         self._thread_pool = (
-            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch, name='Validating')
+            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch+PEERS_NUM, name='Validating')
             if thread_pool is None else thread_pool
         )
         self._chain_thread = None

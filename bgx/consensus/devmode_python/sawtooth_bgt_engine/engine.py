@@ -362,6 +362,10 @@ class BgtEngine(Engine):
             LOGGER.debug('BgtEngine: _initialize_block ERROR InvalidState')
             self._skip = True
             return False
+        except Exception as ex:
+            LOGGER.debug('BgtEngine: PROXY _initialize_block ERROR %s!!!\n',ex)
+            return False
+
         return True
 
     def create_branch(self,bid,parent,block_num):
@@ -766,7 +770,7 @@ class BgtEngine(Engine):
         pinfo = ConsensusNotifyPeerConnected()
         #info = pinfo.ParseFromString(block)
         pid = block.peer_id.hex()
-        if pid not in self._peers:
+        if pid not in self._peers and pid != self._validator_id:
             self._peers[pid] = True
             LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
 
@@ -808,18 +812,19 @@ class BgtEngine(Engine):
                         # skip message after commit or fail
                         return
                     # waiting until all block with equivalent summary will have prepare message
-                    LOGGER.debug("=>CHECK SUMMARY=%s ALL=%s",summary[:8],[key[:8] for key in self._prepare_msgs.keys()])
+                    LOGGER.debug("=>CHECK SUMMARY=%s ALL=%s",summary[:10],[key[:8] for key in self._prepare_msgs.keys()])
                     if summary in self._prepare_msgs:
                         #  add block for summary list
                         blocks = self._prepare_msgs[summary]
-                        LOGGER.debug("=>SUMMARY=%s have blocks=%s",summary[:8],[key[:8] for key in blocks.keys()])
+                        LOGGER.debug("=>SUMMARY=%s have blocks=%s",summary[:10],[key[:8] for key in blocks.keys()])
                         if block_id in blocks:
                             LOGGER.debug("=>IGNORE BLOCK=%s FOR SUMMARY=%s (already has).",block_id[:8],summary[:8])
                         else:
                             # add block into list and check number of blocks
-                            LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s total=%s",block_id[:8],summary[:8],len(blocks))
+                            num_peers = len(self._peers)
+                            LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s total=%s peers=%s",block_id[:8],summary[:8],len(blocks),num_peers)
                             blocks[block_id] = True 
-                            if len(blocks) == (len(self._peers) + 1):
+                            if len(blocks) == (num_peers + 1):
                                 selected = max(blocks.items(), key = lambda x: x[0])[0]
                                 LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
                                 LOGGER.debug("COMMIT BLOCK=%s",selected[:8])
