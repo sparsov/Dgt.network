@@ -295,11 +295,9 @@ class SerialScheduler(Scheduler):
 
             def in_schedule(entry):
                 (batch_id, annotated_batch) = entry
-                return batch_id in self._batch_statuses or \
-                    annotated_batch.preserve or batch_id == inprogress_batch_id
+                return batch_id in self._batch_statuses or annotated_batch.preserve or batch_id == inprogress_batch_id
 
-            incomplete_batches = list(
-                filterfalse(in_schedule, self._batch_by_id.items()))
+            incomplete_batches = list(filterfalse(in_schedule, self._batch_by_id.items()))
 
             # clean up the batches, including partial complete information
             for batch_id, annotated_batch in incomplete_batches:
@@ -321,7 +319,7 @@ class SerialScheduler(Scheduler):
             self._condition.notify_all()
 
         if incomplete_batches:
-            LOGGER.debug('Removed %s incomplete batches from the schedule',len(incomplete_batches))
+            LOGGER.debug('Removed %s incomplete batches=%s from the schedule',len(incomplete_batches),[batch[1][0].header_signature[:8] for batch in incomplete_batches])
 
     def finalize(self):
         with self._condition:

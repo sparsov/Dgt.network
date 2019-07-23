@@ -82,7 +82,7 @@ class ConsensusProxy:
         if previous_id:
             try:
                 
-                LOGGER.debug("ConsensusProxy:initialize_block (%s)",previous_id.hex()[:8])
+                LOGGER.debug("ConsensusProxy:initialize_block head=%s",previous_id.hex()[:8])
                 #has = self._chain_controller.has_block(previous_id.hex())
                 #previous_block1 = self._chain_controller.get_block_from_cache(previous_id.hex()) if has else None
                 block = next(self._block_manager.get([previous_id.hex()])) 
@@ -93,7 +93,7 @@ class ConsensusProxy:
                 raise UnknownBlock()
             
             self._block_publisher.initialize_block(previous_block)
-            LOGGER.debug("ConsensusProxy:initialize_block (%s) DONE",previous_id.hex()[:8])
+            LOGGER.debug("ConsensusProxy:initialize_block DONE for head=%s ",previous_id.hex()[:8])
         else:
             self._block_publisher.initialize_block(self._chain_controller.chain_head)
 

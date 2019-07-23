@@ -263,7 +263,7 @@ class GossipBroadcastHandler(Handler):
             
             block = Block()
             block.ParseFromString(gossip_message.content)
-            LOGGER.debug("GossipBroadcastHandler:handle BLOCK=%s.%s !!!",block.block_num,block.header_signature[:8])
+            LOGGER.debug("GossipBroadcastHandler:handle BLOCK=%s !!!",block.header_signature[:8])
             # If we already have this block, don't forward it
             if not self._completer.get_block(block.header_signature):
                 LOGGER.debug("GossipBroadcastHandler:.broadcast_block!!!")

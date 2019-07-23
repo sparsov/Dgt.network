@@ -750,7 +750,7 @@ class ChainController(object):
             None
         """
         self._lock = RLock()
-        self._chain_head_lock = chain_head_lock
+        self._chain_head_lock = chain_head_lock # publisher lock
         self._block_cache = block_cache
         self._block_store = block_cache.block_store
         self._state_view_factory = state_view_factory
@@ -851,7 +851,7 @@ class ChainController(object):
         self._block_queue.put(block)
 
     def get_real_head_of_branch(self,branch_id):
-        for key,head  in self._chain_heads.items():
+        for key,head  in list(self._chain_heads.items()):
             # check may be for this branch head was changed
             branch = head
             while branch.previous_block_id != NULL_BLOCK_IDENTIFIER:
@@ -1161,7 +1161,7 @@ class ChainController(object):
                 self._block_num_gauge.set_value(self._chain_head.block_num)
 
                 # tell the BlockPublisher else the chain for branch is updated
-                LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s %s\n",new_block.identifier[:8],'EXTERNAL' if is_external else 'INTERNAL' )
+                LOGGER.debug("ChainController:_notify_on_chain_updated from on_block_validated ID=%s %s LOCK\n",new_block.identifier[:8],'EXTERNAL' if is_external else 'INTERNAL' )
                 self._notify_on_chain_updated(
                     new_block,
                     result["committed_batches"],

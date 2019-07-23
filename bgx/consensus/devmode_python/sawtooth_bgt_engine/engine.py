@@ -32,7 +32,7 @@ from sawtooth_bgt_common.utils import _short_id
 from enum import Enum
 
 LOGGER = logging.getLogger(__name__)
-CHAIN_LEN_FOR_BRANCH = 2 # after this len make a new branch 
+CHAIN_LEN_FOR_BRANCH = 3 # after this len make a new branch 
 NULL_BLOCK_IDENTIFIER = "0000000000000000"
 CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
@@ -227,6 +227,7 @@ class BranchState(object):
             return None
 
         try:
+            # say to validator that we are ready to finalize this block
             block_id = self._service.finalize_block(parent_id,consensus)
             LOGGER.info('Finalized summary=%s block_id=%s BRANCH=%s',summary,_short_id(block_id.hex()),self._head_id[:8]) 
             self._building = True # ONLY for testing new version - normal True
@@ -363,7 +364,7 @@ class BgtEngine(Engine):
             self._skip = True
             return False
         except Exception as ex:
-            LOGGER.debug('BgtEngine: PROXY _initialize_block ERROR %s!!!\n',ex)
+            LOGGER.debug('BgtEngine: _initialize_block HEAD=%s.%s ERROR %s!!!\n',chain_head.block_num,chain_head.block_id.hex()[:8],ex)
             return False
 
         return True
