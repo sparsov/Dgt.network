@@ -18,7 +18,7 @@ from sawtooth_validator.networking.dispatch import Handler
 from sawtooth_validator.networking.dispatch import HandlerResult
 from sawtooth_validator.networking.dispatch import HandlerStatus
 from sawtooth_validator.protobuf import validator_pb2
-from sawtooth_validator.protobuf.batch_pb2 import Batch
+from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipMessage
@@ -126,6 +126,7 @@ class GossipMessageDuplicateHandler(Handler):
     def handle(self, connection_id, message_content):
         gossip_message = GossipMessage()
         gossip_message.ParseFromString(message_content)
+        LOGGER.debug("GossipMessageDuplicateHandler: content_type=%s", gossip_message.content_type)
         if gossip_message.content_type == gossip_message.BLOCK:
             block = Block()
             block.ParseFromString(gossip_message.content)
@@ -151,6 +152,21 @@ class GossipMessageDuplicateHandler(Handler):
 
             if has_batch:
                 return HandlerResult(HandlerStatus.DROP)
+        if gossip_message.content_type == gossip_message.BATCHES:
+            # check batches FIXME
+            LOGGER.debug("GossipMessageDuplicateHandler: check BATCHES")
+            batches = BatchList()
+            batches.ParseFromString(gossip_message.content)
+            has_batch = False
+            for batch in batches.batches:
+                if self._completer.get_batch(batch.header_signature) is not None or self._has_batch(batch.header_signature):
+                    has_batch = True
+                    break
+            if has_batch:
+                LOGGER.debug("GossipMessageDuplicateHandler: BATCHES dublicate IGNORE")
+                return HandlerResult(HandlerStatus.DROP)
+                
+
 
         return HandlerResult(HandlerStatus.PASS)
 
@@ -255,10 +271,15 @@ class GossipBroadcastHandler(Handler):
             batch = Batch()
             batch.ParseFromString(gossip_message.content)
             # If we already have this batch, don't forward it
-            LOGGER.debug("GossipBroadcastHandler:handle BATCH=%s !!!",batch.header_signature[:8])
+            LOGGER.debug("GossipBroadcastHandler: check BATCH=%s !!!",batch.header_signature[:8])
             if not self._completer.get_batch(batch.header_signature):
                 # this new batch for this node 
+                LOGGER.debug("GossipBroadcastHandler: new BATCH=%s !!!",batch.header_signature[:8])
                 self._gossip.broadcast_batch(batch, exclude)
+
+        elif gossip_message.content_type == GossipMessage.BATCHES:
+            LOGGER.debug("GossipBroadcastHandler:handle BATCHES !!!")
+
         elif gossip_message.content_type == GossipMessage.BLOCK:
             
             block = Block()
@@ -268,8 +289,10 @@ class GossipBroadcastHandler(Handler):
             if not self._completer.get_block(block.header_signature):
                 LOGGER.debug("GossipBroadcastHandler:.broadcast_block!!!")
                 self._gossip.broadcast_block(block, exclude)
+       
         else:
             LOGGER.info("received %s, not BATCH or BLOCK",gossip_message.content_type)
+
         return HandlerResult(status=HandlerStatus.PASS)
 
 

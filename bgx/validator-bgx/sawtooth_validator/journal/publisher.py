@@ -64,8 +64,7 @@ class PendingBatchObserver(metaclass=abc.ABCMeta):
         Args:
             batch (Batch): The Batch that has been added to the Publisher
         """
-        raise NotImplementedError('PendingBatchObservers must have a '
-                                  '"notify_batch_pending" method')
+        raise NotImplementedError('PendingBatchObservers must have a "notify_batch_pending" method')
 
 
 class _PublisherThread(InstrumentedThread):
@@ -82,14 +81,13 @@ class _PublisherThread(InstrumentedThread):
         try:
             # make sure we don't check to publish the block
             # to frequently.
-            next_check_publish_block_time = time.time() + \
-                self._check_publish_block_frequency
+            next_check_publish_block_time = time.time() + self._check_publish_block_frequency
             LOGGER.debug("_PublisherThread:run _check_publish_block_frequency=%s",self._check_publish_block_frequency)
             while True:
                 try:
-                    batch = self._batch_queue.get(
-                        timeout=self._check_publish_block_frequency)
+                    batch = self._batch_queue.get(timeout=self._check_publish_block_frequency)
                     self._block_publisher.on_batch_received(batch)
+
                 except queue.Empty:
                     # If getting a batch times out, just try again.
                     pass
@@ -141,6 +139,7 @@ class _CandidateBlock(object):
         self._identifier = identifier
         self._recompute_context = None
         self._make_batch_broadcast = False
+        self._batches_num = 0 # must have batches
 
     def __del__(self):
         # Cancel the scheduler if it is not complete
@@ -150,6 +149,10 @@ class _CandidateBlock(object):
     @property
     def identifier(self):
         return self._identifier
+
+    @property
+    def batches_num(self):
+        return self._batches_num
 
     @property
     def make_batch_broadcast(self):
@@ -257,7 +260,8 @@ class _CandidateBlock(object):
     def add_batch(self, batch):
         """
         Add a batch to the _CandidateBlock
-        :param batch: the batch to add to the block
+        :params batch: the batch to add to the block
+        if self._make_batch_broadcast == False we should inject this batch and don't finalize block util all such batch will be completed
         """
         if batch.trace:
             LOGGER.debug("TRACE %s: %s", batch.header_signature[:8],self.__class__.__name__)
@@ -277,8 +281,7 @@ class _CandidateBlock(object):
 
             # Inject batches at the beginning of the block
             if not self._pending_batches:
-                self._poll_injectors(lambda injector: injector.block_start(
-                    self._block_builder.previous_block_id), batches_to_add)
+                self._poll_injectors(lambda injector: injector.block_start(self._block_builder.previous_block_id), batches_to_add)
 
             batches_to_add.append(batch)
             LOGGER.debug("ADD_BATCH INTO BRANCH[%s]: len=%s batch=%s",self._identifier[:8],len(batches_to_add), batch.header_signature[:8])
@@ -297,8 +300,21 @@ class _CandidateBlock(object):
     def check_publish_block(self):
         """
         Check if it is okay to publish this candidate.
+        For many peers we should control block's content .
+        If this peer is not owner of batch we must wait 
+        until all batches which were putted into block for peer owner of batch 
+        will be putted into block for this peer too.  
         """
-        return self._consensus.check_publish_block(self._block_builder.block_header)
+        publish = self._consensus.check_publish_block(self._block_builder.block_header)
+        if publish and self._make_batch_broadcast == False:
+            # check maybe there are incomplete batches if so - wait
+            num = self._scheduler.num_batches()
+            if num < self.batches_num:
+                LOGGER.debug("Waiting - too less batches=%s~%s\n",num,self.batches_num)
+                return False
+            publish = (self._scheduler.check_incomplete_batches() == 0) 
+            
+        return publish
 
     def _sign_block(self, block, identity_signer):
         """ The block should be complete and the final
@@ -330,7 +346,7 @@ class _CandidateBlock(object):
         that need to be added to the next Block that is built.
         """
         LOGGER.debug("_CandidateBlock::finalize_block for BRANCH=%s", self._identifier[:8])
-        self._scheduler.unschedule_incomplete_batches()
+        self._scheduler.unschedule_incomplete_batches() # can drop out some batch from block 
         #
         # at this point all batch will be done
         #
@@ -556,15 +572,16 @@ class BlockPublisher(object):
             self._publisher_thread.stop()
             self._publisher_thread = None
 
-    def queue_batch(self, batch,candidate_id=None):
+    def queue_batch(self, batch,candidate_id=None,num=None):
         """
         New batch has been received, queue it with the BlockPublisher for
         inclusion in the next block.
+        num - say number of batches into block
         """
-        LOGGER.debug("BlockPublisher::queue_batch ADD new batch=%s candidate_id=%s queue=%s",batch.header_signature[:10],candidate_id[:8] if candidate_id is not None else None,self.get_current_queue_info())
+        LOGGER.debug("BlockPublisher::queue_batch ADD new BATCH=%s.%s candidate_id=%s queue=%s",num,batch.header_signature[:10],candidate_id[:8] if candidate_id is not None else None,self.get_current_queue_info())
         self._batch_queue.put(batch)
         self._queued_batch_ids.append(batch.header_signature)
-        self._queued_batch_cand_ids.append(candidate_id if candidate_id is not None else '')
+        self._queued_batch_cand_ids.append((candidate_id if candidate_id is not None else '',num))
         for observer in self._batch_observers:
             observer.notify_batch_pending(batch)
 
@@ -688,7 +705,7 @@ class BlockPublisher(object):
         # add new candidate into list
         self._candidate_blocks[bid] = self._candidate_block
         LOGGER.debug("NEW candidate block[%s]=%s candidates=%s batches=%s recom=%s",self._candidate_block.block_num,bid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()],len(self._pending_batches),
-                     [key[:10] for key in self._queued_batch_cand_ids])
+                     [key[0][:10] for key in self._queued_batch_cand_ids])
         # for DAG maybe we should not add batch here ? FIXME
         """
         for batch in self._pending_batches:
@@ -704,12 +721,12 @@ class BlockPublisher(object):
         :param batch: the new pending batch
         :return: None
         """
-        LOGGER.debug("BlockPublisher:on_batch_received LOCK (%s) recomend=%s",batch,[key[:10] for key in self._queued_batch_cand_ids])
+        LOGGER.debug("BlockPublisher:on_batch_received LOCK (%s) recomend=%s",batch,[key[0][:10] for key in self._queued_batch_cand_ids])
         with self._lock:
-            cid = self._queued_batch_cand_ids[-1] # recomended branch
+            (cid,num) = self._queued_batch_cand_ids[-1] # recomended branch
             self._queued_batch_ids = self._queued_batch_ids[:1]
             self._queued_batch_cand_ids = self._queued_batch_cand_ids[:1]
-            LOGGER.debug("BlockPublisher: recomend=%s",[key[:10] for key in self._queued_batch_cand_ids])
+            LOGGER.debug("BlockPublisher: recomend=%s",[key[0][:10] for key in self._queued_batch_cand_ids])
             if self._permission_verifier.is_batch_signer_authorized(batch):
                 self._pending_batches.append(batch)
                 self._pending_batch_ids.append(batch.header_signature)
@@ -717,7 +734,7 @@ class BlockPublisher(object):
                 # if we are building a block then send schedule it for
                 # execution.
                 
-                LOGGER.debug("BlockPublisher:on_batch_received candidate block's CID=%s heads=%s cands=%s",cid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()],
+                LOGGER.debug("BlockPublisher:on_batch_received candidate block's CID=%s num=%s heads=%s cands=%s",cid[:8],num,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()],
                              [str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
                 """
                 choice block candidate for adding batch from self._candidate_blocks
@@ -727,6 +744,7 @@ class BlockPublisher(object):
                 if cid != '' and cid in self._candidate_blocks and self._candidate_blocks[cid].can_add_batch:
                     # use recomended candidate
                     candidate = self._candidate_blocks[cid]
+                    candidate._batches_num = num
                     LOGGER.debug("BlockPublisher:on_batch_received use recomended CANDIDATE=%s FROM=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
                     # send batch to peers and say about selected branch 
                 else:
@@ -949,11 +967,14 @@ class BlockPublisher(object):
 
                     if block:
                         blkw = BlockWrapper(block)
-                        LOGGER.info("Claimed Block: for branch=%s NEW BLOCK=%s.%s bathes=%s\n",bid[:8],blkw.block_num,blkw.identifier[:8],[batch.header_signature[:8] for batch in blkw.batches])
+                        LOGGER.info("Claimed Block: for branch=%s NEW BLOCK=%s.%s BATCHES=%s\n",bid[:8],blkw.block_num,blkw.identifier[:8],[batch.header_signature[:8] for batch in blkw.batches])
                         if candidate.make_batch_broadcast : 
                             # send in case batch owner
-                            for batch in blkw.batches:
-                                self._batch_publisher.send_batch(batch,candidate.identifier)
+                            self._batch_publisher.send_batches(blkw.batches,candidate.identifier)
+                            #ind = 0
+                            #for batch in blkw.batches:
+                            #    self._batch_publisher.send_batch(batch,candidate.identifier,ind)
+                            #    ind += 1
 
                         """
                         send block to chain controller where we will do consensus

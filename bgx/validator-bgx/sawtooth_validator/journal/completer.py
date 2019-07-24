@@ -21,11 +21,10 @@ from sawtooth_validator.journal.block_cache import BlockCache
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
 from sawtooth_validator.journal.timed_cache import TimedCache
-from sawtooth_validator.protobuf.batch_pb2 import Batch
+from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader
-from sawtooth_validator.protobuf.client_batch_submit_pb2 \
-    import ClientBatchSubmitRequest
+from sawtooth_validator.protobuf.client_batch_submit_pb2 import ClientBatchSubmitRequest
 from sawtooth_validator.protobuf import network_pb2
 from sawtooth_validator.networking.dispatch import Handler
 from sawtooth_validator.networking.dispatch import HandlerResult
@@ -288,7 +287,7 @@ class Completer(object):
                 self._on_block_received(blkw)
                 self._process_incomplete_blocks(block.header_signature)
 
-    def add_batch(self, batch,candidate_id=None):
+    def add_batch(self, batch,candidate_id=None,num=None):
         """
         candidate_id - use it for DAG version
         """
@@ -298,7 +297,7 @@ class Completer(object):
             if self._complete_batch(batch):
                 self.batch_cache[batch.header_signature] = batch
                 self._add_seen_txns(batch)
-                self._on_batch_received(batch,candidate_id) # send to publisher
+                self._on_batch_received(batch,candidate_id,num) # send to publisher
                 self._process_incomplete_blocks(batch.header_signature)
                 if batch.header_signature in self._requested:
                     del self._requested[batch.header_signature]
@@ -390,6 +389,19 @@ class CompleterGossipHandler(Handler):
             LOGGER.debug("CompleterGossipHandler: NEW BATCH=%s candidate_id=%s", batch.header_signature[:8],candidate_id[:8])
             # works in case batch from another node
             self._completer.add_batch(batch,candidate_id)
+
+        elif gossip_message.content_type == network_pb2.GossipMessage.BATCHES:
+            batches = BatchList()
+            batches.ParseFromString(gossip_message.content)
+            candidate_id = gossip_message.candidate_id.hex()
+            #LOGGER.debug("CompleterGossipHandler: NEW BATCHES=%s candidate_id=%s", batches,candidate_id[:8])
+            num = len(batches.batches)
+            for batch in batches.batches:
+                LOGGER.debug(" => NEW BATCH[%s]=%s candidate_id=%s",num,batch.header_signature[:8],candidate_id[:8])
+                self._completer.add_batch(batch,candidate_id,num)
+                
+
+
         return HandlerResult(status=HandlerStatus.PASS)
 
 

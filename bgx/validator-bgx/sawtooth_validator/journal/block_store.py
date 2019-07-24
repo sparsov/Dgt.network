@@ -190,11 +190,12 @@ class BlockStore(MutableMapping):
                     return num
 
         head = self.chain_head
+        LOGGER.debug("BlockStore: find from last=%s",head.block_num)
         block_num = head.block_num + 1
         while block_num in self._block_nums:
-            # already reserved by some branch
+            # already reserved by some branch try take next number
             block_num += 1
-        # add into reserved list
+        # add into reserved list  - taken by candidate
         self._block_nums.append(block_num)
         LOGGER.debug("BlockStore: num=%s block_nums=%s",block_num,self._block_nums)
         return block_num

@@ -25,7 +25,7 @@ from sawtooth_signing.secp256k1 import Secp256k1PublicKey
 from sawtooth_validator.protobuf import client_batch_submit_pb2
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader
 from sawtooth_validator.protobuf.batch_pb2 import BatchHeader
-from sawtooth_validator.protobuf.batch_pb2 import Batch
+from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.network_pb2 import GossipMessage
@@ -153,7 +153,10 @@ class GossipMessageSignatureVerifier(Handler):
 
             self._seen_cache[batch.header_signature] = None
             return HandlerResult(status=HandlerStatus.PASS)
-
+        elif gossip_message.content_type == GossipMessage.BATCHES:
+            # check batches signature
+            LOGGER.debug("Check BATCHES signature!!!")
+            return HandlerResult(status=HandlerStatus.PASS)
         # should drop the message if it does not have a valid content_type
         return HandlerResult(status=HandlerStatus.DROP)
 

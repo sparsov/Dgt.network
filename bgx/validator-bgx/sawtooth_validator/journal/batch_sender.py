@@ -39,8 +39,13 @@ class BroadcastBatchSender(BatchSender):
 
     def send(self, batch):
         self._gossip.broadcast_batch(batch)
+        # FIXME check when it used and what about candidate_id
         self._completer.add_batch(batch)
 
     def send_batch(self,batch,candidate_id=None):
         # for DAG - send batch after branch was selected
         self._gossip.broadcast_batch(batch,candidate_id=candidate_id)
+
+    def send_batches(self,batches,candidate_id=None):
+        # for DAG - send batches after branch was selected
+        self._gossip.broadcast_batches(batches,candidate_id=candidate_id)

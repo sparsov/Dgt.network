@@ -31,8 +31,7 @@ from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader
 LOGGER = logging.getLogger(__name__)
 
 
-_AnnotatedBatch = namedtuple('ScheduledBatch',
-                             ['batch', 'required', 'preserve'])
+_AnnotatedBatch = namedtuple('ScheduledBatch',['batch', 'required', 'preserve'])
 
 
 class SerialScheduler(Scheduler):
@@ -149,13 +148,12 @@ class SerialScheduler(Scheduler):
                                 self._batch_by_id.values())) is None
 
             batch_signature = batch.header_signature
-            self._batch_by_id[batch_signature] = \
-                _AnnotatedBatch(batch, required=required, preserve=preserve)
+            self._batch_by_id[batch_signature] = _AnnotatedBatch(batch, required=required, preserve=preserve)
 
             if state_hash is not None:
                 self._required_state_hashes[batch_signature] = state_hash
             batch_length = len(batch.transactions)
-            LOGGER.debug("SerialScheduler::add_batch: batch_length=%s STATE=%s",batch_length,state_hash[:10] if state_hash is not None else None)
+            LOGGER.debug("SerialScheduler::add_batch: batch added=%s STATE=%s",len(self._batch_by_id),state_hash[:10] if state_hash is not None else None)
             for idx, txn in enumerate(batch.transactions):
                 if idx == batch_length - 1:
                     self._last_in_batch.append(txn.header_signature)
@@ -311,8 +309,7 @@ class SerialScheduler(Scheduler):
 
                     del self._txn_to_batch[txn_id]
 
-                self._last_in_batch.remove(
-                    annotated_batch.batch.transactions[-1].header_signature)
+                self._last_in_batch.remove(annotated_batch.batch.transactions[-1].header_signature)
 
                 del self._batch_by_id[batch_id]
 
@@ -320,6 +317,37 @@ class SerialScheduler(Scheduler):
 
         if incomplete_batches:
             LOGGER.debug('Removed %s incomplete batches=%s from the schedule',len(incomplete_batches),[batch[1][0].header_signature[:8] for batch in incomplete_batches])
+
+    def num_batches(self):
+        with self._condition:
+            return len(self._batch_by_id)
+
+    def check_incomplete_batches(self):
+        inprogress_batch_id = None
+        with self._condition:
+            # remove the in-progress transaction's batch
+            if self._in_progress_transaction is not None:
+                batch_id = self._txn_to_batch[self._in_progress_transaction]
+                annotated_batch = self._batch_by_id[batch_id]
+
+                # if the batch is preserve or there are no completed batches,
+                # keep it in the schedule
+                if not annotated_batch.preserve:
+                    self._in_progress_transaction = None
+                else:
+                    inprogress_batch_id = batch_id
+
+            def in_schedule(entry):
+                (batch_id, annotated_batch) = entry
+                return batch_id in self._batch_statuses or annotated_batch.preserve or batch_id == inprogress_batch_id
+
+            incomplete_batches = list(filterfalse(in_schedule, self._batch_by_id.items()))
+
+            self._condition.notify_all()
+
+        if incomplete_batches:
+            LOGGER.debug('Found %s incomplete batches=%s',len(incomplete_batches),[batch[1][0].header_signature[:8] for batch in incomplete_batches])
+        return len(incomplete_batches)
 
     def finalize(self):
         with self._condition:

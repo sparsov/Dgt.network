@@ -901,8 +901,7 @@ class ParallelScheduler(Scheduler):
             self._condition.notify_all()
 
         if incomplete_batches:
-            LOGGER.debug('Removed %s incomplete batches from the schedule',
-                         len(incomplete_batches))
+            LOGGER.debug('Removed %s incomplete batches from the schedule',len(incomplete_batches))
 
     def finalize(self):
         with self._condition:

@@ -287,10 +287,25 @@ class Gossip(object):
             content_type=GossipMessage.BATCH,
             content=batch.SerializeToString(),
             time_to_live=time_to_live,
-            candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None)
+            candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None
+            )
         LOGGER.debug("Gossip::broadcast_batch for candidate=%s",candidate_id[:8] if candidate_id is not None else None)
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
+
+    def broadcast_batches(self, batches, exclude=None, time_to_live=None,candidate_id = None):
+        if time_to_live is None:
+            time_to_live = self.get_time_to_live()
+        gossip_message = GossipMessage(
+            content_type=GossipMessage.BATCHES,
+            content=batches.SerializeToString(),
+            time_to_live=time_to_live,
+            candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None
+            )
+        LOGGER.debug("Gossip::broadcast_batches for candidate=%s ",candidate_id[:8] if candidate_id is not None else None)
+
+        self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
+
 
     def broadcast_batch_by_transaction_id_request(self, transaction_ids):
         time_to_live = self.get_time_to_live()

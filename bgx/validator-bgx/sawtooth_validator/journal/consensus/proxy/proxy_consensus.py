@@ -115,7 +115,11 @@ class BlockPublisher(BlockPublisherInterface):
         return True
 
     def check_publish_block(self, block_header):
-        """Check if a candidate block is ready to be claimed.
+        """
+        Check if a candidate block is ready to be claimed.
+        For many peers we should control block's content .
+        If this peer is not owner of batch we must wait until all batches which were putted into block for peer owner of batch 
+        will be putted into block for this peer too.  
 
         block_header (BlockHeader): the block_header to be checked if it
             should be claimed

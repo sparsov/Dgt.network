@@ -19,7 +19,7 @@ import logging
 from google.protobuf.message import DecodeError
 
 from sawtooth_validator.protobuf import client_batch_submit_pb2
-from sawtooth_validator.protobuf.batch_pb2 import Batch
+from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.batch_pb2 import BatchHeader
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
@@ -105,6 +105,9 @@ class GossipHandlerStructureVerifier(Handler):
                 return HandlerResult(status=HandlerStatus.DROP)
 
             return HandlerResult(status=HandlerStatus.PASS)
+        elif gossip_message.content_type == network_pb2.GossipMessage.BATCHES:
+            pass
+
 
         return HandlerResult(status=HandlerStatus.PASS)
 

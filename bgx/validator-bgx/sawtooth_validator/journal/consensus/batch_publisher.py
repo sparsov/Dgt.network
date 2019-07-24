@@ -13,7 +13,7 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 
-from sawtooth_validator.protobuf.batch_pb2 import Batch
+from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.batch_pb2 import BatchHeader
 
 
@@ -56,5 +56,11 @@ class BatchPublisher(object):
         self._batch_sender.send(batch)
 
     def send_batch(self,batch,candidate_id=None):
-
         self._batch_sender.send_batch(batch,candidate_id)
+
+    def send_batches(self,batches,candidate_id=None):
+        batch_list = BatchList()
+        batch_list.batches.extend(batches)
+
+        self._batch_sender.send_batches(batch_list,candidate_id)
+

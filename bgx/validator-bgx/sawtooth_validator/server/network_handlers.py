@@ -231,8 +231,7 @@ def add(
     # GOSSIP_MESSAGE ) Send message to completer
     dispatcher.add_handler(
         validator_pb2.Message.GOSSIP_MESSAGE,
-        CompleterGossipHandler(
-            completer),
+        CompleterGossipHandler(completer),
         thread_pool)
 
     dispatcher.add_handler(

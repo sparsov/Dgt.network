@@ -1083,7 +1083,7 @@ class ChainController(object):
         Returns:
             None
         """
-        def on_block_invalid(new_block,descendant_blocks):
+        def on_block_invalid(new_block,descendant_blocks,is_external):
             # Since the block is invalid, we will never accept any
             # blocks that are descendants of this block.  We are going
             # to go through the pending blocks and remove all
@@ -1093,6 +1093,8 @@ class ChainController(object):
             # Block could be invalid in case of consensus fail
             # we should inform external consensus
             LOGGER.debug("ChainController:on_block_invalid BLOCK=%s INVALID\n",new_block.block_num)
+            # for external block don't free block_number
+            #if not is_external:
             self._block_store.free_block_number(new_block.block_num)
             while descendant_blocks:
                 pending_block = descendant_blocks.pop()
@@ -1221,7 +1223,7 @@ class ChainController(object):
                         # check may be the same block was already commited - ignore
                         if not commit_new_block: # new_block.status == BlockStatus.Invalid :
                             LOGGER.debug("ChainController:on_block_validated BLOCK=%s INVALID\n",new_block.identifier[:8])
-                            on_block_invalid(new_block,descendant_blocks)
+                            on_block_invalid(new_block,descendant_blocks,is_external)
                         else:
                             real_head = self._is_the_same_block_commited(new_block,result["chain_head"].identifier)
                             if real_head is not None:
@@ -1312,7 +1314,7 @@ class ChainController(object):
                 # If the block was determine to be invalid.
                 elif new_block.status == BlockStatus.Invalid:
                     
-                    on_block_invalid(new_block,descendant_blocks)
+                    on_block_invalid(new_block,descendant_blocks,is_external)
  
                 # The block is otherwise valid, but we have determined we
                 # don't want it as the chain head.
