@@ -800,6 +800,7 @@ class BgtEngine(Engine):
                 self._peers_branches[block_id]._send_prepare(block)
             elif block_id not in self._pre_prepare_msgs:
                 # message arrive before corresponding block appeared
+                LOGGER.debug("=>message arrive before corresponding BLOCK=%s appeared - SAVE\n",block_id[:8])
                 self._pre_prepare_msgs[block_id] = block  
 
         elif msg_type == PbftMessageInfo.PREPARE_MSG:
@@ -829,11 +830,13 @@ class BgtEngine(Engine):
                                 selected = max(blocks.items(), key = lambda x: x[0])[0]
                                 LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
                                 LOGGER.debug("COMMIT BLOCK=%s",selected[:8])
-
+                                # send prepare again
+                                self._peers_branches[selected]._send_prepare(block)
                                 self._peers_branches[selected].finish_consensus(block,selected,True)
                                 for bid in blocks.keys():
                                     if bid != selected:
                                         LOGGER.debug("FAIL BLOCK=%s",bid[:8])
+                                        self._peers_branches[bid]._send_prepare(block)
                                         self._peers_branches[bid].finish_consensus(block,bid,False)
                                 # drop list for summary
                                 self._prepare_msgs.pop(summary)
@@ -842,4 +845,7 @@ class BgtEngine(Engine):
                     else:
                         LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s",block_id[:8],summary[:8])
                         self._prepare_msgs[summary] = {block_id : True}
+            else:
+                # there is no block yet save message 
+                pass
 
