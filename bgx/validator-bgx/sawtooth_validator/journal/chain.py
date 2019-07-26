@@ -981,8 +981,11 @@ class ChainController(object):
                 metrics_registry=self._metrics_registry,
                 block_manager=self._block_manager)
             self._blocks_processing[blkw.block.header_signature] = validator
+            # ref block num for external block 
+            if blkw.signer_id != self._validator_id:
+                self._block_cache.block_store.ref_block_number(blkw.block_num)
             self._thread_pool.submit(validator.run)
-            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE block=%s signer=%s",blkw.block.header_signature[:8],blkw.signer_id[:8])
+            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE block=%s.%s signer=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8])
 
     """
     for external consensus
@@ -1094,7 +1097,7 @@ class ChainController(object):
             # we should inform external consensus
             LOGGER.debug("ChainController:on_block_invalid BLOCK=%s INVALID\n",new_block.block_num)
             # for external block don't free block_number
-            #if not is_external:
+            # if not is_external:
             self._block_store.free_block_number(new_block.block_num)
             while descendant_blocks:
                 pending_block = descendant_blocks.pop()
@@ -1120,8 +1123,8 @@ class ChainController(object):
                 # FIXME - change head for branch==bid into self._chain_heads
                 #
                 # say that block number really used - FIXME - think about external block
-                if not is_external:
-                    self._block_store.pop_block_number(new_block.block_num)
+                #if not is_external:
+                self._block_store.pop_block_number(new_block.block_num)
                 # add new head
                 self._chain_heads[nid] = new_block
                 self._block_store.update_chain_heads(nid,new_block)

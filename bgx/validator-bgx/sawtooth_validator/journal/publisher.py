@@ -290,12 +290,12 @@ class _CandidateBlock(object):
                 self._pending_batch_ids.add(b.header_signature)
                 try:
                     injected = b.header_signature in self._injected_batch_ids
-                    LOGGER.debug("add_batch: add batch branch=%s",self._identifier[:8])
+                    LOGGER.debug("add_batch: add batch=%s branch=%s",batch.header_signature[:8],self._identifier[:8])
                     self._scheduler.add_batch(b, required=injected)
                 except SchedulerError as err:
                     LOGGER.debug("Scheduler error processing batch: %s", err)
         else:
-            LOGGER.debug("Dropping batch due to missing dependencies: %s",batch.header_signature)
+            LOGGER.debug("Dropping batch due to missing dependencies: %s",batch.header_signature[:8])
 
     def check_publish_block(self):
         """
@@ -585,7 +585,7 @@ class BlockPublisher(object):
         self._queued_batch_cand_ids.append((candidate_id if candidate_id is not None else '',num))
         for observer in self._batch_observers:
             observer.notify_batch_pending(batch)
-        LOGGER.debug("BlockPublisher::queue_batch queue=%s DONE",self.get_current_queue_info())
+        LOGGER.debug("BlockPublisher::queue_batch queue=%s recom=%s DONE",self.get_current_queue_info(),len(self._queued_batch_cand_ids))
 
     def can_accept_batch(self):
         return len(self._pending_batches) < self._get_current_queue_limit()
@@ -612,6 +612,7 @@ class BlockPublisher(object):
         :return: (BlockBuilder) - The candidate block in a BlockBuilder
         wrapper.
         For DAG build candidate for chain_head.identifier branch
+        should works under locking
         """
         main_head = self._block_cache.block_store.chain_head
         bid = chain_head.identifier
@@ -714,42 +715,37 @@ class BlockPublisher(object):
         first check may be there is such batch in pending queue
         if no take batch without any recomendation
         """
-        num = 0  
+        num = 0
+        start_ind = 0  
         while bid in self._pending_batch_cid:
             # use all recomended batch from pending queue
             num += 1 
-            ind = self._pending_batch_cid.index(bid)
-            # drop batch from queue - because others candidate can take it too
-            batch = self._pending_batches.pop(ind)
-            self._candidate_block._batches_num = self._pending_batch_num.pop(ind)
-            self._pending_batch_cid.pop(ind)
-            self._pending_batch_ids.pop(ind)
-
-            LOGGER.debug("NEW candidate=%s.%s add recomended batch=%s",self._candidate_block.block_num,bid[:8],batch.header_signature[:8])
+            try:
+                ind = self._pending_batch_cid.index(bid,start_ind)
+            except ValueError:
+                break
+            start_ind = ind + 1 # for skipping this one
+            # others candidate can take it because of recomendation
+            batch = self._pending_batches[ind]
+            self._candidate_block._batches_num = self._pending_batch_num[ind]
+            LOGGER.debug("NEW candidate=%s.%s add recomended batch[%s]=%s start=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind)
             self._candidate_block.add_batch(batch)
 
         if num == 0:
             # there are no recomended batch for this candidate- take batch without recomendation
             # because candidate for batch with recomendation could not be ready
-            drop_list = []
             for (ind,batch) in enumerate(self._pending_batches):
                 if self._pending_batch_cid[ind] != '':
                     continue # skip recomended batch
                 if self._candidate_block.can_add_batch:
-                    LOGGER.debug("NEW candidate=%s.%s add batch=%s",self._candidate_block.block_num,bid[:8],batch.header_signature[:8])
-                    drop_list.append(ind)
-                    # drop batch from queue - because others candidate can take it too
-                    self._pending_batch_cid.pop(ind)
-                    self._pending_batch_num.pop(ind)
-                    self._pending_batches.pop(ind)
-                    self._pending_batch_ids.pop(ind)
-
+                    LOGGER.debug("NEW candidate=%s.%s add batch[%s]=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8])
+                    # mark taken batch with recomendation (but with num == 0)- because others candidate can take it too
+                    self._pending_batch_cid[ind] = bid #  self._pending_batch_num[ind] == 0 
                     self._candidate_block._make_batch_broadcast = True
                     self._candidate_block.add_batch(batch)
                 else:
                     break
-            for ind in  drop_list :
-                pass 
+            
 
         LOGGER.debug("NEW candidate block[%s]=%s DONE pending=%s",self._candidate_block.block_num,bid[:8],len(self._pending_batches))
         
@@ -759,21 +755,27 @@ class BlockPublisher(object):
         :param batch: the new pending batch
         :return: None
         """
-        LOGGER.debug("BlockPublisher:on_batch_received LOCK (%s) recomend=%s",batch,[key[0][:10] for key in self._queued_batch_cand_ids])
+        LOGGER.debug("BlockPublisher:on_batch_received LOCK (%s) batchs=%s recomend=%s",batch.header_signature[:8],[key[:8] for key in self._queued_batch_ids],[key[0][:10] for key in self._queued_batch_cand_ids])
         with self._lock:
-            (cid,num) = self._queued_batch_cand_ids[-1] # recomended branch
+            (cid,num) = self._queued_batch_cand_ids.pop() # [-1] # recomended branch
             self._queued_batch_ids = self._queued_batch_ids[:1]
-            self._queued_batch_cand_ids = self._queued_batch_cand_ids[:1]
-            LOGGER.debug("BlockPublisher: recomend=%s",[key[0][:10] for key in self._queued_batch_cand_ids])
+            #self._queued_batch_cand_ids = self._queued_batch_cand_ids[:1]
+            LOGGER.debug("BlockPublisher:Pop batch=%s batchs=%s recomend=%s",batch.header_signature[:8],[key[:8] for key in self._queued_batch_ids],[key[0][:10] for key in self._queued_batch_cand_ids])
             if self._permission_verifier.is_batch_signer_authorized(batch):
+                # add into pending
                 self._pending_batches.append(batch)
                 self._pending_batch_ids.append(batch.header_signature)
+                self._pending_batch_cid.append(cid) 
+                self._pending_batch_num.append(num) 
+
                 self._pending_batch_gauge.set_value(len(self._pending_batches))
                 # if we are building a block then send schedule it for
                 # execution.
                 
-                LOGGER.debug("On BATCH=%s received candidate block's CID=%s num=%s heads=%s cands=%s",batch.header_signature[:8],cid[:8],num,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()],
-                             [str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
+                LOGGER.debug("On BATCH=%s received candidate block's CID=%s num=%s heads=%s cands=%s",batch.header_signature[:8],cid[:8],num,
+                             [str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()],
+                             [str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()]
+                             )
                 """
                 choice block candidate for adding batch from self._candidate_blocks
                 FIXME - USE some strategy for choicing candidate
@@ -784,7 +786,7 @@ class BlockPublisher(object):
                     if cid in self._candidate_blocks and self._candidate_blocks[cid].can_add_batch:
                         candidate = self._candidate_blocks[cid]
                         candidate._batches_num = num
-                        LOGGER.debug("On batch=%s received use recomended CANDIDATE=%s FROM=%s",candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
+                        LOGGER.debug("On batch=%s received use recomended CANDIDATE=%s FROM=%s",batch.header_signature[:8],candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
                         # send batch to peers and say about selected branch 
                 else:
                     # take first ready candidate
@@ -806,9 +808,7 @@ class BlockPublisher(object):
                     #    self._batch_publisher.send_batch(batch,candidate.identifier)
                 else:
                     # we should save somewhere cid and num for using next when free block candidate appeared  
-                    self._pending_batch_cid.append(cid)
-                    self._pending_batch_num.append(num)
-                    LOGGER.debug("On BATCH=%s received THERE ARE NO CANDIDATE - put CID=%s into pending=%s!!!\n",batch.header_signature[:8],cid,len(self._pending_batches)) 
+                    LOGGER.debug("On BATCH=%s received THERE ARE NO CANDIDATE - put CID=%s into pending=%s!!!\n",batch.header_signature[:8],cid[:8],len(self._pending_batches)) 
             else:
                 LOGGER.debug("BATCH=%s has an unauthorized signer.",batch.header_signature[:8])
 
@@ -831,7 +831,7 @@ class BlockPublisher(object):
         pending_batch_cid = self._pending_batch_cid
         pending_batch_num = self._pending_batch_num
 
-        LOGGER.debug("BlockPublisher:_rebuild_pending_batches num=%s c:uc=%s:%s!!!\n\n",len(pending_batches),len(self._pending_batch_cid),len(committed_batches),len(uncommitted_batches))
+        LOGGER.debug("BlockPublisher:_rebuild_pending_batches num=%s~%s c:uc=%s:%s!!!\n\n",len(pending_batches),len(self._pending_batch_cid),len(committed_batches),len(uncommitted_batches))
         self._pending_batches = []
         self._pending_batch_ids = []
         self._pending_batch_cid = [] 
@@ -864,9 +864,7 @@ class BlockPublisher(object):
                 self._pending_batch_cid.append(pending_batch_cid[ind])
                 self._pending_batch_num.append(pending_batch_num[ind])
 
-
-
-        LOGGER.debug("BlockPublisher:_rebuild_pending_batches num=%s~%s DONE\n",len(self._pending_batches),len(self._pending_batch_cid),len(self._pending_batch_cid))
+        LOGGER.debug("BlockPublisher:_rebuild_pending_batches num=%s~%s DONE\n",len(self._pending_batches),len(self._pending_batch_cid))
 
     def on_chain_updated(self, chain_head,
                          committed_batches=None,
@@ -1003,9 +1001,9 @@ class BlockPublisher(object):
                 pending_batches = []  # will receive the list of batches
                 # that were not added to the block
                 last_batch = candidate.last_batch
-                LOGGER.debug("BlockPublisher: before finalize_block for BRANCH=%s last_batch=%s\n",bid[:8],last_batch.header_signature[:8])
+                LOGGER.debug("BlockPublisher: before finalize_block for BRANCH=%s last_batch=%s make_batch_broadcast=%s\n",bid[:8],last_batch.header_signature[:8],candidate._make_batch_broadcast)
                 block = candidate.finalize_block(self._identity_signer,pending_batches)
-                LOGGER.debug("BlockPublisher: after finalize_block pending batchs=%s block=%s",len(self._pending_batches),block is not None)
+                LOGGER.debug("BlockPublisher: after finalize_block pending BATCHS=%s+%s block=%s",len(self._pending_batches),len(pending_batches),block is not None)
                 """
                 after proxy engine answer we can lock again
                 """
@@ -1013,13 +1011,38 @@ class BlockPublisher(object):
                     self._candidate_block = None
                     # Update the _pending_batches to reflect what we learned.
                     try:
-                        last_batch_index = self._pending_batches.index(last_batch)
-                        unsent_batches = self._pending_batches[last_batch_index + 1:]
+                        # at this point batches relating to this candidate were marked - so we can drop it from pending using this marker
+                        #last_batch_index = self._pending_batches.index(last_batch)
+                        #unsent_batches = self._pending_batches[last_batch_index + 1:]
+                        unsent_batches   = []
+                        unsent_batch_cid = []
+                        unsent_batch_num = []
+                        unsent_batch_ids = []
+                        for batch in pending_batches:
+                            unsent_batch_ids.append(batch.header_signature)       
+                            unsent_batch_cid.append('') # becaim without recomendation 
+                            unsent_batch_num.append(0) 
+
+                        for (ind,batch) in enumerate(self._pending_batches):
+                            if self._pending_batch_cid[ind] != bid:
+                                # skip batch relating this candidate
+                                unsent_batches.append(batch)
+                                unsent_batch_ids.append(batch.header_signature)
+                                unsent_batch_cid.append(self._pending_batch_cid[ind])
+                                unsent_batch_num.append(self._pending_batch_num[ind])
+
+                        # new pending queue 
                         self._pending_batches = pending_batches + unsent_batches
+                        self._pending_batch_ids = unsent_batch_ids
+                        self._pending_batch_cid = unsent_batch_cid
+                        self._pending_batch_num = unsent_batch_num
 
                         self._pending_batch_gauge.set_value(len(self._pending_batches))
+                        LOGGER.debug("BlockPublisher: After finalize for BRANCH=%s new pending=%s batches=%s\n", bid[:8],(len(self._pending_batches)==len(self._pending_batch_cid)),
+                                     [key[:8] for key in self._pending_batch_ids]
+                                     )
                     except ValueError:
-                        LOGGER.debug("BlockPublisher: last_batch=%s is not in list pending batches=%s~%s !!!!\n", last_batch.header_signature[:8], len(self._pending_batches), len(self._pending_batch_cid))
+                        LOGGER.debug("BlockPublisher: last_batch=%s is not in list pending batches=%s~%s!!!!\n", last_batch.header_signature[:8], len(self._pending_batches), len(self._pending_batch_cid))
 
                     if block:
                         blkw = BlockWrapper(block)

@@ -590,7 +590,9 @@ class BgtEngine(Engine):
         block = BgtBlock(block)
         block_id = block.block_id.hex()
         signer_id  = block.signer_id.hex()
-        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summ=%s',block.block_num,_short_id(block_id),signer_id[:8],block.summary.hex()[:8])
+        summary = block.summary.hex()
+        block_num = block.block_num
+        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summ=%s',block_num,_short_id(block_id),signer_id[:8],summary[:8])
         if signer_id == self._validator_id:
             # find branch for this block 
             if block.previous_block_id in self._branches:
@@ -613,9 +615,9 @@ class BgtEngine(Engine):
                     #self.reset_state()
         else:
             # external block from another node 
-            LOGGER.info('EXTERNAL NEW BLOCK=%s num=%s peer=%s', _short_id(block_id),block.block_num,_short_id(signer_id))
+            LOGGER.info('EXTERNAL NEW BLOCK=%s num=%s peer=%s', _short_id(block_id),block_num,_short_id(signer_id))
             if block_id not in self._peers_branches:
-                branch = self.create_branch('','',block.block_num)
+                branch = self.create_branch('','',block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
                 branch.new_block(block,self._peers)
@@ -624,6 +626,26 @@ class BgtEngine(Engine):
                 if block_id in self._pre_prepare_msgs:
                     msg = self._pre_prepare_msgs.pop(block_id)
                     branch._send_prepare(msg)
+                # check maybe all messages arrived
+                num_peers = len(self._peers)
+                if num_peers > 0 and summary in self._prepare_msgs:
+                    blocks = self._prepare_msgs[summary]
+                    if len(blocks) == (num_peers + 1):
+                        selected = max(blocks.items(), key = lambda x: x[0])[0]
+                        LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])
+                        LOGGER.debug("COMMIT BLOCK=%s",selected[:8])
+                        # send prepare again
+                        #self._peers_branches[selected]._send_prepare(block)
+                        self._peers_branches[selected].finish_consensus(None,selected,True)
+                        for bid in blocks.keys():
+                            if bid != selected:
+                                LOGGER.debug("FAIL BLOCK=%s",bid[:8])
+                                #self._peers_branches[bid]._send_prepare(block)
+                                self._peers_branches[bid].finish_consensus(None,bid,False)
+                                # drop list for summary
+                        self._prepare_msgs.pop(summary)
+                        LOGGER.debug("=>ALL SUMMARY=%s\n",[key[:8] for key in self._prepare_msgs.keys()])
+
 
     def _handle_valid_block(self, block_id):
         LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(block_id.hex()))
@@ -846,6 +868,15 @@ class BgtEngine(Engine):
                         LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s",block_id[:8],summary[:8])
                         self._prepare_msgs[summary] = {block_id : True}
             else:
-                # there is no block yet save message 
-                pass
+                # there is no block yet but save message 
+                if summary in self._prepare_msgs:
+                    blocks = self._prepare_msgs[summary]
+                    LOGGER.debug("=>SUMMARY=%s have blocks=%s (no block yet)",summary[:10],[key[:8] for key in blocks.keys()])
+                    if block_id not in blocks:
+                         LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s total=%s (no block yet)",block_id[:8],summary[:8],len(blocks))
+                         blocks[block_id] = True
+                    
+                else:
+                    LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s (no block yet)",block_id[:8],summary[:8])
+                    self._prepare_msgs[summary] = {block_id : True}
 

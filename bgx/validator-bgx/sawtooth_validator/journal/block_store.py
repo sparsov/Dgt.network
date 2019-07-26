@@ -201,9 +201,15 @@ class BlockStore(MutableMapping):
         return block_num
 
     def pop_block_number(self,block_num):
+        # for external Block pop too because we make ref for external block
         if block_num in self._block_nums:
             self._block_nums.remove(block_num)
             LOGGER.debug("BlockStore:pop_block_number  num=%s nums=%s",block_num,self._block_nums)
+
+    def ref_block_number(self,block_num):
+        # for external Block  make ref for block num
+        self._block_nums.append(block_num)
+        LOGGER.debug("BlockStore:ref_block_number num=%s nums=%s",block_num,self._block_nums)
 
     def free_block_number(self,block_num):
         # free block number - because block was not validated

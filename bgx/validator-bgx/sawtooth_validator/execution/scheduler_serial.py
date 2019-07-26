@@ -91,7 +91,7 @@ class SerialScheduler(Scheduler):
             events=None, data=None, error_message="", error_data=b""):
         with self._condition:
             if (self._in_progress_transaction is None or self._in_progress_transaction != txn_signature):
-                LOGGER.debug('Received result for %s, but was unscheduled',txn_signature)
+                LOGGER.debug('Received result for %s, but was unscheduled(in_progress=%s)',txn_signature[:8],self._in_progress_transaction)
                 return
 
             self._in_progress_transaction = None
@@ -153,7 +153,9 @@ class SerialScheduler(Scheduler):
             if state_hash is not None:
                 self._required_state_hashes[batch_signature] = state_hash
             batch_length = len(batch.transactions)
-            LOGGER.debug("SerialScheduler::add_batch: batch added=%s STATE=%s",len(self._batch_by_id),state_hash[:10] if state_hash is not None else None)
+            LOGGER.debug("SerialScheduler::add_batch: batch=%s tnxs=%s added=%s STATE=%s",batch_signature[:8],[t.header_signature[:8] for t in batch.transactions],len(self._batch_by_id),
+                         state_hash[:10] if state_hash is not None else None
+                         )
             for idx, txn in enumerate(batch.transactions):
                 if idx == batch_length - 1:
                     self._last_in_batch.append(txn.header_signature)
@@ -287,6 +289,7 @@ class SerialScheduler(Scheduler):
                 # if the batch is preserve or there are no completed batches,
                 # keep it in the schedule
                 if not annotated_batch.preserve:
+                    LOGGER.debug('unschedule_incomplete_batches tnx=%s\n',self._in_progress_transaction)
                     self._in_progress_transaction = None
                 else:
                     inprogress_batch_id = batch_id
@@ -323,6 +326,10 @@ class SerialScheduler(Scheduler):
             return len(self._batch_by_id)
 
     def check_incomplete_batches(self):
+        with self._condition:
+            LOGGER.debug('Found incomplete batches=%s statuses=%s tnx=%s',len(self._batch_by_id),len(self._batch_statuses),self._in_progress_transaction)
+            return len(self._batch_statuses)  < len(self._batch_by_id)
+
         inprogress_batch_id = None
         with self._condition:
             # remove the in-progress transaction's batch
@@ -332,14 +339,11 @@ class SerialScheduler(Scheduler):
 
                 # if the batch is preserve or there are no completed batches,
                 # keep it in the schedule
-                if not annotated_batch.preserve:
-                    self._in_progress_transaction = None
-                else:
-                    inprogress_batch_id = batch_id
+                inprogress_batch_id = batch_id
 
             def in_schedule(entry):
                 (batch_id, annotated_batch) = entry
-                return batch_id in self._batch_statuses or annotated_batch.preserve or batch_id == inprogress_batch_id
+                return batch_id in self._batch_statuses or True  or batch_id == inprogress_batch_id # annotated_batch.preserve
 
             incomplete_batches = list(filterfalse(in_schedule, self._batch_by_id.items()))
 
@@ -347,6 +351,8 @@ class SerialScheduler(Scheduler):
 
         if incomplete_batches:
             LOGGER.debug('Found %s incomplete batches=%s',len(incomplete_batches),[batch[1][0].header_signature[:8] for batch in incomplete_batches])
+        else:
+            LOGGER.debug('Not Found incomplete batches=%s statuses=%s in progress=%s[%s]',len(self._batch_by_id),len(self._batch_statuses),inprogress_batch_id,self._in_progress_transaction)
         return len(incomplete_batches)
 
     def finalize(self):

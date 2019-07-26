@@ -107,7 +107,7 @@ class TransactionExecutorThread(object):
             del self._open_futures[result.connection_id][req.signature]
 
         if response.status == processor_pb2.TpProcessResponse.OK:
-            LOGGER.debug("_future_done_callback: processor Response.OK")
+            LOGGER.debug("_future_done_callback: processor Response.OK tnx=%s",req.signature[:8])
 
             state_sets, state_deletes, events, data = \
                 self._context_manager.get_execution_results(req.context_id)
@@ -143,7 +143,7 @@ class TransactionExecutorThread(object):
                 processor_type, request, req.signature)
 
         else:
-            LOGGER.debug("_future_done_callback: processor Response.INVALID tnx")
+            LOGGER.debug("_future_done_callback: processor Response.INVALID tnx=%s",req.signature[:8])
             self._context_manager.delete_contexts(
                 context_id_list=[req.context_id])
 
@@ -301,8 +301,7 @@ class TransactionExecutorThread(object):
 
         self._done = True
 
-    def _execute_or_wait_for_processor_type(
-            self, processor_type, content, signature):
+    def _execute_or_wait_for_processor_type(self, processor_type, content, signature):
         processor = self._processors.get_next_of_type(
             processor_type=processor_type)
         if processor is None:
