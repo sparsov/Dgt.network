@@ -158,12 +158,16 @@ class GossipMessageDuplicateHandler(Handler):
             batches = BatchList()
             batches.ParseFromString(gossip_message.content)
             has_batch = False
+            batch_sign = None
+            LOGGER.debug("GossipMessageDuplicateHandler: check BATCHES=%s",len(batches.batches))
             for batch in batches.batches:
                 if self._completer.get_batch(batch.header_signature) is not None or self._has_batch(batch.header_signature):
                     has_batch = True
+                    batch_sign = batch.header_signature
                     break
             if has_batch:
-                LOGGER.debug("GossipMessageDuplicateHandler: BATCHES dublicate IGNORE")
+                candidate_id = gossip_message.candidate_id.hex()
+                LOGGER.debug("GossipMessageDuplicateHandler: BATCHES dublicate batch=%s for branch=%s IGNORE",batch_sign[:8],candidate_id[:8])
                 return HandlerResult(HandlerStatus.DROP)
                 
 

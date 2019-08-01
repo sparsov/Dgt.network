@@ -233,7 +233,7 @@ class ConsensusProxy:
         return result
 
     def _get_blocks(self, block_ids):
-        LOGGER.debug("ConsensusProxy:_get_blocks %s\n",block_ids)
+        LOGGER.debug("ConsensusProxy:_get_blocks %s\n",[bid[:8] for bid in block_ids])
         block_iter = self._block_manager.get(block_ids)
         blocks = [b for b in block_iter]
         #blocks = self._chain_controller.get_blocks_validation(block_ids)

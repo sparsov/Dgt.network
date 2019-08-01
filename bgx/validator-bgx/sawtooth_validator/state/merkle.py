@@ -99,7 +99,9 @@ class MerkleDatabase(object):
 
     @staticmethod
     def get_real_merkle_root(database):
-        return database[MERKLE_ROOT_KEY]
+        root_state = database[MERKLE_ROOT_KEY]
+        LOGGER.debug('MerkleDatabase:GET REAL MERKLE ROOT STATE=%s!!!!\n',root_state[:10])
+        return root_state
 
     @property
     def real_merkle_root(self):
@@ -278,7 +280,7 @@ class MerkleDatabase(object):
             # for DAG save real last merkle root
             update_batch.append((MERKLE_ROOT_KEY, key_hash))
             self._database.put_multi(update_batch)
-            #LOGGER.debug('MerkleDatabase:updated STATE=%s',key_hash[:10])
+            LOGGER.debug('MerkleDatabase:updated MERKLE ROOT STATE=%s',key_hash[:10])
             
         
         return key_hash

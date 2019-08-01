@@ -33,7 +33,7 @@ class BlockStore(MutableMapping):
     def __init__(self, block_db):
         self._block_store = block_db
         self._chain_heads = {} # for DAG
-        self._block_nums  = [] # for DAG - list of reserved block candidate number  
+        self._block_nums  = {} # for DAG - list of reserved block candidate number and signers for it  
         self._free_block_nums  = [] # for DAG - list of free block number's 
     def __setitem__(self, key, value):
         if key != value.identifier:
@@ -176,7 +176,7 @@ class BlockStore(MutableMapping):
             return curs.value()
 
     
-    def block_num(self,parent_num):
+    def get_block_num(self,parent_num,signer):
         """
         for DAG version
         Return the last head block of sorted graph and reserve this number because others branch can ask this number
@@ -193,32 +193,49 @@ class BlockStore(MutableMapping):
         LOGGER.debug("BlockStore: find from last=%s",head.block_num)
         block_num = head.block_num + 1
         while block_num in self._block_nums:
+            peers = self._block_nums[block_num]
+            if signer not in peers:
+                # stop - only others peer make ref
+                break
             # already reserved by some branch try take next number
             block_num += 1
         # add into reserved list  - taken by candidate
-        self._block_nums.append(block_num)
-        LOGGER.debug("BlockStore: num=%s block_nums=%s",block_num,self._block_nums)
+        self.ref_block_number(block_num,signer)
         return block_num
 
-    def pop_block_number(self,block_num):
+    def pop_block_number(self,block_num,signer,force=False):
         # for external Block pop too because we make ref for external block
+        # drop signer from list
         if block_num in self._block_nums:
-            self._block_nums.remove(block_num)
-            LOGGER.debug("BlockStore:pop_block_number  num=%s nums=%s",block_num,self._block_nums)
+            if force:
+                del self._block_nums[block_num]
+            else:
+                peers = self._block_nums[block_num]
+                if signer in peers:
+                    peers.remove(signer)
+                if len(peers) == 0:
+                    del self._block_nums[block_num]
+            LOGGER.debug("BlockStore:pop_block_number  num=%s sig=%s nums=%s",block_num,signer[:8],self._block_nums) # [key for key in self._block_nums.keys()]
 
-    def ref_block_number(self,block_num):
+    def ref_block_number(self,block_num,signer):
         # for external Block  make ref for block num
-        self._block_nums.append(block_num)
-        LOGGER.debug("BlockStore:ref_block_number num=%s nums=%s",block_num,self._block_nums)
+        if block_num in self._block_nums:
+            peers = self._block_nums[block_num]
+        else:
+            peers = []
+            self._block_nums[block_num] = peers
 
-    def free_block_number(self,block_num):
+        peers.append(signer)
+        LOGGER.debug("BlockStore:ref_block_number num=%s signer=%s nums=%s",block_num,signer[:8],self._block_nums)
+
+    def free_block_number(self,block_num,signer):
         # free block number - because block was not validated
-        self.pop_block_number(block_num)
+        self.pop_block_number(block_num,signer)
         head = self.chain_head
         if block_num < head.block_num + 1:
             # put into free block num list
             self._free_block_nums.append(block_num)
-            LOGGER.debug("BlockStore:free_block_number  num=%s nums=%s",block_num,self._free_block_nums)
+            LOGGER.debug("BlockStore:free_block_number  num=%s free=%s",block_num,self._free_block_nums)
 
     def set_global_state_db(self,global_state_db):
         # for DAG - use mercle database for getting root state

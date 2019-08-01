@@ -122,7 +122,7 @@ class BlockManager():
             ))
         """
         for (i, block) in enumerate(branch): 
-            LOGGER.debug("BlockManager: put block[%s]=%s",i,block.header_signature[:8])
+            LOGGER.debug("BlockManager: put block[%s]=%s total=%s",i,block.header_signature[:8],len(self._block_store))
             self._block_store[block.header_signature] = ManagedBlock(block)
         """
         _libexec("block_manager_put",

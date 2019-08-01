@@ -134,7 +134,7 @@ class TransactionExecutorThread(object):
                 data=data)
 
         elif response.status == processor_pb2.TpProcessResponse.INTERNAL_ERROR:
-            LOGGER.debug("_future_done_callback: processor Response.INTERNAL_ERROR")
+            LOGGER.debug("_future_done_callback: processor Response.INTERNAL_ERROR tnx=%s",req.signature[:8])
             processor_type = processor_iterator.ProcessorType(
                 req.header.family_name,
                 req.header.family_version)
@@ -285,7 +285,7 @@ class TransactionExecutorThread(object):
                     context_id=None)
                 continue
             # send request for tnx processor
-            LOGGER.debug("Execute schedule:send tnx=%s to tnx processor",txn.header_signature[:8])
+            LOGGER.debug("Execute schedule:send tnx=%s to tnx processor(%s)",txn.header_signature[:8],txn.payload)
             content = processor_pb2.TpProcessRequest(
                 header=header,
                 payload=txn.payload,

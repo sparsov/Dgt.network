@@ -48,7 +48,7 @@ LOGGER = logging.getLogger(__name__)
 
 NUM_PUBLISH_COUNT_SAMPLES = 5
 INITIAL_PUBLISH_COUNT = 30
-
+_MAX_BATCHES_ = 6
 
 
 class PendingBatchObserver(metaclass=abc.ABCMeta):
@@ -345,7 +345,7 @@ class _CandidateBlock(object):
         In both cases the pending_batches will contain the list of batches
         that need to be added to the next Block that is built.
         """
-        LOGGER.debug("_CandidateBlock::finalize_block for BRANCH=%s", self._identifier[:8])
+        LOGGER.debug("_CandidateBlock::finalize_block for BRANCH=%s PENDING=%s", self._identifier[:8],len(self._pending_batches))
         self._scheduler.unschedule_incomplete_batches() # can drop out some batch from block 
         #
         # at this point all batch will be done
@@ -355,7 +355,7 @@ class _CandidateBlock(object):
         # for DAG get context for recompute merkle state
         self._recompute_context = self._scheduler.get_state_hash_context()
         #sth = self._scheduler.recompute_merkle_root(self._scheduler.previous_state_hash,self._recompute_context)
-        #LOGGER.debug("_CandidateBlock::get_state_hash_context recompute_context=%s\n",self._recompute_context)
+        LOGGER.debug("_CandidateBlock::Branch=%s context for merkle recompute=%s\n",self._identifier[:8],self._recompute_context)
         # this is a transaction cache to track the transactions committed
         # up to this batch. Only valid transactions that were processed
         # by the scheduler are added.
@@ -423,7 +423,7 @@ class _CandidateBlock(object):
                     state_hash = result.state_hash
             else:
                 bad_batches.append(batch)
-                LOGGER.debug("Batch %s invalid, not added to block.",batch.header_signature)
+                LOGGER.debug("Batch %s invalid, not added to block.",batch.header_signature[:8])
 
         if state_hash is None or not builder.batches:
             LOGGER.debug("Abandoning block %s: no batches added", builder)
@@ -439,7 +439,7 @@ class _CandidateBlock(object):
             pending_batches.extend([x for x in self._pending_batches
                                     if x not in bad_batches])
             return None
-        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()<-- DONE NEW ROOT STATE=%s pending=%s\n",state_hash[:10],len(pending_batches))
+        LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()<-- DONE NEW ROOT STATE=%s pending=%s bad=%s\n",state_hash[:10],len(pending_batches),[batch.header_signature[:8] for batch in bad_batches])
         #
         # this is new root state for this block
         #
@@ -639,7 +639,8 @@ class BlockPublisher(object):
         max_batches = int(self._settings_cache.get_setting(
             'sawtooth.publisher.max_batches_per_block',
             main_head.state_root_hash,# for DAG  chain_head.state_root_hash,
-            default_value=0))
+            default_value=_MAX_BATCHES_))
+        
         # this is my signer_id
         public_key = self._validator_id #self._identity_signer.get_public_key().as_hex()
         consensus = consensus_module.\
@@ -667,8 +668,8 @@ class BlockPublisher(object):
         block_num for new candidate should be more then block_num of its parent
         """
         
-        block_num = self._block_store.block_num(chain_head.block_num)
-        LOGGER.debug("make header for block (%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+        block_num = self._block_store.get_block_num(chain_head.block_num,self._validator_id)
+        LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
         block_header = BlockHeader(
             block_num=block_num , # ask last block number from store
             previous_block_id=chain_head.header_signature,
@@ -678,7 +679,7 @@ class BlockPublisher(object):
             # for proxy consensus waiting until reply fron consensus
             # return reserved block num
             LOGGER.debug("Consensus not ready to build candidate block.")
-            self._block_store.pop_block_number(block_num)
+            self._block_store.pop_block_number(block_num,self._validator_id)
             return None
         if hasattr(consensus, 'set_publisher'):
             # switch of marker from proxy engine
@@ -709,7 +710,8 @@ class BlockPublisher(object):
         self._candidate_blocks[bid] = self._candidate_block
         LOGGER.debug("NEW candidate block[%s]=%s candidates=%s batches=%s recom=%s",self._candidate_block.block_num,bid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()],
                      [key[:8] for key in self._pending_batch_ids],
-                     [key[0][:10] for key in self._queued_batch_cand_ids])
+                     [key[0][:10] for key in self._queued_batch_cand_ids]
+                     )
         """
         for DAG we should prefer add batch's with recomended candidate
         first check may be there is such batch in pending queue
@@ -719,7 +721,6 @@ class BlockPublisher(object):
         start_ind = 0  
         while bid in self._pending_batch_cid:
             # use all recomended batch from pending queue
-            num += 1 
             try:
                 ind = self._pending_batch_cid.index(bid,start_ind)
             except ValueError:
@@ -728,18 +729,23 @@ class BlockPublisher(object):
             # others candidate can take it because of recomendation
             batch = self._pending_batches[ind]
             self._candidate_block._batches_num = self._pending_batch_num[ind]
-            LOGGER.debug("NEW candidate=%s.%s add recomended batch[%s]=%s start=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind)
+            num += 1
+            LOGGER.debug("NEW candidate=%s.%s add recomended batch[%s]=%s start=%s total=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind,num)
             self._candidate_block.add_batch(batch)
+            
 
         if num == 0:
             # there are no recomended batch for this candidate- take batch without recomendation
             # because candidate for batch with recomendation could not be ready
+            LOGGER.debug("Try add batch to NEW candidate=%s.%s cid=%s",self._candidate_block.block_num,bid[:8],[key[:8] for key in self._pending_batch_cid])
             for (ind,batch) in enumerate(self._pending_batches):
                 if self._pending_batch_cid[ind] != '':
                     continue # skip recomended batch
-                if self._candidate_block.can_add_batch:
-                    LOGGER.debug("NEW candidate=%s.%s add batch[%s]=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8])
+                if self._candidate_block.can_add_batch and num < max_batches:
+                    num += 1
+                    #LOGGER.debug("NEW candidate=%s.%s add batch[%s]=%s total=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],num)
                     # mark taken batch with recomendation (but with num == 0)- because others candidate can take it too
+                    # when we make block and same bacthes becaime incompleted unmark it
                     self._pending_batch_cid[ind] = bid #  self._pending_batch_num[ind] == 0 
                     self._candidate_block._make_batch_broadcast = True
                     self._candidate_block.add_batch(batch)
@@ -747,7 +753,7 @@ class BlockPublisher(object):
                     break
             
 
-        LOGGER.debug("NEW candidate block[%s]=%s DONE pending=%s",self._candidate_block.block_num,bid[:8],len(self._pending_batches))
+        LOGGER.debug("NEW candidate block[%s]=%s DONE batches total=%s pending=%s",self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
         
     def on_batch_received(self, batch):
         """
@@ -757,7 +763,7 @@ class BlockPublisher(object):
         """
         LOGGER.debug("BlockPublisher:on_batch_received LOCK (%s) batchs=%s recomend=%s",batch.header_signature[:8],[key[:8] for key in self._queued_batch_ids],[key[0][:10] for key in self._queued_batch_cand_ids])
         with self._lock:
-            (cid,num) = self._queued_batch_cand_ids.pop() # [-1] # recomended branch
+            (cid,num) = self._queued_batch_cand_ids.pop(0) # [-1] # recomended branch
             self._queued_batch_ids = self._queued_batch_ids[:1]
             #self._queued_batch_cand_ids = self._queued_batch_cand_ids[:1]
             LOGGER.debug("BlockPublisher:Pop batch=%s batchs=%s recomend=%s",batch.header_signature[:8],[key[:8] for key in self._queued_batch_ids],[key[0][:10] for key in self._queued_batch_cand_ids])
@@ -808,7 +814,9 @@ class BlockPublisher(object):
                     #    self._batch_publisher.send_batch(batch,candidate.identifier)
                 else:
                     # we should save somewhere cid and num for using next when free block candidate appeared  
-                    LOGGER.debug("On BATCH=%s received THERE ARE NO CANDIDATE - put CID=%s into pending=%s!!!\n",batch.header_signature[:8],cid[:8],len(self._pending_batches)) 
+                    LOGGER.debug("On BATCH=%s received THERE ARE NO CANDIDATE - put CID=%s into pending=%s cid=%s!!!\n",batch.header_signature[:8],cid[:8],len(self._pending_batches),
+                                 [key[:8] for key in self._pending_batch_cid]
+                                 ) 
             else:
                 LOGGER.debug("BATCH=%s has an unauthorized signer.",batch.header_signature[:8])
 
@@ -896,15 +904,15 @@ class BlockPublisher(object):
                         del self._chain_heads[branch_candidate_id]
                         LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
                     else:
-                        LOGGER.info('SWITCH BLOCK CONDIDATE ON EXTERNAL BLOCK=(%s) AS HEAD for BRANCH=%s\n',chain_head.identifier[:8],branch_candidate_id[:8])
+                        LOGGER.info('SWITCH BLOCK CONDIDATE ON EXTERNAL BLOCK=%s.%s AS HEAD for BRANCH=%s\n',chain_head.block_num,chain_head.identifier[:8],branch_candidate_id[:8])
                         for key,head in self._chain_heads.items():
                             if head.block_num == chain_head.block_num:
                                 del self._chain_heads[key]
                                 branch_candidate_id = key # drop old candidate
                                 if key in self._candidate_blocks:
                                     candidate = self._candidate_blocks[key]
-                                    # return unused block num 
-                                    self._block_store.pop_block_number(candidate.block_num)
+                                    # return unused block num with was reserved for own candidate
+                                    self._block_store.pop_block_number(candidate.block_num, self._validator_id)
                                 else:
                                     # it could be external block
                                     LOGGER.info('THERE IS NO CANDIDATE for key=%s candidates=%s\n',key[:8],[key[:8] for key in self._candidate_blocks.keys()])
@@ -946,8 +954,9 @@ class BlockPublisher(object):
                     We can check is internal or external consensus present and if there is one of them build candidate for branch
                     """
                     try:
-                        LOGGER.info('Update DAG branch head for ID=%s build_candidate_block\n\n',branch_candidate_id[:8])
-                        self._build_candidate_block(chain_head)
+                        LOGGER.info('Update DAG branch head=%s build_candidate_block\n\n',branch_candidate_id[:8])
+                        # FIXME for external consensus wait until engine ask candidate ?
+                        #self._build_candidate_block(chain_head)
                     except NotRegisteredConsensusModule:
                         """
                         we should do it after request from consensus engine
@@ -997,13 +1006,15 @@ class BlockPublisher(object):
                         break
             # unlock chain heads
             if candidate is not None:
-
-                pending_batches = []  # will receive the list of batches
-                # that were not added to the block
+                """
+                candidate.finalize_block() will receive the list of batches  
+                that were not added to the block but were marked for this block candidate
+                """
+                pending_batches = []   
                 last_batch = candidate.last_batch
                 LOGGER.debug("BlockPublisher: before finalize_block for BRANCH=%s last_batch=%s make_batch_broadcast=%s\n",bid[:8],last_batch.header_signature[:8],candidate._make_batch_broadcast)
                 block = candidate.finalize_block(self._identity_signer,pending_batches)
-                LOGGER.debug("BlockPublisher: after finalize_block pending BATCHS=%s+%s block=%s",len(self._pending_batches),len(pending_batches),block is not None)
+                LOGGER.debug("BlockPublisher: after finalize_block pending BATCHS=%s+%s block=%s",len(self._pending_batches),[batch.header_signature[:8] for batch in pending_batches],block is not None)
                 """
                 after proxy engine answer we can lock again
                 """
@@ -1018,9 +1029,9 @@ class BlockPublisher(object):
                         unsent_batch_cid = []
                         unsent_batch_num = []
                         unsent_batch_ids = []
-                        for batch in pending_batches:
+                        for batch in pending_batches: # rest of batches which weren't put into block
                             unsent_batch_ids.append(batch.header_signature)       
-                            unsent_batch_cid.append('') # becaim without recomendation 
+                            unsent_batch_cid.append('') # became without recomendation 
                             unsent_batch_num.append(0) 
 
                         for (ind,batch) in enumerate(self._pending_batches):
@@ -1030,6 +1041,9 @@ class BlockPublisher(object):
                                 unsent_batch_ids.append(batch.header_signature)
                                 unsent_batch_cid.append(self._pending_batch_cid[ind])
                                 unsent_batch_num.append(self._pending_batch_num[ind])
+                            else:
+                                # skip all batches which were marked for this candidate = some of them could be into pending_batches and from this block candidate
+                                LOGGER.debug("BlockPublisher: after finalize block SKIP batch=%s",batch.header_signature[:8])
 
                         # new pending queue 
                         self._pending_batches = pending_batches + unsent_batches
@@ -1038,8 +1052,8 @@ class BlockPublisher(object):
                         self._pending_batch_num = unsent_batch_num
 
                         self._pending_batch_gauge.set_value(len(self._pending_batches))
-                        LOGGER.debug("BlockPublisher: After finalize for BRANCH=%s new pending=%s batches=%s\n", bid[:8],(len(self._pending_batches)==len(self._pending_batch_cid)),
-                                     [key[:8] for key in self._pending_batch_ids]
+                        LOGGER.debug("BlockPublisher: After finalize for BRANCH=%s new pending=%s batches=%s cid=%s\n", bid[:8],len(self._pending_batches),
+                                     [key[:8] for key in self._pending_batch_ids],[key[:8] for key in self._pending_batch_cid]
                                      )
                     except ValueError:
                         LOGGER.debug("BlockPublisher: last_batch=%s is not in list pending batches=%s~%s!!!!\n", last_batch.header_signature[:8], len(self._pending_batches), len(self._pending_batch_cid))
@@ -1082,7 +1096,9 @@ class BlockPublisher(object):
                         so we should create new candidate for this BID in this function
                         also _chain_heads has head for branch bid
                         """ 
-                        LOGGER.info("on_check_publish_block: was not finalize branch=%s",bid[:8])
+                        LOGGER.info("on_check_publish_block: was not finalize branch=%s REBUILD THIS CANDIDATE block=%s!!!!\n\n",bid[:8],candidate.block_num)
+                        # for correct block number allocation we should keep block number relation this candidate
+                        self._block_store.pop_block_number(candidate.block_num,self._validator_id)
                         self._engine_ask_candidate[bid] = True
                         del self._candidate_blocks[bid]
 
@@ -1260,9 +1276,6 @@ class BlockPublisher(object):
         we are know parent's ID from chain_head_get()
         """
         LOGGER.debug('BlockPublisher: initialize_block for block=%s.%s LOCK\n',block.block_num, block.identifier[:8])
-        """
-        self._py_call('initialize_block', ctypes.py_object(block))
-        """
         self._engine_ask_candidate[block.identifier] = True
         self._can_print_summarize = True
         self.on_initialize_build_candidate(block)
@@ -1273,19 +1286,6 @@ class BlockPublisher(object):
         """
         call from ConsensusSummarizeBlockHandler
         for DAG we should check all dag header and return one of them 
-        
-        """
-        
-        """
-        (vec_ptr, vec_len, vec_cap) = ffi.prepare_vec_result()
-        self._call(
-            'summarize_block',
-            ctypes.c_bool(force),
-            ctypes.byref(vec_ptr),
-            ctypes.byref(vec_len),
-            ctypes.byref(vec_cap))
-
-        return ffi.from_rust_vec(vec_ptr, vec_len, vec_cap)
         """
         #LOGGER.debug('BlockPublisher: summarize_block ...')
         with self._proxy_lock:
@@ -1318,18 +1318,6 @@ class BlockPublisher(object):
         # now we can send block to chain controller
         # 
         candidate.finalize_block_complete(consensus)
-        """
-        (vec_ptr, vec_len, vec_cap) = ffi.prepare_vec_result()
-        self._call(
-            'finalize_block',
-            consensus, len(consensus),
-            ctypes.c_bool(force),
-            ctypes.byref(vec_ptr),
-            ctypes.byref(vec_len),
-            ctypes.byref(vec_cap))
-
-        return ffi.from_rust_vec(vec_ptr, vec_len, vec_cap).decode('utf-8')
-        """
         LOGGER.debug('BlockPublisher: finalize_block send reply candidate=%s',candidate is not None)
         # return parent block id 
         return bid 
@@ -1347,10 +1335,7 @@ class BlockPublisher(object):
             # need new block candidate
             self._candidate_block = None
 
-        """
-        self._call("cancel_block")
-        """
-
+        
 class _RollingAverage(object):
 
     def __init__(self, sample_size, initial_value):
