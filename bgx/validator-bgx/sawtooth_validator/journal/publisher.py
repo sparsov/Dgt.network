@@ -205,8 +205,7 @@ class _CandidateBlock(object):
                     "Transaction rejected as it is already in the chain %s",
                     txn.header_signature[:8])
                 return False
-            elif not self._check_transaction_dependencies(
-                    txn, committed_txn_cache):
+            elif not self._check_transaction_dependencies(txn, committed_txn_cache):
                 # if any transaction in this batch fails the whole batch
                 # fails.
                 committed_txn_cache.remove_batch(batch)
@@ -227,10 +226,7 @@ class _CandidateBlock(object):
         txn_hdr.ParseFromString(txn.header)
         for dep in txn_hdr.dependencies:
             if dep not in committed_txn_cache:
-                LOGGER.debug(
-                    "Transaction rejected due missing dependency, "
-                    "transaction %s depends on %s",
-                    txn.header_signature, dep)
+                LOGGER.debug("Transaction rejected due missing dependency, transaction %s depends on %s",txn.header_signature, dep)
                 return False
         return True
 
@@ -310,7 +306,7 @@ class _CandidateBlock(object):
             # check maybe there are incomplete batches if so - wait
             num = self._scheduler.num_batches()
             if num < self.batches_num:
-                LOGGER.debug("Waiting - too less batches=%s~%s\n",num,self.batches_num)
+                LOGGER.debug("Waiting for BLOCK=%s.%s - too less batches=%s~%s \n",self.block_num,self.identifier[:8],num,self.batches_num)
                 return False
             publish = (self._scheduler.check_incomplete_batches() == 0) 
             
@@ -771,7 +767,7 @@ class BlockPublisher(object):
                 # add into pending
                 self._pending_batches.append(batch)
                 self._pending_batch_ids.append(batch.header_signature)
-                self._pending_batch_cid.append(cid) 
+                #self._pending_batch_cid.append(cid) 
                 self._pending_batch_num.append(num) 
 
                 self._pending_batch_gauge.set_value(len(self._pending_batches))
@@ -801,8 +797,9 @@ class BlockPublisher(object):
                             """
                             there is block candidate and we can add batch into them
                             for DAG we should choice one of the block candidate and inform others peer about that choice
+                            and set cid for marker 
                             """
-                            candidate = cand
+                            candidate,cid = cand,cand.identifier
                             LOGGER.debug("On batch=%s received use CANDIDATE=%s FROM=%s",batch.header_signature[:8],candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
                             # send batch to peers and say about selected branch 
                             #self._batch_publisher.send_batch(batch,candidate.identifier)
@@ -817,6 +814,8 @@ class BlockPublisher(object):
                     LOGGER.debug("On BATCH=%s received THERE ARE NO CANDIDATE - put CID=%s into pending=%s cid=%s!!!\n",batch.header_signature[:8],cid[:8],len(self._pending_batches),
                                  [key[:8] for key in self._pending_batch_cid]
                                  ) 
+                self._pending_batch_cid.append(cid) # mark for this candidate or for any of them
+
             else:
                 LOGGER.debug("BATCH=%s has an unauthorized signer.",batch.header_signature[:8])
 
