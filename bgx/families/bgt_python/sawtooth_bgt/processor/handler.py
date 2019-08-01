@@ -123,13 +123,12 @@ class BgtTransactionHandler(TransactionHandler):
         curr = state[name]
         token = BgtTokenInfo()
         token.ParseFromString(curr)
-        LOGGER.debug('_do_inc token[%s]=%s',token.group_code,token.decimals,value)
+        LOGGER.debug('_do_inc token[%s]=%s',token.group_code,value) # token.decimals
         incd = token.decimals + value
 
         if incd > MAX_VALUE:
             raise InvalidTransaction(
-                'Verb is "inc", but result would be greater than {}'.format(
-                    MAX_VALUE))
+                'Verb is "inc", but result would be greater than {}'.format(MAX_VALUE))
 
         updated = {k: v for k, v in state.items()}
         token.decimals = incd
