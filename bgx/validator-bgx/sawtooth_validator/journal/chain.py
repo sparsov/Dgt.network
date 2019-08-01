@@ -327,7 +327,7 @@ class BlockValidator(object):
                 # for DAG this states could be different
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash[:10],state_hash[:10])
                 return False
-            LOGGER.debug("BLOCK=%s.%s(%s) WAS VERIFIED num tnx=%s state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.num_transactions,self._get_merkle_root()[:10])
+            LOGGER.debug("BLOCK=%s.%s(%s) WAS VERIFIED num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8])
 
         return True
 
