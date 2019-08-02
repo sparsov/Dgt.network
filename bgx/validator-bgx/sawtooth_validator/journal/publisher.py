@@ -126,6 +126,7 @@ class _CandidateBlock(object):
         self._pending_batches = []
         self._pending_batch_ids = set()
         self._injected_batch_ids = set()
+        self._missing_batches = []
         self._block_store = block_store
         self._consensus = consensus
         self._scheduler = scheduler
@@ -201,9 +202,7 @@ class _CandidateBlock(object):
         """
         for txn in batch.transactions:
             if self._is_txn_already_committed(txn, committed_txn_cache):
-                LOGGER.debug(
-                    "Transaction rejected as it is already in the chain %s",
-                    txn.header_signature[:8])
+                LOGGER.debug("Transaction rejected as it is already in the chain %s",txn.header_signature[:8])
                 return False
             elif not self._check_transaction_dependencies(txn, committed_txn_cache):
                 # if any transaction in this batch fails the whole batch
@@ -291,7 +290,13 @@ class _CandidateBlock(object):
                 except SchedulerError as err:
                     LOGGER.debug("Scheduler error processing batch: %s", err)
         else:
-            LOGGER.debug("Dropping batch due to missing dependencies: %s",batch.header_signature[:8])
+            """
+            In case DAG could be missing dependencies because of many head 
+            keep this batch and try to add in check_publish_block()   
+            """
+            if not self._make_batch_broadcast:
+                self._missing_batches.append(batch)
+            LOGGER.debug("Dropping batch due to missing=%s dependencies: %s \n",len(self._missing_batches),batch.header_signature[:8])
 
     def check_publish_block(self):
         """
@@ -301,11 +306,22 @@ class _CandidateBlock(object):
         until all batches which were putted into block for peer owner of batch 
         will be putted into block for this peer too.  
         """
+                    
         publish = self._consensus.check_publish_block(self._block_builder.block_header)
-        if publish and self._make_batch_broadcast == False:
+        if publish and not self._make_batch_broadcast:
+            if len(self._missing_batches) > 0 :
+                # try to add 
+                batch = self._missing_batches.pop(0)
+                LOGGER.debug("TRY TO ADD MISSING BATCH=%s",batch.header_signature[:8])
+                self.add_batch(batch)
+                return False
             # check maybe there are incomplete batches if so - wait
             num = self._scheduler.num_batches()
             if num < self.batches_num:
+                """
+                check maybe rest batch were rejected by dependency 
+                TRY TO ADD its
+                """
                 LOGGER.debug("Waiting for BLOCK=%s.%s - too less batches=%s~%s \n",self.block_num,self.identifier[:8],num,self.batches_num)
                 return False
             publish = (self._scheduler.check_incomplete_batches() == 0) 
@@ -806,6 +822,10 @@ class BlockPublisher(object):
                             candidate._make_batch_broadcast = True # mark for broadcasting
                             break
                 if candidate is not None:
+                    """
+                    could be situation when batch can't be added because of dependency 
+                    in case of recomendation we should wait and try to add again
+                    """
                     candidate.add_batch(batch)
                     #if cid == '' : # send in case batch owner
                     #    self._batch_publisher.send_batch(batch,candidate.identifier)
