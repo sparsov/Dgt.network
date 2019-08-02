@@ -270,7 +270,7 @@ class SerialScheduler(Scheduler):
             base_contexts = [] if self._previous_context_id is None else [self._previous_context_id]
             # for DAG we should use real merkle root
             real_state_hash = self._merkle_root() if self._merkle_root else ''
-            LOGGER.debug('next_transaction:PREV STATE=%s~%s\n',self._previous_state_hash[:10],real_state_hash[:10])
+            LOGGER.debug('next_transaction: tnx=%s PREV STATE=%s~%s \n',txn.header_signature[:8],self._previous_state_hash[:10],real_state_hash[:10])
             txn_info = TxnInformation(
                 txn=txn,
                 state_hash=self._previous_state_hash if real_state_hash == '' else real_state_hash,
@@ -453,17 +453,18 @@ class SerialScheduler(Scheduler):
         return self._state_recompute_context
 
     def _complete(self):
-        return self._final and \
-            len(self._txn_results) == len(self._txn_to_batch)
+        return self._final and len(self._txn_results) == len(self._txn_to_batch)
 
     def complete(self, block):
         with self._condition:
+            LOGGER.debug('complete...')
             if not self._final:
                 return False
             if self._complete():
                 self._calculate_state_root_if_not_already_done()
                 return True
             if block:
+                LOGGER.debug('complete wait_for tnx=%s~%s.',len(self._txn_results),len(self._txn_to_batch))
                 self._condition.wait_for(self._complete)
                 self._calculate_state_root_if_not_already_done()
                 return True

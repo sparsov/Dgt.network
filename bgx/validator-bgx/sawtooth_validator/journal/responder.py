@@ -123,7 +123,7 @@ class BlockResponderHandler(Handler):
                     self._responder.add_request(block_id, connection_id)
         else:
             # peer as block 
-            LOGGER.debug("Responding to block requests: block=%s",block.get_block().header_signature[:8])
+            LOGGER.debug("Responding to block requests: BLOCK=%s",block.get_block().header_signature[:8])
 
             block_response = network_pb2.GossipBlockResponse(
                 content=block.get_block().SerializeToString())

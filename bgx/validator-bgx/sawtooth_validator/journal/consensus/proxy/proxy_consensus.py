@@ -213,7 +213,7 @@ class BlockVerifier(BlockVerifierInterface):
         # send message new block
         self._is_verify_complete = None
         _consensus_notifier.notify_block_new(block_wrapper.get_block())
-        LOGGER.debug("PROXY:verify_block waiting consensus reply for block=%s\n",block_wrapper.identifier[:8])
+        LOGGER.debug("PROXY:verify_block waiting consensus reply for BLOCK=%s.%s\n",block_wrapper.block_num,block_wrapper.identifier[:8])
         with self._condition:
             if self._condition.wait_for(self._verify_complete):
                 return self._is_verify_complete

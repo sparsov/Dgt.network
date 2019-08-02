@@ -199,11 +199,8 @@ class Gossip(object):
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
                 self._peers[connection_id] = endpoint
-                self._topology.set_connection_status(connection_id,
-                                                     PeerStatus.PEER)
-                LOGGER.debug("Added connection_id %s with endpoint %s, "
-                             "connected identities are now %s",
-                             connection_id, endpoint, self._peers)
+                self._topology.set_connection_status(connection_id,PeerStatus.PEER)
+                LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id, endpoint, self._peers)
             else:
                 raise PeeringException(
                     "At maximum configured number of peers: {} "
@@ -213,6 +210,7 @@ class Gossip(object):
 
         public_key = self.peer_to_public_key(connection_id)
         if public_key:
+            #send message about peer to consensus engine
             self._consensus_notifier.notify_peer_connected(public_key)
 
     def unregister_peer(self, connection_id):
@@ -229,15 +227,10 @@ class Gossip(object):
         with self._lock:
             if connection_id in self._peers:
                 del self._peers[connection_id]
-                LOGGER.debug("Removed connection_id %s, "
-                             "connected identities are now %s",
-                             connection_id, self._peers)
-                self._topology.set_connection_status(connection_id,
-                                                     PeerStatus.TEMP)
+                LOGGER.debug("Removed connection_id %s, connected identities are now=%s",connection_id, self._peers)
+                self._topology.set_connection_status(connection_id,PeerStatus.TEMP)
             else:
-                LOGGER.debug("Connection unregister failed as connection "
-                             "was not registered: %s",
-                             connection_id)
+                LOGGER.debug("Connection unregister failed as connection was not registered: %s",connection_id)
 
     def get_time_to_live(self):
         time_to_live = \
@@ -269,8 +262,8 @@ class Gossip(object):
                        validator_pb2.Message.GOSSIP_BLOCK_REQUEST)
 
     def send_block_request(self, block_id, connection_id):
-        LOGGER.debug("gossip:send_block_request block_id=%s",block_id)
         time_to_live = self.get_time_to_live()
+        LOGGER.debug("gossip:send_block_request block_id=%s time_to_live=%s conn=%s",block_id,time_to_live,self._peers[connection_id])
         block_request = GossipBlockRequest(
             block_id=block_id,
             nonce=binascii.b2a_hex(os.urandom(16)),
@@ -358,9 +351,7 @@ class Gossip(object):
             self._network.send(message_type, message, connection_id,
                                one_way=one_way)
         except ValueError:
-            LOGGER.debug("Connection %s is no longer valid. "
-                         "Removing from list of peers.",
-                         connection_id)
+            LOGGER.debug("Connection %s is no longer valid. Removing from list of peers.",connection_id)
             if connection_id in self._peers:
                 del self._peers[connection_id]
 
@@ -826,25 +817,20 @@ class ConnectionManager(InstrumentedThread):
                              connection_id)
                 self._remove_temporary_connection(connection_id)
             elif ack.status == ack.OK:
-                LOGGER.debug("Peering request to %s was successful",connection_id)
+                LOGGER.debug("Peering request to %s was successful",connection_id[:10])
                 if endpoint:
                     try:
                         self._gossip.register_peer(connection_id, endpoint)
-                        self._connection_statuses[connection_id] = \
-                            PeerStatus.PEER
-                        LOGGER.debug("Peering register_peer send_block_request")
+                        self._connection_statuses[connection_id] = PeerStatus.PEER
+                        LOGGER.debug("Peering register_peer send_block_request to conn=%s", endpoint )
                         self._gossip.send_block_request("HEAD", connection_id)
                     except PeeringException as e:
                         # Remove unsuccessful peer
-                        LOGGER.warning('Unable to successfully peer with '
-                                       'connection_id: %s, due to %s',
-                                       connection_id, str(e))
+                        LOGGER.warning('Unable to successfully peer with connection_id: %s, due to %s',connection_id[:10], str(e))
 
                         self._remove_temporary_connection(connection_id)
                 else:
-                    LOGGER.debug("Cannot register peer with no endpoint for "
-                                 "connection_id: %s",
-                                 connection_id)
+                    LOGGER.debug("Cannot register peer with no endpoint for connection_id: %s",connection_id)
                     self._remove_temporary_connection(connection_id)
 
     def _remove_temporary_connection(self, connection_id):

@@ -201,7 +201,7 @@ class ConsensusInitializeBlockHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
-            LOGGER.debug('ConsensusInitializeBlockHandler: proxy=%s :initialize_block block=%s',self._proxy,request.previous_id.hex()[:8])
+            LOGGER.debug('ConsensusInitializeBlockHandler: initialize_block block=%s',request.previous_id.hex()[:8])
             self._proxy.initialize_block(request.previous_id)
         except MissingPredecessor:
             response.status =\

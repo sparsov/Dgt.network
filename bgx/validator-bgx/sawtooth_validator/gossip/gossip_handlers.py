@@ -82,7 +82,7 @@ class PeerRegisterHandler(Handler):
         request = PeerRegisterRequest()
         request.ParseFromString(message_content)
 
-        LOGGER.debug("Got peer register message from %s", connection_id)
+        LOGGER.debug("Got peer register message from %s(%s)",request.endpoint,connection_id[:10])
 
         ack = NetworkAcknowledgement()
         try:

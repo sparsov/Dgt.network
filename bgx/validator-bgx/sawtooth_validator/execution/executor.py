@@ -37,7 +37,8 @@ from sawtooth_validator.networking.future import FutureTimeoutError
 from sawtooth_validator.metrics.wrappers import CounterWrapper
 
 LOGGER = logging.getLogger(__name__)
-
+MAX_WORKERS_EXEC = 10
+MAX_WORKERS_WAIT = 3
 
 class TransactionExecutorThread(object):
     """A thread of execution controlled by the TransactionExecutor.
@@ -162,12 +163,14 @@ class TransactionExecutorThread(object):
 
     def execute_thread(self):
         try:
+            
             self._execute_schedule()
         except Exception as exc:  # pylint: disable=broad-except
             LOGGER.exception(
                 "Unhandled exception while executing schedule: %s", exc)
 
     def _execute_schedule(self):
+        LOGGER.debug("execute_thread: ...")
         for txn_info in self._scheduler:
             self._transaction_execution_count.inc()
 
@@ -395,9 +398,9 @@ class TransactionExecutor(object):
             processor_iterator.RoundRobinProcessorIterator)
         self._settings_view_factory = settings_view_factory
         self._waiting_threadpool = \
-            InstrumentedThreadPoolExecutor(max_workers=3, name='Waiting')
+            InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_WAIT, name='Waiting')
         self._executing_threadpool = \
-            InstrumentedThreadPoolExecutor(max_workers=5, name='Executing')
+            InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_EXEC, name='Executing')
         self._alive_threads = []
         self._lock = threading.Lock()
 
@@ -482,7 +485,7 @@ class TransactionExecutor(object):
             metrics_registry=self._metrics_registry)
         self._executing_threadpool.submit(t.execute_thread)
         with self._lock:
-            #LOGGER.debug('execute:append new thread\n')
+            LOGGER.debug('execute:append new thread num=%s\n',len(self._alive_threads))
             self._alive_threads.append(t)
 
     def stop(self):

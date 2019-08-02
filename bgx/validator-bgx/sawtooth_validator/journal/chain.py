@@ -564,7 +564,7 @@ class BlockValidator(object):
         """
         try:
             branch_id = self._new_block.previous_block_id
-            LOGGER.info("BlockValidator:run Starting validation NEW BLOCK=%s for BRANCH=%s",self._new_block.identifier[:8],branch_id[:8])
+            LOGGER.info("run: Starting validation NEW BLOCK=%s.%s signer_id=%s for BRANCH=%s",self._new_block.block_num,self._new_block.identifier[:8],self._new_block.signer_id[:8],branch_id[:8])
             cur_chain = self._result["cur_chain"]  # ordered list of the  current chain blocks
             new_chain = self._result["new_chain"]  # ordered list of the new chain blocks
             """
@@ -798,7 +798,7 @@ class ChainController(object):
         self._consensus_notifier = consensus_notifier # for external consensus
         self._block_manager = block_manager
         self._max_dag_branch = max_dag_branch if max_dag_branch is not None else MAX_DAG_BRANCH
-        LOGGER.info("Chain controller initialized with max_dag_branch=%s validator=%s",self._max_dag_branch,self._validator_id[:8])
+        LOGGER.info("Chain controller initialized with max_dag_branch=%s max_workers=%s validator=%s",self._max_dag_branch,self._max_dag_branch*PEERS_NUM,self._validator_id[:8])
         if metrics_registry:
             self._chain_head_gauge = GaugeWrapper(
                 metrics_registry.gauge('chain_head', default='no chain head'))
@@ -816,7 +816,7 @@ class ChainController(object):
 
         self._block_queue = queue.Queue()
         self._thread_pool = (
-            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch+PEERS_NUM, name='Validating')
+            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch*PEERS_NUM, name='Validating')
             if thread_pool is None else thread_pool
         )
         self._chain_thread = None
@@ -931,7 +931,7 @@ class ChainController(object):
             blkw could be from another nodes
             """
             branch_id = blkw.previous_block_id
-            LOGGER.debug("_submit_blocks_for_verification: block=%s(%s) BRANCH=%s chain heads=%s",blkw.identifier[:8],blkw.signer_id[:8],branch_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+            LOGGER.debug("_submit_blocks_for_verification: BLOCK=%s.%s(%s) BRANCH=%s chain heads=%s",blkw.identifier[:8],blkw.block_num,blkw.signer_id[:8],branch_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
             main_head = self._block_cache.block_store.chain_head
             if blkw.signer_id == self._validator_id:
                 # Own block
@@ -1003,7 +1003,7 @@ class ChainController(object):
             if blkw.signer_id != self._validator_id:
                 self._block_cache.block_store.ref_block_number(blkw.block_num,blkw.signer_id)
             self._thread_pool.submit(validator.run)
-            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE block=%s.%s signer=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8])
+            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8])
 
     """
     for external consensus

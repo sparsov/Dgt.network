@@ -117,8 +117,7 @@ class Completer(object):
                 if block.previous_block_id in self._requested:
                     return None
 
-                LOGGER.debug("Request missing predecessor: %s",
-                             block.previous_block_id)
+                LOGGER.debug("Request missing predecessor: %s",block.previous_block_id[:8])
                 self._requested[block.previous_block_id] = None
                 self.gossip.broadcast_block_request(block.previous_block_id)
                 return None

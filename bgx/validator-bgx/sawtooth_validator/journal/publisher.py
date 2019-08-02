@@ -936,7 +936,7 @@ class BlockPublisher(object):
                                     # it could be external block
                                     LOGGER.info('THERE IS NO CANDIDATE for key=%s candidates=%s\n',key[:8],[key[:8] for key in self._candidate_blocks.keys()])
 
-                                LOGGER.info('DEL OLD HEAD=%s by block num branch=%s.%s\n',head.block_num,key[:8])
+                                LOGGER.info('DEL OLD HEAD=%s by block num branch=%s.%s\n',chain_head.identifier[:8],head.block_num,key[:8])
                                 self._engine_ask_candidate[chain_head.identifier] = True # mark try because consensus engine will switch branch on new head too
                                 break
                     # update head for DAG branch

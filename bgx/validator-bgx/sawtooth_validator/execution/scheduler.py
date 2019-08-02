@@ -206,6 +206,7 @@ class SchedulerIterator(object):
 
     # pylint: disable=inconsistent-return-statements
     def __next__(self):
+        LOGGER.debug('SchedulerIterator: WAITING _condition')
         with self._condition:
             # Catch-up.  This will return transactions that have already been
             # scheduled.
