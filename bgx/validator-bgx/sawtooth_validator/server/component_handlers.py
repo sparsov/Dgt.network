@@ -232,3 +232,9 @@ def add(
         validator_pb2.Message.CLIENT_PEERS_GET_REQUEST,
         client_handlers.PeersGetRequest(gossip),
         thread_pool)
+
+    # ask heads from validator
+    dispatcher.add_handler(
+        validator_pb2.Message.CLIENT_HEADS_GET_REQUEST,
+        client_handlers.HeadsGetRequest(block_store),
+        thread_pool)

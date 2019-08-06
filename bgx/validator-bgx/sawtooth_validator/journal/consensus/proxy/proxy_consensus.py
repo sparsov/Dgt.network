@@ -71,9 +71,10 @@ class BlockPublisher(BlockPublisherInterface):
         # a block, we will go ahead and check real configuration
         self._min_wait_time = 0
         self._max_wait_time = 0
-        self._valid_block_publishers = None
+        self._valid_block_publishers = None # list of validator which can participate into consensus
         self._consensus = None
         self._condition = Condition()
+        self._is_finalize_complete = None
 
     def set_consensus_name(self,name):
         self._consensus = bytes(name, 'utf-8')
@@ -98,8 +99,7 @@ class BlockPublisher(BlockPublisherInterface):
             return False
         # Using the current chain head, we need to create a state view so we
         # can get our config values.
-        state_view = \
-            BlockWrapper.state_view_for_block(
+        state_view = BlockWrapper.state_view_for_block(
                 self._block_cache.block_store.chain_head,
                 self._state_view_factory)
 
@@ -111,7 +111,7 @@ class BlockPublisher(BlockPublisherInterface):
         block_header.consensus = self._consensus # b"Devmode"
         self._start_time = time.time()
         self._wait_time = random.uniform(self._min_wait_time, self._max_wait_time)
-        LOGGER.debug("PROXY:initialize_block")
+        LOGGER.debug("PROXY:initialize_block min_wait_time=%s max_wait_time=%s",self._min_wait_time,self._max_wait_time)
         return True
 
     def check_publish_block(self, block_header):
@@ -126,17 +126,14 @@ class BlockPublisher(BlockPublisherInterface):
         Returns:
             Boolean: True if the candidate block_header should be claimed.
         """
-        if self._valid_block_publishers \
-                and block_header.signer_public_key \
-                not in self._valid_block_publishers:
+        if self._valid_block_publishers and block_header.signer_public_key not in self._valid_block_publishers:
             return False
         elif self._min_wait_time == 0:
             return True
         elif self._min_wait_time > 0 and self._max_wait_time <= 0:
             if self._start_time + self._min_wait_time <= time.time():
                 return True
-        elif self._min_wait_time > 0 \
-                and self._max_wait_time > self._min_wait_time:
+        elif self._min_wait_time > 0 and self._max_wait_time > self._min_wait_time:
             if self._start_time + self._wait_time <= time.time():
                 return True
         else:
@@ -162,9 +159,13 @@ class BlockPublisher(BlockPublisherInterface):
         Returns:
             True
         """
-        LOGGER.debug("PROXY:finalize_block inform external engine header=%s",block_header.block_num)
+        LOGGER.debug("PROXY:finalize_block inform external engine header=%s is_complete=%s",block_header.block_num,self._is_finalize_complete)
         self._publisher.on_finalize_block(block_header)
         self._is_finalize_complete = None
+        """
+        after that consensus engine should be informed that block could be finalized and engine can say finalize for this candidate
+        FIXME - for DAG we can say for all ready candidate that his block's could be finalized and only after that wait engine's reply
+        """
         LOGGER.debug("PROXY:finalize_block wait proxy reply via finalize_block_complete...\n")
         with self._condition:
             return self._condition.wait_for(self._finalize_complete)

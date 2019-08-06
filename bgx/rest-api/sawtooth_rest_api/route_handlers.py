@@ -44,6 +44,7 @@ from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
+from sawtooth_rest_api.protobuf import client_heads_pb2
 
 # pylint: disable=too-many-lines
 
@@ -601,6 +602,25 @@ class RouteHandler:
         return self._wrap_response(
             request,
             data=response['peers'],
+            metadata=self._get_metadata(request, response))
+
+    async def list_heads(self, request):
+        """Fetches active heads from the validator.
+        Request:
+
+        Response:
+            data: JSON array of peer endpoints
+            link: The link to this exact query
+        """
+        LOGGER.debug('Request list_heads')
+        response = await self._query_validator(
+            Message.CLIENT_HEADS_GET_REQUEST,
+            client_heads_pb2.ClientHeadsGetResponse,
+            client_heads_pb2.ClientHeadsGetRequest())
+
+        return self._wrap_response(
+            request,
+            data=response['heads'],
             metadata=self._get_metadata(request, response))
 
     async def fetch_status(self, request):

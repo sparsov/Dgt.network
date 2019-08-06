@@ -10,37 +10,14 @@
             Filters="*.py"
             GUID="{98D3773B-A5E6-46F4-84E3-DE940EED47CD}">
             <F N="sawtooth_rest_api/__init__.py"/>
-            <F N="sawtooth_rest_api/protobuf/__init__.py"/>
-            <F N="sawtooth_rest_api/protobuf/authorization_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/batch_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/block_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_batch_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_batch_submit_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_block_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_event_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_list_control_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_peers_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_receipt_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_state_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_status_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/client_transaction_pb2.py"/>
             <F N="tests/unit/components.py"/>
             <F N="sawtooth_rest_api/config.py"/>
-            <F N="sawtooth_rest_api/protobuf/consensus_pb2.py"/>
             <F N="sawtooth_rest_api/error_handlers.py"/>
-            <F N="sawtooth_rest_api/protobuf/events_pb2.py"/>
             <F N="sawtooth_rest_api/exceptions.py"/>
-            <F N="sawtooth_rest_api/protobuf/genesis_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/identity_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/merkle_pb2.py"/>
             <F N="sawtooth_rest_api/messaging.py"/>
-            <F N="sawtooth_rest_api/protobuf/network_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/processor_pb2.py"/>
             <F N="sawtooth_rest_api/rest_api.py"/>
             <F N="sawtooth_rest_api/route_handlers.py"/>
-            <F N="sawtooth_rest_api/protobuf/setting_pb2.py"/>
             <F N="setup.py"/>
-            <F N="sawtooth_rest_api/protobuf/state_context_pb2.py"/>
             <F N="sawtooth_rest_api/state_delta_subscription_handler.py"/>
             <F N="tests/unit/test_batch_requests.py"/>
             <F N="tests/unit/test_block_requests.py"/>
@@ -50,9 +27,6 @@
             <F N="tests/unit/test_state_requests.py"/>
             <F N="tests/unit/test_submit_requests.py"/>
             <F N="tests/unit/test_txn_requests.py"/>
-            <F N="sawtooth_rest_api/protobuf/transaction_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/transaction_receipt_pb2.py"/>
-            <F N="sawtooth_rest_api/protobuf/validator_pb2.py"/>
         </Folder>
         <Folder
             Name="Other Files"

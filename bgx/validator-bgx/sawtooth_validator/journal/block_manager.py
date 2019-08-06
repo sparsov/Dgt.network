@@ -95,10 +95,6 @@ class ManagedBlock(object):
 class BlockManager():
 
     def __init__(self):
-        """
-        super(BlockManager, self).__init__('block_manager_drop')
-        _libexec("block_manager_new",ctypes.byref(self.pointer))
-        """
         self.pointer = 1 # this is fake pointer
         LOGGER.debug("BlockManager: __init__")
             
@@ -122,7 +118,7 @@ class BlockManager():
             ))
         """
         for (i, block) in enumerate(branch): 
-            LOGGER.debug("BlockManager: put block[%s]=%s total=%s",i,block.header_signature[:8],len(self._block_store))
+            LOGGER.debug("BlockManager: put[%s] block_id=%s total=%s",i,block.header_signature[:8],len(self._block_store))
             self._block_store[block.header_signature] = ManagedBlock(block)
         """
         _libexec("block_manager_put",
@@ -136,12 +132,13 @@ class BlockManager():
         use for keeping block until it's need 
         mark parent block of new block 
         """
-        LOGGER.debug("BlockManager: ref_block block_id=%s",block_id[:8])
+        #LOGGER.debug("BlockManager: ref_block block_id=%s",block_id[:8])
         if block_id in self._block_store:
             mblk = self._block_store[block_id] 
             mblk.inc_count()
             LOGGER.debug("BlockManager: ref_block contain block_id=%s ref=%s",block_id[:8],mblk.cnt)
         else:
+            LOGGER.debug("BlockManager: ref_block UnknownBlock block_id=%s",block_id[:8])
             raise UnknownBlock
         """
         _libexec(
@@ -157,20 +154,16 @@ class BlockManager():
         """
         mark block as could be free
         """
-        LOGGER.debug("BlockManager: unref_block block_id=%s",block_id[:8])
+        #LOGGER.debug("BlockManager: unref_block block_id=%s",block_id[:8])
         if block_id in self._block_store:
             mblk = self._block_store[block_id] 
             mblk.dec_count()
-            LOGGER.debug("BlockManager: ref_block contain block_id=%s ref=%s",block_id[:8],mblk.cnt)
+            LOGGER.debug("BlockManager: unref_block contain block_id=%s ref=%s",block_id[:8],mblk.cnt)
         else:
+            LOGGER.debug("BlockManager: unref_block UnknownBlock block_id=%s",block_id[:8])
             raise UnknownBlock
 
-        """
-        _libexec(
-            "block_manager_unref_block",
-            self.pointer,
-            ctypes.c_char_p(block_id.encode()))
-        """
+        
     def persist(self, block_id, store_name):
         LOGGER.debug("BlockManager: persist block_id=%s  store_name=%s",block_id,store_name)
         """
@@ -180,20 +173,14 @@ class BlockManager():
                  ctypes.c_char_p(store_name.encode()))
         """
     def __contains__(self, block_id):
-        LOGGER.debug("BlockManager: __contains__ block_id=%s (say YES in any case)",block_id[:8])
+        LOGGER.debug("BlockManager: __contains__ block_id=%s",block_id[:8])
         #contains = ctypes.c_bool(True)
         contains = True if block_id in self._block_store else False
-        """
-        _libexec(
-            "block_manager_contains",
-            self.pointer,
-            ctypes.c_char_p(block_id.encode()),
-            ctypes.byref(contains))
-        """
+        
         return contains
 
     def get(self, block_ids):
-        LOGGER.debug("BlockManager: get block_ids=%s",block_ids)
+        #LOGGER.debug("BlockManager: get block_ids=%s",block_ids)
         return _GetBlockIterator(block_ids,self._block_store)
 
     def branch(self, tip):
@@ -254,9 +241,12 @@ class _BlockIterator:
         block_id = next(self._c_iter_ptr)
         #LOGGER.debug("_BlockIterator: next=%s",block_id)
         if block_id in self._block_store:
-            mblock = self._block_store[block_id]   
+            mblk = self._block_store[block_id]  
+            LOGGER.debug("BlockManager: get block_id=%s ref=%s",block_id[:8],mblk.cnt) 
             block = Block()
-            block.ParseFromString(mblock.value)
+            block.ParseFromString(mblk.value)
+            if mblk.cnt == 0:
+                del self._block_store[block_id]
         else:
             LOGGER.debug("_BlockIterator:not in store  StopIteration ")
             raise StopIteration()

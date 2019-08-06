@@ -118,9 +118,7 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/batches/{batch_id}', handler.fetch_batch)
 
     app.router.add_get('/transactions', handler.list_transactions)
-    app.router.add_get(
-        '/transactions/{transaction_id}',
-        handler.fetch_transaction)
+    app.router.add_get('/transactions/{transaction_id}',handler.fetch_transaction)
 
     app.router.add_get('/receipts', handler.list_receipts)
     app.router.add_post('/receipts', handler.list_receipts)
@@ -129,6 +127,7 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/nodes', handler.fetch_nodes) # just for testing
     app.router.add_get('/status', handler.fetch_status)
 
+    
     subscriber_handler = StateDeltaSubscriberHandler(connection)
     app.router.add_get('/subscriptions', subscriber_handler.subscriptions)
     app.on_shutdown.append(lambda app: subscriber_handler.on_shutdown())

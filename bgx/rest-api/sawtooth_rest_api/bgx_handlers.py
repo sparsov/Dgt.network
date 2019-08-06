@@ -104,7 +104,7 @@ class BgxRouteHandler(RouteHandler):
         self._public_key = self._context.get_public_key(self._private_key)
         self._crypto_factory = CryptoFactory(self._context)
         self._signer = self._crypto_factory.new_signer(self._private_key)
-        LOGGER.debug('BgxRouteHandler: _signer PUBLIC_KEY=%s',self._public_key.as_hex())
+        LOGGER.debug('BgxRouteHandler: _signer PUBLIC_KEY=%s',self._public_key.as_hex()[:8])
 
     def _create_batch(self, transactions):
         """

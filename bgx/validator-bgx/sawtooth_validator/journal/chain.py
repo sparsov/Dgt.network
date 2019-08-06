@@ -176,6 +176,10 @@ class BlockValidator(object):
         else:
             self._moved_to_fork_count = CounterWrapper()
 
+    @property
+    def previous_block_id(self):
+        return self._new_block.previous_block_id
+
     def _get_previous_block_root_state_hash(self, blkw):
         if blkw.previous_block_id == NULL_BLOCK_IDENTIFIER:
             return INIT_ROOT_KEY
@@ -385,7 +389,7 @@ class BlockValidator(object):
         self._fork_resolver.compare_forks_complete(False)
 
     def on_fail_block(self):
-        # for external consensus
+        # for external consensus - say that this block will be mark as invalid
         LOGGER.debug('BlockValidator: on_fail_block say validator about reply\n')
         self._verifier.verify_block_complete(False)
     def validate_block(self, blkw):
@@ -896,6 +900,9 @@ class ChainController(object):
                 self._block_store.update_branch(parent_id,new_parent_id,new_head)
                 self._notify_on_head_updated(parent_id,new_parent_id,new_head)
                 LOGGER.debug("ChainController: SWITHED BRANCH %s",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                #also we should put this block into block manager again - for use as parent for new block
+                if new_parent_id not in self._block_manager:
+                    self._block_manager.put([new_head.get_block()])
                 return new_head
             LOGGER.debug("ChainController: head=%s is_new=%s heads=%s",parent_id[:8],is_new,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
             return self._chain_heads[parent_id]
@@ -912,6 +919,9 @@ class ChainController(object):
                 new_head = self._block_cache[parent_id]
                 self._block_store.add_branch(parent_id,new_head)
                 self._chain_heads[parent_id] = new_head
+                #also we should put this block into block manager again - for use as parent for new block
+                if parent_id not in self._block_manager:
+                    self._block_manager.put([new_head.get_block()])
                 return new_head
 
         else: # head for branch can be changed
@@ -967,13 +977,14 @@ class ChainController(object):
                 if self._block_manager:
                     # add NEW block into block manager 
                     blk = blkw.get_block()
-                    self._block_manager.put([blk])
+                    self._block_manager.put([blk]) 
                     self._block_manager.ref_block(blk.header_signature)
                     """
                     mark parent block ref_block(blk.previous_block_id) in case it external block previous_block_id don't exists
                     """
                     try:
-                        self._block_manager.ref_block(blkw.header.previous_block_id)
+                        #self._block_manager.ref_block(blkw.header.previous_block_id)
+                        pass
                     except UnknownBlock:
                         LOGGER.debug("External block=%s with out parent",blkw.identifier[:8])
                     #block_iter = self._block_manager.get([blk.header_signature])
@@ -1050,24 +1061,37 @@ class ChainController(object):
                 blocks.append(validator._new_block)
         return blocks
 
+    def _undef_block(self,block_id):
+        try:
+            self._block_manager.unref_block(block_id)
+        except UnknownBlock:
+            pass
+
     def commit_block(self, block):   
-        # for external consensus     
+        # for external consensus 
+        # after that we send message commited and can free this block from block manager    
         block_id = block.hex()
         if block_id in self._blocks_processing :
             validator = self._blocks_processing[block_id]
-            LOGGER.debug("ChainController:commit_block id=%s\n",block_id[:8])
+            LOGGER.debug("ChainController:commit block=%s parent=%s\n",block_id[:8],validator.previous_block_id[:8])
             validator.on_commit_block()
+            self._block_manager.unref_block(block_id)
+            #self._undef_block(validator.previous_block_id)
+            
         else:
             LOGGER.debug("ChainController:commit_block id=%s undefined\n",block_id[:8])
             raise UnknownBlock
 
     def ignore_block(self, block):   
-        # for external consensus     
+        # for external consensus  - can free this block from block manager    
         block_id = block.hex()
         if block_id in self._blocks_processing :
             validator = self._blocks_processing[block_id]
-            LOGGER.debug("ChainController:ignore_block id=%s\n",block_id[:8])
+            LOGGER.debug("ChainController:ignore_block id=%s parent=%s\n",block_id[:8],validator.previous_block_id[:8])
             validator.on_ignore_block()
+            self._block_manager.unref_block(block_id)
+            #self._undef_block(validator.previous_block_id)
+           
         else:
             LOGGER.debug("ChainController:ignore_block id=%s undefined\n",block_id[:9])
             #raise UnknownBlock
@@ -1082,12 +1106,16 @@ class ChainController(object):
         return None
 
     def fail_block(self,block):
-        # for external consensus     
+        # for external consensus - after that we send message block invalid and consensus ask get_block(<this block>) 
+        # when it happend we can drop this one from block manager    
         block_id = block.hex()
         if block_id in self._blocks_processing :
             validator = self._blocks_processing[block_id]
-            LOGGER.debug("ChainController:FAIL block id=%s\n",block_id[:8])
+            LOGGER.debug("ChainController:FAIL block=%s parent=%s\n",block_id[:8],validator.previous_block_id[:8])
             validator.on_fail_block()
+            self._block_manager.unref_block(block_id)
+            #self._undef_block(validator.previous_block_id)
+
         else:
             LOGGER.debug("ChainController:FAIL block id=%s undefined\n",block_id[:8])
             raise UnknownBlock
@@ -1371,8 +1399,8 @@ class ChainController(object):
                     # add NEW blkw into block manager 
                     LOGGER.debug("ChainController: _set_genesis ADD NEW BLOCK\n")
                     blk = blkw.get_block()
-                    self._block_manager.put([blk])
-                    self._block_manager.ref_block(blk.header_signature)
+                    self._block_manager.put([blk]) # set ref=1
+                    # self._block_manager.ref_block(blk.header_signature)
 
                 validator = BlockValidator(
                     consensus_module=consensus_module,

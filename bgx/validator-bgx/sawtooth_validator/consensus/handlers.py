@@ -447,12 +447,11 @@ class ConsensusBlocksGetHandler(ConsensusServiceHandler):
                     payload=block_header.consensus))
             response.blocks.extend(blocks)
         except UnknownBlock:
-            response.status =\
-                consensus_pb2.ConsensusBlocksGetResponse.UNKNOWN_BLOCK
+            LOGGER.debug('ConsensusBlocksGetHandler:proxy UNKNOWN_BLOCK')
+            response.status = consensus_pb2.ConsensusBlocksGetResponse.UNKNOWN_BLOCK
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusBlocksGet")
-            response.status =\
-                consensus_pb2.ConsensusBlocksGetResponse.SERVICE_ERROR
+            response.status = consensus_pb2.ConsensusBlocksGetResponse.SERVICE_ERROR
 
 
 class ConsensusChainHeadGetHandler(ConsensusServiceHandler):
@@ -513,8 +512,8 @@ class ConsensusSettingsGetHandler(ConsensusServiceHandler):
                     request.block_id, request.keys)
             ])
         except UnknownBlock:
-            response.status = \
-                consensus_pb2.ConsensusSettingsGetResponse.UNKNOWN_BLOCK
+            LOGGER.debug('ConsensusSettingsGetHandler:proxy UNKNOWN_BLOCK')
+            response.status = consensus_pb2.ConsensusSettingsGetResponse.UNKNOWN_BLOCK
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusSettingsGet")
             response.status =\
@@ -541,6 +540,7 @@ class ConsensusStateGetHandler(ConsensusServiceHandler):
                     request.block_id, request.addresses)
             ])
         except UnknownBlock:
+            LOGGER.debug('ConsensusStateGetHandler:proxy UNKNOWN_BLOCK')
             response.status = \
                 consensus_pb2.ConsensusStateGetResponse.UNKNOWN_BLOCK
         except Exception:  # pylint: disable=broad-except

@@ -597,6 +597,7 @@ class RouteHandler:
             data=response['peers'],
             metadata=self._get_metadata(request, response))
 
+
     async def fetch_status(self, request):
         '''Fetches information pertaining to the valiator's status.'''
 

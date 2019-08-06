@@ -161,6 +161,10 @@ class BlockStore(MutableMapping):
         # for external block there is no chain head
         return self._chain_heads[branch_id]
 
+    def get_chain_heads(self):
+        # for external block there is no chain head
+        return [str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()]
+
     @property
     def chain_heads(self):
         return self._chain_heads

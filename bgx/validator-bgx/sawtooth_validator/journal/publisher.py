@@ -45,6 +45,11 @@ from sawtooth_validator.exceptions import NotRegisteredConsensusModule
 from sawtooth_sdk.consensus.exceptions import BlockNotReady 
 LOGGER = logging.getLogger(__name__)
 
+import cProfile
+profile_filename = 'publisher' + '.prof'
+profiler = cProfile.Profile()
+#import hotshot
+
 
 NUM_PUBLISH_COUNT_SAMPLES = 5
 INITIAL_PUBLISH_COUNT = 30
@@ -104,6 +109,23 @@ class _PublisherThread(InstrumentedThread):
 
     def stop(self):
         self._exit = True
+
+def profile(func):
+    """Decorator for run function profile"""
+    def wrapper1(*args, **kwargs):
+        profile_filename = func.__name__ + '.prof'
+        profiler = cProfile.Profile()
+        result = profiler.runcall(func, *args, **kwargs)
+        profiler.dump_stats(profile_filename)
+        return result
+    def wrapper(*args, **kwargs):
+        #profile_filename = func.__name__ + '.prof'
+        #profiler = cProfile.Profile()
+        result = profiler.runcall(func, *args, **kwargs)
+        profiler.dump_stats(profile_filename)
+        return result
+
+    return wrapper
 
 
 class _CandidateBlock(object):
@@ -344,6 +366,7 @@ class _CandidateBlock(object):
         LOGGER.debug("_CandidateBlock::finalize_block_complete for BRANCH=%s",self._identifier[:8])
         self._consensus.finalize_block_complete(consensus)
 
+    @profile
     def finalize_block(self, identity_signer, pending_batches):
         """Compose the final Block to publish. This involves flushing
         the scheduler, having consensus bless the block, and signing
@@ -448,8 +471,7 @@ class _CandidateBlock(object):
             LOGGER.debug("Abandoning block %s, consensus failed to finalize it", builder)
             # return all valid batches to the pending_batches list
             pending_batches.clear()
-            pending_batches.extend([x for x in self._pending_batches
-                                    if x not in bad_batches])
+            pending_batches.extend([x for x in self._pending_batches if x not in bad_batches])
             return None
         LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()<-- DONE NEW ROOT STATE=%s pending=%s bad=%s\n",state_hash[:10],len(pending_batches),[batch.header_signature[:8] for batch in bad_batches])
         #
@@ -616,7 +638,7 @@ class BlockPublisher(object):
     @property
     def chain_head_lock(self):
         return self._lock
-
+    #@profile
     def _build_candidate_block(self, chain_head):
         """ Build a candidate block and construct the consensus object to
         validate it.
@@ -807,7 +829,8 @@ class BlockPublisher(object):
                         LOGGER.debug("On batch=%s received use recomended CANDIDATE=%s FROM=%s",batch.header_signature[:8],candidate.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()])
                         # send batch to peers and say about selected branch 
                 else:
-                    # take first ready candidate
+                    # take first ready candidate 
+                    # FIXME - think about strategy for candidate choice
                     for cand in self._candidate_blocks.values():
                         if cand.can_add_batch:
                             """
@@ -990,6 +1013,7 @@ class BlockPublisher(object):
             LOGGER.critical("on_chain_updated exception.")
             LOGGER.exception(exc)
 
+    #@profile
     def on_check_publish_block(self, force=False):
         """
         Ask the consensus module if it is time to claim the candidate block
@@ -1283,11 +1307,11 @@ class BlockPublisher(object):
             LOGGER.exception(exc)
 
     def on_finalize_block(self,block_header):
-        # add block for summarizing - call from chain controller
+        # add block for summarizing - call from candidate.finalize_block() 
         with self._proxy_lock:
             self._blocks_summarize.append((block_header.consensus,block_header.previous_block_id)) 
             
-        LOGGER.debug('BlockPublisher: on_finalize_block  parent block=%s cnt=%s',block_header.previous_block_id[:8],len(self._blocks_summarize))
+        LOGGER.debug('BlockPublisher: on_finalize_block parent block=%s total ready=%s',block_header.previous_block_id[:8],len(self._blocks_summarize))
         # try to wait until proxy.finalize_block
 
     def initialize_block(self, block):
@@ -1305,10 +1329,12 @@ class BlockPublisher(object):
         """
         call from ConsensusSummarizeBlockHandler
         for DAG we should check all dag header and return one of them 
+        also we can send list candidate which could be finalized
         """
         #LOGGER.debug('BlockPublisher: summarize_block ...')
         with self._proxy_lock:
-            if len(self._blocks_summarize) == 0:
+            num_ready = len(self._blocks_summarize)
+            if num_ready == 0:
                 if self._can_print_summarize:
                     self._can_print_summarize = False
                     LOGGER.debug('BlockPublisher: summarize_block BLOCK EMPTY self=%s',self)
@@ -1317,7 +1343,7 @@ class BlockPublisher(object):
             elem = self._blocks_summarize.pop()
 
         # elem[1] THIS IS PARENT OF BLOCK CANDIDATE
-        LOGGER.debug('BlockPublisher: summarize_block id=%s',elem[1][:8])
+        LOGGER.debug('BlockPublisher: summarize_block id=%s total ready=%s',elem[1][:8],num_ready)
         return elem
         
 
@@ -1344,6 +1370,7 @@ class BlockPublisher(object):
     def cancel_block(self,branch_id=None):
         """
         cancel block only for branch 
+        we can free this block into block manager
         """
         bid = branch_id.hex() 
         LOGGER.debug('BlockPublisher:cancel_block ASK cancel for BRANCH=%s num=%s',bid[:8],len(self._candidate_blocks))

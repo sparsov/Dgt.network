@@ -43,6 +43,7 @@ from sawtooth_validator.protobuf import client_list_control_pb2
 from sawtooth_validator.protobuf import client_peers_pb2
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf import validator_pb2
+from sawtooth_validator.protobuf import client_heads_pb2
 
 
 LOGGER = logging.getLogger(__name__)
@@ -1091,3 +1092,19 @@ class PeersGetRequest(_ClientRequestHandler):
         peers = self._gossip.get_peers()
         endpoints = [peers[connection_id] for connection_id in peers]
         return self._wrap_response(peers=endpoints)
+
+
+class HeadsGetRequest(_ClientRequestHandler):
+    def __init__(self, block_store):
+        super().__init__(
+            client_heads_pb2.ClientHeadsGetRequest,
+            client_heads_pb2.ClientHeadsGetResponse,
+            validator_pb2.Message.CLIENT_HEADS_GET_RESPONSE,
+            block_store=block_store
+        )
+        
+
+    def _respond(self, request):
+        heads = self._block_store.get_chain_heads()
+        #endpoints = [peers[connection_id] for connection_id in heads]
+        return self._wrap_response(heads=heads)

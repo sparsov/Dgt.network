@@ -44,6 +44,8 @@ from sawtooth_cli.peer import add_peer_parser
 from sawtooth_cli.peer import do_peer
 from sawtooth_cli.status import add_status_parser
 from sawtooth_cli.status import do_status
+from sawtooth_cli.head import add_head_parser
+from sawtooth_cli.head import do_head
 
 from sawtooth_cli.cli_config import load_cli_config
 
@@ -110,9 +112,8 @@ def create_parser(prog_name):
     parent_parser = create_parent_parser(prog_name)
 
     parser = argparse.ArgumentParser(
-        description='Provides subcommands to configure, manage, '
-        'and use Sawtooth components.',
-        parents=[parent_parser],)
+        description='Provides subcommands to configure, manage, and use Sawtooth components.',parents=[parent_parser],
+        )
 
     subparsers = parser.add_subparsers(title='subcommands', dest='command')
     subparsers.required = True
@@ -126,6 +127,7 @@ def create_parser(prog_name):
     add_settings_parser(subparsers, parent_parser)
     add_state_parser(subparsers, parent_parser)
     add_transaction_parser(subparsers, parent_parser)
+    add_head_parser(subparsers,parent_parser)
 
     return parser
 
@@ -164,6 +166,8 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None,
         do_peer(args)
     elif args.command == 'status':
         do_status(args)
+    elif args.command == 'head':
+        do_head(args)
     else:
         raise CliException("invalid command: {}".format(args.command))
 

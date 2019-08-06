@@ -54,6 +54,9 @@ class RestClient:
     def list_peers(self):
         return self._get('/peers')['data']
 
+    def list_heads(self):
+        return self._get('/heads')['data']
+
     def get_status(self):
         return self._get('/status')['data']
 
