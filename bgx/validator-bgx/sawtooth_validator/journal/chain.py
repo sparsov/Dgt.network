@@ -437,7 +437,7 @@ class BlockValidator(object):
                 if (self._chain_head is not None
                         and self._chain_head.identifier != block_store.chain_head.identifier
                         and self._chain_head.identifier not in block_store.chain_heads):
-                    LOGGER.debug("BlockValidator:validate_block raise ChainHeadUpdated")
+                    LOGGER.debug("BlockValidator:validate_block raise ChainHeadUpdated head=%s!!\n",self._chain_head.identifier[:8])
                     raise ChainHeadUpdated()
 
                 blkw.status = BlockStatus.Valid if valid else BlockStatus.Invalid
@@ -892,14 +892,16 @@ class ChainController(object):
 
         if parent_id in self._chain_heads:
             if new_parent_id is not None and new_parent_id in self._block_cache:
-                # switch 'parent_id' head to new point 
+                # switch 'parent_id' head to new point 'new_parent_id'
                 LOGGER.debug("ChainController: SWITCH BRANCH %s->%s heads=%s",parent_id[:8],new_parent_id[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 new_head = self._block_cache[new_parent_id]
                 del self._chain_heads[parent_id]
                 self._chain_heads[new_parent_id] = new_head
-                self._block_store.update_branch(parent_id,new_parent_id,new_head)
+                # check maybe parent_id stil used 
+                is_used = self.is_parent_used(parent_id)
+                self._block_store.update_branch(parent_id,new_parent_id,new_head,True) # is_used
                 self._notify_on_head_updated(parent_id,new_parent_id,new_head)
-                LOGGER.debug("ChainController: SWITHED BRANCH %s",[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                LOGGER.debug("ChainController: SWITHED BRANCH used=%s %s",is_used,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 #also we should put this block into block manager again - for use as parent for new block
                 if new_parent_id not in self._block_manager:
                     self._block_manager.put([new_head.get_block()])
@@ -1014,7 +1016,7 @@ class ChainController(object):
             if blkw.signer_id != self._validator_id:
                 self._block_cache.block_store.ref_block_number(blkw.block_num,blkw.signer_id)
             self._thread_pool.submit(validator.run)
-            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8])
+            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s BRANCH=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8])
 
     """
     for external consensus
@@ -1120,6 +1122,12 @@ class ChainController(object):
             LOGGER.debug("ChainController:FAIL block id=%s undefined\n",block_id[:8])
             raise UnknownBlock
 
+    def is_parent_used(self,pid):
+        for val in self._blocks_processing.values():
+            if val.previous_block_id == pid:
+                return True
+        return False
+
     def on_block_validated(self, commit_new_block, result):
         """
         call as done_cb() 
@@ -1132,6 +1140,12 @@ class ChainController(object):
         Returns:
             None
         """
+        def is_parent_used(pid):
+            for val in self._blocks_processing.values():
+                if val.previous_block_id == pid:
+                    return True
+            return False
+
         def on_block_invalid(new_block,descendant_blocks,is_external):
             # Since the block is invalid, we will never accept any
             # blocks that are descendants of this block.  We are going
@@ -1175,8 +1189,10 @@ class ChainController(object):
                 self._block_store.pop_block_number(new_block.block_num,new_block.signer_id,True)
                 # add new head
                 self._chain_heads[nid] = new_block
-                self._block_store.update_chain_heads(nid,new_block)
-                LOGGER.debug("ChainController:update HEAD=%s->%s heads=%s",bid[:8],nid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                # check may be 'bid' used some others block which has this parent is now validating 
+                is_used = self.is_parent_used(bid)
+                self._block_store.update_chain_heads(bid,new_block,True) # bid is_parent_used(bid)
+                LOGGER.debug("ChainController:update HEAD=%s->%s USED=%s heads=%s",bid[:8],nid[:8],is_used,[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
                 # for DAG self._chain_head just last update branch's head it could be local variable 
                 self._chain_head = new_block
 

@@ -639,8 +639,9 @@ class BgtEngine(Engine):
                     #self.reset_state()
         else:
             # external block from another node 
-            LOGGER.info('EXTERNAL NEW BLOCK=%s num=%s peer=%s', _short_id(block_id),block_num,_short_id(signer_id))
+            
             if block_id not in self._peers_branches:
+                LOGGER.info('EXTERNAL NEW BLOCK=%s.%s peer=%s',block_num, _short_id(block_id),_short_id(signer_id))
                 branch = self.create_branch('','',block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
@@ -652,6 +653,8 @@ class BgtEngine(Engine):
                     branch._send_prepare(msg)
                 # check maybe all messages arrived
                 check_consensus()
+            else:
+                LOGGER.info('EXTERNAL BLOCK=%s.%s num=%s peer=%s IGNORE(already has)', block_num,_short_id(block_id),_short_id(signer_id))
                 
 
 

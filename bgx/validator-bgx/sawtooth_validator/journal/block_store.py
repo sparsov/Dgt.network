@@ -135,26 +135,30 @@ class BlockStore(MutableMapping):
         # for DAG version - add new branch from block with block_id
         self._chain_heads[block_id] = block
 
-    def update_branch(self,hid,new_hid,block):
+    def update_branch(self,hid,new_hid,block,keep=True):
         # for DAG version - update branch to another point
         if hid in self._chain_heads:
-            del self._chain_heads[hid]
+            if not keep:
+                del self._chain_heads[hid]
             self._chain_heads[new_hid] = block
-            LOGGER.debug("BlockStore: update_branch=%s",hid[:8])
+            LOGGER.debug("BlockStore: update_branch=%s->%s.%s heads=%s",hid[:8],block.block_num,new_hid[:8],[str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()])
 
-    def update_chain_heads(self,hid,new_block):
+    def update_chain_heads(self,hid,new_block,keep=True):
         #for DAG only - main head not in _chain_heads
         if hid in self._chain_heads:
-            del self._chain_heads[hid]
-            self._chain_heads[hid] = new_block
+            if not keep:
+                del self._chain_heads[hid]
+            self._chain_heads[new_block.identifier] = new_block
+            LOGGER.debug("BlockStore: update_chain_heads=%s->%s.%s",hid[:8],new_block.block_num,new_block.identifier[:8])
         else:
             # could be for external block
-
             for key,head in self._chain_heads.items():
                 if head.block_num == new_block.block_num:
                     LOGGER.debug("BlockStore: update_chain_heads EXTERNAL del old block=%s.%s",head.block_num,key[:8])
                     del self._chain_heads[key]
                     break
+            
+            LOGGER.debug("BlockStore: update_chain_heads=%s->%s.%s NUM=%s",hid[:8],new_block.block_num,new_block.identifier[:8],len(self._chain_heads))
             self._chain_heads[hid] = new_block
 
     def get_chain_head(self,branch_id):
