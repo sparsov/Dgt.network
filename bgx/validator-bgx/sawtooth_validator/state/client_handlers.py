@@ -1095,16 +1095,37 @@ class PeersGetRequest(_ClientRequestHandler):
 
 
 class HeadsGetRequest(_ClientRequestHandler):
-    def __init__(self, block_store):
+    def __init__(self, block_store,block_publisher):
         super().__init__(
             client_heads_pb2.ClientHeadsGetRequest,
             client_heads_pb2.ClientHeadsGetResponse,
             validator_pb2.Message.CLIENT_HEADS_GET_RESPONSE,
             block_store=block_store
         )
-        
+        self._publisher = block_publisher
 
     def _respond(self, request):
-        heads = self._block_store.get_chain_heads()
-        #endpoints = [peers[connection_id] for connection_id in heads]
+        head_id = request.head_id
+        LOGGER.debug('HeadsGetRequest: head_id=%s',head_id)
+        if head_id in ['','cand']:
+            heads = self._publisher.get_candidates()
+        else:
+            heads = self._block_store.get_chain_heads()
+        
         return self._wrap_response(heads=heads)
+
+class CandidatesGetRequest(_ClientRequestHandler):
+    def __init__(self, block_publisher):
+        super().__init__(
+            client_heads_pb2.ClientHeadsGetRequest,
+            client_heads_pb2.ClientHeadsGetResponse,
+            validator_pb2.Message.CLIENT_HEADS_GET_RESPONSE
+        )
+        self._publisher = block_publisher
+
+    def _respond(self, request):
+        head_id = request.head_id
+        LOGGER.debug('CandidatesGetRequest: head_id=%s',head_id)
+        candidates = self._publisher.get_candidates()
+        #endpoints = [peers[connection_id] for connection_id in heads]
+        return self._wrap_response(heads=candidates)

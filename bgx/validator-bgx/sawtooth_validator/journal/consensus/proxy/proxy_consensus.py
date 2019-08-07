@@ -69,8 +69,8 @@ class BlockPublisher(BlockPublisherInterface):
 
         # Set these to default values right now, when we asked to initialize
         # a block, we will go ahead and check real configuration
-        self._min_wait_time = 0
-        self._max_wait_time = 0
+        self._min_wait_time = 0.01
+        self._max_wait_time = 0.06
         self._valid_block_publishers = None # list of validator which can participate into consensus
         self._consensus = None
         self._condition = Condition()

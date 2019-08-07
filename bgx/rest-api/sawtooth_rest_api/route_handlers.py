@@ -606,7 +606,7 @@ class RouteHandler:
 
     async def list_heads(self, request):
         """Fetches active heads from the validator.
-        Request:
+        Request: batch_id = request.match_info.get('batch_id', '')
 
         Response:
             data: JSON array of peer endpoints
@@ -616,7 +616,28 @@ class RouteHandler:
         response = await self._query_validator(
             Message.CLIENT_HEADS_GET_REQUEST,
             client_heads_pb2.ClientHeadsGetResponse,
-            client_heads_pb2.ClientHeadsGetRequest())
+            client_heads_pb2.ClientHeadsGetRequest(head_id=''))
+
+        return self._wrap_response(
+            request,
+            data=response['heads'],
+            metadata=self._get_metadata(request, response))
+
+    async def fetch_heads(self, request):
+        """Fetches active heads from the validator.
+        Request:
+            head_id - head id or type of head
+
+        Response:
+            data: JSON array of peer endpoints
+            link: The link to this exact query
+        """
+        head_id = request.match_info.get('head_id', '')
+        LOGGER.debug('Request fetch_heads head_id=%s',head_id)
+        response = await self._query_validator(
+            Message.CLIENT_HEADS_GET_REQUEST,
+            client_heads_pb2.ClientHeadsGetResponse,
+            client_heads_pb2.ClientHeadsGetRequest(head_id=head_id))
 
         return self._wrap_response(
             request,

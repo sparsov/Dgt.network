@@ -57,6 +57,9 @@ class RestClient:
     def list_heads(self):
         return self._get('/heads')['data']
 
+    def get_heads(self,head_id):
+        return self._get('/heads/' + head_id)['data']
+
     def get_status(self):
         return self._get('/status')['data']
 

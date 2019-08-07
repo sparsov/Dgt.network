@@ -72,9 +72,9 @@ def add_head_parser(subparsers, parent_parser):
         parents=[base_http_parser(), base_show_parser()],
         formatter_class=argparse.RawDescriptionHelpFormatter)
     show_parser.add_argument(
-        'block_id',
+        'head_id',
         type=str,
-        help='id (header_signature) of the block')
+        help='id of the head or cand/valid')
 
 
 def do_head(args):
@@ -99,7 +99,7 @@ def do_head(args):
 
         
     if args.subcommand == 'show':
-        output = rest_client.get_block(args.block_id)
+        output = rest_client.get_heads(args.head_id)
 
         if args.key:
             if args.key in output:
@@ -107,8 +107,7 @@ def do_head(args):
             elif args.key in output['header']:
                 output = output['header'][args.key]
             else:
-                raise CliException(
-                    'key "{}" not found in block or header'.format(args.key))
+                raise CliException('key "{}" not found in block or header'.format(args.key))
 
         if args.format == 'yaml':
             fmt.print_yaml(output)

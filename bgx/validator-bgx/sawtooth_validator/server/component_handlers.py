@@ -234,7 +234,14 @@ def add(
         thread_pool)
 
     # ask heads from validator
+    
     dispatcher.add_handler(
         validator_pb2.Message.CLIENT_HEADS_GET_REQUEST,
-        client_handlers.HeadsGetRequest(block_store),
+        client_handlers.HeadsGetRequest(block_store,block_publisher),
         thread_pool)
+    """
+    dispatcher.add_handler(
+        validator_pb2.Message.CLIENT_HEADS_GET_REQUEST,
+        client_handlers.CandidatesGetRequest(block_publisher),
+        thread_pool)
+    """

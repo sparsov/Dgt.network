@@ -63,8 +63,7 @@ class SettingsView(object):
             otherwise.
         """
         try:
-            state_entry = self._state_view.get(
-                SettingsView.setting_address(key))
+            state_entry = self._state_view.get(SettingsView.setting_address(key))
         except KeyError:
             return default_value
 

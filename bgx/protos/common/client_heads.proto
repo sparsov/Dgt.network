@@ -20,6 +20,7 @@ option java_package = "sawtooth.sdk.protobuf";
 option go_package = "client_head";
 
 message ClientHeadsGetRequest{
+ string head_id = 1;
 }
 
 message ClientHeadsGetResponse {

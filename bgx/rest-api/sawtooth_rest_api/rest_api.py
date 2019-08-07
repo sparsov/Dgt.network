@@ -129,6 +129,7 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     # ADD BGX handlers
     app.router.add_get('/heads', handler.list_heads)
+    app.router.add_get('/heads/{head_id}', handler.fetch_heads)
 
     app.router.add_post('/transactions', handler.post_transfer)
     app.router.add_get('/wallets/{address}', handler.get_wallet)

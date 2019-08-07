@@ -634,6 +634,13 @@ class BlockPublisher(object):
         and the current queue limit.
         """
         return (len(self._pending_batches), self._get_current_queue_limit())
+    
+    def get_candidates(self):
+        """
+        Send for rest-api list of condidate
+        """
+        with self._lock:
+            return [str(cand.block_num)+':'+cand.identifier[:8] for key,cand in self._candidate_blocks.items()]
 
     @property
     def chain_head_lock(self):
