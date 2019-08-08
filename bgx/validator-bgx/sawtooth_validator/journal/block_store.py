@@ -15,6 +15,7 @@
 
 # pylint: disable=no-name-in-module
 import logging
+import timeit
 from collections.abc import MutableMapping
 
 from sawtooth_validator.journal.block_wrapper import BlockStatus
@@ -141,15 +142,15 @@ class BlockStore(MutableMapping):
             if not keep:
                 del self._chain_heads[hid]
             self._chain_heads[new_hid] = block
-            LOGGER.debug("BlockStore: update_branch=%s->%s.%s heads=%s",hid[:8],block.block_num,new_hid[:8],[str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()])
+            LOGGER.debug("BlockStore: update_branch=%s->%s.%s USED=%s heads=%s",hid[:8],block.block_num,new_hid[:8],keep,self._heads_list)
 
-    def update_chain_heads(self,hid,new_block,keep=True):
+    def update_chain_heads(self,bid,hid,new_block,keep=True):
         #for DAG only - main head not in _chain_heads
-        if hid in self._chain_heads:
+        if bid in self._chain_heads:
             if not keep:
-                del self._chain_heads[hid]
-            self._chain_heads[new_block.identifier] = new_block
-            LOGGER.debug("BlockStore: update_chain_heads=%s->%s.%s",hid[:8],new_block.block_num,new_block.identifier[:8])
+                del self._chain_heads[bid]
+            self._chain_heads[hid] = new_block # self._chain_heads[new_block.identifier]
+            LOGGER.debug("BlockStore: update_chain_heads=%s->%s.%s USED=%s",bid[:8],new_block.block_num,new_block.identifier[:8],keep)
         else:
             # could be for external block
             for key,head in self._chain_heads.items():
@@ -158,16 +159,49 @@ class BlockStore(MutableMapping):
                     del self._chain_heads[key]
                     break
             
-            LOGGER.debug("BlockStore: update_chain_heads=%s->%s.%s NUM=%s",hid[:8],new_block.block_num,new_block.identifier[:8],len(self._chain_heads))
+            LOGGER.debug("BlockStore: update_chain_heads=%s->%s.%s USED=%s NUM=%s",bid[:8],new_block.block_num,new_block.identifier[:8],keep,len(self._chain_heads))
             self._chain_heads[hid] = new_block
+
+    @property
+    def _heads_list(self):
+        return [str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()]
 
     def get_chain_head(self,branch_id):
         # for external block there is no chain head
+        #if branch_id in self._chain_heads:
         return self._chain_heads[branch_id]
+        # take from store 
+         
 
     def get_chain_heads(self):
         # for external block there is no chain head
         return [str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()]
+
+    def check_integrity(self):
+        # check DAG intergity
+        bad_block = []
+        block_num = -1
+        num = 0
+        start = timeit.default_timer()
+        
+        for blk in self:
+            #LOGGER.debug("check_integrity blk=%s prev=%s",blk.block_num,blk.previous_block_id[:8])
+            num += 1
+            err = ''
+            if blk.block_num != 0 and blk.previous_block_id not in self:
+                err = 'prev,'
+            if block_num != -1 and block_num != blk.block_num+1:
+                err += 'num,'
+            block_num = blk.block_num
+            if err != '':
+                bad_block.append("{}.{}:{}".format(blk.block_num,blk.identifier[:8],err))
+        spent = timeit.default_timer()-start
+        if len(bad_block) == 0:
+            bad_block.append( "correct:checked={} blks spent={}s".format(num,spent))
+        else:
+            bad_block.append( "bad:checked={} blks spent={}s".format(num,spent))
+        LOGGER.debug("check_integrity num=%s spent=%s DONE\n",num,spent)
+        return bad_block
 
     @property
     def chain_heads(self):

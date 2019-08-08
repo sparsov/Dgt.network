@@ -1109,6 +1109,8 @@ class HeadsGetRequest(_ClientRequestHandler):
         LOGGER.debug('HeadsGetRequest: head_id=%s',head_id)
         if head_id in ['','cand']:
             heads = self._publisher.get_candidates()
+        elif head_id == 'integrity':
+            heads = self._block_store.check_integrity()
         else:
             heads = self._block_store.get_chain_heads()
         
