@@ -875,16 +875,18 @@ class ChainController(object):
         LOGGER.debug("ChainController: queue BLOCK=%s",block.identifier[:8])
         self._block_queue.put(block)
 
-    def get_real_head_of_branch(self,branch_id):
+    def get_real_head_of_branch(self,branch_id,deep=3):
         for key,head  in list(self._chain_heads.items()):
             # check may be for this branch head was changed
             branch = head
-            while branch.previous_block_id != NULL_BLOCK_IDENTIFIER:
+            step = 0
+            while branch.previous_block_id != NULL_BLOCK_IDENTIFIER and step < deep:
                 if branch.previous_block_id == branch_id :
-                    LOGGER.debug("get_real_head_of_branch: head was changed=%s->%s",branch_id[:8],key[:8])
+                    LOGGER.debug("get_real_head of branch=%s found for=%s",branch_id[:8],key[:8])
                     return head
-                LOGGER.debug("get_real_head_of_branch: GO BACK")
+                LOGGER.debug("get_real_head of branch=%s GO BACK check=%s for=%s step=%s",branch_id[:8],branch.previous_block_id[:8],key[:8],step)
                 branch = self._block_cache[branch.previous_block_id]
+                step += 1
         return None
 
     @property
@@ -914,7 +916,7 @@ class ChainController(object):
                 if new_parent_id not in self._block_manager:
                     self._block_manager.put([new_head.get_block()])
                 return new_head
-            LOGGER.debug("ChainController: head=%s is_new=%s heads=%s",parent_id[:8],is_new,self._heads_list)
+            LOGGER.debug("ChainController: get_chain_head for=%s is_new=%s heads=%s",parent_id[:8],is_new,self._heads_list)
             return self._chain_heads[parent_id]
         elif is_new :
             # ask new branch
@@ -934,9 +936,19 @@ class ChainController(object):
                     self._block_manager.put([new_head.get_block()])
                 return new_head
 
-        else: # head for branch can be changed
-            LOGGER.debug("ChainController: get_chain_head heads=%s",self._heads_list)
-            return self.get_real_head_of_branch(parent_id)
+        else: 
+            """
+            head for branch can be changed  or not commited yet because we can ask head too fast after commit
+            soo we should restrict deep of seek for real head - it's will be better to ask it again  
+            or we can check may be this block is under commiting now
+            """  
+            LOGGER.debug("ChainController: get_chain_head for=%s heads=%s",parent_id[:8],self._heads_list)
+            if parent_id in self._blocks_processing:
+                LOGGER.debug("ChainController: get_chain_head for=%s WAIT BLOCK IS PROCESSED NOW!\n",parent_id[:8])
+                return None
+            new_head = self.get_real_head_of_branch(parent_id)
+            LOGGER.debug("ChainController: get_chain_head for=%s real head=%s",parent_id[:8],new_head)
+            return new_head
             
         return None
 
@@ -1024,7 +1036,7 @@ class ChainController(object):
             if blkw.signer_id != self._validator_id:
                 self._block_store.ref_block_number(blkw.block_num,blkw.signer_id)
             self._thread_pool.submit(validator.run)
-            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s BRANCH=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8])
+            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s BRANCH=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8],branch_id[:8])
 
     """
     for external consensus

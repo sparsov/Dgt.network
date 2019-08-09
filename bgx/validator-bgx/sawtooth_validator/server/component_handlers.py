@@ -17,10 +17,8 @@ import logging
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.execution import tp_state_handlers
 
-from sawtooth_validator.journal.completer import \
-    CompleterBatchListBroadcastHandler
-from sawtooth_validator.journal.back_pressure_handlers import \
-    ClientBatchSubmitBackpressureHandler
+from sawtooth_validator.journal.completer import CompleterBatchListBroadcastHandler
+from sawtooth_validator.journal.back_pressure_handlers import ClientBatchSubmitBackpressureHandler
 
 from sawtooth_validator.gossip import structure_verifier
 
@@ -29,17 +27,12 @@ from sawtooth_validator.state import client_handlers
 
 from sawtooth_validator.gossip import signature_verifier
 
-from sawtooth_validator.gossip.permission_verifier import \
-    BatchListPermissionVerifier
+from sawtooth_validator.gossip.permission_verifier import BatchListPermissionVerifier
 
-from sawtooth_validator.server.events.handlers import \
-    ClientEventsGetRequestHandler
-from sawtooth_validator.server.events.handlers \
-    import ClientEventsSubscribeHandler
-from sawtooth_validator.server.events.handlers \
-    import ClientEventsSubscribeValidationHandler
-from sawtooth_validator.server.events.handlers \
-    import ClientEventsUnsubscribeHandler
+from sawtooth_validator.server.events.handlers import ClientEventsGetRequestHandler
+from sawtooth_validator.server.events.handlers import ClientEventsSubscribeHandler
+from sawtooth_validator.server.events.handlers import ClientEventsSubscribeValidationHandler
+from sawtooth_validator.server.events.handlers import ClientEventsUnsubscribeHandler
 
 from sawtooth_validator.journal.receipt_store \
     import ClientReceiptGetRequestHandler

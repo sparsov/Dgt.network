@@ -87,7 +87,9 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "bgx/protos/common")
     protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
     protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
+    protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
     protoc(proto_dir, "bgx/rest-api", "sawtooth_rest_api/protobuf")
+    protoc(proto_dir, "bgx/dashboard", "sawtooth_rest_api/protobuf")
     
     
     # Generate Smart BGT token  protos

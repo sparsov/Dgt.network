@@ -58,9 +58,11 @@ class BatchPublisher(object):
     def send_batch(self,batch,candidate_id=None):
         self._batch_sender.send_batch(batch,candidate_id)
 
-    def send_batches(self,batches,candidate_id=None):
-        batch_list = BatchList()
+    def send_batches(self,batches,candidate_id=None,block_num=None):
+        batch_list = BatchList(candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None,
+                               block_num=block_num
+                               )
         batch_list.batches.extend(batches)
 
-        self._batch_sender.send_batches(batch_list,candidate_id)
+        self._batch_sender.send_batches(batch_list)
 

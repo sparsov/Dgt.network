@@ -286,16 +286,17 @@ class Gossip(object):
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
-    def broadcast_batches(self, batches, exclude=None, time_to_live=None,candidate_id = None):
+    def broadcast_batches(self, batches, exclude=None, time_to_live=None,candidate_id = None,block_num=None):
         if time_to_live is None:
             time_to_live = self.get_time_to_live()
         gossip_message = GossipMessage(
             content_type=GossipMessage.BATCHES,
             content=batches.SerializeToString(),
             time_to_live=time_to_live,
-            candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None
+            #candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None,
+            #block_num = block_num
             )
-        LOGGER.debug("Gossip::broadcast_batches for candidate=%s ",candidate_id[:8] if candidate_id is not None else None)
+        LOGGER.debug("Gossip::broadcast_batches for candidate=%s block_num=%s",candidate_id[:8] if candidate_id is not None else None,block_num)
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 

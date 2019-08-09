@@ -46,6 +46,6 @@ class BroadcastBatchSender(BatchSender):
         # for DAG - send batch after branch was selected
         self._gossip.broadcast_batch(batch,candidate_id=candidate_id)
 
-    def send_batches(self,batches,candidate_id=None):
+    def send_batches(self,batches):
         # for DAG - send batches after branch was selected
-        self._gossip.broadcast_batches(batches,candidate_id=candidate_id)
+        self._gossip.broadcast_batches(batches)

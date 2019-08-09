@@ -57,8 +57,8 @@ message GossipMessage {
     bytes content = 1;
     ContentType content_type = 2;
     uint32 time_to_live = 3;
-    bytes  candidate_id = 4; // used for DAG version say others peer branch for new batch
-    //uint32 pos = 5;          // pos into block
+    //bytes  candidate_id = 4; // used for DAG version say others peer branch for new batch
+    //uint32 block_num    = 5; // used for DAG block candidate number
 }
 
 // A response sent from the validator to the peer acknowledging message

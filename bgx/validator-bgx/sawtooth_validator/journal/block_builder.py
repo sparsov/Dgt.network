@@ -65,6 +65,10 @@ class BlockBuilder(object):
         """
         return self.block_header.block_num
 
+    @block_num.setter
+    def block_num(self, block_num):
+        self.block_header.block_num = block_num
+
     def set_state_hash(self, state_hash):
         self.block_header.state_root_hash = state_hash
 

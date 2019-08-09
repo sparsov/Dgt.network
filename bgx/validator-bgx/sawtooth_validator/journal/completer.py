@@ -271,7 +271,7 @@ class Completer(object):
         self._on_block_received = on_block_received_func
 
     def set_on_batch_received(self, on_batch_received_func):
-        # this is func which send batch to publisher QUEUE
+        # this is func which send batch to publisher QUEUE block_publisher.queue_batch
         self._on_batch_received = on_batch_received_func
 
     def set_chain_has_block(self, set_chain_has_block):
@@ -286,9 +286,9 @@ class Completer(object):
                 self._on_block_received(blkw)
                 self._process_incomplete_blocks(block.header_signature)
 
-    def add_batch(self, batch,candidate_id=None,num=None):
+    def add_batch(self, batch,recomm=None):
         """
-        candidate_id - use it for DAG version
+        candidate_id - use it for DAG version (id,block_num)
         """
         with self.lock:
             if batch.header_signature in self.batch_cache:
@@ -296,7 +296,7 @@ class Completer(object):
             if self._complete_batch(batch):
                 self.batch_cache[batch.header_signature] = batch
                 self._add_seen_txns(batch)
-                self._on_batch_received(batch,candidate_id,num) # send to publisher
+                self._on_batch_received(batch,recomm) # send to publisher block_publisher.queue_batch
                 self._process_incomplete_blocks(batch.header_signature)
                 if batch.header_signature in self._requested:
                     del self._requested[batch.header_signature]
@@ -362,7 +362,7 @@ class CompleterBatchListBroadcastHandler(Handler):
                 LOGGER.debug("TRACE %s: %s", batch.header_signature,self.__class__.__name__)
             # works in case own batch for node
             LOGGER.debug("CompleterBatchListBroadcastHandler: broadcast BATCH=%s", batch.header_signature[:8])
-            self._completer.add_batch(batch)
+            self._completer.add_batch(batch,('',0,0))
             # send batch to peers - for DAG maybe good idea send batches to peers only after DAG branch will be chosen into publisher FIXME 
             LOGGER.debug("CompleterBatchListBroadcastHandler: broadcast BATCH DONE")
             # this is for old version with out DAG
@@ -384,20 +384,22 @@ class CompleterGossipHandler(Handler):
         elif gossip_message.content_type == network_pb2.GossipMessage.BATCH:
             batch = Batch()
             batch.ParseFromString(gossip_message.content)
-            candidate_id = gossip_message.candidate_id.hex()
-            LOGGER.debug("CompleterGossipHandler: NEW BATCH=%s candidate_id=%s", batch.header_signature[:8],candidate_id[:8])
+            #candidate_id = gossip_message.candidate_id.hex()
+            LOGGER.debug("CompleterGossipHandler: NEW BATCH=%s ", batch.header_signature[:8])
             # works in case batch from another node
-            self._completer.add_batch(batch,candidate_id)
+            self._completer.add_batch(batch)
 
         elif gossip_message.content_type == network_pb2.GossipMessage.BATCHES:
             batches = BatchList()
             batches.ParseFromString(gossip_message.content)
-            candidate_id = gossip_message.candidate_id.hex()
-            #LOGGER.debug("CompleterGossipHandler: NEW BATCHES=%s candidate_id=%s", batches,candidate_id[:8])
+            candidate_id = batches.candidate_id.hex()
             num = len(batches.batches)
+            #LOGGER.debug("CompleterGossipHandler: NEW BATCHES=%s candidate_id=%s", batches,candidate_id[:8])
+            
+            block_num = batches.block_num
             for batch in batches.batches:
-                LOGGER.debug(" => NEW BATCH[%s]=%s candidate_id=%s",num,batch.header_signature[:8],candidate_id[:8])
-                self._completer.add_batch(batch,candidate_id,num)
+                LOGGER.debug(" => NEW BATCH[%s]=%s candidate_id=%s.%s",num,batch.header_signature[:8],block_num,candidate_id[:8])
+                self._completer.add_batch(batch,(candidate_id,block_num,num))
                 
 
 

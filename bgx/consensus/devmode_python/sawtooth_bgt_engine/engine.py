@@ -327,7 +327,8 @@ class BgtEngine(Engine):
             self._make_branch = False
             return False
         except exceptions.NoChainHead:
-            LOGGER.debug('BgtEngine: CANT GET CHAIN HEAD')
+            # head was updated or not commited yet
+            LOGGER.debug('BgtEngine: CANT GET CHAIN HEAD for=%s',branch.hex()[:8] if branch is not None else None)
             return False
         LOGGER.debug('BgtEngine: _initialize_block ID=%s chain_head=(%s)',_short_id(chain_head.block_id.hex()),chain_head)
         #initialize = True #self._oracle.initialize_block(chain_head)
@@ -586,6 +587,28 @@ class BgtEngine(Engine):
         self._new_heads[block_id] = parent_id
         LOGGER.info('   NEW_HEAD=%s for BRANCh=%s AFTER FREEZE', block_id[:8],parent_id[:8])
 
+    def check_consensus(self,block_num,summary,num_peers):
+        # check maybe all messages arrived  
+                                                                                                                                          
+        if num_peers > 0 and summary in self._prepare_msgs:                                                                                                                   
+            blocks = self._prepare_msgs[summary]                                                                                                                              
+            if len(blocks) == (num_peers + 1):                                                                                                                                
+                selected = max(blocks.items(), key = lambda x: x[0])[0]                                                                                                       
+                LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])        
+                LOGGER.debug("COMMIT BLOCK=%s",selected[:8])                                                                                                                  
+                # send prepare again                                                                                                                                          
+                #self._peers_branches[selected]._send_prepare(block)                                                                                                          
+                self._peers_branches[selected].finish_consensus(None,selected,True)                                                                                           
+                for bid in blocks.keys():                                                                                                                                     
+                    if bid != selected:                                                                                                                                       
+                        LOGGER.debug("FAIL BLOCK=%s",bid[:8])                                                                                                                 
+                        #self._peers_branches[bid]._send_prepare(block)                                                                                                       
+                        self._peers_branches[bid].finish_consensus(None,bid,False)                                                                                            
+                        # drop list for summary                                                                                                                               
+                self._prepare_msgs.pop(summary)                                                                                                                               
+                LOGGER.debug("=>ALL SUMMARY=%s\n",[key[:8] for key in self._prepare_msgs.keys()])                                                                             
+
+
     def _handle_new_block(self, block):
         block = BgtBlock(block)
         block_id = block.block_id.hex()
@@ -634,7 +657,7 @@ class BgtEngine(Engine):
                     if block_id in self._pre_prepare_msgs:
                         msg = self._pre_prepare_msgs.pop(block_id)
                         branch._send_prepare(msg)
-                    check_consensus()
+                    self.check_consensus(block_num,summary,num_peers)
                     # Don't reset now - wait message INVALID_BLOCK
                     #self.reset_state()
         else:
@@ -652,7 +675,7 @@ class BgtEngine(Engine):
                     msg = self._pre_prepare_msgs.pop(block_id)
                     branch._send_prepare(msg)
                 # check maybe all messages arrived
-                check_consensus()
+                self.check_consensus(block_num,summary,num_peers)
             else:
                 LOGGER.info('EXTERNAL BLOCK=%s.%s num=%s peer=%s IGNORE(already has)', block_num,_short_id(block_id),_short_id(signer_id))
                 

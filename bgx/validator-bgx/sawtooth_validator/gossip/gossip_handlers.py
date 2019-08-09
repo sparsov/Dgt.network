@@ -166,8 +166,9 @@ class GossipMessageDuplicateHandler(Handler):
                     batch_sign = batch.header_signature
                     break
             if has_batch:
-                candidate_id = gossip_message.candidate_id.hex()
-                LOGGER.debug("GossipMessageDuplicateHandler: BATCHES dublicate batch=%s for branch=%s IGNORE",batch_sign[:8],candidate_id[:8])
+                candidate_id = batches.candidate_id.hex()
+                block_num = batches.block_num
+                LOGGER.debug("GossipMessageDuplicateHandler: BATCHES dublicate batch=%s for branch=%s.%s IGNORE",batch_sign[:8],block_num,candidate_id[:8])
                 return HandlerResult(HandlerStatus.DROP)
                 
 
