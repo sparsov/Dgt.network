@@ -1082,7 +1082,7 @@ class BlockPublisher(object):
                         and hid in self._engine_ask_candidate
                         and self._pending_batches):
                         # for case when block candidate was dropped by mistakes
-                        LOGGER.debug("BlockPublisher: on_check_publish_block BUILD CANDIDATE BLOCK for head=%d\n",hid[:8])
+                        LOGGER.debug("BlockPublisher: on_check_publish_block BUILD CANDIDATE BLOCK for head=%s\n",hid[:8])
                         self._build_candidate_block(head)
 
                 # find candidate which is ready to be finalized

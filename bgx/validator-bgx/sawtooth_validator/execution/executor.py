@@ -133,6 +133,7 @@ class TransactionExecutorThread(object):
                 state_changes=state_changes,
                 events=events,
                 data=data)
+            LOGGER.debug("_future_done_callback: processor Response.OK tnx=%s DONE",req.signature[:8])
 
         elif response.status == processor_pb2.TpProcessResponse.INTERNAL_ERROR:
             LOGGER.debug("_future_done_callback: processor Response.INTERNAL_ERROR tnx=%s",req.signature[:8])
@@ -305,8 +306,7 @@ class TransactionExecutorThread(object):
         self._done = True
 
     def _execute_or_wait_for_processor_type(self, processor_type, content, signature):
-        processor = self._processors.get_next_of_type(
-            processor_type=processor_type)
+        processor = self._processors.get_next_of_type(processor_type=processor_type)
         if processor is None:
             LOGGER.debug("no transaction processors registered for processor type %s", processor_type)
             if processor_type not in self._waiters_by_type:
@@ -321,13 +321,15 @@ class TransactionExecutorThread(object):
                 self._waiters_by_type[processor_type] = waiter
                 self._waiting_threadpool.submit(waiter.run_in_threadpool)
             else:
-                self._waiters_by_type[processor_type].add_to_in_queue(
-                    (content, signature))
+                LOGGER.debug("Add to queue for processor type %s", processor_type)
+                self._waiters_by_type[processor_type].add_to_in_queue((content, signature))
         else:
             connection_id = processor.connection_id
+            LOGGER.debug("_send_and_process_result type=%s connection_id=%s send=%s",processor_type,connection_id[:8],signature[:8])
             self._send_and_process_result(content, connection_id, signature)
 
     def _send_and_process_result(self, content, connection_id, signature):
+        
         fut = self._service.send(
             validator_pb2.Message.TP_PROCESS_REQUEST,
             content,

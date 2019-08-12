@@ -35,9 +35,8 @@ class ProcessorRegisterHandler(Handler):
         request.ParseFromString(message_content)
 
         LOGGER.info(
-            'registered transaction processor: connection_id=%s, family=%s, '
-            'version=%s, namespaces=%s',
-            connection_id,
+            'registered transaction processor: connection_id=%s, family=%s, version=%s, namespaces=%s',
+            connection_id[:8],
             request.family,
             request.version,
             list(request.namespaces))
@@ -50,8 +49,11 @@ class ProcessorRegisterHandler(Handler):
             connection_id,
             request.namespaces)
 
+        if processor_type in self._collection:
+            LOGGER.debug('Already registered transaction processor:family=%s, version=%s, namespaces=%s',request.family,request.version,list(request.namespaces))
+        
         self._collection[processor_type] = processor
-
+        LOGGER.debug('All registered transaction processors=%s',self._collection)
         ack = processor_pb2.TpRegisterResponse()
         ack.status = ack.OK
 

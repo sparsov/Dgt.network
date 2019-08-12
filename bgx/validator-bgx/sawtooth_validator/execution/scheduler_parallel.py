@@ -32,8 +32,7 @@ from sawtooth_validator.execution.scheduler_exceptions import SchedulerError
 LOGGER = logging.getLogger(__name__)
 
 
-_AnnotatedBatch = namedtuple('ScheduledBatch',
-                             ['batch', 'required', 'preserve'])
+_AnnotatedBatch = namedtuple('ScheduledBatch',['batch', 'required', 'preserve'])
 
 
 class PredecessorTreeNode:

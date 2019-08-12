@@ -63,6 +63,7 @@ class ProcessorIteratorCollection(object):
         """
         with self._condition:
             if processor_type in self:
+                LOGGER.debug("get_next_of type=%s total=%s", processor_type,len(self[processor_type]))
                 return self[processor_type].next_processor()
             return None
 

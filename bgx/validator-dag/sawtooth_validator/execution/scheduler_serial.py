@@ -339,8 +339,8 @@ class SerialScheduler(Scheduler):
 
         state_hash = None
         if self._previous_valid_batch_c_id is not None:
-            publishing_or_genesis = self._always_persist or \
-                required_state_root is None
+            publishing_or_genesis = self._always_persist or required_state_root is None
+            
             state_hash = self._squash(
                 state_root=self._previous_state_hash,
                 context_ids=[self._previous_valid_batch_c_id],

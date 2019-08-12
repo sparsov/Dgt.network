@@ -232,11 +232,11 @@ class BlockValidator(object):
                 prev_state = self._get_previous_block_root_state_hash(blkw)
                 # Use root state from previous block for DAG use last state
                 # 
-                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:10])
+                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8])
                 #scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
                 recompute_context = self._get_recompute_context(self._new_block.previous_block_id)
                 if blkw.signer_id != self._validator_id:
-                    LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:10],len(blkw.block.batches))
+                    LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:8],len(blkw.block.batches))
                     if blkw.block_num == 0:
                         # for external genesis block add mapping to own genesis state 
                         # 
@@ -249,7 +249,7 @@ class BlockValidator(object):
                         if recompute_context is not None:
                             recomputed_state = scheduler.recompute_merkle_root(prev_state,recompute_context)
                             scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
-                            LOGGER.debug("MAPPING STATE %s->%s for EXTERNAL BLOCK=%s",blkw.state_root_hash[:10],recomputed_state[:10],blkw.identifier[:8])
+                            LOGGER.debug("MAPPING STATE %s->%s for EXTERNAL BLOCK=%s",blkw.state_root_hash[:10],recomputed_state[:8],blkw.identifier[:8])
                     
                     return True
                     """
@@ -267,15 +267,15 @@ class BlockValidator(object):
                     LOGGER.debug("_verify_block_batches:EXTERNAL block=%s",blkw.identifier[:8])
                 
                 if recomputed_state != blkw.state_root_hash:
-                    LOGGER.debug("recomputed STATE=%s is not match with state hash from block",recomputed_state[:10])
+                    LOGGER.debug("recomputed STATE=%s is not match with state hash from block",recomputed_state[:8])
                     scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
-                    LOGGER.debug("recomputed STATE=%s is not match state from block",recomputed_state[:10])
+                    LOGGER.debug("recomputed STATE=%s is not match state from block",recomputed_state[:8])
                 
                 self._executor.execute(scheduler)
                 
                 # testing
                 #self._check_merkle(blkw.state_root_hash,'NEW before execution')
-                
+                LOGGER.debug("RECALCULATE batches=%s for block=%s",len(blkw.block.batches),blkw)
                 try:
                     for batch, has_more in look_ahead(blkw.block.batches):
                         if self._chain_commit_state.has_batch(batch.header_signature):
@@ -285,15 +285,17 @@ class BlockValidator(object):
                             raise InvalidBatch()
                 
                         self._verify_batch_transactions(batch)
-                        self._chain_commit_state.add_batch(
-                            batch, add_transactions=False)
+                        self._chain_commit_state.add_batch(batch, add_transactions=False)
                         if has_more:
                             scheduler.add_batch(batch)
                         else:
-                            # blkw.state_root_hash - new state calculated into publisher - for DAG it could be incorrect 
-                            # we should recalculate it  
-                            #LOGGER.debug("VERIFY BLOCK BATCHES: add batch for block=%s  STATE=%s-->%s",blkw.identifier[:8],prev_state[:10],blkw.state_root_hash[:10])
+                            """
+                            blkw.state_root_hash - new state calculated into publisher - for DAG it could be incorrect 
+                            AT THIS POINT we say recalculate merkle state
+                            """  
+                            LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8])
                             scheduler.add_batch(batch,recomputed_state) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
+
                 except InvalidBatch:
                     #the same block was already commited
                     LOGGER.debug("Invalid batch %s encountered during verification of block %s",batch.header_signature[:8],blkw)
@@ -313,7 +315,7 @@ class BlockValidator(object):
                 AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
                 and we can unlock merkle state 
                 """
-                LOGGER.debug("CURRENT NEW STATE=%s\n",self._get_merkle_root()[:10])
+                LOGGER.debug("CURRENT NEW STATE=%s\n",self._get_merkle_root()[:8])
             # testing
             #self._check_merkle(prev_state,'_verify_block_batches OLD root')
             #self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
@@ -325,13 +327,12 @@ class BlockValidator(object):
                     blkw.execution_results.extend(txn_results)
                     state_hash = batch_result.state_hash
                     blkw.num_transactions += len(batch.transactions)
-                    
-                    #LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw.identifier[:8],state_hash[:10])
+                    #LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw,state_hash[:8] if state_hash else None)
                 else:
                     return False
             if recomputed_state != state_hash: # blkw.state_root_hash != state_hash
                 # for DAG this states could be different
-                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s(FOR DAG TRY IGNORE)\n", blkw, blkw.state_root_hash[:10],state_hash[:10])
+                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8],state_hash[:8] if state_hash else None)
                 return False
             LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8])
 
@@ -823,6 +824,7 @@ class ChainController(object):
             self._blocks_considered_count = CounterWrapper()
 
         self._block_queue = queue.Queue()
+        # we use thread for each peer and for each head
         self._thread_pool = (
             InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch*PEERS_NUM, name='Validating')
             if thread_pool is None else thread_pool
@@ -946,9 +948,10 @@ class ChainController(object):
             if parent_id in self._blocks_processing:
                 LOGGER.debug("ChainController: get_chain_head for=%s WAIT BLOCK IS PROCESSED NOW!\n",parent_id[:8])
                 return None
-            new_head = self.get_real_head_of_branch(parent_id)
-            LOGGER.debug("ChainController: get_chain_head for=%s real head=%s",parent_id[:8],new_head)
-            return new_head
+            # ? try to just wait and send head into next request
+            #new_head = self.get_real_head_of_branch(parent_id)
+            #LOGGER.debug("ChainController: get_chain_head for=%s real head=%s",parent_id[:8],new_head)
+            #return new_head
             
         return None
 

@@ -120,11 +120,12 @@ class SerialScheduler(Scheduler):
                 # txn is invalid, preemptively fail the batch
                 self._batch_statuses[batch_signature] = BatchExecutionResult(is_valid=False, state_hash=None)
             if txn_signature in self._last_in_batch:
+                LOGGER.debug('tnx=%s last in batch',txn_signature[:8])
                 if batch_signature not in self._batch_statuses:
                     # because of the else clause above, txn is valid here
                     self._previous_valid_batch_c_id = self._previous_context_id
                     state_hash = self._calculate_state_root_if_required(batch_id=batch_signature)
-                    #LOGGER.debug('calculate_state_root_if_required -> STATE=%s',state_hash[:10] if state_hash is not None else None)
+                    LOGGER.debug('calculate_state_root_if_required -> STATE=%s',state_hash[:8] if state_hash is not None else None)
                     self._batch_statuses[batch_signature] = BatchExecutionResult(is_valid=True,state_hash=state_hash)
 
                 else:
@@ -270,7 +271,7 @@ class SerialScheduler(Scheduler):
             base_contexts = [] if self._previous_context_id is None else [self._previous_context_id]
             # for DAG we should use real merkle root
             real_state_hash = self._merkle_root() if self._merkle_root else ''
-            LOGGER.debug('next_transaction: tnx=%s PREV STATE=%s~%s \n',txn.header_signature[:8],self._previous_state_hash[:10],real_state_hash[:10])
+            LOGGER.debug('next_transaction: tnx=%s PREV STATE=%s~%s \n',txn.header_signature[:8],self._previous_state_hash[:8],real_state_hash[:8])
             txn_info = TxnInformation(
                 txn=txn,
                 state_hash=self._previous_state_hash if real_state_hash == '' else real_state_hash,
@@ -381,16 +382,19 @@ class SerialScheduler(Scheduler):
         state_hash = None
         if self._previous_valid_batch_c_id is not None:
             publishing_or_genesis = self._always_persist or required_state_root is None
+            # FIXME for pool T-PROC
             state_hash,updates,deletes = self._squash(
                 state_root=self._previous_state_hash,
                 context_ids=[self._previous_valid_batch_c_id],
                 persist=self._always_persist, clean_up=publishing_or_genesis)
+            LOGGER.debug('_compute_merkle_root: publishing_or_genesis=%s state_hash=%s~%s',publishing_or_genesis,state_hash[:8],required_state_root[:8] if required_state_root else None)
             # save recomputing context
             self._state_recompute_context['updates'] = updates
             self._state_recompute_context['deletes'] = deletes
             if self._always_persist is True:
                 return state_hash
             if state_hash == required_state_root:
+                # if new state correct fix it 
                 self._squash(state_root=self._previous_state_hash,
                              context_ids=[self._previous_valid_batch_c_id],
                              persist=True, clean_up=True)
@@ -439,8 +443,8 @@ class SerialScheduler(Scheduler):
                     break
 
     def _calculate_state_root_if_required(self, batch_id):
-        required_state_hash = self._required_state_hashes.get(
-            batch_id)
+        required_state_hash = self._required_state_hashes.get(batch_id)
+        LOGGER.debug('_calculate_state_root_if_required: required_state_hash=%s',required_state_hash[:8] if required_state_hash else None)
         state_hash = None
         if required_state_hash is not None:
             # not None when we send state_hash argument into add_batch()
