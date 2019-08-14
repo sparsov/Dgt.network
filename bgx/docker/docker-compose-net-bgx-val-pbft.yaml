@@ -74,33 +74,33 @@ services:
       "
     stop_signal: SIGKILL
 
-  bgt-tp1-python:
-    build:
-      context: ../..
-      dockerfile: bgx/families/bgt_python/Dockerfile-${DISTR}
-      args:
-        - http_proxy
-        - https_proxy
-        - no_proxy
-        - BGX_TOP=bgx
-    image: bgt-tp-python-bgx:${ISOLATION_ID}
-    environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
-    networks:
-    - network1
-    volumes:
-      - ../..:/project/${BGX_TOP}
-    container_name: bgt-tp1-python-bgx
-    depends_on:
-      - validator-bgx
-    command: |
-      bash -c "
-        cd bgx/families/bgt_python
-        python3 setup.py clean --all
-        python3 setup.py build
-        bgt-tp-python -vv -C tcp://validator-bgx:4004
-      "
-    stop_signal: SIGKILL
+#  bgt-tp1-python:
+#    build:
+#      context: ../..
+#      dockerfile: bgx/families/bgt_python/Dockerfile-${DISTR}
+#      args:
+#        - http_proxy
+#        - https_proxy
+#        - no_proxy
+#        - BGX_TOP=bgx
+#    image: bgt-tp-python-bgx:${ISOLATION_ID}
+#    environment:
+#    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+#    networks:
+#    - network1
+#    volumes:
+#      - ../..:/project/${BGX_TOP}
+#    container_name: bgt-tp1-python-bgx
+#    depends_on:
+#      - validator-bgx
+#    command: |
+#      bash -c "
+#        cd bgx/families/bgt_python
+#        python3 setup.py clean --all
+#        python3 setup.py build
+#        bgt-tp-python -vv -C tcp://validator-bgx:4004
+#      "
+#    stop_signal: SIGKILL
 
 
   bgx-registry:

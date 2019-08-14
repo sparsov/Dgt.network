@@ -266,7 +266,8 @@ class BlockValidator(object):
                     recomputed_state = blkw.state_root_hash
                     LOGGER.debug("_verify_block_batches:EXTERNAL block=%s",blkw.identifier[:8])
                 
-                if recomputed_state != blkw.state_root_hash:
+                if recomputed_state and recomputed_state != blkw.state_root_hash:
+                    # for DAG - in case state for block was changed - make virtual link 
                     LOGGER.debug("recomputed STATE=%s is not match with state hash from block",recomputed_state[:8])
                     scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
                     LOGGER.debug("recomputed STATE=%s is not match state from block",recomputed_state[:8])
@@ -293,7 +294,7 @@ class BlockValidator(object):
                             blkw.state_root_hash - new state calculated into publisher - for DAG it could be incorrect 
                             AT THIS POINT we say recalculate merkle state
                             """  
-                            LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8])
+                            LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8] if recomputed_state else None)
                             scheduler.add_batch(batch,recomputed_state) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
 
                 except InvalidBatch:
@@ -312,29 +313,33 @@ class BlockValidator(object):
                 state_hash = None
                 
                 """
-                AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
+                FOR SERIAL SCHEDULER AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
                 and we can unlock merkle state 
                 """
                 LOGGER.debug("CURRENT NEW STATE=%s\n",self._get_merkle_root()[:8])
-            # testing
-            #self._check_merkle(prev_state,'_verify_block_batches OLD root')
-            #self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
+                # testing
+                #self._check_merkle(prev_state,'_verify_block_batches OLD root')
+                #self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
+                for batch in blkw.batches:
+                    batch_result = scheduler.get_batch_execution_result(batch.header_signature)
+                    if batch_result is not None and batch_result.is_valid:
+                        txn_results = scheduler.get_transaction_execution_results(batch.header_signature)
+                        blkw.execution_results.extend(txn_results)
+                        state_hash = batch_result.state_hash
+                        blkw.num_transactions += len(batch.transactions)
+                        #LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw,state_hash[:8] if state_hash else None)
+                    else:
+                        return False
 
-            for batch in blkw.batches:
-                batch_result = scheduler.get_batch_execution_result(batch.header_signature)
-                if batch_result is not None and batch_result.is_valid:
-                    txn_results = scheduler.get_transaction_execution_results(batch.header_signature)
-                    blkw.execution_results.extend(txn_results)
-                    state_hash = batch_result.state_hash
-                    blkw.num_transactions += len(batch.transactions)
-                    #LOGGER.debug("Block=%s NEW ROOT STATE=%s",blkw,state_hash[:8] if state_hash else None)
-                else:
-                    return False
-            if recomputed_state != state_hash: # blkw.state_root_hash != state_hash
+            """
+            FOR PARALLEL SCHEDULER AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
+            and we can unlock merkle state 
+            """
+            if (recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
                 # for DAG this states could be different
-                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8],state_hash[:8] if state_hash else None)
+                LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8] if recomputed_state else None,state_hash[:8] if state_hash else None)
                 return False
-            LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8])
+            LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8] if recomputed_state else None)
 
         return True
 

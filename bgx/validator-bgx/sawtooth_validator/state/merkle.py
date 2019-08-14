@@ -280,7 +280,7 @@ class MerkleDatabase(object):
             # for DAG save real last merkle root
             update_batch.append((MERKLE_ROOT_KEY, key_hash))
             self._database.put_multi(update_batch)
-            LOGGER.debug('MerkleDatabase:updated MERKLE ROOT STATE=%s!!\n',key_hash[:8])
+            LOGGER.debug('MerkleDatabase: UPDATED MERKLE ROOT STATE=%s!!\n',key_hash[:8])
             
         
         return key_hash

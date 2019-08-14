@@ -97,7 +97,7 @@ class ContextManager(object):
         Returns:
             context_id (str): the unique context_id of the session
         """
-        LOGGER.debug('create_context: STATE=%s',state_hash[:10])
+        LOGGER.debug('create_context: STATE=%s',state_hash[:8])
         for address in inputs:
             if not self.namespace_is_valid(address):
                 raise CreateContextException(
@@ -365,24 +365,24 @@ class ContextManager(object):
             try:
                 tree = MerkleDatabase(self._database, state_root)
                 state_hash = tree.update(context['updates'],context['deletes'], virtual=True)
-                LOGGER.debug('_recompute_state_hash: STATE=%s->%s\n',state_root[:10],state_hash[:10])
+                LOGGER.debug('_recompute_state_hash: STATE=%s->%s\n',state_root[:8],state_hash[:8])
             except :
-                LOGGER.debug('_recompute_state_hash: BAD STATE=%s\n',state_root[:10])
+                LOGGER.debug('_recompute_state_hash: BAD STATE=%s\n',state_root[:8])
 
             return state_hash  
           
         def _update_state(old,new):
             # for DAG only - make virtual root state correction for block state using mapping
-            #LOGGER.debug('_update_state: OLD STATE=%s\n',old[:10])
+            #LOGGER.debug('_update_state: OLD STATE=%s\n',old[:8])
             if old in self._database:
-                LOGGER.debug('_update_state:THERE IS MAPPING FOR STATE=%s !!!!!!!!\n\n',old[:10])
+                LOGGER.debug('_update_state:THERE IS MAPPING FOR STATE=%s!\n\n',old[:8])
             else:
-                LOGGER.debug('_update_state:ADD MAPPING FOR STATE=%s->%s\n',old[:10],new[:10])
+                LOGGER.debug('_update_state:ADD MAPPING FOR STATE=%s->%s\n',old[:8],new[:8])
                 if new in self._database:
                     ref = self._database[new]
                     if isinstance(ref,str):
                         new = ref
-                        LOGGER.debug('_update_state: TIGHT REF ON REAL STATE=%s\n',ref[:10])
+                        LOGGER.debug('_update_state: TIGHT REF ON REAL STATE=%s\n',ref[:8])
                 self._database.put(old,new)
 
         def get_merkle_root():
@@ -394,13 +394,13 @@ class ContextManager(object):
             try:
                 tree = MerkleDatabase(self._database, state_root)
             except :
-                LOGGER.debug('_CHECK: BAD STATE=%s ROOT %s\n',state_root[:10],context)
+                LOGGER.debug('_CHECK: BAD STATE=%s ROOT %s\n',state_root[:8],context)
                 return
             try:
                 tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
-                LOGGER.debug('_CHECK: ADDRESS YES CHECK STATE=%s %s\n',state_root[:10],context)
+                LOGGER.debug('_CHECK: ADDRESS YES CHECK STATE=%s %s\n',state_root[:8],context)
             except :
-                LOGGER.debug('_CHECK: ADDRESS NO CHECK STATE=%s %s\n',state_root[:10],context)
+                LOGGER.debug('_CHECK: ADDRESS NO CHECK STATE=%s %s\n',state_root[:8],context)
         
         return {'recompute_state':_recompute_state_hash,'update_state':_update_state,'merkle_root':get_merkle_root,'check_merkle':_check_merkle}
 
@@ -457,9 +457,9 @@ class ContextManager(object):
             # check state for testing
             try:
                 tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
-                LOGGER.debug('_SQUASH: ADDRESS YES STATE=%s\n',state_root[:10] if state_root is not None else None)
+                LOGGER.debug('_SQUASH: ADDRESS YES STATE=%s\n',state_root[:8] if state_root is not None else None)
             except :
-                LOGGER.debug('_SQUASH: ADDRESS NO STATE=%s\n',state_root[:10] if state_root is not None else None)
+                LOGGER.debug('_SQUASH: ADDRESS NO STATE=%s\n',state_root[:8] if state_root is not None else None)
             """
             # filter the delete list to just those items in the tree
             deletes = [addr for addr in deletes if addr in tree]
@@ -470,7 +470,7 @@ class ContextManager(object):
                 virtual = not persist
                 # for compute new state - we can save updates, deletes for recompute it for DAG
                 state_hash = tree.update(updates, deletes, virtual=virtual)
-                #LOGGER.debug('_SQUASH: virtual=%s updates=%s deletes=%s STATE=%s\n',virtual,updates,deletes,state_hash[:10])
+                #LOGGER.debug('_SQUASH: virtual=%s updates=%s deletes=%s STATE=%s\n',virtual,updates,deletes,state_hash[:8])
 
             if clean_up:
                 self.delete_contexts(context_ids_already_searched)
@@ -478,9 +478,9 @@ class ContextManager(object):
             # check state for testing
             try:
                 tree._get_by_addr("449095bc5d9deba00a635d8db93c9deeb043416204f494b9f07862e9445559f0185109")
-                LOGGER.debug('_SQUASH: ADDRESS YES AFTER STATE=%s\n',state_root[:10] if state_root is not None else None)
+                LOGGER.debug('_SQUASH: ADDRESS YES AFTER STATE=%s\n',state_root[:8] if state_root is not None else None)
             except :
-                LOGGER.debug('_SQUASH: ADDRESS NO AFTER STATE=%s\n',state_root[:10] if state_root is not None else None)
+                LOGGER.debug('_SQUASH: ADDRESS NO AFTER STATE=%s\n',state_root[:8] if state_root is not None else None)
             """
             return (state_hash,updates,deletes) # for DAG
         return _squash

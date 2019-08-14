@@ -392,9 +392,9 @@ class _CandidateBlock(object):
         self._scheduler.finalize()
         self._scheduler.complete(block=True)
         # for DAG get context for recompute merkle state
-        self._recompute_context = self._scheduler.get_state_hash_context()
+        #self._recompute_context = self._scheduler.get_state_hash_context()
         #sth = self._scheduler.recompute_merkle_root(self._scheduler.previous_state_hash,self._recompute_context)
-        LOGGER.debug("_CandidateBlock::Branch=%s context for merkle recompute=%s\n",self._identifier[:8],self._recompute_context)
+        #LOGGER.debug("_CandidateBlock::Branch=%s context for merkle recompute=%s\n",self._identifier[:8],self._recompute_context)
         # this is a transaction cache to track the transactions committed
         # up to this batch. Only valid transactions that were processed
         # by the scheduler are added.
@@ -483,6 +483,9 @@ class _CandidateBlock(object):
         #
         builder.set_state_hash(state_hash)
         self._sign_block(builder, identity_signer)
+        # for parallel scheduler we should get context here
+        self._recompute_context = self._scheduler.get_state_hash_context()                                                       
+        LOGGER.debug("_CandidateBlock::Branch=%s context for merkle recompute=%s\n",self._identifier[:8],self._recompute_context)
         return builder.build_block()
 
     @property

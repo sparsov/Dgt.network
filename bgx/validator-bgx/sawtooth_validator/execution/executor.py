@@ -399,15 +399,12 @@ class TransactionExecutor(object):
         self.processors = processor_iterator.ProcessorIteratorCollection(
             processor_iterator.RoundRobinProcessorIterator)
         self._settings_view_factory = settings_view_factory
-        self._waiting_threadpool = \
-            InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_WAIT, name='Waiting')
-        self._executing_threadpool = \
-            InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_EXEC, name='Executing')
+        self._waiting_threadpool = InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_WAIT, name='Waiting')
+        self._executing_threadpool = InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_EXEC, name='Executing')
         self._alive_threads = []
         self._lock = threading.Lock()
 
-        self._invalid_observers = ([] if invalid_observers is None
-                                   else invalid_observers)
+        self._invalid_observers = ([] if invalid_observers is None else invalid_observers)
 
         self._scheduler_type = scheduler_type
         self._metrics_registry = metrics_registry
@@ -417,6 +414,7 @@ class TransactionExecutor(object):
                          first_state_root,
                          context_handlers=None,
                          always_persist=False):
+        LOGGER.debug("create scheduler_type=%s", self._scheduler_type)
         if self._scheduler_type == "serial":
             return SerialScheduler(
                 squash_handler=squash_handler,
@@ -427,7 +425,8 @@ class TransactionExecutor(object):
             return ParallelScheduler(
                 squash_handler=squash_handler,
                 first_state_hash=first_state_root,
-                always_persist=always_persist)
+                always_persist=always_persist,
+                context_handlers=context_handlers)
 
         else:
             raise AssertionError(

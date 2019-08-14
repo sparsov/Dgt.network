@@ -275,7 +275,8 @@ class SerialScheduler(Scheduler):
             txn_info = TxnInformation(
                 txn=txn,
                 state_hash=self._previous_state_hash if real_state_hash == '' else real_state_hash,
-                base_context_ids=base_contexts)
+                base_context_ids=base_contexts
+                )
             self._scheduled_transactions.append(txn_info)
             return txn_info
 
@@ -383,6 +384,7 @@ class SerialScheduler(Scheduler):
         if self._previous_valid_batch_c_id is not None:
             publishing_or_genesis = self._always_persist or required_state_root is None
             # FIXME for pool T-PROC
+            LOGGER.debug('_compute_merkle_root: _previous_state_hash=%s _previous_valid_batch_c_id=%s',self._previous_state_hash[:8],self._previous_valid_batch_c_id[:8])
             state_hash,updates,deletes = self._squash(
                 state_root=self._previous_state_hash,
                 context_ids=[self._previous_valid_batch_c_id],

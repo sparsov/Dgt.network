@@ -370,7 +370,7 @@ class Validator(object):
         self._network_service = network_service
         self._network_thread_pool = network_thread_pool
         #block_manager = None
-        LOGGER.debug("ConsensusProxy: INIT...")
+        LOGGER.debug("ConsensusProxy: INIT scheduler_type=%s",scheduler_type)
         consensus_proxy = ConsensusProxy(
             block_manager=block_manager,
             chain_controller=chain_controller,

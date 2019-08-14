@@ -239,8 +239,7 @@ def main(args=None):
 
     try:
         opts_config = create_validator_config(opts)
-        validator_config = \
-            load_validator_config(opts_config, path_config.config_dir)
+        validator_config = load_validator_config(opts_config, path_config.config_dir)
     except LocalConfigurationError as local_config_err:
         LOGGER.error(str(local_config_err))
         sys.exit(1)
@@ -372,8 +371,7 @@ def main(args=None):
     try:
         validator.start()
     except KeyboardInterrupt:
-        LOGGER.info("Initiating graceful "
-                    "shutdown (press Ctrl+C again to force)")
+        LOGGER.info("Initiating graceful shutdown (press Ctrl+C again to force)")
     except LocalConfigurationError as local_config_err:
         LOGGER.error(str(local_config_err))
         sys.exit(1)

@@ -259,10 +259,18 @@ class PredecessorTree:
 
 
 class ParallelScheduler(Scheduler):
-    def __init__(self, squash_handler, first_state_hash, always_persist):
+    def __init__(self, squash_handler, first_state_hash, always_persist,context_handlers=None):
         self._squash = squash_handler
+        self._merkle_root = None
+        if context_handlers is not None:
+            # set context handlers
+            self._recompute_state_hash_handler = context_handlers['recompute_state'] 
+            self._update_state_hash = context_handlers['update_state'] 
+            self._merkle_root       = context_handlers['merkle_root'] 
+
         self._first_state_hash = first_state_hash
         self._last_state_hash = first_state_hash
+        self._is_first_state_hash_updated = False
         self._condition = Condition()
         self._predecessor_tree = PredecessorTree()
         self._txn_predecessors = {}
@@ -306,6 +314,43 @@ class ParallelScheduler(Scheduler):
 
         self._cancelled = False
         self._final = False
+        # for DAG 
+        self._state_recompute_context = {'updates':None,'deletes':None}
+
+    def update_state_hash(self,old,new):
+        # for DAG correct state hash
+        LOGGER.debug('update_state_hash: STATE=%s->%s',old[:10],new[:10])
+        self._update_state_hash(old,new)
+
+    def recompute_merkle_root(self, previous_state_hash,context):
+        """ RE Computes the merkle root of the state changes in the context
+        corresponding with _last_valid_batch_c_id as applied to
+        _previous_state_hash.
+        Use for DAG in chain controller context - for recomputing new root state using actual previous root state 
+        Args:
+            required_state_root (str): The merkle root that these txns
+                should equal.
+
+        Returns:
+            state_hash (str): The merkle root calculated from the previous
+                state hash and the state changes from the context_id
+        """
+        state_hash = self._recompute_state_hash_handler(previous_state_hash,context)
+        LOGGER.debug('RECOMPUTE merkle root: state_hash=%s',state_hash[:8] if state_hash else None)
+        return state_hash
+
+    def num_batches(self):
+        with self._condition:
+            return len(self._batches_by_id)
+
+    def check_incomplete_batches(self):
+        with self._condition:
+            LOGGER.debug('Found incomplete batches=%s _outstanding=%s  txns_available=%s',len(self._batches_by_id),len(self._outstanding),len(self._txns_available))
+            return (len(self._outstanding)+len(self._txns_available))  > 0 
+
+    def get_state_hash_context(self):
+        # for DAG only - return context for recompute new state
+        return self._state_recompute_context
 
     def _find_input_dependencies(self, inputs):
         """Use the predecessor tree to find dependencies based on inputs.
@@ -332,9 +377,7 @@ class ParallelScheduler(Scheduler):
     def add_batch(self, batch, state_hash=None, required=False):
         with self._condition:
             if self._final:
-                raise SchedulerError('Invalid attempt to add batch to '
-                                     'finalized scheduler; batch: {}'
-                                     .format(batch.header_signature))
+                raise SchedulerError('Invalid attempt to add batch to finalized scheduler; batch: {}'.format(batch.header_signature))
             if not self._batches:
                 self._least_batch_id_wo_results = batch.header_signature
 
@@ -349,8 +392,7 @@ class ParallelScheduler(Scheduler):
                                 self._batches_by_id.values())) is None
 
             self._batches.append(batch)
-            self._batches_by_id[batch.header_signature] = \
-                _AnnotatedBatch(batch, required=required, preserve=preserve)
+            self._batches_by_id[batch.header_signature] = _AnnotatedBatch(batch, required=required, preserve=preserve)
             for txn in batch.transactions:
                 self._batches_by_txn_id[txn.header_signature] = batch
                 self._txns_available.append(txn)
@@ -483,12 +525,17 @@ class ParallelScheduler(Scheduler):
             try:
                 if self._is_explicit_request_for_state_root(batch_signature):
                     contexts = self._get_contexts_for_squash(batch_signature)
-                    state_hash = self._squash(
+                    state_hash,updates,deletes = self._squash(
                         self._first_state_hash,
                         contexts,
                         persist=False,
                         clean_up=False)
+                    # save recomputing context
+                    self._state_recompute_context['updates'] = updates
+                    self._state_recompute_context['deletes'] = deletes
+                    LOGGER.debug("get batch=%s execution_result:explicit state_hash=%s context=%s",batch_signature[:8],state_hash[:8],self._state_recompute_context)
                     if self._is_state_hash_correct(state_hash,batch_signature):
+                        LOGGER.debug("get batch=%s execution_result: state hash correct",batch_signature[:8])
                         self._squash(
                             self._first_state_hash,
                             contexts,
@@ -502,11 +549,17 @@ class ParallelScheduler(Scheduler):
                             clean_up=True)
                 elif self._is_implicit_request_for_state_root(batch_signature):
                     contexts = self._get_contexts_for_squash(batch_signature)
-                    state_hash = self._squash(
+                    LOGGER.debug("get batch=%s execution_result:implicit contexts=%s",batch_signature[:8],contexts)
+                    
+                    state_hash,updates,deletes = self._squash(
                         self._first_state_hash,
                         contexts,
                         persist=self._always_persist,
                         clean_up=True)
+                    self._state_recompute_context['updates'] = updates
+                    self._state_recompute_context['deletes'] = deletes
+                    LOGGER.debug("get batch=%s execution_result:implicit state_hash=%s",batch_signature[:8],state_hash[:8])
+
             except _UnscheduledTransactionError:
                 return None
 
@@ -645,12 +698,12 @@ class ParallelScheduler(Scheduler):
             events=None, data=None, error_message="", error_data=b""):
         with self._condition:
             if txn_signature not in self._scheduled:
-                raise SchedulerError(
-                    "transaction not scheduled: {}".format(txn_signature))
+                raise SchedulerError("transaction not scheduled: {}".format(txn_signature))
+
             self._set_least_batch_id(txn_signature=txn_signature)
             if not is_valid:
-                self._remove_subsequent_result_because_of_batch_failure(
-                    txn_signature)
+                self._remove_subsequent_result_because_of_batch_failure(txn_signature)
+
             is_rescheduled = self._reschedule_if_outstanding(txn_signature)
 
             if not is_rescheduled:
@@ -724,8 +777,7 @@ class ParallelScheduler(Scheduler):
 
         for pred_id in chain:
             if (prior_txn_id in self._txn_predecessors[pred_id] or
-                prior_txn_id in chain) and \
-                    self._txn_is_in_valid_batch(pred_id):
+                prior_txn_id in chain) and self._txn_is_in_valid_batch(pred_id):
                 return False
         return True
 
@@ -739,8 +791,7 @@ class ParallelScheduler(Scheduler):
         contexts = []
         txn_dependencies = deque()
         predecessors = self._txn_predecessors[txn.header_signature]
-        txn_dependencies.extend(self._sort_txn_ids_in_reverse(
-            predecessors))
+        txn_dependencies.extend(self._sort_txn_ids_in_reverse(predecessors))
         in_chain = []
         while txn_dependencies:
             prior_txn_id = txn_dependencies.popleft()
@@ -796,11 +847,9 @@ class ParallelScheduler(Scheduler):
                                 state_hash=None)
                         continue
                     txn_id = txn.header_signature
-                    if not self._txn_is_in_valid_batch(txn_id) and \
-                            self._can_fail_fast(txn_id):
+                    if not self._txn_is_in_valid_batch(txn_id) and self._can_fail_fast(txn_id):
 
-                        self._txn_results[txn.header_signature] = \
-                            TxnExecutionResult(False, None, None)
+                        self._txn_results[txn.header_signature] = TxnExecutionResult(False, None, None)
                         self._txns_available.remove(txn)
                         continue
                     next_txn = txn
@@ -808,11 +857,21 @@ class ParallelScheduler(Scheduler):
 
             if next_txn is not None:
                 bases = self._get_initial_state_for_transaction(next_txn)
-
+                # 
+                """
+                for DAG self._first_state_hash can be changed real_state_hash and set this state for all transaction into this block 
+                so we should update  _first_state_hash only for first computing batch into this block 
+                """
+                if not self._is_first_state_hash_updated:
+                    real_state_hash = self._merkle_root() if self._merkle_root else ''
+                    LOGGER.debug('next_transaction: real_state_hash=%s bases=%s',real_state_hash[:8],bases)
+                    self._first_state_hash = real_state_hash
+                    self._is_first_state_hash_updated = True
                 info = TxnInformation(
                     txn=next_txn,
                     state_hash=self._first_state_hash,
-                    base_context_ids=bases)
+                    base_context_ids=bases
+                    )
                 self._scheduled.append(next_txn.header_signature)
                 self._txns_available.remove(next_txn)
                 self._scheduled_txn_info[next_txn.header_signature] = info
@@ -900,7 +959,7 @@ class ParallelScheduler(Scheduler):
             self._condition.notify_all()
 
         if incomplete_batches:
-            LOGGER.debug('Removed %s incomplete batches from the schedule',len(incomplete_batches))
+            LOGGER.debug('Removed %s incomplete batches=%s from the schedule',len(incomplete_batches),[sign[:8] for sign in incomplete_batches])
 
     def finalize(self):
         with self._condition:
