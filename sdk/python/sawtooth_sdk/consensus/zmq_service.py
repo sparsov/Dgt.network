@@ -18,7 +18,8 @@ from sawtooth_sdk.consensus.service import Block
 from sawtooth_sdk.consensus import exceptions
 from sawtooth_sdk.protobuf import consensus_pb2
 from sawtooth_sdk.protobuf.validator_pb2 import Message
-
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class ZmqService(Service):
     def __init__(self, stream, timeout, name, version):
@@ -301,9 +302,9 @@ class ZmqService(Service):
         if status == response_type.TOO_MANY_BRANCH:
             raise exceptions.TooManyBranch()
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
+        #LOGGER.debug('get_chain_head: block=%s',response.block)
         return Block(response.block)
 
     def get_settings(self, block_id, settings):

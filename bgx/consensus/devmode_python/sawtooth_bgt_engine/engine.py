@@ -24,7 +24,7 @@ from sawtooth_sdk.protobuf.validator_pb2 import Message
 
 from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 
-from sawtooth_bgt_engine.oracle import BgtOracle, BgtBlock
+from sawtooth_bgt_engine.oracle import BgtOracle, BgtBlock,_StateViewFactoryProxy
 from sawtooth_bgt_engine.pending import PendingForks
 from sawtooth_bgt_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 
@@ -291,6 +291,7 @@ class BgtEngine(Engine):
         self._service = None
         self._oracle = None
         self._skip   = False
+        self._chain_head = None
         # state variables
         self._exit = False
         self._published = False
@@ -314,6 +315,10 @@ class BgtEngine(Engine):
     def stop(self):
         self._exit = True
 
+    def get_chain_settings(self):
+        # get setting from chain
+        LOGGER.debug('get_chain_settings HEAD=%s',self._chain_head)
+
     def _initialize_block(self,branch=None,new_branch=None,is_new = False):
         LOGGER.debug('BgtEngine: _initialize_block branch[%s] is_new=%s',branch.hex()[:8] if branch is not None else None,is_new)
         """
@@ -322,6 +327,8 @@ class BgtEngine(Engine):
         try:
             # for switch current branch to another node add argument new_branch
             chain_head = self._get_chain_head(branch,new_branch,is_new) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
+            if not self._chain_head:
+                self._chain_head = chain_head
         except exceptions.TooManyBranch:
             LOGGER.debug('BgtEngine: CANT CREATE NEW BRANCH (limit is reached)')
             self._make_branch = False
@@ -485,6 +492,8 @@ class BgtEngine(Engine):
         if not self._published :
             # FIRST publish
             if not self._skip and self._initialize_block() :  
+                # at this point we can ask settings via chain using initial chain_head state_hash 
+                self.get_chain_settings()
                 self._published = True
         else: 
             for bid,branch in list(self._branches.items()):
@@ -527,6 +536,7 @@ class BgtEngine(Engine):
     def start(self, updates, service, startup_state):
         LOGGER.debug('BgtEngine: start service=%s startup_state=%s.',service,startup_state)
         self._service = service
+        self._state_view_factory = _StateViewFactoryProxy(service)
         self._oracle = BgtOracle(
             service=service,
             component_endpoint=self._component_endpoint,
