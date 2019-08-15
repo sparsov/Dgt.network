@@ -42,7 +42,7 @@ RUN apt-get install -y -q \
     python3-toml \
     python3-yaml \
     python3-zmq python3-secp256k1 \
-    python3-pip iputils-ping
+    iputils-ping
 
 RUN mkdir -p /var/log/sawtooth
 
@@ -51,7 +51,7 @@ ENV PATH=$PATH:/project/$BGX_TOP/bgx/bin:/project/$BGX_TOP/bin
 WORKDIR /project/$BGX_TOP
 
 #RUN pip3 install asyncio-nats-client
-RUN pip3 install pyorient
+#RUN pip3 install pyorient
 
 CMD echo "\033[0;32m--- Building bgt-python ---\n\033[0m" \
  && bgx/bin/protogen \
