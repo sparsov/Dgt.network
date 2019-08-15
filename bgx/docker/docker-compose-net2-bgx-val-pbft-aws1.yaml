@@ -74,33 +74,33 @@ services:
       "
     stop_signal: SIGKILL
 
-  bgx-registry-2:
-    build:
-      context: ../..
-      dockerfile: bgx/families/bgx_validator_registry/Dockerfile-${DISTR}
-      args:
-        - http_proxy
-        - https_proxy
-        - no_proxy
-        - BGX_TOP=bgx
-    image: bgx-validator-registry-2:${ISOLATION_ID}
-    environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
-    networks:
-    - network1
-    volumes:
-      - ../..:/project/${BGX_TOP}
-    container_name: bgx-validator-registry-2
-    depends_on:
-      - validator-bgx-2
-    command: |
-      bash -c "
-        cd bgx/families/bgx_validator_registry
-        python3 setup.py clean --all
-        python3 setup.py build
-        bgx-validator-registry -vv -C tcp://validator-bgx-2:4006
-      "
-    stop_signal: SIGKILL
+#  bgx-registry-2:
+#    build:
+#      context: ../..
+#      dockerfile: bgx/families/bgx_validator_registry/Dockerfile-${DISTR}
+#      args:
+#        - http_proxy
+#        - https_proxy
+#        - no_proxy
+#        - BGX_TOP=bgx
+#    image: bgx-validator-registry-2:${ISOLATION_ID}
+#    environment:
+#    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx2
+#    networks:
+#    - network1
+#    volumes:
+#      - ../..:/project/${BGX_TOP}
+#    container_name: bgx-validator-registry-2
+#    depends_on:
+#      - validator-bgx-2
+#    command: |
+#      bash -c "
+#        cd bgx/families/bgx_validator_registry
+#        python3 setup.py clean --all
+#        python3 setup.py build
+#        bgx-validator-registry -vv -C tcp://validator-bgx-2:4006
+#      "
+#    stop_signal: SIGKILL
 
 
   smart-bgt-tp-python-2:
