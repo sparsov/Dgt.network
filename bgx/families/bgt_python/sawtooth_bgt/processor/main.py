@@ -36,7 +36,7 @@ from sawtooth_sdk.protobuf.validator_pb2 import Message
 """
 #
 # ORIENTDB
-import pyorient
+#import pyorient
 #
 
 
