@@ -159,6 +159,8 @@ def main(args=None):
         # The prefix should eventually be looked up from the
         # validator's namespace registry.
         if _ORIENTDB_:
+            pass
+            """
             def _my_callback(for_every_record):
                 LOGGER.debug("record=%s",for_every_record)
 
@@ -180,6 +182,7 @@ def main(args=None):
 
             except Exception as ex :
                 LOGGER.debug("TESTING ORIENTDB '%s' FAILED (%s)\n",ORIENTDB_HOST,ex)
+            """
         if _NATS_:
             pass
             """
