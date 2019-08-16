@@ -38,7 +38,7 @@ class ValidationRuleEnforcer(object):
         settings_view = self._settings_view_factory.create_settings_view(
             state_root)
         rules = settings_view.get_setting(
-            "sawtooth.validator.block_validation_rules")
+            "bgx.validator.block_validation_rules")
         if rules is None:
             return True
 

@@ -36,7 +36,7 @@ from sawtooth_validator.journal.publisher import MissingPredecessor
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf.consensus_pb2 import ConsensusSettingsEntry
 from sawtooth_validator.protobuf.consensus_pb2 import ConsensusStateEntry
-
+from sawtooth_validator.exceptions import NotRegisteredConsensusModule
 
 LOGGER = logging.getLogger(__name__)
 
@@ -204,15 +204,14 @@ class ConsensusInitializeBlockHandler(ConsensusServiceHandler):
             LOGGER.debug('ConsensusInitializeBlockHandler: initialize_block block=%s',request.previous_id.hex()[:8])
             self._proxy.initialize_block(request.previous_id)
         except MissingPredecessor:
-            response.status =\
-                consensus_pb2.ConsensusInitializeBlockResponse.UNKNOWN_BLOCK
+            response.status = consensus_pb2.ConsensusInitializeBlockResponse.UNKNOWN_BLOCK
         except BlockInProgress:
-            response.status =\
-                consensus_pb2.ConsensusInitializeBlockResponse.INVALID_STATE
+            response.status = consensus_pb2.ConsensusInitializeBlockResponse.INVALID_STATE
+        except NotRegisteredConsensusModule:
+            response.status = consensus_pb2.ConsensusInitializeBlockResponse.INVALID_STATE
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusInitializeBlock")
-            response.status =\
-                consensus_pb2.ConsensusInitializeBlockResponse.SERVICE_ERROR
+            response.status = consensus_pb2.ConsensusInitializeBlockResponse.SERVICE_ERROR
 
 
 class ConsensusSummarizeBlockHandler(ConsensusServiceHandler):

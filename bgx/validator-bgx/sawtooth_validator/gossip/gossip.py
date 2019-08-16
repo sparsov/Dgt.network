@@ -235,7 +235,7 @@ class Gossip(object):
     def get_time_to_live(self):
         time_to_live = \
             self._settings_cache.get_setting(
-                "sawtooth.gossip.time_to_live",
+                "bgx.gossip.time_to_live",
                 self._current_root_func(),
                 default_value=TIME_TO_LIVE
             )

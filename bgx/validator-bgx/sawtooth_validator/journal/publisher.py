@@ -698,7 +698,7 @@ class BlockPublisher(object):
         LOGGER.debug("BlockPublisher: BUILD CANDIDATE_BLOCK BRANCH=%s:%s consensus_module=(%s) ask_candidate=%s",chain_head.block_num,bid[:8],consensus_name,self._engine_ask_candidate)
         # using chain_head so so we can use the setting_cache
         max_batches = int(self._settings_cache.get_setting(
-            'sawtooth.publisher.max_batches_per_block',
+            'bgx.publisher.max_batches_per_block',
             main_head.state_root_hash,# for DAG  chain_head.state_root_hash,
             default_value=_MAX_BATCHES_))
         
@@ -1354,7 +1354,8 @@ class BlockPublisher(object):
         # pylint: disable=broad-except
         except Exception as exc:
             LOGGER.critical("on_initialize_build_candidate exception.")
-            LOGGER.exception(exc)
+            raise exc
+            #LOGGER.exception(exc)
 
     def on_finalize_block(self,block_header):
         # add block for summarizing - call from candidate.finalize_block() 
