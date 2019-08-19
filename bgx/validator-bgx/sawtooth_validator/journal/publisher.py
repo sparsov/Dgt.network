@@ -1105,9 +1105,9 @@ class BlockPublisher(object):
                 """
                 pending_batches = []   
                 last_batch = candidate.last_batch
-                LOGGER.debug("BlockPublisher: before finalize_block for BRANCH=%s last_batch=%s make_batch_broadcast=%s\n",bid[:8],last_batch.header_signature[:8],candidate._make_batch_broadcast)
+                LOGGER.debug("BlockPublisher: before finalize BLOCK=%s->%s last_batch=%s make_batch_broadcast=%s\n",candidate.block_num,bid[:8],last_batch.header_signature[:8],candidate._make_batch_broadcast)
                 block = candidate.finalize_block(self._identity_signer,pending_batches)
-                LOGGER.debug("BlockPublisher: after finalize_block pending BATCHS=%s+%s block=%s",len(self._pending_batches),[batch.header_signature[:8] for batch in pending_batches],block is not None)
+                LOGGER.debug("BlockPublisher: after finalize BLOCK=%s->%s pending BATCHS=%s+%s block=%s",candidate.block_num,bid[:8],len(self._pending_batches),[batch.header_signature[:8] for batch in pending_batches],block is not None)
                 """
                 after proxy engine answer we can lock again
                 """
@@ -1244,9 +1244,9 @@ class BlockPublisher(object):
                         pending_batches = []  # will receive the list of batches
                         # that were not added to the block
                         last_batch = candidate.last_batch
-                        LOGGER.debug("BlockPublisher: before finalize_block for BRANCH=%s last_batch=%s\n",bid[:8],last_batch.header_signature[:8])
+                        LOGGER.debug("BlockPublisher: before finalize BLOCK=%s->%s last_batch=%s\n",candidate.block_num,bid[:8],last_batch.header_signature[:8])
                         block = candidate.finalize_block(self._identity_signer,pending_batches)
-                        LOGGER.debug("BlockPublisher: after finalize_block pending batchs=%s+%s block=%s",len(self._pending_batches),len(pending_batches),block is not None)
+                        LOGGER.debug("BlockPublisher: after finalize BLOCK=%s->%s pending batchs=%s+%s block=%s",candidate.block_num,bid[:8],len(self._pending_batches),len(pending_batches),block is not None)
 
                         self._candidate_block = None
                     
@@ -1369,11 +1369,11 @@ class BlockPublisher(object):
         """
         we are know parent's ID from chain_head_get()
         """
-        LOGGER.debug('BlockPublisher: initialize_block for block=%s.%s LOCK\n',block.block_num, block.identifier[:8])
+        LOGGER.debug('BlockPublisher: initialize_block for BLOCK=%s.%s LOCK\n',block.block_num, block.identifier[:8])
         self._engine_ask_candidate[block.identifier] = True
         self._can_print_summarize = True
         self.on_initialize_build_candidate(block)
-        LOGGER.debug('BlockPublisher: initialize_block DONE for block=%s.%s\n',block.block_num, block.identifier[:8])    
+        LOGGER.debug('BlockPublisher: initialize_block DONE for BLOCK=%s.%s\n',block.block_num, block.identifier[:8])    
         #raise BlockInProgress
 
     def summarize_block(self, force=False):

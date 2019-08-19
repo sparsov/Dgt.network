@@ -402,6 +402,9 @@ class ParallelScheduler(Scheduler):
                 b_id = batch.header_signature
                 self._batches_with_state_hash[b_id] = state_hash
 
+            LOGGER.debug("add_batch: batch=%s tnxs=%s added=%s STATE=%s",batch.header_signature[:8],[t.header_signature[:8] for t in batch.transactions],len(self._batches_by_id),
+                         state_hash[:8] if state_hash is not None else None
+                         )
             # For dependency handling: First, we determine our dependencies
             # based on the current state of the predecessor tree.  Second,
             # we update the predecessor tree with reader and writer
@@ -867,6 +870,7 @@ class ParallelScheduler(Scheduler):
                     LOGGER.debug('next_transaction: real_state_hash=%s bases=%s',real_state_hash[:8],bases)
                     self._first_state_hash = real_state_hash
                     self._is_first_state_hash_updated = True
+                LOGGER.debug('next_transaction: tnx=%s STATE=%s\n',next_txn.header_signature[:8],self._first_state_hash[:8])
                 info = TxnInformation(
                     txn=next_txn,
                     state_hash=self._first_state_hash,

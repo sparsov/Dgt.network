@@ -43,7 +43,7 @@ class BlockBuilder(object):
         header_bytes = self.block_header.SerializeToString()
         block = Block(header=header_bytes,
                       header_signature=self._header_signature)
-        LOGGER.debug('BlockBuilder: block=%s add batches=%s',self.block_num,[batch.header_signature[:8] for batch in self.batches])
+        LOGGER.debug('BlockBuilder: BLOCK=%s.%s add batches=%s',self.block_num,self._header_signature[:8],[batch.header_signature[:8] for batch in self.batches])
         block.batches.extend(self.batches)
         return block
 
