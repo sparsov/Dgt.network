@@ -74,7 +74,7 @@ def add_head_parser(subparsers, parent_parser):
     show_parser.add_argument(
         'head_id',
         type=str,
-        help='id of the head or cand/valid/integrity')
+        help='id of the head or cand/valid/integrity/dag')
 
 
 def do_head(args):
