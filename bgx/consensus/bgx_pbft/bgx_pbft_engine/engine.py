@@ -46,6 +46,14 @@ class Consensus(Enum):
     fail = 1
     pending = 2
 
+class State(Enum):
+    NotStarted = 0
+    PrePreparing = 1
+    Preparing = 2
+    Checking = 3
+    Commiting = 4
+    Finished  = 5
+
 class BranchState(object):
 
     def __init__(self,bid,parent,block_num,service,oracle,validator_id,ind):
@@ -67,6 +75,8 @@ class BranchState(object):
         self._chain_len = 0   # for chain lenght
         self._freeze = False # True for freeze block 3
         self._sequence_number = 0
+        self._state = State.NotStarted
+        self._commit_msgs = {}
         self._validator_id = validator_id
         LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
 
@@ -285,6 +295,11 @@ class BranchState(object):
 
         return switch
 
+    def shift_to_commiting(self,block):
+        if self._state != State.Commiting:
+            self._state = State.Commiting 
+            self._send_commit(block)
+
     def resolve_fork(self,chain_head,block):
         LOGGER.info('Branch[%s] Choosing between chain heads current:%s new:%s',self._head_id[:8],_short_id(chain_head.block_id.hex()),_short_id(block.block_id.hex()))
         if self.switch_forks(chain_head, block):
@@ -294,8 +309,7 @@ class BranchState(object):
             """
             if PBFT_FULL:
                 # broadcast commit message and shift into commiting state
-                self._state += 1 
-                self._send_commit(block)
+                self.shift_to_commiting(block)
                 return Consensus.pending
             else:
                 LOGGER.info('Committing block=%s for BRANCH=%s', _short_id(block.block_id.hex()),self._head_id[:8])
@@ -308,13 +322,30 @@ class BranchState(object):
             self.ignore_block(block.block_id)
             return Consensus.fail
 
+    def add_commit_msg(self,peer_id,peers,block):
+        """
+        commit message from peers who is participating in consensus
+        """
+        if peer_id not in self._commit_msgs and peer_id in peers:
+            self._commit_msgs[peer_id] = block
+            total = len(self._commit_msgs)
+            N =  len(peers) + 1
+            F = round((N - 1)/3)*2 + 1
+            LOGGER.info('Add commit MSG from peer=%s for block=%s total=%s N=%s F=%s', peer_id[:8],self.block_num,total,N,F)
+            if total >= F:
+                LOGGER.info('Ready to do commit for block=%s -> Finished', self.block_num)
+                self.commit_block(block.block_id)
+        else:
+            LOGGER.info('Ignore commit MSG from peer=%s msgs=%s peers=%s', peer_id[:8],[peer[:8] for peer in self._commit_msgs.keys()],[peer[:8] for peer in peers])
+             
     def reset_state(self):
         LOGGER.info('reset_state: for BRANCH[%s]=%s\n', self._ind,self._head_id[:8])
         self._building = False   
         self._published = False  
         self._committing = False
-        self._state = 0
+        self._state = State.NotStarted
         self._sequence_number = 0
+        self._commit_msgs = {}
 
     def __str__(self):
         return "{} (block_num:{}, state:{})".format(
@@ -870,8 +901,12 @@ class PbftEngine(Engine):
         #info = pinfo.ParseFromString(block)
         pid = block.peer_id.hex()
         if pid not in self._peers and pid != self._validator_id:
-            self._peers[pid] = True
-            LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
+            if pid in self._oracle.nodes:
+                # take only peers from topology
+                self._peers[pid] = True
+                LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
+            else:
+                LOGGER.info('Ignore connected peer=%s(not in net topology)\n', _short_id(pid))
 
     def _handle_peer_message(self, msg):
         """
@@ -950,15 +985,23 @@ class PbftEngine(Engine):
                         # only after PRE_PREPARE - in case PRE_PREPARE missing - block was commited
                         LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s (no block yet)",block_id[:8],summary[:8])
                         self._prepare_msgs[summary] = {block_id : True}
+
         elif msg_type == PbftMessageInfo.COMMIT_MSG:
             """
             commiting state 
             """
-            LOGGER.debug("=>COMMIT for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>COMMIT for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
+                branch.add_commit_msg(peer_id,self._peers,block)
                 LOGGER.debug("=>COMMIT for block=%s peer branch=%s",block_id[:8],branch)
             elif block_id in self._branches:
+                # this is own block and it already commited (first block) 
                 branch = self._branches[block_id]
+                branch.shift_to_commiting(block)
+                #branch.add_commit_msg(peer_id,self._peers,block)
                 LOGGER.debug("=>COMMIT for block=%s branch=%s",block_id[:8],branch)
-
+                
+            
+                
+            

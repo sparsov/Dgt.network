@@ -102,6 +102,11 @@ class PbftOracle:
     @property
     def dag_step(self):
         return self._pbft_settings_view.dag_step
+
+    @property
+    def nodes(self):
+        return self._nodes
+
     @property
     def validator_id(self):
         return self._validator_id
