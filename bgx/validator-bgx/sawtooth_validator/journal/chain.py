@@ -179,6 +179,9 @@ class BlockValidator(object):
     @property
     def previous_block_id(self):
         return self._new_block.previous_block_id
+    @property
+    def identifier(self):
+        return self._new_block.identifier
 
     def _get_previous_block_root_state_hash(self, blkw):
         if blkw.previous_block_id == NULL_BLOCK_IDENTIFIER:
@@ -546,6 +549,7 @@ class BlockValidator(object):
                 config_dir=self._config_dir,
                 validator_id=public_key)
         self._fork_resolver = fork_resolver # for proxy
+        LOGGER.debug("_test_commit_new_chain block=%s parent=%s", self.identifier[:8],self.previous_block_id[:8]) # [x for x, y in fork_resolver.__dict__.items() if True or callable(y)])
         return fork_resolver.compare_forks(self._chain_head, self._new_block)
 
     def _compute_batch_change(self, new_chain, cur_chain):
@@ -573,7 +577,7 @@ class BlockValidator(object):
         """
         try:
             branch_id = self._new_block.previous_block_id
-            LOGGER.info("run: Starting validation NEW BLOCK=%s.%s signer_id=%s for BRANCH=%s",self._new_block.block_num,self._new_block.identifier[:8],self._new_block.signer_id[:8],branch_id[:8])
+            LOGGER.debug("run: Starting validation NEW BLOCK=%s.%s signer_id=%s for BRANCH=%s",self._new_block.block_num,self._new_block.identifier[:8],self._new_block.signer_id[:8],branch_id[:8])
             cur_chain = self._result["cur_chain"]  # ordered list of the  current chain blocks
             new_chain = self._result["new_chain"]  # ordered list of the new chain blocks
             """
@@ -924,7 +928,10 @@ class ChainController(object):
                     self._block_manager.put([new_head.get_block()])
                 return new_head
             LOGGER.debug("ChainController: get_chain_head for=%s is_new=%s heads=%s",parent_id[:8],is_new,self._heads_list)
-            return self._chain_heads[parent_id]
+            head = self._chain_heads[parent_id]
+            if parent_id not in self._block_manager:
+                self._block_manager.put([head.get_block()])
+            return head
         elif is_new :
             # ask new branch
             if len(self._chain_heads) >= self._max_dag_branch :
@@ -1224,7 +1231,7 @@ class ChainController(object):
                 # check may be 'bid' used some others block which has this parent is now validating 
                 is_used = self.is_parent_used(bid)
                 self._block_store.update_chain_heads(bid,nid,new_block,is_used) # bid is_parent_used(bid)
-                LOGGER.debug("ChainController:update HEAD=%s->%s heads=%s",bid[:8],nid[:8],self._heads_list)
+                LOGGER.debug("update HEAD=%s->%s heads=%s",bid[:8],nid[:8],self._heads_list)
                 # for DAG self._chain_head just last update branch's head it could be local variable 
                 self._chain_head = new_block
 

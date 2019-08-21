@@ -36,7 +36,7 @@ _CONSENSUS_ = b'pbft'
 PBFT_NAME = 'pbft' 
 PBFT_VER  = '0.1'
 TIMEOUT   = 0.1
-PBFT_FULL = True  # full or short mode of PBFT
+PBFT_FULL = False  # full or short mode of PBFT
 
 CHAIN_LEN_FOR_BRANCH = 3 # after this len make a new branch 
 CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
@@ -47,16 +47,17 @@ class Consensus(Enum):
     pending = 2
 
 class State(Enum):
-    NotStarted = 0
+    NotStarted   = 0
     PrePreparing = 1
-    Preparing = 2
-    Checking = 3
-    Commiting = 4
-    Finished  = 5
+    Preparing    = 2
+    Checking     = 3
+    PreCommiting = 4
+    Commiting    = 5
+    Finished     = 6
 
 class BranchState(object):
 
-    def __init__(self,bid,parent,block_num,service,oracle,validator_id,ind):
+    def __init__(self,bid,parent,block_num,service,oracle,engine,ind):
         self._head_id = bid
         self._ind = ind
         self._parent_id = parent
@@ -77,12 +78,23 @@ class BranchState(object):
         self._sequence_number = 0
         self._state = State.NotStarted
         self._commit_msgs = {}
-        self._validator_id = validator_id
-        LOGGER.debug('BranchState: init branch for %s parent=%s',bid[:8],parent[:8])
+        self._engine = engine
+        LOGGER.debug('BranchState: init branch=%s for %s',self,bid[:8])
 
     @property
     def ind(self):
         return self._ind
+    @property
+    def validator_id(self):
+        return self._engine.validator_id
+
+    @property
+    def peers(self):
+        return self._engine.peers
+
+    @property
+    def dag_step(self):
+        return self._engine.dag_step
 
     @property
     def parent(self):
@@ -94,7 +106,7 @@ class BranchState(object):
 
     @property
     def is_time_to_make_branch(self):
-        return self._chain_len > CHAIN_LEN_FOR_BRANCH # and self._make_branch
+        return self._chain_len > self.dag_step # and self._make_branch
 
     @property
     def state(self):
@@ -128,7 +140,7 @@ class BranchState(object):
                     msg_type = msg_type,
                     view     = 0,
                     seq_num  = self._sequence_number,
-                    signer_id = bytes.fromhex(self._validator_id)
+                    signer_id = bytes.fromhex(self.validator_id)
             ) 
         blockMessage = PbftBlockMessage(
                     block_id  = block.block_id,
@@ -149,6 +161,7 @@ class BranchState(object):
         """
         send PREPARE message 
         """
+        # check state PrePreparing and shift into Preparing
         message = self._make_message(block,PbftMessageInfo.PREPARE_MSG)                                                                                                                 
         self._broadcast(message,PbftMessageInfo.PREPARE_MSG,block.block_id)
 
@@ -183,13 +196,13 @@ class BranchState(object):
         return True
 
     def start_consensus(self,block):
-        self._state = 0
+        self._state = State.NotStarted
         self._send_pre_prepare(block)
 
     def finish_consensus(self,block,block_id,consensus):
-        if self._state == 0:
+        if self._state == State.NotStarted:
             # shift to the checking state
-            self._state += 1
+            self._state = State.Checking
             LOGGER.warning("finish_consensus:branch[%s] for block_id=%s consensus=%s\n",self._ind,block_id[:8],consensus)
             if consensus:
                 # check block and waiting valid or invalid message
@@ -198,7 +211,7 @@ class BranchState(object):
                 #self.reset_state()
                 self.fail_block(bytes.fromhex(block_id))
         else:
-            LOGGER.warning("finish_consensus: IGNORE block_id=%s\n",block_id[:8])
+            LOGGER.warning("finish_consensus: IGNORE block_id=%s state=%s\n",block_id[:8],self._state)
 
     def check_block(self,block_id):
         # send in case of consensus was reached
@@ -214,8 +227,8 @@ class BranchState(object):
         # send in case of consensus was not reached
         self._service.fail_block(block_id)
 
-    def new_block(self,block,peers):
-        if len(peers) > 0:
+    def new_block(self,block):
+        if len(self.peers) > 0:
             # start consensus for many active peers
             self.start_consensus(block)
             return False
@@ -296,8 +309,8 @@ class BranchState(object):
         return switch
 
     def shift_to_commiting(self,block):
-        if self._state != State.Commiting:
-            self._state = State.Commiting 
+        if self._state != State.PreCommiting:
+            self._state = State.PreCommiting 
             self._send_commit(block)
 
     def resolve_fork(self,chain_head,block):
@@ -307,9 +320,11 @@ class BranchState(object):
             for full version shift into commiting state
             for short we can commit right now
             """
-            if PBFT_FULL:
+            if self._oracle.is_pbft_full:
                 # broadcast commit message and shift into commiting state
                 self.shift_to_commiting(block)
+                self._state = State.Commiting
+                self.check_commit(block)
                 return Consensus.pending
             else:
                 LOGGER.info('Committing block=%s for BRANCH=%s', _short_id(block.block_id.hex()),self._head_id[:8])
@@ -322,21 +337,38 @@ class BranchState(object):
             self.ignore_block(block.block_id)
             return Consensus.fail
 
-    def add_commit_msg(self,peer_id,peers,block):
+    def check_commit(self,block):
         """
-        commit message from peers who is participating in consensus
+        check maybe it's time for commit
         """
-        if peer_id not in self._commit_msgs and peer_id in peers:
-            self._commit_msgs[peer_id] = block
+        if self._state == State.Commiting:
+            
             total = len(self._commit_msgs)
-            N =  len(peers) + 1
+            N =  len(self.peers) + 1
             F = round((N - 1)/3)*2 + 1
-            LOGGER.info('Add commit MSG from peer=%s for block=%s total=%s N=%s F=%s', peer_id[:8],self.block_num,total,N,F)
+            LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s', self.block_num,self._state,total,N,F)
             if total >= F:
                 LOGGER.info('Ready to do commit for block=%s -> Finished', self.block_num)
+                self._state = State.Finished
                 self.commit_block(block.block_id)
+            return True
+
+        return False
+
+
+
+    def add_commit_msg(self,peer_id,block):
+        """
+        commit message from peers who is participating in consensus
+        commit MSG can appeared before valid block MSG
+        """
+        if peer_id not in self._commit_msgs and peer_id in self.peers:
+            self._commit_msgs[peer_id] = block
+            LOGGER.info('Add commit MSG from peer=%s for block=%s total=%s', peer_id[:8],self.block_num,len(self._commit_msgs))
+            if not self.check_commit(block):
+                LOGGER.info('Save commit MSG for block=%s and waiting VALID MSG', self.block_num)
         else:
-            LOGGER.info('Ignore commit MSG from peer=%s msgs=%s peers=%s', peer_id[:8],[peer[:8] for peer in self._commit_msgs.keys()],[peer[:8] for peer in peers])
+            LOGGER.info('Ignore commit MSG from peer=%s msgs=%s peers=%s', peer_id[:8],[peer[:8] for peer in self._commit_msgs.keys()],[peer[:8] for peer in self.peers])
              
     def reset_state(self):
         LOGGER.info('reset_state: for BRANCH[%s]=%s\n', self._ind,self._head_id[:8])
@@ -381,6 +413,8 @@ class PbftEngine(Engine):
         self._TOTAL_BLOCK = 0
         self._pending_forks_to_resolve = PendingForks()
         self._num_branches = 0 #
+        self._validator_id = None
+        self._dag_step = CHAIN_LEN_FOR_BRANCH
         LOGGER.debug('PbftEngine: init done')
 
     def name(self):
@@ -393,6 +427,18 @@ class PbftEngine(Engine):
 
     def stop(self):
         self._exit = True
+
+    @property
+    def validator_id(self):
+        return self._validator_id
+
+    @property
+    def peers(self):
+        return self._peers
+
+    @property
+    def dag_step(self):
+        return self._dag_step
 
     def get_chain_settings(self):
         # get setting from chain
@@ -457,7 +503,7 @@ class PbftEngine(Engine):
         return True
 
     def create_branch(self,bid,parent,block_num):
-        branch = BranchState(bid, parent, block_num, self._service, self._oracle, self._validator_id,self._num_branches)
+        branch = BranchState(bid, parent, block_num, self._service, self._oracle, self,self._num_branches)
         self._num_branches += 1
         return branch
 
@@ -620,7 +666,7 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:10],self._dag_step)
+        LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:10],self._dag_step,self._oracle.is_pbft_full)
         #self._service.initialize_block()
         while True:
             try:
@@ -705,7 +751,7 @@ class PbftEngine(Engine):
             if block.previous_block_id in self._branches:
                 branch = self._branches[block.previous_block_id]
                 self._peers_branches[block_id] = branch # add ref on branch for own block 
-                result =  branch.new_block(block,self._peers)
+                result =  branch.new_block(block)
                 if result == Consensus.done:
                     # refer for block on branch
                     self._new_heads[block_id] = block.previous_block_id
@@ -733,7 +779,7 @@ class PbftEngine(Engine):
                 branch = self.create_branch('','',block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
-                branch.new_block(block,self._peers)
+                branch.new_block(block)
                 self._new_heads[block_id] = block.previous_block_id
                 LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', block_id[:8],block.previous_block_id[:8])
                 if block_id in self._pre_prepare_msgs:
@@ -819,7 +865,7 @@ class PbftEngine(Engine):
             else:
                 # pending start commiting
                 LOGGER.info('START COMMITING for BLOCK=%s(%s)',_short_id(block_id),signer_id[:8])
-
+        LOGGER.info('_resolve_fork  BLOCK=%s(%s)',bbid[:8],signer_id[:8])
         if signer_id == self._validator_id:
             if bid in self._branches:
                 # head could be already changed - we can get new head for this branch
@@ -946,8 +992,10 @@ class PbftEngine(Engine):
                 if block_num == 0:
                     self._peers_branches[block_id].finish_consensus(block,block_id,True)
                 else:
-                    if self._peers_branches[block_id].state > 0:
+                    pstate = self._peers_branches[block_id].state
+                    if pstate != State.NotStarted:
                         # skip message after commit or fail
+                        LOGGER.debug("SKIP PREPARE message after commit or fail state=%s\n",pstate)
                         return
                     # waiting until all block with equivalent summary will have prepare message
                     LOGGER.debug("=>CHECK SUMMARY=%s ALL=%s",summary[:10],[key[:8] for key in self._prepare_msgs.keys()])
@@ -993,7 +1041,7 @@ class PbftEngine(Engine):
             LOGGER.debug("=>COMMIT for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
-                branch.add_commit_msg(peer_id,self._peers,block)
+                branch.add_commit_msg(peer_id,block)
                 LOGGER.debug("=>COMMIT for block=%s peer branch=%s",block_id[:8],branch)
             elif block_id in self._branches:
                 # this is own block and it already commited (first block) 

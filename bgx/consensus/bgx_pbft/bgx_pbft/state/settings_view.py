@@ -14,8 +14,9 @@
 # ------------------------------------------------------------------------------
 
 import hashlib
+import logging
 from functools import lru_cache
-
+LOGGER = logging.getLogger(__name__)
 try:
     from sawtooth_sdk.protobuf.setting_pb2 import Setting
 except TypeError:
@@ -71,8 +72,7 @@ class SettingsView:
             otherwise.
         """
         try:
-            state_entry = self._state_view.get(
-                SettingsView.setting_address(key))
+            state_entry = self._state_view.get(SettingsView.setting_address(key))
         except KeyError:
             return default_value
 
@@ -81,6 +81,7 @@ class SettingsView:
             setting.ParseFromString(state_entry)
             for setting_entry in setting.entries:
                 if setting_entry.key == key:
+                    #LOGGER.debug('key=%s val=%s tp=%s value_type=%s',key,setting_entry.value,type(setting_entry.value),value_type)
                     return value_type(setting_entry.value)
 
         return default_value

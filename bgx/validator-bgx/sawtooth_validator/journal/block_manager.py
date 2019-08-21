@@ -246,6 +246,7 @@ class _BlockIterator:
             block = Block()
             block.ParseFromString(mblk.value)
             if mblk.cnt == 0:
+                LOGGER.debug("BlockManager: DEL block_id=%s",block_id[:8])
                 del self._block_store[block_id]
         else:
             LOGGER.debug("_BlockIterator:not in store  StopIteration ")

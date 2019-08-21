@@ -33,6 +33,7 @@ class PbftSettingsView:
     _CHECKPOINT_PERIOD_ = 100
     _VIEW_CHANGE_TIMEOUT_ = 4000
     _DAG_STEP_ = 3
+    _IS_PBFT_FULL_ = False
 
     def __init__(self, state_view):
         """Initialize a PbftSettingsView object.
@@ -53,6 +54,7 @@ class PbftSettingsView:
         self._key_block_claim_limit = 2
         self._block_claim_delay = 2
         self._dag_step = None
+        self._is_pbft_full = None
 
     def _get_config_setting(self,
                             name,
@@ -87,13 +89,10 @@ class PbftSettingsView:
 
             if validate_function is not None:
                 if not validate_function(value):
-                    raise \
-                        ValueError(
-                            'Value ({}) for {} is not valid'.format(
-                                value,
-                                name))
+                    raise ValueError('Value ({}) for {} is not valid'.format(value,name))
         except ValueError:
             value = default_value
+            LOGGER.debug('use default for %s=%s',name,value)
 
         return value
 
@@ -187,6 +186,18 @@ class PbftSettingsView:
                     validate_function=lambda value: value)
 
         return self._dag_step
+
+    @property
+    def is_pbft_full(self):
+        if self._is_pbft_full is None:
+            val = self._get_config_setting(
+                    name='bgx.consensus.pbft.full',
+                    value_type=int,
+                    default_value=PbftSettingsView._IS_PBFT_FULL_,
+                    validate_function=lambda value: value==0 or value==1)
+            self._is_pbft_full = bool(val)
+
+        return self._is_pbft_full
     @property
     def signup_commit_maximum_delay(self):
         return self._signup_commit_maximum_delay

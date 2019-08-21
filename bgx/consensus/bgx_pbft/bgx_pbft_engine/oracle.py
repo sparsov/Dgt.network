@@ -102,6 +102,9 @@ class PbftOracle:
     @property
     def dag_step(self):
         return self._pbft_settings_view.dag_step
+    @property
+    def is_pbft_full(self):
+        return self._pbft_settings_view.is_pbft_full
 
     @property
     def nodes(self):
