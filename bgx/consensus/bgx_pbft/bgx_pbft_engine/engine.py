@@ -200,7 +200,7 @@ class BranchState(object):
         self._send_pre_prepare(block)
 
     def finish_consensus(self,block,block_id,consensus):
-        if self._state == State.NotStarted:
+        if self._state in [State.NotStarted,State.PreCommiting]:
             # shift to the checking state
             self._state = State.Checking
             LOGGER.warning("finish_consensus:branch[%s] for block_id=%s consensus=%s\n",self._ind,block_id[:8],consensus)
@@ -993,7 +993,7 @@ class PbftEngine(Engine):
                     self._peers_branches[block_id].finish_consensus(block,block_id,True)
                 else:
                     pstate = self._peers_branches[block_id].state
-                    if pstate != State.NotStarted:
+                    if pstate not in [State.NotStarted,State.PreCommiting] :
                         # skip message after commit or fail
                         LOGGER.debug("SKIP PREPARE message after commit or fail state=%s\n",pstate)
                         return
