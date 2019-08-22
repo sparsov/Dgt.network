@@ -345,7 +345,7 @@ class BranchState(object):
             
             total = len(self._commit_msgs)
             N =  len(self.peers) + 1
-            F = round((N - 1)/3)*2 + 1
+            F = round((N - 1)/3.)*2 + 1
             LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s', self.block_num,self._state,total,N,F)
             if total >= F:
                 LOGGER.info('Ready to do commit for block=%s -> Finished', self.block_num)
