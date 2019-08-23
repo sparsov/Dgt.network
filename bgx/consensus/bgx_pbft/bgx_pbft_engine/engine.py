@@ -15,7 +15,7 @@
 
 import logging
 import queue
-
+import time
 import json
 
 from sawtooth_sdk.consensus.engine import Engine
@@ -77,6 +77,7 @@ class BranchState(object):
         self._freeze = False # True for freeze block 3
         self._sequence_number = 0
         self._state = State.NotStarted
+        self._start = None # time starting
         self._commit_msgs = {}
         self._engine = engine
         LOGGER.debug('BranchState: init branch=%s for %s',self,bid[:8])
@@ -187,23 +188,40 @@ class BranchState(object):
 
         self._broadcast(message,PbftMessageInfo.VIEWCHANGE_MSG,block.block_id) 
 
+    def pre_prepare(self,block,force = False):
+        """
+        PrePrepare message
+        """
+        if (self._state == State.PrePreparing or force) and self._state != State.Preparing:
+            self._state = State.Preparing
+            self._send_prepare(block)
+        else:
+            summary  = block.summary.hex()
+            LOGGER.debug("DON'T SEND PREPARE summary=%s fail %s\n",summary[:8],self._state)
+        
+
     def check_consensus(self,block):
         
         if block.block_num == 2 and self._can_fail_block:
             self._can_fail_block = False
-            LOGGER.warning("check_consensus: MAKE BLOCK fail FOR TEST\n")
+            LOGGER.debug("check_consensus: MAKE BLOCK fail FOR TEST\n")
             return False
         return True
 
     def start_consensus(self,block):
-        self._state = State.NotStarted
+        """
+        New block message appeared - start consensus
+        """
+        self._start = time.time() # save time when new block appeared - we can update this time which was setted into finalize
+        self._state = State.PrePreparing # State.NotStarted
+        LOGGER.debug('Start F-BFT consensus block=%s time=%s',_short_id(block.block_id.hex()),self._start)
         self._send_pre_prepare(block)
 
     def finish_consensus(self,block,block_id,consensus):
-        if self._state in [State.NotStarted,State.PreCommiting]:
+        if self._state in [State.PrePreparing,State.Preparing,State.PreCommiting]:
             # shift to the checking state
+            LOGGER.debug("finish_consensus:branch[%s] for block_id=%s consensus=%s %s->Checking\n",self._ind,block_id[:8],consensus,self._state)
             self._state = State.Checking
-            LOGGER.warning("finish_consensus:branch[%s] for block_id=%s consensus=%s\n",self._ind,block_id[:8],consensus)
             if consensus:
                 # check block and waiting valid or invalid message
                 self.check_block(bytes.fromhex(block_id))
@@ -211,15 +229,15 @@ class BranchState(object):
                 #self.reset_state()
                 self.fail_block(bytes.fromhex(block_id))
         else:
-            LOGGER.warning("finish_consensus: IGNORE block_id=%s state=%s\n",block_id[:8],self._state)
+            LOGGER.debug("finish_consensus: IGNORE block_id=%s state=%s\n",block_id[:8],self._state)
 
     def check_block(self,block_id):
         # send in case of consensus was reached
-        LOGGER.warning("check_block: block_id=%s\n",_short_id(block_id.hex()))
+        LOGGER.debug("check_block: block_id=%s\n",_short_id(block_id.hex()))
         try:
             self._service.check_blocks([block_id])
         except (exceptions.UnknownBlock,exceptions.ReceiveError):
-            LOGGER.warning("check_block: ignore_block block_id=%s\n",_short_id(block_id.hex()))
+            LOGGER.debug("check_block: ignore_block block_id=%s\n",_short_id(block_id.hex()))
             self.ignore_block(block_id)
             
 
@@ -281,9 +299,10 @@ class BranchState(object):
             return None
 
         try:
-            # say to validator that we are ready to finalize this block
+            # say to validator that we are ready to finalize this block and send name of consensus
             block_id = self._service.finalize_block(parent_id,consensus)
-            LOGGER.info('Finalized summary=%s block_id=%s BRANCH=%s',summary,_short_id(block_id.hex()),self._head_id[:8]) 
+            self._start = time.time()
+            LOGGER.info('Finalized summary=%s block_id=%s BRANCH=%s start=%s',summary,_short_id(block_id.hex()),self._head_id[:8],self._start) 
             self._building = True # ONLY for testing new version - normal True
             self._published = True # ONLY for testing new version- normal True
             # broadcast 
@@ -310,8 +329,10 @@ class BranchState(object):
 
     def shift_to_commiting(self,block):
         if self._state != State.PreCommiting:
+            LOGGER.info('Send commit block=%s %s->PreCommiting',_short_id(block.block_id.hex()),self._state)
             self._state = State.PreCommiting 
             self._send_commit(block)
+            
 
     def resolve_fork(self,chain_head,block):
         LOGGER.info('Branch[%s] Choosing between chain heads current:%s new:%s',self._head_id[:8],_short_id(chain_head.block_id.hex()),_short_id(block.block_id.hex()))
@@ -380,7 +401,7 @@ class BranchState(object):
         self._commit_msgs = {}
 
     def __str__(self):
-        return "{} (block_num:{}, state:{})".format(
+        return "{} (block_num:{}, {})".format(
             self.parent[:8],
             self.block_num,
             self.state,
@@ -546,6 +567,8 @@ class PbftEngine(Engine):
             LOGGER.debug('FINALIZE BRANCH=%s',bid[:8])
             branch = self._branches[bid]
             branch.finalize_block(parent_id,summary)
+        else:
+            LOGGER.debug('IGNORE FINALIZE FOR UNDEFINED BRANCH=%s\n',bid[:8])
         
     def _check_publish_block(self):
         # Publishing is based solely on wait time, so just give it None.
@@ -703,7 +726,7 @@ class PbftEngine(Engine):
         LOGGER.info('   NEW_HEAD=%s for BRANCh=%s AFTER FREEZE', block_id[:8],parent_id[:8])
 
     def check_consensus(self,blocks,block_num,summary,num_peers):
-        # check maybe all messages arrived  
+        # check maybe all(really 2f+1 ) messages arrived  
         if len(blocks) == (num_peers + 1):                                                                                                                                
             selected = max(blocks.items(), key = lambda x: x[0])[0]                                                                                                       
             LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])        
@@ -740,7 +763,7 @@ class PbftEngine(Engine):
         summary = block.summary.hex()
         block_num = block.block_num
         num_peers = len(self._peers) 
-        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summ=%s',block_num,_short_id(block_id),signer_id[:8],summary[:8])
+        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summary=%s',block_num,_short_id(block_id),signer_id[:8],summary[:8])
         def check_consensus():
             if num_peers > 0 and summary in self._prepare_msgs:                                                                                                                   
                 blocks = self._prepare_msgs[summary]
@@ -759,6 +782,7 @@ class PbftEngine(Engine):
                 elif result == Consensus.fail:
                     LOGGER.info('Failed consensus check: %s', block_id[:8])
                 else:
+                    # consensus was started
                     LOGGER.info('consensus started for block=%s->%s', block_id[:8],block.previous_block_id[:8])
                     self._new_heads[block_id] = block.previous_block_id
                     if block_id in self._pre_prepare_msgs:
@@ -766,7 +790,7 @@ class PbftEngine(Engine):
                         free PRE_PREPARE mess here. Now we have new_block and will ignore PRE_PREPARE
                         """
                         msg = self._pre_prepare_msgs[block_id] # self._pre_prepare_msgs.pop(block_id)
-                        branch._send_prepare(msg)
+                        branch.pre_prepare(msg)
 
                     check_consensus()
                     # Don't reset now - wait message INVALID_BLOCK
@@ -787,7 +811,7 @@ class PbftEngine(Engine):
                     free PRE_PREPARE mess here. Now we have new_block and will ignore PRE_PREPARE
                     """
                     msg = self._pre_prepare_msgs[block_id] # self._pre_prepare_msgs.pop(block_id)
-                    branch._send_prepare(msg)
+                    branch.pre_prepare(msg)
                 # check maybe all messages arrived
                 check_consensus()
             else:
@@ -972,14 +996,17 @@ class PbftEngine(Engine):
         LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8])
         if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
             # send reply 
-            LOGGER.debug("=>SEND PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>PRE PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if block_id in self._branches:
-                self._branches[block_id]._send_prepare(block)
+                # for genesis block
+                LOGGER.debug("=>PRE PREPARE for block=%s BRANCHES!!\n",block_id[:8])
+                self._branches[block_id].pre_prepare(block,True)
             elif block_id in self._peers_branches:
-                self._peers_branches[block_id]._send_prepare(block)
+                # already has NEW BLOCK message
+                self._peers_branches[block_id].pre_prepare(block)
             elif block_id not in self._pre_prepare_msgs:
                 # message arrive before corresponding block appeared save block part of message
-                LOGGER.debug("=>message arrive before corresponding BLOCK=%s appeared - SAVE\n",block_id[:8])
+                LOGGER.debug("=>PRE PREPARE message arrive before corresponding BLOCK=%s appeared(SAVE it)\n",block_id[:8])
                 self._pre_prepare_msgs[block_id] = block  
 
         elif msg_type == PbftMessageInfo.PREPARE_MSG:
@@ -993,9 +1020,12 @@ class PbftEngine(Engine):
                     self._peers_branches[block_id].finish_consensus(block,block_id,True)
                 else:
                     pstate = self._peers_branches[block_id].state
-                    if pstate not in [State.NotStarted,State.PreCommiting] :
-                        # skip message after commit or fail
-                        LOGGER.debug("SKIP PREPARE message after commit or fail state=%s\n",pstate)
+                    if pstate not in [State.NotStarted,State.Preparing,State.PrePreparing,State.PreCommiting] :
+                        """
+                        prepare can appeared before prePrepare when we send it in case NEW BLOCK appeared after prePrepare
+                        skip message after commit or fail 
+                        """
+                        LOGGER.debug("SKIP PREPARE message fail %s summary=%s\n",pstate,summary[:8])
                         return
                     # waiting until all block with equivalent summary will have prepare message
                     LOGGER.debug("=>CHECK SUMMARY=%s ALL=%s",summary[:10],[key[:8] for key in self._prepare_msgs.keys()])
@@ -1046,9 +1076,10 @@ class PbftEngine(Engine):
             elif block_id in self._branches:
                 # this is own block and it already commited (first block) 
                 branch = self._branches[block_id]
-                branch.shift_to_commiting(block)
-                #branch.add_commit_msg(peer_id,self._peers,block)
-                LOGGER.debug("=>COMMIT for block=%s branch=%s",block_id[:8],branch)
+                if branch.block_num == 0:
+                    branch.shift_to_commiting(block)
+                    #branch.add_commit_msg(peer_id,self._peers,block)
+                    LOGGER.debug("=>COMMIT for block=%s branch=%s",block_id[:8],branch)
                 
             
                 
