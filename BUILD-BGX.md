@@ -46,7 +46,17 @@ docker-compose -f bgx/docker/docker-compose-net-odb-dev-loc.yaml up
 docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 # docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml 
 
+# for console
 #sawtooth head show val --url http://bgx-api-2:8009;echo ---;sawtooth head show cand --url http://bgx-api-2:8009 -Fjson
 #sawtooth head show integrity --url http://bgx-api:8008;sawtooth head show integrity --url http://bgx-api-2:8009
 #sawtooth block list --url http://bgx-api:8008;sawtooth block list --url http://bgx-api-2:8009
 #bgt workload --rate 11 -d 5 --url http://bgx-api:8008
+
+# dash
+docker-compose -f bgx/docker/docker-compose-dashboard-bgx.yaml up
+docker-compose -f bgx/docker/docker-compose-dashboard-bgx2.yaml up
+#
+
+# valid
+docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
+docker-compose -f bgx/docker/docker-compose-net2-bgx-val-pbft.yaml up
