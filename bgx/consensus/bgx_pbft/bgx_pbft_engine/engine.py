@@ -188,12 +188,15 @@ class BranchState(object):
 
         self._broadcast(message,PbftMessageInfo.VIEWCHANGE_MSG,block.block_id) 
 
-    def pre_prepare(self,block,force = False):
+    def pre_prepare(self,block,force = False,first=False):
         """
-        PrePrepare message
+        PrePrepare message - can appeared after prepare
         """
         if (self._state == State.PrePreparing or force) and self._state != State.Preparing:
             self._state = State.Preparing
+            self._send_prepare(block)
+        elif first : 
+            # appeared after prepare - just send 
             self._send_prepare(block)
         else:
             summary  = block.summary.hex()
@@ -220,6 +223,7 @@ class BranchState(object):
     def finish_consensus(self,block,block_id,consensus):
         if self._state in [State.PrePreparing,State.Preparing,State.PreCommiting]:
             # shift to the checking state
+            # check maybe we should send pre prepare or prerare message - because of bad order of message
             LOGGER.debug("finish_consensus:branch[%s] for block_id=%s consensus=%s %s->Checking\n",self._ind,block_id[:8],consensus,self._state)
             self._state = State.Checking
             if consensus:
@@ -730,7 +734,8 @@ class PbftEngine(Engine):
         if len(blocks) == (num_peers + 1):                                                                                                                                
             selected = max(blocks.items(), key = lambda x: x[0])[0]                                                                                                       
             LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])        
-            LOGGER.debug("COMMIT BLOCK=%s",selected[:8])                                                                                                                  
+            LOGGER.debug("COMMIT BLOCK=%s",selected[:8])  
+            branch = self._peers_branches[selected]                                                                                                                
             # send prepare again                                                                                                                                          
             #self._peers_branches[selected]._send_prepare(block)
             if selected in self._pre_prepare_msgs:
@@ -738,12 +743,13 @@ class PbftEngine(Engine):
                 free PRE_PREPARE mess here. Now we have new_block and will ignore PRE_PREPARE
                 """
                 self._pre_prepare_msgs.pop(selected)
+            
             """
             AT THIS POINT WE CAN START PBFT FOR SELECTED BLOCK
             we choice only one block from all peer's blocks and fail the rest of them 
             for simple version of consensus we can say commit right now
             """                                                                                                          
-            self._peers_branches[selected].finish_consensus(None,selected,True)                                                                                           
+            branch.finish_consensus(None,selected,True)                                                                                           
             for bid in blocks.keys():                                                                                                                                     
                 if bid != selected:                                                                                                                                       
                     LOGGER.debug("FAIL BLOCK=%s",bid[:8])                                                                                                                 
@@ -1003,7 +1009,7 @@ class PbftEngine(Engine):
                 self._branches[block_id].pre_prepare(block,True)
             elif block_id in self._peers_branches:
                 # already has NEW BLOCK message
-                self._peers_branches[block_id].pre_prepare(block)
+                self._peers_branches[block_id].pre_prepare(block,first=(block_id not in self._pre_prepare_msgs))
             elif block_id not in self._pre_prepare_msgs:
                 # message arrive before corresponding block appeared save block part of message
                 LOGGER.debug("=>PRE PREPARE message arrive before corresponding BLOCK=%s appeared(SAVE it)\n",block_id[:8])
