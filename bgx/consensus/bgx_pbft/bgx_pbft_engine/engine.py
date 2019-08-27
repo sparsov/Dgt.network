@@ -53,7 +53,8 @@ class State(Enum):
     Checking     = 3
     PreCommiting = 4
     Commiting    = 5
-    Finished     = 6
+    Arbitration  = 6
+    Finished     = 7
 
 class BranchState(object):
 
@@ -98,6 +99,14 @@ class BranchState(object):
         return self._engine.dag_step
 
     @property
+    def arbiter(self):
+        return self._engine.arbiter
+
+    @property
+    def arbiter_id(self):
+        return self._engine.arbiter_id
+
+    @property
     def parent(self):
         return self._parent_id
 
@@ -129,12 +138,23 @@ class BranchState(object):
         return block_id,parent_id
 
     def _broadcast(self,payload,msg_type,block_id):
-        # broadcast message 
+        """
+        broadcast message  - it means we send message only nodes which belonge our cluster
+        """ 
         block_id = block_id.hex()
         #state.shift_sequence_number(block_id,self._consensus_state_store)
         mgs_type = CONSENSUS_MSG[msg_type]
         LOGGER.debug("BROADCAST =>> '%s' for block_id=%s",mgs_type,_short_id(block_id))
-        self._service.broadcast(mgs_type,payload.SerializeToString())
+        self._service.broadcast_to_cluster(mgs_type,payload.SerializeToString())
+
+    def _send_to(self,peer_id,payload,msg_type,block_id):
+        """
+        send message to peer_is  
+        """ 
+        block_id = block_id.hex()
+        mgs_type = CONSENSUS_MSG[msg_type]
+        LOGGER.debug("SEND TO=%s =>> '%s' for block_id=%s",peer_id[:8],mgs_type,_short_id(block_id))
+        self._service.send_to(bytes.fromhex(peer_id),mgs_type,payload.SerializeToString())
 
     def _make_message(self,block,msg_type):
         messageInfo = PbftMessageInfo(
@@ -171,7 +191,14 @@ class BranchState(object):
         send COMMIT message
         """                                                                                                  
         message = self._make_message(block,PbftMessageInfo.COMMIT_MSG)                                                                                                                 
-        self._broadcast(message,PbftMessageInfo.COMMIT_MSG,block.block_id) 
+        self._broadcast(message, PbftMessageInfo.COMMIT_MSG, block.block_id)
+         
+    def _send_arbitration(self,block):
+        """
+        send ARBITRATION message
+        """                                                                                                  
+        message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG)                                                                                                                 
+        self._send_to(self.arbiter_id,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
     
     def _send_checkpoint(self,block):
         """
@@ -373,9 +400,15 @@ class BranchState(object):
             F = round((N - 1)/3.)*2 + 1
             LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s', self.block_num,self._state,total,N,F)
             if total >= F:
-                LOGGER.info('Ready to do commit for block=%s -> Finished', self.block_num)
-                self._state = State.Finished
-                self.commit_block(block.block_id)
+                if not self.arbiter:
+                    LOGGER.info('Ready to do commit for block=%s -> Finished(ARBITER UNDEF or DISCONNECTER)', self.block_num)
+                    self._state = State.Finished
+                    self.commit_block(block.block_id)
+                else:
+                    LOGGER.info('Ready to do commit for block=%s ask ARBITER=%s -> Arbitration', self.block_num,self.arbiter_id[:8])
+                    self._state = State.Arbitration
+                    self._send_arbitration(block)
+
             return True
 
         return False
@@ -464,6 +497,14 @@ class PbftEngine(Engine):
     @property
     def dag_step(self):
         return self._dag_step
+
+    @property
+    def arbiter(self):
+        return self._arbiter
+
+    @property
+    def arbiter_id(self):
+        return self._arbiter_id
 
     def get_chain_settings(self):
         # get setting from chain
@@ -674,8 +715,13 @@ class PbftEngine(Engine):
             data_dir=self._path_config.data_dir,
             key_dir=self._path_config.key_dir)
         self._validator_id = self._oracle.validator_id
+        self._cluster_name = self._oracle.cluster_name
+        self._arbiter_id = self._oracle.arbiter_id
+        self._arbiter = False # ready or not
+        self._cluster = self._oracle.cluster
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
+        service.set_cluster(self._peers) # use only active peers
 
         # 1. Wait for an incoming message.
         # 2. Check for exit.
@@ -693,7 +739,8 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:10],self._dag_step,self._oracle.is_pbft_full)
+        LOGGER.debug("Node=%s in cluster=%s nodes=%s",self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()])
+        LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full)
         #self._service.initialize_block()
         while True:
             try:
@@ -763,6 +810,10 @@ class PbftEngine(Engine):
 
 
     def _handle_new_block(self, block):
+        """
+        we should handle only block from own cluster 
+        all rest blocks ignore
+        """
         block = PbftBlock(block)
         block_id = block.block_id.hex()
         signer_id  = block.signer_id.hex()
@@ -977,12 +1028,15 @@ class PbftEngine(Engine):
         #info = pinfo.ParseFromString(block)
         pid = block.peer_id.hex()
         if pid not in self._peers and pid != self._validator_id:
-            if pid in self._oracle.nodes:
-                # take only peers from topology
+            if pid in self._cluster:
+                # take only peers from own cluster topology
                 self._peers[pid] = True
                 LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
+            elif pid == self._arbiter_id:
+                LOGGER.info('Connected peer with ID=%s IS OUR ARBITER\n', _short_id(pid))
+                self._arbiter = True
             else:
-                LOGGER.info('Ignore connected peer=%s(not in net topology)\n', _short_id(pid))
+                LOGGER.info('Ignore connected peer=%s(not in our cluster)\n', _short_id(pid))
 
     def _handle_peer_message(self, msg):
         """

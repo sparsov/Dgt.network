@@ -737,6 +737,11 @@ class Interconnect(object):
             return connection_info.public_key
         return None
 
+    def public_key_to_connection_id(self,public_key):
+        for conn_id,info in self._connections.items():
+            if info.public_key == public_key :
+                return conn_id
+        return None
     def connection_id_to_endpoint(self, connection_id):
         """
         Get stored public key for a connection.

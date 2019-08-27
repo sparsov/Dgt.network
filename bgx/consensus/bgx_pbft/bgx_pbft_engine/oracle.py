@@ -88,12 +88,20 @@ class PbftOracle:
 
         self._pbft_settings_view = PbftSettingsView(state_view)
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
-        LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
+        #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
         
         self._nodes = json.loads(nodes)
-        self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
-        LOGGER.debug('_validator_id=%s is [%s]',self._validator_id,self._node)
         LOGGER.debug('nodes=%s',nodes)
+        """
+        because we have some clusters we should search itself into nodes tree
+        and for node of cluster we should know : parent and name of cluster,list of nodes which belonge our cluster,this node type
+        """
+        self._node = None
+        self._arbiter_id = None
+        self.get_cluster_info(None,self._nodes['name'],self._nodes['children'])
+        #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
+        #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['type'],self._node['cluster'])
+        
         self._canceled = False
         #sid = self.get_validator_id().encode()
         #sidd = sid.decode()
@@ -107,18 +115,53 @@ class PbftOracle:
         return self._pbft_settings_view.is_pbft_full
 
     @property
-    def nodes(self):
-        return self._nodes
+    def cluster(self):
+        return self._cluster
+    @property
+    def own_type(self):
+        return self._node if self._node is not None else 'UNDEF' 
+
+    @property
+    def cluster_name(self):
+        return self._cluster_name
+    property
+    def arbiter_id(self):
+        return self._arbiter_id
 
     @property
     def validator_id(self):
         return self._validator_id
 
+    def get_cluster_info(self,arbiter_id,name,children):
+        LOGGER.debug('cluster_info=%s children=%s',name,len(children))
+        for key,val in children.items():
+            LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
+            if key == self._validator_id:
+                """
+                this is me - stop searching
+                set own node type and cluster info
+                """
+                self._node = val['type'] if 'type' in val else 'plink'
+                self._arbiter_id = arbiter_id
+                self._cluster = children
+                self._cluster_name = name 
+                LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))
+                return
+            if 'cluster' in val:
+                cluster = val['cluster']
+                if 'name' in cluster and 'children' in cluster:
+                    self.get_cluster_info(key,cluster['name'],cluster['children'])
+                    if self._node is not None:
+                        return
+                else:
+                    LOGGER.debug('IGNORE bad cluster_info for node=%s:%s',name,key[:8])
+
+
     def get_validator_id(self):
         return self._validator_id 
 
     def get_node_type_by_id(self,vid):
-        return self._nodes[vid] if vid in self._nodes else 'UNDEF'
+        return self._cluster[vid]['type'] if vid in self._nodes else 'UNDEF'
 
     def initialize_block(self, previous_block):
         block_header = NewBlockHeader(

@@ -36,6 +36,7 @@ message PbftMessageInfo {
       COMMIT_MSG = 2;
       CHECKPOINT_MSG = 3;
       VIEWCHANGE_MSG = 4;
+      ARBITRATION_MSG =5; 
   }
   // Message type
   PbftMessageType msg_type = 1;
