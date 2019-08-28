@@ -1111,6 +1111,10 @@ class HeadsGetRequest(_ClientRequestHandler):
             heads = self._publisher.get_candidates()
         elif head_id == 'integrity':
             heads = self._block_store.check_integrity()
+        elif head_id == 'graph':
+            heads = self._block_store.get_graph()
+        elif head_id == 'val':
+            heads = self._block_store.get_chain_heads()
         else:
             heads = self._block_store.get_chain_heads()
         

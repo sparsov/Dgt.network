@@ -657,13 +657,15 @@ class Interconnect(object):
                 callbacks, defaults to 10
             signer (:obj:`Signer`): cryptographic signer for the validator
         """
+
         self._endpoint = endpoint
+        #LOGGER.debug("Interconnect endpoint=%s", endpoint)
         self._public_endpoint = public_endpoint
         self._future_callback_threadpool = InstrumentedThreadPoolExecutor(
             max_workers=max_future_callback_workers,
-            name='FutureCallback')
-        self._futures = future.FutureCollection(
-            resolving_threadpool=self._future_callback_threadpool)
+            name='FutureCallback'
+            )
+        self._futures = future.FutureCollection(resolving_threadpool=self._future_callback_threadpool)
         self._dispatcher = dispatcher
         self._zmq_identity = zmq_identity
         self._secured = secured
@@ -738,10 +740,14 @@ class Interconnect(object):
         return None
 
     def public_key_to_connection_id(self,public_key):
+        """
+        take connection for peer with public_key
+        """
         for conn_id,info in self._connections.items():
             if info.public_key == public_key :
                 return conn_id
         return None
+
     def connection_id_to_endpoint(self, connection_id):
         """
         Get stored public key for a connection.

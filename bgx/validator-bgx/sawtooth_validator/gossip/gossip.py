@@ -135,6 +135,11 @@ class Gossip(object):
 
         self._topology = None
         self._peers = {}
+        """
+        initial_peer_endpoints - peers from own cluster
+        also we should know own atrbiter
+        """
+        LOGGER.debug("Gossip peers=%s",initial_peer_endpoints)
 
     def send_peers(self, connection_id):
         """Sends a message containing our peers to the
@@ -531,11 +536,7 @@ class ConnectionManager(InstrumentedThread):
                                 set(peered_endpoints) -
                                 set([self._endpoint]))
 
-                        LOGGER.debug(
-                            "Peers are: %s. "
-                            "Unpeered candidates are: %s",
-                            peered_endpoints,
-                            unpeered_candidates)
+                        LOGGER.debug("Peers are: %s. Unpeered candidates are: %s",peered_endpoints,unpeered_candidates)
 
                         if unpeered_candidates:
                             self._attempt_to_peer_with_endpoint(

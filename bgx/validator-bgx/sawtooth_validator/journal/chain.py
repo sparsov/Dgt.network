@@ -904,6 +904,10 @@ class ChainController(object):
     def _heads_list(self):
         return [str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()]
 
+    @property
+    def blocks_processing(self):
+        return [key[:8] for key in self._blocks_processing.keys()]
+
     def get_chain_head(self,parent_id=None,new_parent_id=None,is_new=False):
         """
         for DAG version - in case new_parent_id != None - switch parent_id to new_parent_id block as new branch 
@@ -1299,11 +1303,13 @@ class ChainController(object):
                 new_block = result["new_block"]
                 signer_id = new_block.signer_id
                 is_external = (signer_id != self._validator_id) 
-                LOGGER.info('on_block_validated: block=%s(%s) external=%s chain_head=%s status=%s heads=%s',new_block.identifier[:8],signer_id[:8],is_external,result["chain_head"].identifier[:8],
-                            new_block.status,self._heads_list
-                )
                 # remove from the processing list
                 del self._blocks_processing[new_block.identifier]
+                LOGGER.info('on_block_validated: block=%s.%s(%s) external=%s chain_head=%s status=%s',new_block.block_num,new_block.identifier[:8],signer_id[:8],is_external,result["chain_head"].identifier[:8],
+                            new_block.status
+                )
+                LOGGER.info('on_block_validated: processing=%s heads=%s',self.blocks_processing,self._heads_list)
+                
 
                 # Remove this block from the pending queue, obtaining any
                 # immediate descendants of this block in the process.

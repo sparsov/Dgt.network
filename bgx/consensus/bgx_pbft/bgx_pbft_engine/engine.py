@@ -146,6 +146,7 @@ class BranchState(object):
         mgs_type = CONSENSUS_MSG[msg_type]
         LOGGER.debug("BROADCAST =>> '%s' for block_id=%s",mgs_type,_short_id(block_id))
         self._service.broadcast_to_cluster(mgs_type,payload.SerializeToString())
+        #self._service.broadcast(mgs_type,payload.SerializeToString())
 
     def _send_to(self,peer_id,payload,msg_type,block_id):
         """
@@ -397,9 +398,11 @@ class BranchState(object):
             
             total = len(self._commit_msgs)
             N =  len(self.peers) + 1
-            F = round((N - 1)/3.)*2 + 1
+            F = round((N - 1)/3.)*2 + 1 
+            if N == 3:
+                F = 2
             LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s', self.block_num,self._state,total,N,F)
-            if total >= F:
+            if total >= F or N == 1:
                 if not self.arbiter:
                     LOGGER.info('Ready to do commit for block=%s -> Finished(ARBITER UNDEF or DISCONNECTER)', self.block_num)
                     self._state = State.Finished
@@ -779,7 +782,11 @@ class PbftEngine(Engine):
     def check_consensus(self,blocks,block_num,summary,num_peers):
         # check maybe all(really 2f+1 ) messages arrived  
         if len(blocks) == (num_peers + 1):                                                                                                                                
-            selected = max(blocks.items(), key = lambda x: x[0])[0]                                                                                                       
+            for key in blocks:
+                if key not in self._peers_branches:
+                    LOGGER.debug("We have all prepares for block=%s but not ALL blocks(wait block=%s)",block_num,key[:8])
+                    return
+            selected = max(blocks.items(), key = lambda x: x[0])[0]
             LOGGER.debug("We have all prepares for block=%s SUMMARY=%s select=%s blocks=%s",block_num,summary[:8],selected[:8],[key[:8] for key in blocks.keys()])        
             LOGGER.debug("COMMIT BLOCK=%s",selected[:8])  
             branch = self._peers_branches[selected]                                                                                                                
@@ -803,7 +810,8 @@ class PbftEngine(Engine):
                     #self._peers_branches[bid]._send_prepare(block) 
                     if bid in self._pre_prepare_msgs:
                         self._pre_prepare_msgs.pop(bid)
-                    self._peers_branches[bid].finish_consensus(None,bid,False)                                                                                            
+                    self._peers_branches[bid].finish_consensus(None,bid,False) 
+                    
                     # drop list for summary                                                                                                                               
             self._prepare_msgs.pop(summary)                                                                                                                               
             LOGGER.debug("=>ALL SUMMARY=%s\n",[key[:8] for key in self._prepare_msgs.keys()])                                                                             

@@ -195,7 +195,7 @@ services:
         python3 setup.py build
         sawadm keygen
         sawtooth keygen my_key
-        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch sawtooth.consensus.algorithm=Devmode sawtooth.consensus.version=0.1 sawtooth.consensus.pbft.node=plink sawtooth.consensus.pbft.max_log_size=20
+        sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch $$(cat ../../bgx/etc/bgx_val.conf)
         sawset genesis -k /root/.sawtooth/keys/my_key.priv 
         sawadm genesis config-genesis.batch  sawset.batch
         validator-dbgx -vv  \
@@ -237,64 +237,63 @@ services:
     stop_signal: SIGKILL
 
 
-#  pbft-python:
-#    build:
-#      context: ../..
-#      dockerfile: bgx/consensus/pbft_python/Dockerfile-${DISTR}
-#      args:
-#        - http_proxy
-#        - https_proxy
-#        - no_proxy
-#        - BGX_TOP=bgx
-#    image: sawtooth-pbft-python-bgx:${ISOLATION_ID}
-#    networks:
-#    - network1
-#    environment:
-#    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx3
-#    volumes:
-#      - ../..:/project/${BGX_TOP}
-#    container_name: sawtooth-pbft-python-bgx
-#    depends_on:
-#      - validator-bgx
-#    #  - bgx-registry
-#    command: |
-#      bash -c "
-#        bgx/bin/protogen
-#        cd bgx/consensus/pbft_python
-#        python3 setup.py clean --all
-#        python3 setup.py build
-#        pbft-python -vv --connect tcp://validator-bgx:5052 --component tcp://validator-bgx:4008
-#      "
-#     stop_signal: SIGKILL
+  bgx-pbft-3:
+    build:
+      context: ../..
+      dockerfile: bgx/consensus/bgx_pbft/Dockerfile-${DISTR}
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+        - BGX_TOP=bgx
+    image: bgx-pbft-python-3:${ISOLATION_ID}
+    networks:
+    - network1
+    environment:
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx3
+    volumes:
+      - ../..:/project/${BGX_TOP}
+    container_name: bgx-pbft-python-3
+    depends_on:
+      - validator-bgx-3
+    #  - bgx-registry
+    command: |
+      bash -c "
+        cd bgx/consensus/bgx_pbft
+        python3 setup.py clean --all
+        python3 setup.py build
+        bgx-pbft -vv --connect tcp://validator-bgx-3:5052 --component tcp://validator-bgx-3:4008
+      "
+    stop_signal: SIGKILL
 
 
-  devmode-python-3:
-   build:
-     context: ../..
-     dockerfile: bgx/consensus/devmode_python/Dockerfile-${DISTR}
-     args:
-       - http_proxy
-       - https_proxy
-       - no_proxy
-       - BGX_TOP=bgx
-   image: devmode-python-bgx-3:${ISOLATION_ID}
-   networks:
-   - network1
-   environment:
-   - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx3
-   volumes:
-     - ../..:/project/${BGX_TOP}
-   container_name: devmode-python-bgx-3
-   depends_on:
-     - validator-bgx-3
-   command: |
-     bash -c "
-       cd bgx/consensus/devmode_python
-       python3 setup.py clean --all
-       python3 setup.py build
-       devmode-python -vv --connect tcp://validator-bgx-3:5052 --component tcp://validator-bgx-3:4008
-     "
-   stop_signal: SIGKILL
+#  devmode-python-3:
+#   build:
+#     context: ../..
+#     dockerfile: bgx/consensus/devmode_python/Dockerfile-${DISTR}
+#     args:
+#       - http_proxy
+#       - https_proxy
+#       - no_proxy
+#       - BGX_TOP=bgx
+#   image: devmode-python-bgx-3:${ISOLATION_ID}
+#   networks:
+#   - network1
+#   environment:
+#   - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx3
+#   volumes:
+#     - ../..:/project/${BGX_TOP}
+#   container_name: devmode-python-bgx-3
+#   depends_on:
+#     - validator-bgx-3
+#   command: |
+#     bash -c "
+#       cd bgx/consensus/devmode_python
+#       python3 setup.py clean --all
+#       python3 setup.py build
+#       devmode-python -vv --connect tcp://validator-bgx-3:5052 --component tcp://validator-bgx-3:4008
+#     "
+#   stop_signal: SIGKILL
 
 
 networks:

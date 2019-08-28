@@ -16,6 +16,9 @@
 # pylint: disable=no-name-in-module
 import logging
 import timeit
+# for save graph of DAG
+#from graphviz import Digraph
+
 from collections.abc import MutableMapping
 
 from sawtooth_validator.journal.block_wrapper import BlockStatus
@@ -203,6 +206,9 @@ class BlockStore(MutableMapping):
         LOGGER.debug("check_integrity num=%s spent=%s DONE\n",num,spent)
         return bad_block
 
+    def get_graph(self):
+        bad_block = ['save']
+        LOGGER.debug("get_graph DONE\n")
     @property
     def chain_heads(self):
         return self._chain_heads
