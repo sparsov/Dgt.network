@@ -97,8 +97,10 @@ class PbftOracle:
         and for node of cluster we should know : parent and name of cluster,list of nodes which belonge our cluster,this node type
         """
         self._node = None
-        self._arbiter_id = None
+        self._cluster_name = None
+        self._arbiters = {} # ring of arbiters
         self.get_cluster_info(None,self._nodes['name'],self._nodes['children'])
+        self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
         #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['type'],self._node['cluster'])
         
@@ -124,29 +126,45 @@ class PbftOracle:
     @property
     def cluster_name(self):
         return self._cluster_name
-    property
-    def arbiter_id(self):
-        return self._arbiter_id
+
+    @property
+    def arbiters(self):
+        return self._arbiters
 
     @property
     def validator_id(self):
         return self._validator_id
 
+    def get_arbiters(self,arbiter_id,name,children):
+        # make ring of arbiter - add only arbiter from other cluster
+        for key,val in children.items():
+            if self._cluster_name != name:
+                # check only other cluster and add delegate
+                if 'delegate' in val:
+                    self._arbiters[key] = ('delegate',False,name)
+            if 'cluster' in val:
+                cluster = val['cluster']
+                if 'name' in cluster and 'children' in cluster:
+                    self.get_arbiters(key,cluster['name'],cluster['children'])
+                    
+
     def get_cluster_info(self,arbiter_id,name,children):
         LOGGER.debug('cluster_info=%s children=%s',name,len(children))
         for key,val in children.items():
             LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
-            if key == self._validator_id:
+            if self._node is None and key == self._validator_id:
                 """
                 this is me - stop searching
                 set own node type and cluster info
                 """
                 self._node = val['type'] if 'type' in val else 'plink'
-                self._arbiter_id = arbiter_id
+                if arbiter_id is not None:
+                    self._arbiters[arbiter_id] = ('arbiter',False,name)  # type of arbiter and status(not ready)
                 self._cluster = children
                 self._cluster_name = name 
                 LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))
                 return
+
             if 'cluster' in val:
                 cluster = val['cluster']
                 if 'name' in cluster and 'children' in cluster:
@@ -155,6 +173,7 @@ class PbftOracle:
                         return
                 else:
                     LOGGER.debug('IGNORE bad cluster_info for node=%s:%s',name,key[:8])
+
 
 
     def get_validator_id(self):

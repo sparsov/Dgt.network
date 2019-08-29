@@ -81,6 +81,7 @@ class BranchState(object):
         self._start = None # time starting
         self._commit_msgs = {}
         self._engine = engine
+        self._num_arbiters = 0
         LOGGER.debug('BranchState: init branch=%s for %s',self,bid[:8])
 
     @property
@@ -99,12 +100,12 @@ class BranchState(object):
         return self._engine.dag_step
 
     @property
-    def arbiter(self):
-        return self._engine.arbiter
+    def is_ready_arbiter(self):
+        return self._engine.is_ready_arbiter
 
     @property
-    def arbiter_id(self):
-        return self._engine.arbiter_id
+    def arbiters(self):
+        return self._engine.arbiters
 
     @property
     def parent(self):
@@ -196,10 +197,14 @@ class BranchState(object):
          
     def _send_arbitration(self,block):
         """
-        send ARBITRATION message
+        send ARBITRATION message to all ring of cluster delegate
         """                                                                                                  
-        message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG)                                                                                                                 
-        self._send_to(self.arbiter_id,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
+        message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG) 
+        for aid,val in self.arbiters.items():
+            if val[1]:
+                # node is ready 
+                self._num_arbiters += 1 # wait reply from arbiter
+                self._send_to(aid,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
     
     def _send_checkpoint(self,block):
         """
@@ -403,12 +408,12 @@ class BranchState(object):
                 F = 2
             LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s', self.block_num,self._state,total,N,F)
             if total >= F or N == 1:
-                if not self.arbiter:
+                if not self.is_ready_arbiter:
                     LOGGER.info('Ready to do commit for block=%s -> Finished(ARBITER UNDEF or DISCONNECTER)', self.block_num)
                     self._state = State.Finished
                     self.commit_block(block.block_id)
                 else:
-                    LOGGER.info('Ready to do commit for block=%s ask ARBITER=%s -> Arbitration', self.block_num,self.arbiter_id[:8])
+                    LOGGER.info('Ready to do commit for block=%s ask ARBITER=%s -> Arbitration', self.block_num,[key[:8] for key in self.arbiters.keys()])
                     self._state = State.Arbitration
                     self._send_arbitration(block)
 
@@ -502,12 +507,15 @@ class PbftEngine(Engine):
         return self._dag_step
 
     @property
-    def arbiter(self):
-        return self._arbiter
+    def is_ready_arbiter(self):
+        return max(self._arbiters.values(), key = lambda x: 1 if x[1] else 0)[1]
 
     @property
-    def arbiter_id(self):
-        return self._arbiter_id
+    def arbiters(self):
+        return self._arbiters
+    @property
+    def arbiters_info(self):
+        return [val[2]+'('+val[0]+'='+aid[:8]+')' for aid,val in self._arbiters.items()]
 
     def get_chain_settings(self):
         # get setting from chain
@@ -718,9 +726,11 @@ class PbftEngine(Engine):
             data_dir=self._path_config.data_dir,
             key_dir=self._path_config.key_dir)
         self._validator_id = self._oracle.validator_id
-        self._cluster_name = self._oracle.cluster_name
-        self._arbiter_id = self._oracle.arbiter_id
-        self._arbiter = False # ready or not
+        """
+        for cluster topology use ring of arbiter
+        """
+        self._cluster_name = self._oracle.cluster_name # own clusters name
+        self._arbiters = self._oracle.arbiters
         self._cluster = self._oracle.cluster
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
@@ -742,7 +752,7 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug("Node=%s in cluster=%s nodes=%s",self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()])
+        LOGGER.debug("Node=%s in cluster=%s nodes=%s arbiters=%s",self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],self.arbiters_info)
         LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full)
         #self._service.initialize_block()
         while True:
@@ -1040,9 +1050,11 @@ class PbftEngine(Engine):
                 # take only peers from own cluster topology
                 self._peers[pid] = True
                 LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
-            elif pid == self._arbiter_id:
-                LOGGER.info('Connected peer with ID=%s IS OUR ARBITER\n', _short_id(pid))
-                self._arbiter = True
+            elif pid in self._arbiters:
+                # one of the arbiters - mark as ready
+                val = self._arbiters[pid]
+                LOGGER.info('Connected peer with ID=%s IS ONE OF THE OUR ARBITER=%s\n', _short_id(pid),val)
+                self._arbiters[pid] = (val[0],True,val[2])
             else:
                 LOGGER.info('Ignore connected peer=%s(not in our cluster)\n', _short_id(pid))
 
