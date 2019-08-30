@@ -79,7 +79,7 @@ class ConsensusProxy:
             public_key=self._public_key)
 
     # Using block publisher
-    def initialize_block(self, previous_id,nest_color=None):
+    def initialize_block(self, previous_id,nest_color='Genesis'):
         if previous_id:
             try:
                 
