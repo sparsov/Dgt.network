@@ -749,7 +749,7 @@ class BlockPublisher(object):
             LOGGER.debug("Consensus not ready to build candidate block.")
             self._block_store.pop_block_number(block_num,self._validator_id)
             return None
-        nest_color = None
+        nest_color = 'Genesis'
         if hasattr(consensus, 'set_publisher'):
             # switch of marker from proxy engine
             nest_color = self._engine_ask_candidate[bid][1]
