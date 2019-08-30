@@ -1272,7 +1272,7 @@ class BlockPublisher(object):
         LOGGER.debug('BlockPublisher: on_finalize_block parent block=%s total ready=%s',block_header.previous_block_id[:8],len(self._blocks_summarize))
         # try to wait until proxy.finalize_block
 
-    def initialize_block(self, block,nest_color=None):
+    def initialize_block(self, block,nest_color='Genesis'):
         """
         we are know parent's ID from chain_head_get()
         """
