@@ -141,7 +141,7 @@ class _CandidateBlock(object):
                  max_batches,
                  batch_injectors,
                  identifier,
-                 nest_color
+                 nest_color='Genesis'
                  ):
         self._pending_batches = []
         self._pending_batch_ids = set()
