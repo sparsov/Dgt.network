@@ -79,7 +79,7 @@ class ConsensusProxy:
             public_key=self._public_key)
 
     # Using block publisher
-    def initialize_block(self, previous_id):
+    def initialize_block(self, previous_id,nest_color=None):
         if previous_id:
             try:
                 
@@ -93,10 +93,10 @@ class ConsensusProxy:
             except StopIteration:
                 raise UnknownBlock()
             
-            self._block_publisher.initialize_block(previous_block)
+            self._block_publisher.initialize_block(previous_block,nest_color)
             LOGGER.debug("ConsensusProxy:initialize_block DONE for head=%s ",previous_id.hex()[:8])
         else:
-            self._block_publisher.initialize_block(self._chain_controller.chain_head)
+            self._block_publisher.initialize_block(self._chain_controller.chain_head,nest_color)
 
     def summarize_block(self):
         return self._block_publisher.summarize_block()

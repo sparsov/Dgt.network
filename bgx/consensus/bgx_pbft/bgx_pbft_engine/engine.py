@@ -82,11 +82,20 @@ class BranchState(object):
         self._commit_msgs = {}
         self._engine = engine
         self._num_arbiters = 0
+        self._nest_color = None
         LOGGER.debug('BranchState: init branch=%s for %s',self,bid[:8])
 
     @property
     def ind(self):
         return self._ind
+
+    @property
+    def nest_color(self):
+        return self._nest_color
+    @nest_color.setter
+    def nest_color(self, color):
+        self._nest_color = color
+
     @property
     def validator_id(self):
         return self._engine.validator_id
@@ -517,6 +526,18 @@ class PbftEngine(Engine):
     def arbiters_info(self):
         return [val[2]+'('+val[0]+'='+aid[:8]+')' for aid,val in self._arbiters.items()]
 
+    @property
+    def nest_color(self):
+        if len(self._nest_color) == 0:
+            # make list color for nests
+            for cluster in self.arbiters.values():
+                self._nest_color.append(cluster[2])
+            self._nest_color.append(self._genesis)
+            LOGGER.debug('NEW NEST COLORS=%s',self._nest_color)
+        color = self._nest_color.pop()
+        LOGGER.debug('NEST COLOR=%s',color) 
+        return color
+
     def get_chain_settings(self):
         # get setting from chain
         LOGGER.debug('get_chain_settings HEAD=%s',self._chain_head)
@@ -527,7 +548,11 @@ class PbftEngine(Engine):
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
         try:
-            # for switch current branch to another node add argument new_branch
+            """
+            To paint first nest with Genesis color 
+            next new nest paint into color from arbiters[] - don't wait until cluster will be ready - reserve nest for them 
+            for switch current branch to another node add argument new_branch
+            """
             chain_head = self._get_chain_head(branch,new_branch,is_new) # get MAIN chain_head. chain_head.block_id is ID of parent's block 
             if not self._chain_head:
                 self._chain_head = chain_head
@@ -544,9 +569,11 @@ class PbftEngine(Engine):
 
         #if initialize:
         try:
-            self._service.initialize_block(previous_id=chain_head.block_id)
-            # for remove this branch to another point 
             bid = branch.hex() if branch is not None else chain_head.block_id.hex()
+            color = self._branches[bid].nest_color if bid in self._branches else self.nest_color
+            self._service.initialize_block(previous_id=chain_head.block_id,nest_color=color)
+            # for remove this branch to another point 
+            #bid = branch.hex() if branch is not None else chain_head.block_id.hex()
             parent = chain_head.previous_block_id
             block_num = chain_head.block_num 
             if bid in self._branches:
@@ -561,9 +588,10 @@ class PbftEngine(Engine):
                     self._branches[new_branch.hex()] = branch 
                 LOGGER.debug('PbftEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
-                LOGGER.debug('PbftEngine: _initialize_block NEW Branch[%s]=%s',self._num_branches,bid[:8])
+                LOGGER.debug('PbftEngine: _initialize_block NEW Branch[%s]=%s color=%s',self._num_branches,bid[:8],color)
                 self._branches[bid] = self.create_branch(bid,parent,block_num)
                 self._branches[bid]._try_branch = self._make_branch
+                self._branches[bid].nest_color = color
                 
             
         except exceptions.UnknownBlock:
@@ -643,7 +671,7 @@ class PbftEngine(Engine):
                     if self._TOTAL_BLOCK == 5 and branch.ind > 0:
                         # for testing only - try switch branch
                         LOGGER.debug('PbftEngine: TRY SWITCH BRANCH[%s] (%s->%s)\n',branch.ind,bid[:8],branch._parent_id[:8]) 
-                        self._initialize_block(bytes.fromhex(bid),bytes.fromhex(branch._parent_id))
+                        self._initialize_block(branch=bytes.fromhex(bid),new_branch=bytes.fromhex(branch._parent_id))
                     else:
                         self._initialize_block(bytes.fromhex(bid))
                 else: # already published
@@ -683,7 +711,7 @@ class PbftEngine(Engine):
                     if self.start_switch_branch and branch.is_time_to_make_branch:
                         # for testing only - try switch branch
                         LOGGER.debug('PbftEngine: TRY SWITCH BRANCH[%s] (%s->%s)\n',branch.ind,bid[:8],branch._parent_id[:8]) 
-                        if self._initialize_block(bytes.fromhex(bid),bytes.fromhex(branch._parent_id)):
+                        if self._initialize_block(branch=bytes.fromhex(bid),new_branch=bytes.fromhex(branch._parent_id)):
                             branch.reset_chain_len()
                             LOGGER.debug('PbftEngine: SWITCHED BRANCH[%s]\n',branch.ind) 
                     else:
@@ -693,7 +721,7 @@ class PbftEngine(Engine):
                             LOGGER.debug('PbftEngine: TRY1 CREATE NEW BRANCH[%s] (%s)\n',branch.ind,branch._parent_id[:8])
                             #branch._make_branch = False
                             #self._make_branch = False
-                            if self._initialize_block(bytes.fromhex(branch._parent_id),is_new=True) :
+                            if self._initialize_block(branch=bytes.fromhex(branch._parent_id),is_new=True) :
                                 branch.reset_chain_len()
                         self._initialize_block(bytes.fromhex(bid))
                 else: # already published
@@ -729,9 +757,12 @@ class PbftEngine(Engine):
         """
         for cluster topology use ring of arbiter
         """
+        self._genesis      = self._oracle.genesis      # genesis cluster name
         self._cluster_name = self._oracle.cluster_name # own clusters name
-        self._arbiters = self._oracle.arbiters
-        self._cluster = self._oracle.cluster
+        self._arbiters = self._oracle.arbiters         # ring of arbiter     
+        self._cluster = self._oracle.cluster           # own cluster's peers
+        self._nest_color = []                          # add color for nests 
+        
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
         service.set_cluster(self._peers) # use only active peers
@@ -752,7 +783,7 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug("Node=%s in cluster=%s nodes=%s arbiters=%s",self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],self.arbiters_info)
+        LOGGER.debug("Genesis=%s Node=%s in cluster=%s nodes=%s arbiters=%s",self._genesis,self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],self.arbiters_info)
         LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full)
         #self._service.initialize_block()
         while True:

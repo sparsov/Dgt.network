@@ -18,6 +18,8 @@ import time
 import random
 import os
 import binascii
+import json
+
 from threading import Lock
 from functools import partial
 from collections import namedtuple
@@ -186,6 +188,21 @@ class Gossip(object):
         """
         with self._lock:
             return copy.copy(self._peers)
+
+    def get_topology(self):
+        """
+        topology with cluster  
+        FIXME - we should extend base version with information about status peers
+        """
+        stopology = self._settings_cache.get_setting(
+                "bgx.consensus.pbft.nodes",
+                self._current_root_func(),
+                default_value='{}'
+            ).replace("'",'"')
+                
+        #topology = json.loads(stopology)
+        #LOGGER.debug("get topology=%s",stopology.encode("utf-8")) 
+        return stopology.encode("utf-8")
 
     def peer_to_public_key(self, peer):
         """Returns the public key for the associated peer."""
@@ -905,8 +922,8 @@ class ConnectionManager(InstrumentedThread):
             LOGGER.debug("Connection disconnected: %s", connection_id)
 
     def _connect_success_topology(self, connection_id):
-        LOGGER.debug("Connection to %s succeeded for topology request",
-                     connection_id)
+        LOGGER.debug("Connection to %s succeeded for topology request",connection_id)
+
         self._connection_statuses[connection_id] = PeerStatus.TEMP
         get_peers_request = GetPeersRequest()
 

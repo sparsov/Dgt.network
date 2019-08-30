@@ -98,7 +98,9 @@ class PbftOracle:
         """
         self._node = None
         self._cluster_name = None
+        self._cluster = {}
         self._arbiters = {} # ring of arbiters
+        self._genesis  = self._nodes['name']
         self.get_cluster_info(None,self._nodes['name'],self._nodes['children'])
         self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
@@ -119,6 +121,11 @@ class PbftOracle:
     @property
     def cluster(self):
         return self._cluster
+
+    @property
+    def genesis(self):
+        return self._genesis
+
     @property
     def own_type(self):
         return self._node if self._node is not None else 'UNDEF' 

@@ -208,6 +208,7 @@ message ConsensusBroadcastResponse {
 // head will be used.
 message ConsensusInitializeBlockRequest {
   bytes previous_id = 1;
+  string nest_color = 2; // color for nest 
 }
 
 message ConsensusInitializeBlockResponse {

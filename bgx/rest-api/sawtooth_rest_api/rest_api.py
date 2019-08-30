@@ -128,8 +128,9 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/status', handler.fetch_status)
 
     # ADD BGX handlers
-    app.router.add_get('/heads', handler.list_heads)
-    app.router.add_get('/heads/{head_id}', handler.fetch_heads)
+    app.router.add_get('/dag', handler.list_dag)
+    app.router.add_get('/dag/{head_id}', handler.fetch_dag)
+    app.router.add_get('/topology', handler.fetch_topology)
 
     app.router.add_post('/transactions', handler.post_transfer)
     app.router.add_get('/wallets/{address}', handler.get_wallet)

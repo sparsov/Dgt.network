@@ -118,7 +118,10 @@ message Message {
 	// A response with validator's active head
 	CLIENT_HEADS_GET_REQUEST = 131;
 	CLIENT_HEADS_GET_RESPONSE = 132;
-
+	// A response for topology
+	CLIENT_TOPOLOGY_GET_REQUEST = 133;
+	CLIENT_TOPOLOGY_GET_RESPONSE = 134;
+	
         // Message types for events
         CLIENT_EVENTS_SUBSCRIBE_REQUEST = 500;
         CLIENT_EVENTS_SUBSCRIBE_RESPONSE = 501;

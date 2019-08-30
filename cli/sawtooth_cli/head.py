@@ -22,7 +22,7 @@ from sawtooth_cli.parent_parsers import base_list_parser
 from sawtooth_cli.parent_parsers import base_show_parser
 
 
-def add_head_parser(subparsers, parent_parser):
+def add_dag_parser(subparsers, parent_parser):
     """Adds arguments parsers for the block list and block show commands
 
         Args:
@@ -30,9 +30,9 @@ def add_head_parser(subparsers, parent_parser):
             parent_parser: The parent argparse.ArgumentParser object
     """
     parser = subparsers.add_parser(
-        'head',
+        'dag',
         description='Provides subcommands to display information about the '
-        'heads in the current blockchain.',
+        'dag in the current blockchain.',
         help='Displays information on blocks in the current blockchain')
 
     grand_parsers = parser.add_subparsers(
@@ -74,10 +74,10 @@ def add_head_parser(subparsers, parent_parser):
     show_parser.add_argument(
         'head_id',
         type=str,
-        help='id of the head or cand/valid/integrity/dag')
+        help='id of the dag or nest/valid/integrity/dag')
 
 
-def do_head(args):
+def do_dag(args):
     """Runs the head list or block show command, printing output to the
     console
 
@@ -87,7 +87,7 @@ def do_head(args):
     rest_client = RestClient(args.url, args.user)
 
     if args.subcommand == 'list':
-        heads = sorted(rest_client.list_heads())
+        heads = sorted(rest_client.list_dag())
         if args.format == 'csv' or args.format == 'default':
             print(','.join(heads))
 
@@ -99,7 +99,7 @@ def do_head(args):
 
         
     if args.subcommand == 'show':
-        output = rest_client.get_heads(args.head_id)
+        output = rest_client.get_dag(args.head_id)
 
         if args.key:
             if args.key in output:

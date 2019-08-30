@@ -126,6 +126,10 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     app.router.add_get('/peers', handler.fetch_peers)
     app.router.add_get('/nodes', handler.fetch_nodes) # just for testing
+    # ADD BGX handlers
+    app.router.add_get('/dag', handler.list_dag)
+    app.router.add_get('/dag/{head_id}', handler.fetch_dag)
+    app.router.add_get('/topology', handler.fetch_topology)
     app.router.add_get('/status', handler.fetch_status)
     # 
     # ADD web app

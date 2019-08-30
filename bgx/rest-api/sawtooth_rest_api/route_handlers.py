@@ -44,7 +44,7 @@ from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
-from sawtooth_rest_api.protobuf import client_heads_pb2
+from sawtooth_rest_api.protobuf import client_heads_pb2,client_topology_pb2
 
 # pylint: disable=too-many-lines
 
@@ -604,7 +604,7 @@ class RouteHandler:
             data=response['peers'],
             metadata=self._get_metadata(request, response))
 
-    async def list_heads(self, request):
+    async def list_dag(self, request):
         """Fetches active heads from the validator.
         Request: batch_id = request.match_info.get('batch_id', '')
 
@@ -623,7 +623,7 @@ class RouteHandler:
             data=response['heads'],
             metadata=self._get_metadata(request, response))
 
-    async def fetch_heads(self, request):
+    async def fetch_dag(self, request):
         """Fetches active heads from the validator.
         Request:
             head_id - head id or type of head
@@ -643,6 +643,27 @@ class RouteHandler:
             request,
             data=response['heads'],
             metadata=self._get_metadata(request, response))
+
+    async def fetch_topology(self, request):
+        """Fetches the topology from the validator.
+        Request:
+
+        Response:
+            data: JSON array of net topology
+            link: The link to this exact query
+        """
+        #LOGGER.debug('Request fetch_topology ')
+        response = await self._query_validator(
+            Message.CLIENT_TOPOLOGY_GET_REQUEST,
+            client_topology_pb2.ClientTopologyGetResponse,
+            client_topology_pb2.ClientTopologyGetRequest())
+        topology = base64.b64decode(response['topology'])
+        #LOGGER.debug('Request fetch_topology=%s',topology)
+        return self._wrap_response(
+            request,
+            data=json.loads(topology),
+            metadata=self._get_metadata(request, response))
+
 
     async def fetch_status(self, request):
         '''Fetches information pertaining to the valiator's status.'''
@@ -665,9 +686,7 @@ class RouteHandler:
                                payload, error_traps=None):
         """Sends a request to the validator and parses the response.
         """
-        LOGGER.debug(
-            'Sending %s request to validator',
-            self._get_type_name(request_type))
+        LOGGER.debug('Sending %s request to validator',self._get_type_name(request_type))
 
         payload_bytes = payload.SerializeToString()
         response = await self._send_request(request_type, payload_bytes)

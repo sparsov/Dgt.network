@@ -40,6 +40,7 @@ from sawtooth_rest_api.protobuf import client_batch_pb2
 from sawtooth_rest_api.protobuf import client_receipt_pb2
 from sawtooth_rest_api.protobuf import client_peers_pb2
 from sawtooth_rest_api.protobuf import client_status_pb2
+from sawtooth_rest_api.protobuf import client_topology_pb2
 from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
@@ -579,6 +580,67 @@ class RouteHandler:
             request,
             data=response['peers'],
             metadata=self._get_metadata(request, response))
+
+    async def fetch_topology(self, request):
+        """Fetches the topology from the validator.
+        Request:
+
+        Response:
+            data: JSON array of net topology
+            link: The link to this exact query
+        """
+
+        response = await self._query_validator(
+            Message.CLIENT_TOPOLOGY_GET_REQUEST,
+            client_topology_pb2.ClientTopologyGetResponse,
+            client_topology_pb2.ClientTopologyGetRequest())
+
+        return self._wrap_response(
+            request,
+            data=response['topology'],
+            metadata=self._get_metadata(request, response))
+
+
+    async def list_dag(self, request):
+        """Fetches active heads from the validator.
+        Request: batch_id = request.match_info.get('batch_id', '')
+
+        Response:
+            data: JSON array of peer endpoints
+            link: The link to this exact query
+        """
+        LOGGER.debug('Request list_heads')
+        response = await self._query_validator(
+            Message.CLIENT_HEADS_GET_REQUEST,
+            client_heads_pb2.ClientHeadsGetResponse,
+            client_heads_pb2.ClientHeadsGetRequest(head_id=''))
+
+        return self._wrap_response(
+            request,
+            data=response['heads'],
+            metadata=self._get_metadata(request, response))
+
+    async def fetch_dag(self, request):
+        """Fetches active heads from the validator.
+        Request:
+            head_id - head id or type of head
+
+        Response:
+            data: JSON array of peer endpoints
+            link: The link to this exact query
+        """
+        head_id = request.match_info.get('head_id', '')
+        LOGGER.debug('Request fetch_heads head_id=%s',head_id)
+        response = await self._query_validator(
+            Message.CLIENT_HEADS_GET_REQUEST,
+            client_heads_pb2.ClientHeadsGetResponse,
+            client_heads_pb2.ClientHeadsGetRequest(head_id=head_id))
+
+        return self._wrap_response(
+            request,
+            data=response['heads'],
+            metadata=self._get_metadata(request, response))
+
 
     async def fetch_nodes(self, request):
         """Fetches the nodes from the validator.

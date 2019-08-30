@@ -43,7 +43,8 @@ from sawtooth_validator.protobuf import client_list_control_pb2
 from sawtooth_validator.protobuf import client_peers_pb2
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf import validator_pb2
-from sawtooth_validator.protobuf import client_heads_pb2
+from sawtooth_validator.protobuf import client_heads_pb2,client_topology_pb2
+
 
 
 LOGGER = logging.getLogger(__name__)
@@ -1093,6 +1094,20 @@ class PeersGetRequest(_ClientRequestHandler):
         endpoints = [peers[connection_id] for connection_id in peers]
         return self._wrap_response(peers=endpoints)
 
+class TopologyGetRequest(_ClientRequestHandler):
+    def __init__(self, gossip):
+        super().__init__(
+            client_topology_pb2.ClientTopologyGetRequest,
+            client_topology_pb2.ClientTopologyGetResponse,
+            validator_pb2.Message.CLIENT_TOPOLOGY_GET_RESPONSE
+        )
+        self._gossip = gossip
+
+    def _respond(self, request):
+        LOGGER.debug('TopologyGetRequest: ...')
+        topology = self._gossip.get_topology()
+        return self._wrap_response(topology=topology)
+
 
 class HeadsGetRequest(_ClientRequestHandler):
     def __init__(self, block_store,block_publisher):
@@ -1107,7 +1122,7 @@ class HeadsGetRequest(_ClientRequestHandler):
     def _respond(self, request):
         head_id = request.head_id
         LOGGER.debug('HeadsGetRequest: head_id=%s',head_id)
-        if head_id in ['','cand']:
+        if head_id in ['','nest']:
             heads = self._publisher.get_candidates()
         elif head_id == 'integrity':
             heads = self._block_store.check_integrity()

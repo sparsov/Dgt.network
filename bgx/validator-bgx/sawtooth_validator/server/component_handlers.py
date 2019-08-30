@@ -227,11 +227,17 @@ def add(
         thread_pool)
 
     # ask heads from validator
-    
     dispatcher.add_handler(
         validator_pb2.Message.CLIENT_HEADS_GET_REQUEST,
         client_handlers.HeadsGetRequest(block_store,block_publisher),
         thread_pool)
+
+    # get topology 
+    dispatcher.add_handler(
+        validator_pb2.Message.CLIENT_TOPOLOGY_GET_REQUEST,
+        client_handlers.TopologyGetRequest(gossip),
+        thread_pool)
+
     """
     dispatcher.add_handler(
         validator_pb2.Message.CLIENT_HEADS_GET_REQUEST,
