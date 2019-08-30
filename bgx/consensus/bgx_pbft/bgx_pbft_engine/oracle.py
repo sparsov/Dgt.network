@@ -101,7 +101,7 @@ class PbftOracle:
         self._cluster = {}
         self._arbiters = {} # ring of arbiters
         self._genesis  = self._nodes['name']
-        self.get_cluster_info(None,self._nodes['name'],self._nodes['children'])
+        self.get_cluster_info(None,None,self._nodes['name'],self._nodes['children'])
         self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
         #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['type'],self._node['cluster'])
@@ -155,7 +155,7 @@ class PbftOracle:
                     self.get_arbiters(key,cluster['name'],cluster['children'])
                     
 
-    def get_cluster_info(self,arbiter_id,name,children):
+    def get_cluster_info(self,arbiter_id,parent_name,name,children):
         LOGGER.debug('cluster_info=%s children=%s',name,len(children))
         for key,val in children.items():
             LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
@@ -166,7 +166,7 @@ class PbftOracle:
                 """
                 self._node = val['type'] if 'type' in val else 'plink'
                 if arbiter_id is not None:
-                    self._arbiters[arbiter_id] = ('arbiter',False,name)  # type of arbiter and status(not ready)
+                    self._arbiters[arbiter_id] = ('arbiter',False,parent_name)  # type of arbiter and status(not ready)
                 self._cluster = children
                 self._cluster_name = name 
                 LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))
@@ -175,7 +175,7 @@ class PbftOracle:
             if 'cluster' in val:
                 cluster = val['cluster']
                 if 'name' in cluster and 'children' in cluster:
-                    self.get_cluster_info(key,cluster['name'],cluster['children'])
+                    self.get_cluster_info(key,name,cluster['name'],cluster['children'])
                     if self._node is not None:
                         return
                 else:

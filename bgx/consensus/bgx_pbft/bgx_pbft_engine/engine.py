@@ -530,9 +530,12 @@ class PbftEngine(Engine):
     def nest_color(self):
         if len(self._nest_color) == 0:
             # make list color for nests
+            if self._cluster_name != self._genesis:
+                self._nest_color.append(self._cluster_name)
             for cluster in self.arbiters.values():
                 self._nest_color.append(cluster[2])
-            self._nest_color.append(self._genesis)
+            if self._genesis not in self._nest_color:
+                self._nest_color.append(self._genesis)
             LOGGER.debug('NEW NEST COLORS=%s',self._nest_color)
         color = self._nest_color.pop()
         LOGGER.debug('NEST COLOR=%s',color) 

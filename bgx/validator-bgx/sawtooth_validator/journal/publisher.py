@@ -21,6 +21,7 @@ import logging
 import queue
 from threading import RLock
 import time
+import json
 
 from sawtooth_validator.concurrent.thread import InstrumentedThread
 from sawtooth_validator.execution.scheduler_exceptions import SchedulerError
@@ -552,7 +553,7 @@ class BlockPublisher(object):
         for modern proxy consensus -
         wait until external engine  ask block candidate for one of the DAG's branch - 
         """  
-        self._nest_color = 'Genesis' # own color
+        self._nest_color = None # own color
         self._engine_ask_candidate = {}
         self._blocks_summarize = [] # list of blocks which could be summarized
         self._consensus_notifier = consensus_notifier
@@ -602,6 +603,7 @@ class BlockPublisher(object):
         self._batch_observers = batch_observers
         self._check_publish_block_frequency = check_publish_block_frequency
         self._publisher_thread = None
+        
         LOGGER.debug("BlockPublisher: INIT chain_head=%s block_store=%s validator=%s\n",chain_head,type(self._block_store),self._validator_id[:8])
 
     @property
@@ -621,12 +623,44 @@ class BlockPublisher(object):
     def candidate_blocks(self):
         return [blk.nest_color+':'+str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()]
 
+    def get_topology_info(self,state_root_hash):
+        """
+        get topology info - we should know own nests color
+        """ 
+        def get_cluster_info(name,children):
+            for key,val in children.items():
+                #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
+                if key == self._validator_id:
+                    self._nest_color = name
+                    LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
+                    return
+
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        get_cluster_info(cluster['name'],cluster['children'])
+                        if self._nest_color is not None:
+                            return
+        # get topology
+        topology = self._settings_cache.get_setting(
+                "bgx.consensus.pbft.nodes",
+                state_root_hash,
+                default_value='{}'
+            ).replace("'",'"')
+        topology = json.loads(topology)
+        #LOGGER.debug('get_topology=%s',topology)
+        if 'name' in topology and 'children' in topology:
+            get_cluster_info(topology['name'],topology['children'])
+        if self._nest_color is None:
+            self._nest_color = 'Genesis'
+
     def start(self):
         self._publisher_thread = _PublisherThread(
             block_publisher=self,
             batch_queue=self._batch_queue,
             check_publish_block_frequency=self._check_publish_block_frequency)
         LOGGER.debug("BlockPublisher: start _PublisherThread")
+        
         self._publisher_thread.start()
 
     def stop(self):
@@ -682,8 +716,13 @@ class BlockPublisher(object):
         For DAG build candidate for chain_head.identifier branch
         should works under locking
         """
+        
         main_head = self._block_cache.block_store.chain_head
         bid = chain_head.identifier
+        if self.nest_color is None:
+            self.get_topology_info(main_head.state_root_hash)
+
+        
         LOGGER.debug("BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main=%s STATE=%s~%s",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
 
         state_view = BlockWrapper.state_view_for_block(main_head ,self._state_view_factory) # main_head FOR DAG use main_head instead chain_head
