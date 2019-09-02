@@ -32,12 +32,21 @@ class ConsensusNotifier:
     def __init__(self, consensus_service):
         self._service = consensus_service
         self._registered_engines = ConcurrentSet()
+        self._cluster = None
 
+    def set_cluster(self,cluster):
+        self._cluster = cluster
+        LOGGER.debug('ConsensusNotifier: set cluster=%s',cluster)
+        self._service.set_cluster(self._cluster)
     def _notify(self, message_type, message):
+        """
+        for cluster topology we should isolate others cluster from our message
+        we can set cluster list from topology for self._service
+        """
         #LOGGER.debug('ConsensusNotifier: _notify all peers')
         if self._registered_engines:
-            #LOGGER.debug('ConsensusNotifier: _notify %s',message_type)
-            futures = self._service.send_all(
+            LOGGER.debug('ConsensusNotifier: _notify peer=%s',self._service.connections_info)
+            futures = self._service.send_cluster( # send_all
                 message_type,
                 message.SerializeToString())
             #LOGGER.debug('ConsensusNotifier: sent _notify to num=%s peers',len(futures))

@@ -162,7 +162,9 @@ class _CandidateBlock(object):
         self._recompute_context = None
         self._make_batch_broadcast = False
         self._batches_num = 0 # must have batches
+        # cluster info
         self._nest_color = nest_color
+        
 
     def __del__(self):
         # Cancel the scheduler if it is not complete
@@ -554,6 +556,8 @@ class BlockPublisher(object):
         wait until external engine  ask block candidate for one of the DAG's branch - 
         """  
         self._nest_color = None # own color
+        self._cluster    = None # own cluster
+
         self._engine_ask_candidate = {}
         self._blocks_summarize = [] # list of blocks which could be summarized
         self._consensus_notifier = consensus_notifier
@@ -632,6 +636,7 @@ class BlockPublisher(object):
                 #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
                 if key == self._validator_id:
                     self._nest_color = name
+                    self._cluster    = children
                     LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
                     return
 
@@ -642,17 +647,23 @@ class BlockPublisher(object):
                         if self._nest_color is not None:
                             return
         # get topology
+        #LOGGER.debug('get topology from chain')
         topology = self._settings_cache.get_setting(
                 "bgx.consensus.pbft.nodes",
                 state_root_hash,
                 default_value='{}'
             ).replace("'",'"')
+        #LOGGER.debug('get topology=%s',topology)
         topology = json.loads(topology)
         #LOGGER.debug('get_topology=%s',topology)
         if 'name' in topology and 'children' in topology:
             get_cluster_info(topology['name'],topology['children'])
         if self._nest_color is None:
             self._nest_color = 'Genesis'
+            self._cluster    = {}
+        else:
+            # set cluster info for consensus notifier
+            self._consensus_notifier.set_cluster(self._cluster)
 
     def start(self):
         self._publisher_thread = _PublisherThread(
@@ -716,7 +727,7 @@ class BlockPublisher(object):
         For DAG build candidate for chain_head.identifier branch
         should works under locking
         """
-        
+        #LOGGER.debug("BUILD CANDIDATE BLOCK..")
         main_head = self._block_cache.block_store.chain_head
         bid = chain_head.identifier
         if self.nest_color is None:

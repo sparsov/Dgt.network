@@ -39,7 +39,7 @@ TIMEOUT   = 0.1
 PBFT_FULL = False  # full or short mode of PBFT
 
 CHAIN_LEN_FOR_BRANCH = 3 # after this len make a new branch 
-CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
+CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint','ViewChange','Arbitration','ArbitrationDone']
 
 class Consensus(Enum):
     done = 0
@@ -95,7 +95,12 @@ class BranchState(object):
     @nest_color.setter
     def nest_color(self, color):
         self._nest_color = color
-
+    @property
+    def own_type(self):
+        return self._engine.own_type
+    @property
+    def is_leader(self):
+        return self.own_type == 'leader'
     @property
     def validator_id(self):
         return self._engine.validator_id
@@ -207,14 +212,35 @@ class BranchState(object):
     def _send_arbitration(self,block):
         """
         send ARBITRATION message to all ring of cluster delegate
+        """   
+        self._num_arbiters = 0
+        if self.is_leader :
+            # send as leader
+            message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG) 
+            
+            for aid,val in self.arbiters.items():
+                if val[1]:
+                    # send message to all ready nodes 
+                    self._num_arbiters += 1 # wait reply from arbiter
+                    LOGGER.debug("SEND ARBITRATION_MSG  block=%s\n",block.block_id.hex()[:8])
+                    self._send_to(aid,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
+        else:
+            # wait only one message from own leader
+            self._num_arbiters = 1
+                    
+
+    def _send_arbitration_done(self,block,peer_id):
+        """
+        send ARBITRATION_DONE message to all ring of cluster delegate
         """                                                                                                  
-        message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG) 
-        for aid,val in self.arbiters.items():
-            if val[1]:
-                # node is ready 
-                self._num_arbiters += 1 # wait reply from arbiter
-                self._send_to(aid,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
-    
+        message = self._make_message(block,PbftMessageInfo.ARBITRATION_DONE_MSG) 
+        LOGGER.debug("SEND ARBITRATION_DONE_MSG to=%s  block=%s\n",peer_id[:8],block.block_id.hex()[:8])
+        self._send_to(peer_id,message,PbftMessageInfo.ARBITRATION_DONE_MSG,block.block_id) 
+
+    def broadcast_arbitration_done(self,block):
+        message = self._make_message(block,PbftMessageInfo.ARBITRATION_DONE_MSG)
+        self._broadcast(message, PbftMessageInfo.ARBITRATION_DONE_MSG, block.block_id)
+                    
     def _send_checkpoint(self,block):
         """
         check point message, for log message rotation
@@ -444,7 +470,26 @@ class BranchState(object):
                 LOGGER.info('Save commit MSG for block=%s and waiting VALID MSG', self.block_num)
         else:
             LOGGER.info('Ignore commit MSG from peer=%s msgs=%s peers=%s', peer_id[:8],[peer[:8] for peer in self._commit_msgs.keys()],[peer[:8] for peer in self.peers])
-             
+
+    def arbitration(self,block,peer_id):
+        """
+        ask arbitration
+        """
+        self._send_arbitration_done(block,peer_id)
+
+    def arbitration_done(self,block):
+        """
+        this is answer on arbitration
+        """
+        self._num_arbiters -= 1
+        if self._num_arbiters == 0:
+            #we have answer fron all arbiter
+            if self.is_leader:
+                LOGGER.info('arbitration_done: broadcast ARBITRATION DONE for own cluster block=%s', self.block_num)
+                self.broadcast_arbitration_done(block)
+            LOGGER.info('arbitration_done: for block=%s', self.block_num)
+            self.commit_block(block.block_id)
+
     def reset_state(self):
         LOGGER.info('reset_state: for BRANCH[%s]=%s\n', self._ind,self._head_id[:8])
         self._building = False   
@@ -518,7 +563,9 @@ class PbftEngine(Engine):
     @property
     def is_ready_arbiter(self):
         return max(self._arbiters.values(), key = lambda x: 1 if x[1] else 0)[1]
-
+    @property
+    def own_type(self):
+        return self._own_type
     @property
     def arbiters(self):
         return self._arbiters
@@ -762,6 +809,7 @@ class PbftEngine(Engine):
         """
         self._genesis      = self._oracle.genesis      # genesis cluster name
         self._cluster_name = self._oracle.cluster_name # own clusters name
+        self._own_type = self._oracle.own_type
         self._arbiters = self._oracle.arbiters         # ring of arbiter     
         self._cluster = self._oracle.cluster           # own cluster's peers
         self._nest_color = []                          # add color for nests 
@@ -1087,8 +1135,9 @@ class PbftEngine(Engine):
             elif pid in self._arbiters:
                 # one of the arbiters - mark as ready
                 val = self._arbiters[pid]
-                LOGGER.info('Connected peer with ID=%s IS ONE OF THE OUR ARBITER=%s\n', _short_id(pid),val)
-                self._arbiters[pid] = (val[0],True,val[2])
+                if not val[1]:
+                    LOGGER.info('Connected peer with ID=%s IS ONE OF THE OUR ARBITER=%s\n', _short_id(pid),val)
+                    self._arbiters[pid] = (val[0],True,val[2])
             else:
                 LOGGER.info('Ignore connected peer=%s(not in our cluster)\n', _short_id(pid))
 
@@ -1194,7 +1243,20 @@ class PbftEngine(Engine):
                     branch.shift_to_commiting(block)
                     #branch.add_commit_msg(peer_id,self._peers,block)
                     LOGGER.debug("=>COMMIT for block=%s branch=%s",block_id[:8],branch)
-                
-            
+        elif msg_type == PbftMessageInfo.ARBITRATION_MSG:
+            """
+            cluster Arbitration
+            """
+            LOGGER.debug("=>ARBITRATION for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])  
+            if block_id in self._branches:
+                branch = self._branches[block_id]
+                LOGGER.debug("=>ARBITRATION_DONE for block=%s peer branch=%s",block_id[:8],branch)
+                branch.arbitration(block,peer_id)
+
+        elif msg_type == PbftMessageInfo.ARBITRATION_DONE_MSG:
+            LOGGER.debug("=>ARBITRATION_DONE for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            if block_id in self._peers_branches:
+                branch = self._peers_branches[block_id]
+                branch.arbitration_done(block)
                 
             

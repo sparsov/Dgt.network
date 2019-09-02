@@ -268,6 +268,7 @@ class _SendReceive(object):
         self._last_message_times[zmq_identity] = time.time()
         connection_id = self._identity_to_connection_id(zmq_identity)
         if connection_id not in self._connections:
+            LOGGER.info("received conn=%s from identity=%s",connection_id[:8],zmq_identity)
             self._connections[connection_id] = \
                 ConnectionInfo(ConnectionType.ZMQ_IDENTITY,
                                zmq_identity,
@@ -347,8 +348,7 @@ class _SendReceive(object):
                 # The raise is required to stop this component.
                 raise
             except Exception as e:  # pylint: disable=broad-except
-                LOGGER.exception("Received a message on address %s that "
-                                 "caused an error: %s", self._address, e)
+                LOGGER.exception("Received a message on address %s that caused an error: %s", self._address, e)
 
     @asyncio.coroutine
     def _send_message_frame(self, message_frame):
@@ -366,8 +366,7 @@ class _SendReceive(object):
                         ConnectionType.ZMQ_IDENTITY:
                     zmq_identity = connection_info.connection
             else:
-                LOGGER.debug("Can't send to %s, not in self._connections",
-                             connection_id)
+                LOGGER.debug("Can't send to %s, not in self._connections",connection_id)
 
         self._ready.wait()
 
@@ -710,6 +709,9 @@ class Interconnect(object):
 
         self._metrics_registry = metrics_registry
         self._send_response_timers = {}
+        # cluster info
+        self._cluster = None
+        LOGGER.debug("Interconnect init endpoint=%s",self._endpoint)
 
     @property
     def roles(self):
@@ -718,6 +720,14 @@ class Interconnect(object):
     @property
     def endpoint(self):
         return self._endpoint
+
+    @property
+    def connections_info(self):
+        with self._connections_lock:
+            return [cid[:8] for cid in self._connections]
+
+    def set_cluster(self,cluster):
+        self._cluster = cluster
 
     def _get_send_response_timer(self, tag):
         if tag not in self._send_response_timers:
@@ -776,8 +786,7 @@ class Interconnect(object):
         Returns:
             bool
         """
-        LOGGER.debug("Determining whether inbound connection should "
-                     "be allowed. num connections: %s max %s",
+        LOGGER.debug("Determining whether inbound connection should be allowed. num connections: %s max %s",
                      len(self._connections),
                      self._max_incoming_connections)
         return self._max_incoming_connections >= len(self._connections)
@@ -789,7 +798,7 @@ class Interconnect(object):
             uri (str): The zmq-style (e.g. tcp://hostname:port) uri
                 to attempt to connect to.
         """
-        LOGGER.debug("Adding connection to %s", uri)
+        LOGGER.debug("Adding outbound connection to %s", uri)
         conn = OutboundConnection(
             connections=self._connections,
             endpoint=uri,
@@ -987,6 +996,20 @@ class Interconnect(object):
                 futures.append(self.send(message_type, data, connection_id))
         return futures
 
+    def send_cluster(self, message_type, data):
+        """
+        isolate from other clusters
+        """
+        futures = []
+        with self._connections_lock:
+            for connection_id,info in self._connections.items():
+                if self._cluster is not None and (info.connection_type == ConnectionType.ZMQ_IDENTITY or info.public_key in self._cluster):
+                    LOGGER.debug("APPEND CONN=%s peer=%s uri=%s type=%s",connection_id[:8],info.public_key,info.uri,info.connection_type)
+                    futures.append(self.send(message_type, data, connection_id))
+                else:
+                    LOGGER.debug("IGNORE CONN=%s peer=%s - not own cluster.",connection_id[:8],info) #info.public_key
+        return futures
+
     def send(self, message_type, data, connection_id, callback=None,
              one_way=False):
         """
@@ -1098,6 +1121,7 @@ class Interconnect(object):
         """
         if connection_id in self._connections:
             connection_info = self._connections[connection_id]
+            LOGGER.debug("UPDATE CONN=%s public_key=%s total=%s",connection_id[:8],public_key,len(self._connections)) 
             self._connections[connection_id] = \
                 ConnectionInfo(connection_info.connection_type,
                                connection_info.connection,
@@ -1105,9 +1129,7 @@ class Interconnect(object):
                                connection_info.status,
                                public_key)
         else:
-            LOGGER.debug("Could not update the public key %s for "
-                         "connection_id %s. The connection does not "
-                         "exist.",
+            LOGGER.debug("Could not update the public key %s for connection_id %s. The connection does not exist.",
                          public_key,
                          connection_id)
 
@@ -1141,6 +1163,7 @@ class Interconnect(object):
         with self._connections_lock:
             connection_id = connection.connection_id
             if connection_id not in self._connections:
+                LOGGER.debug("ADD connection=%s uri=%s",connection_id[:8],uri) 
                 self._connections[connection_id] = \
                     ConnectionInfo(ConnectionType.OUTBOUND_CONNECTION,
                                    connection,
