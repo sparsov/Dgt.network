@@ -292,7 +292,7 @@ class GossipBroadcastHandler(Handler):
             LOGGER.debug("GossipBroadcastHandler:handle BLOCK=%s !!!",block.header_signature[:8])
             # If we already have this block, don't forward it
             if not self._completer.get_block(block.header_signature):
-                LOGGER.debug("GossipBroadcastHandler:.broadcast_block!!!")
+                LOGGER.debug("GossipBroadcastHandler:broadcast block=%s!!!",block.header_signature[:8])
                 self._gossip.broadcast_block(block, exclude)
        
         else:
@@ -312,7 +312,9 @@ class GossipConsensusMessageHandler(Handler):
         peer_message = ConsensusPeerMessage()
         peer_message.ParseFromString(gossip_message.message)
 
+        #LOGGER.debug("GossipConsensusMessageHandler:peer_message type=%s",peer_message.message_type)
         self._notifier.notify_peer_message(
             message=peer_message,
-            sender_id=gossip_message.sender_id)
+            sender_id=gossip_message.sender_id,
+            message_type = peer_message.message_type)
         return HandlerResult(status=HandlerStatus.PASS)

@@ -36,6 +36,10 @@ class BroadcastBatchSender(BatchSender):
     def __init__(self, completer, gossip):
         self._completer = completer
         self._gossip = gossip
+        self._cluster = None
+
+    def set_cluster(self,cluster):
+        self._cluster = cluster
 
     def send(self, batch):
         self._gossip.broadcast_batch(batch)
@@ -47,5 +51,10 @@ class BroadcastBatchSender(BatchSender):
         self._gossip.broadcast_batch(batch,candidate_id=candidate_id)
 
     def send_batches(self,batches):
-        # for DAG - send batches after branch was selected
-        self._gossip.broadcast_batches(batches)
+        """
+        for DAG - send batches after branch was selected
+        and use cluster info - send only our cluster peer
+        """
+        exclude = self._gossip.get_exclude(self._cluster) if self._cluster else None
+
+        self._gossip.broadcast_batches(batches,exclude=exclude)

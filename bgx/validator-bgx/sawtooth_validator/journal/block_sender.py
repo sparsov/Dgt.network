@@ -36,7 +36,19 @@ class BroadcastBlockSender(BlockSender):
     def __init__(self, completer, gossip):
         self._completer = completer
         self._gossip = gossip
+        self._cluster = None
+
+    def set_cluster(self,cluster):
+        # set cluster topology
+        self._cluster = cluster
+        #self._gossip.set_cluster(cluster)
 
     def send(self, block):
-        self._gossip.broadcast_block(block)
+        """
+        use from publisher for sending new block to peers 
+        send only own cluster's peer
+        """
+        exclude = self._gossip.get_exclude(self._cluster) if self._cluster else None
+
+        self._gossip.broadcast_block(block,exclude=exclude)
         self._completer.add_block(block)

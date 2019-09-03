@@ -415,8 +415,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
         try:
             payload = self._challenge_payload_cache[connection_id]
         except KeyError:
-            LOGGER.debug("Connection's challenge payload expired before a"
-                         "response was received. %s", connection_id)
+            LOGGER.debug("Connection's challenge payload expired before a response was received. %s", connection_id)
             return AuthorizationChallengeSubmitHandler \
                 ._network_violation_result()
 

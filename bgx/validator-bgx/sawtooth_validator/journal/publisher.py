@@ -573,6 +573,7 @@ class BlockPublisher(object):
         self._settings_cache = settings_cache
         self._transaction_executor = transaction_executor
         self._block_sender = block_sender
+        self._batch_sender = batch_sender
         self._batch_publisher = BatchPublisher(identity_signer, batch_sender)
         self._pending_batches = []  # batches we are waiting for validation, arranged in the order of batches received.
         self._pending_batch_ids = []
@@ -663,7 +664,9 @@ class BlockPublisher(object):
             self._cluster    = {}
         else:
             # set cluster info for consensus notifier
-            self._consensus_notifier.set_cluster(self._cluster)
+            #self._consensus_notifier.set_cluster(self._cluster)
+            self._block_sender.set_cluster(self._cluster)
+            self._batch_sender.set_cluster(self._cluster)
 
     def start(self):
         self._publisher_thread = _PublisherThread(
@@ -1232,6 +1235,9 @@ class BlockPublisher(object):
                         also save recompute context
                         """
                         self._recompute_contexts[bid] = candidate.recompute_context
+                        """
+                        send block to others peers but we should use cluster info
+                        """
                         self._block_sender.send(blkw.block)
                         self._blocks_published_count.inc()
 

@@ -67,6 +67,9 @@ class ConsensusProxy:
 
     # Using network service
     def send_to(self, peer_id, message):
+        """
+        send to peer consensus message
+        """
         LOGGER.debug("ConsensusProxy:send_to peer=%s",peer_id.hex()[:8])
         self._gossip.send_consensus_message(
             peer_id=peer_id.hex(),

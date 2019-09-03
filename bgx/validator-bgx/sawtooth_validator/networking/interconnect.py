@@ -268,13 +268,8 @@ class _SendReceive(object):
         self._last_message_times[zmq_identity] = time.time()
         connection_id = self._identity_to_connection_id(zmq_identity)
         if connection_id not in self._connections:
-            LOGGER.info("received conn=%s from identity=%s",connection_id[:8],zmq_identity)
-            self._connections[connection_id] = \
-                ConnectionInfo(ConnectionType.ZMQ_IDENTITY,
-                               zmq_identity,
-                               None,
-                               None,
-                               None)
+            self._connections[connection_id] = ConnectionInfo(ConnectionType.ZMQ_IDENTITY,zmq_identity,None,None,None)
+            LOGGER.info("RECEIVED CONN=%s from identity=%s total=%s",connection_id[:8],zmq_identity,len(self._connections))
 
     @asyncio.coroutine
     def _dispatch_message(self):
@@ -362,8 +357,7 @@ class _SendReceive(object):
         if connection_id is not None and self._connections is not None:
             if connection_id in self._connections:
                 connection_info = self._connections.get(connection_id)
-                if connection_info.connection_type == \
-                        ConnectionType.ZMQ_IDENTITY:
+                if connection_info.connection_type == ConnectionType.ZMQ_IDENTITY:
                     zmq_identity = connection_info.connection
             else:
                 LOGGER.debug("Can't send to %s, not in self._connections",connection_id)
@@ -373,8 +367,7 @@ class _SendReceive(object):
         if zmq_identity is None:
             message_bundle = [msg.SerializeToString()]
         else:
-            message_bundle = [bytes(zmq_identity),
-                              msg.SerializeToString()]
+            message_bundle = [bytes(zmq_identity),msg.SerializeToString()]
 
         try:
             asyncio.run_coroutine_threadsafe(
@@ -453,9 +446,7 @@ class _SendReceive(object):
             if self._secured:
                 if self._server_public_key is None or \
                         self._server_private_key is None:
-                    raise LocalConfigurationError(
-                        "Attempting to start socket in secure mode, "
-                        "but complete server keys were not provided")
+                    raise LocalConfigurationError("Attempting to start socket in secure mode, but complete server keys were not provided")
 
             self._event_loop = zmq.asyncio.ZMQEventLoop()
             asyncio.set_event_loop(self._event_loop)
@@ -723,8 +714,8 @@ class Interconnect(object):
 
     @property
     def connections_info(self):
-        with self._connections_lock:
-            return [cid[:8] for cid in self._connections]
+        #with self._connections_lock:
+        return [cid[:8]+':'+str(info.connection_type)[15:] for cid,info in self._connections.items()]
 
     def set_cluster(self,cluster):
         self._cluster = cluster
@@ -1002,16 +993,16 @@ class Interconnect(object):
         """
         futures = []
         with self._connections_lock:
+            LOGGER.debug("send_cluster  total=%s.",self.connections_info)
             for connection_id,info in self._connections.items():
                 if self._cluster is not None and (info.connection_type == ConnectionType.ZMQ_IDENTITY or info.public_key in self._cluster):
-                    LOGGER.debug("APPEND CONN=%s peer=%s uri=%s type=%s",connection_id[:8],info.public_key,info.uri,info.connection_type)
+                    LOGGER.debug("APPEND CONN=%s to peer=%s uri=%s type=%s",connection_id[:8],info.public_key,info.uri,info.connection_type)
                     futures.append(self.send(message_type, data, connection_id))
                 else:
                     LOGGER.debug("IGNORE CONN=%s peer=%s - not own cluster.",connection_id[:8],info) #info.public_key
         return futures
 
-    def send(self, message_type, data, connection_id, callback=None,
-             one_way=False):
+    def send(self, message_type, data, connection_id, callback=None,one_way=False):
         """
         Send a message of message_type
         :param connection_id: the identity for the connection to send to
@@ -1022,8 +1013,7 @@ class Interconnect(object):
         if connection_id not in self._connections:
             raise ValueError("Unknown connection id: {}".format(connection_id))
         connection_info = self._connections.get(connection_id)
-        if connection_info.connection_type == \
-                ConnectionType.ZMQ_IDENTITY:
+        if connection_info.connection_type == ConnectionType.ZMQ_IDENTITY:
             message = validator_pb2.Message(
                 correlation_id=_generate_id(),
                 content=data,
@@ -1039,8 +1029,7 @@ class Interconnect(object):
             if not one_way:
                 self._futures.put(fut)
 
-            self._send_receive_thread.send_message(msg=message,
-                                                   connection_id=connection_id)
+            self._send_receive_thread.send_message(msg=message,connection_id=connection_id)
             return fut
 
         return connection_info.connection.send(
@@ -1121,7 +1110,7 @@ class Interconnect(object):
         """
         if connection_id in self._connections:
             connection_info = self._connections[connection_id]
-            LOGGER.debug("UPDATE CONN=%s public_key=%s total=%s",connection_id[:8],public_key,len(self._connections)) 
+            LOGGER.debug("UPDATE CONN=%s public_key=%s total=%s",connection_id[:8],public_key[:8],self.connections_info) 
             self._connections[connection_id] = \
                 ConnectionInfo(connection_info.connection_type,
                                connection_info.connection,
@@ -1153,39 +1142,27 @@ class Interconnect(object):
                                status,
                                connection_info.public_key)
         else:
-            LOGGER.debug("Could not update the status to %s for "
-                         "connection_id %s. The connection does not "
-                         "exist.",
-                         status,
-                         connection_id)
+            LOGGER.debug("Could not update the status to %s for connection_id %s. The connection does not exist.",status,connection_id)
 
     def _add_connection(self, connection, uri=None):
         with self._connections_lock:
             connection_id = connection.connection_id
             if connection_id not in self._connections:
-                LOGGER.debug("ADD connection=%s uri=%s",connection_id[:8],uri) 
-                self._connections[connection_id] = \
-                    ConnectionInfo(ConnectionType.OUTBOUND_CONNECTION,
-                                   connection,
-                                   uri,
-                                   None,
-                                   None)
+                self._connections[connection_id] = ConnectionInfo(ConnectionType.OUTBOUND_CONNECTION,connection,uri,None,None)
+                LOGGER.debug("ADD CONN=%s uri=%s total=%s", connection_id[:8], uri, self.connections_info)
 
     def remove_connection(self, connection_id):
         with self._connections_lock:
-            LOGGER.debug("Removing connection: %s", connection_id)
+            LOGGER.debug("RM CONN=%s total=%s", connection_id[:8],self.connections_info)
             if connection_id in self._connections:
                 connection_info = self._connections[connection_id]
 
-                if connection_info.connection_type == \
-                        ConnectionType.OUTBOUND_CONNECTION:
+                if connection_info.connection_type == ConnectionType.OUTBOUND_CONNECTION:
                     connection_info.connection.stop()
                     del self._connections[connection_id]
 
-                elif connection_info.connection_type == \
-                        ConnectionType.ZMQ_IDENTITY:
-                    self._send_receive_thread.remove_connected_identity(
-                        connection_info.connection)
+                elif connection_info.connection_type == ConnectionType.ZMQ_IDENTITY:
+                    self._send_receive_thread.remove_connected_identity(connection_info.connection)
 
     def send_last_message(self, message_type, data,
                           connection_id, callback=None, one_way=False):

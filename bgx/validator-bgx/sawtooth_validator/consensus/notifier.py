@@ -26,8 +26,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ConsensusNotifier:
-    """Handles sending notifications to the consensus engine using the provided
-    interconnect service."""
+    """
+    Handles sending notifications to the consensus engine using the provided
+    interconnect service.
+    """
 
     def __init__(self, consensus_service):
         self._service = consensus_service
@@ -42,11 +44,12 @@ class ConsensusNotifier:
         """
         for cluster topology we should isolate others cluster from our message
         we can set cluster list from topology for self._service
+        BUT in this case we are working only with out consensus engine
         """
         #LOGGER.debug('ConsensusNotifier: _notify all peers')
         if self._registered_engines:
             LOGGER.debug('ConsensusNotifier: _notify peer=%s',self._service.connections_info)
-            futures = self._service.send_cluster( # send_all
+            futures = self._service.send_all( # send_all
                 message_type,
                 message.SerializeToString())
             #LOGGER.debug('ConsensusNotifier: sent _notify to num=%s peers',len(futures))
@@ -70,9 +73,15 @@ class ConsensusNotifier:
             consensus_pb2.ConsensusNotifyPeerDisconnected(
                 peer_id=bytes.fromhex(peer_id)))
 
-    def notify_peer_message(self, message, sender_id):
+    def notify_peer_message(self, message, sender_id,message_type):
         """A new message was received from a peer"""
-        # LOGGER.debug('ConsensusNotifier: notify_peer_message sender_id=%s',sender_id)
+        LOGGER.debug('ConsensusNotifier: notify_peer_message=%s sender_id=%s',message_type,sender_id.hex()[:8])
+        if message_type == 'Arbitration':
+            """
+            before send Arbitration we should be shure that this validator know about this block
+            """
+            LOGGER.debug('ConsensusNotifier: CHECK BLOCK for arbitration before send message consensus engine')
+
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_MESSAGE,
             consensus_pb2.ConsensusNotifyPeerMessage(

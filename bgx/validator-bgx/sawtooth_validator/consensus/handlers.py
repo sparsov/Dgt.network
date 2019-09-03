@@ -158,15 +158,14 @@ class ConsensusSendToHandler(ConsensusServiceHandler):
         self._proxy = proxy
 
     def handle_request(self, request, response):
-        LOGGER.debug('ConsensusSendToHandler: proxy')
+        LOGGER.debug('ConsensusSendToHandler: proxy send_to')
         try:
             self._proxy.send_to(
                 request.peer_id,
                 request.message.SerializeToString())
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusSendTo")
-            response.status =\
-                consensus_pb2.ConsensusSendToResponse.SERVICE_ERROR
+            response.status = consensus_pb2.ConsensusSendToResponse.SERVICE_ERROR
 
 
 class ConsensusBroadcastHandler(ConsensusServiceHandler):

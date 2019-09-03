@@ -137,11 +137,27 @@ class Gossip(object):
 
         self._topology = None
         self._peers = {}
+        self._cluster = None
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
         """
         LOGGER.debug("Gossip peers=%s",initial_peer_endpoints)
+
+    def set_cluster(self,cluster):
+        self._cluster = cluster
+
+    def get_exclude(self,cluster):
+        # get list of peers not from our cluster
+        LOGGER.debug("get_exclude peers=%s",self._peers)
+        exclude = []
+        with self._lock:
+            for peer in self._peers.keys() :
+                public_key = self._network.connection_id_to_public_key(peer)
+                if public_key not in cluster:
+                    exclude.append(peer)
+        LOGGER.debug("get_exclude exclude=%s",exclude)
+        return None if len(exclude) == 0 else exclude
 
     def send_peers(self, connection_id):
         """Sends a message containing our peers to the
@@ -266,13 +282,13 @@ class Gossip(object):
     def broadcast_block(self, block, exclude=None, time_to_live=None):
         if time_to_live is None:
             time_to_live = self.get_time_to_live()
+        LOGGER.debug("broadcast BLOCK=%s",block.header_signature[:8])
         gossip_message = GossipMessage(
             content_type=GossipMessage.BLOCK,
             content=block.SerializeToString(),
             time_to_live=time_to_live)
 
-        self.broadcast(
-            gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
+        self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
     def broadcast_block_request(self, block_id):
         time_to_live = self.get_time_to_live()
@@ -344,6 +360,10 @@ class Gossip(object):
             validator_pb2.Message.GOSSIP_BATCH_BY_BATCH_ID_REQUEST)
 
     def send_consensus_message(self, peer_id, message, public_key):
+        """
+        for instance ATRBITRATE message directly one peer
+        FIXME - for speed reason make it like broadcast_consensus_message but send message only topology arbiters arbiter_consensus_message()
+        """
         connection_id = self._network.public_key_to_connection_id(peer_id)
         if connection_id is None:
             LOGGER.debug('Gossip: send_consensus_message Disconnected peer=%d',peer_id[:8])
@@ -358,6 +378,9 @@ class Gossip(object):
             connection_id)
 
     def broadcast_consensus_message(self, message, public_key):
+        """
+        we should isolate other cluster from some message 
+        """
         LOGGER.debug('Gossip: broadcast_consensus_message peers=%d',len(self._peers))
         self.broadcast(
             GossipConsensusMessage(
@@ -869,12 +892,9 @@ class ConnectionManager(InstrumentedThread):
             del self._connection_statuses[connection_id]
             self._network.remove_connection(connection_id)
         elif status == PeerStatus.PEER:
-            LOGGER.debug("Connection close request for peer ignored: %s",
-                         connection_id)
+            LOGGER.debug("Connection close request for peer ignored: %s",connection_id)
         elif status is None:
-            LOGGER.debug("Connection close request for unknown connection "
-                         "ignored: %s",
-                         connection_id)
+            LOGGER.debug("Connection close request for unknown connection ignored: %s",connection_id)
 
     def connect_success(self, connection_id):
         """
@@ -884,9 +904,7 @@ class ConnectionManager(InstrumentedThread):
         endpoint = self._network.connection_id_to_endpoint(connection_id)
         endpoint_info = self._temp_endpoints.get(endpoint)
 
-        LOGGER.debug("Endpoint has completed authorization: %s (id: %s)",
-                     endpoint,
-                     connection_id)
+        LOGGER.debug("Endpoint has completed authorization: %s (id: %s)",endpoint,connection_id)
         if endpoint_info is None:
             LOGGER.debug("Received unknown endpoint: %s", endpoint)
 

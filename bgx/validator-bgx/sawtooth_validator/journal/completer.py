@@ -217,11 +217,7 @@ class Completer(object):
                 if dependency not in self._seen_txns and not \
                         self.block_cache.block_store.has_transaction(
                         dependency):
-                    LOGGER.debug("Transaction %s in batch %s has "
-                                 "unsatisfied dependency: %s",
-                                 txn.header_signature,
-                                 batch.header_signature,
-                                 dependency)
+                    LOGGER.debug("Transaction %s in batch %s has unsatisfied dependency: %s",txn.header_signature,batch.header_signature,dependency)
 
                     # Check to see if the dependency has already been requested
                     if dependency not in self._requested:
@@ -283,6 +279,10 @@ class Completer(object):
             block = self._complete_block(blkw)
             if block is not None:
                 self.block_cache[block.header_signature] = blkw
+                LOGGER.debug("ADD BLOCK=%s",block.header_signature[:8])
+                """
+                PUT BLOCK into chain controller queue
+                """
                 self._on_block_received(blkw)
                 self._process_incomplete_blocks(block.header_signature)
 

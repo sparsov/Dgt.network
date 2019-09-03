@@ -1384,6 +1384,9 @@ class ChainController(object):
                 "Unhandled exception in ChainController.on_block_validated()")
 
     def on_block_received(self, block):
+        """
+        it could be from completer or from publisher
+        """
         try:
             with self._lock:
                 if self.has_block(block.header_signature):
