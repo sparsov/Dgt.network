@@ -65,6 +65,17 @@ class ZmqService(Service):
                 'Failed with status {}'.format(response.status))
 
     def broadcast_to_cluster(self, message_type, payload):
+        """
+        FIXME - better use special message like CONSENSUS_BROADCAST_REQUEST and send only one message and validator take cluster's peer from topology
+        """
+        for peer_id in self._cluster.keys():
+            LOGGER.debug('send to peer=%s',peer_id[:8])
+            self.send_to(bytes.fromhex(peer_id),message_type,payload)
+
+    def broadcast_to_arbiter(self, message_type, payload):
+        """
+        FIXME - better use special message like CONSENSUS_BROADCAST_REQUEST and send only one message and validator take cluster's peer from topology
+        """
         for peer_id in self._cluster.keys():
             LOGGER.debug('send to peer=%s',peer_id[:8])
             self.send_to(bytes.fromhex(peer_id),message_type,payload)

@@ -317,15 +317,18 @@ class BranchState(object):
         # send in case of consensus was not reached
         self._service.fail_block(block_id)
 
-    def new_block(self,block):
-        if len(self.peers) > 0:
-            # start consensus for many active peers
+    def new_block(self,block,cluster=True):
+        self._cluster = cluster 
+        if cluster and len(self.peers) > 0:
+            """
+            start consensus for many active peers and in case it is block of own cluster
+            """
             self.start_consensus(block)
             return False
 
         if self.check_consensus(block):
             # at this point state PREPARED
-            LOGGER.info('Passed consensus check in state PREPARED: %s ', _short_id(block.block_id.hex()))
+            LOGGER.info('Passed consensus check in state PREPARED: %s cluster=%s', _short_id(block.block_id.hex()),cluster)
             if block.block_num == 3 and self._try_branch:
                 # try make branch pause current block for main branch
                 self._make_branch = True
@@ -413,8 +416,8 @@ class BranchState(object):
             for full version shift into commiting state
             for short we can commit right now
             """
-            if self._oracle.is_pbft_full:
-                # broadcast commit message and shift into commiting state
+            if self._oracle.is_pbft_full and (self._cluster or block.block_num == 0):
+                # broadcast commit message and shift into commiting state - NOT for block under arbitration
                 self.shift_to_commiting(block)
                 self._state = State.Commiting
                 self.check_commit(block)
@@ -587,6 +590,9 @@ class PbftEngine(Engine):
         color = self._nest_color.pop()
         LOGGER.debug('NEST COLOR=%s',color) 
         return color
+
+    def belonge_cluster(self,peer_id):
+        return peer_id in self._cluster
 
     def get_chain_settings(self):
         # get setting from chain
@@ -953,14 +959,15 @@ class PbftEngine(Engine):
                     # Don't reset now - wait message INVALID_BLOCK
                     #self.reset_state()
         else:
-            # external block from another node 
+            # external block from another node or maybe another cluster
             
             if block_id not in self._peers_branches:
-                LOGGER.info('EXTERNAL NEW BLOCK=%s.%s peer=%s',block_num, _short_id(block_id),_short_id(signer_id))
+                cluster = self.belonge_cluster(signer_id)
+                LOGGER.info('EXTERNAL NEW BLOCK=%s.%s peer=%s cluster=%s',block_num, _short_id(block_id),_short_id(signer_id),cluster)
                 branch = self.create_branch('','',block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
-                branch.new_block(block)
+                branch.new_block(block,cluster)
                 self._new_heads[block_id] = block.previous_block_id
                 LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', block_id[:8],block.previous_block_id[:8])
                 if block_id in self._pre_prepare_msgs:

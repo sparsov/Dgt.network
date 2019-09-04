@@ -99,6 +99,7 @@ class BlockValidator(object):
                  done_cb,
                  executor,
                  get_recompute_context,
+                 belong_cluster,
                  squash_handler,
                  context_handlers,
                  identity_signer,
@@ -147,6 +148,7 @@ class BlockValidator(object):
         self._executor = executor
         # for external block recompute_context == None
         self._get_recompute_context = get_recompute_context
+        self._belong_cluster = belong_cluster
         self._squash_handler = squash_handler
         self._context_handlers = context_handlers 
         self._check_merkle = context_handlers['check_merkle']
@@ -235,9 +237,11 @@ class BlockValidator(object):
                 prev_state = self._get_previous_block_root_state_hash(blkw)
                 # Use root state from previous block for DAG use last state
                 # 
-                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8])
+                belong_cluster = self._belong_cluster(blkw.signer_id)
+                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s cluster=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8],belong_cluster)
                 #scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
                 recompute_context = self._get_recompute_context(self._new_block.previous_block_id)
+                
                 if blkw.signer_id != self._validator_id:
                     LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:8],len(blkw.block.batches))
                     if blkw.block_num == 0:
@@ -267,7 +271,7 @@ class BlockValidator(object):
                     recomputed_state = scheduler.recompute_merkle_root(prev_state,recompute_context)
                 else:
                     recomputed_state = blkw.state_root_hash
-                    LOGGER.debug("_verify_block_batches:EXTERNAL block=%s",blkw.identifier[:8])
+                    LOGGER.debug("_verify_block_batches:EXTERNAL block=%s for ARBITRATION",blkw.identifier[:8])
                 
                 if recomputed_state and recomputed_state != blkw.state_root_hash:
                     # for DAG - in case state for block was changed - make virtual link 
@@ -298,6 +302,7 @@ class BlockValidator(object):
                             AT THIS POINT we say recalculate merkle state
                             """  
                             LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8] if recomputed_state else None)
+                            #FOR ARBITRATION force fixing new state 
                             scheduler.add_batch(batch,recomputed_state) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
 
                 except InvalidBatch:
@@ -338,10 +343,14 @@ class BlockValidator(object):
             FOR PARALLEL SCHEDULER AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
             and we can unlock merkle state 
             """
-            if (recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
+            if (belong_cluster and recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
                 # for DAG this states could be different
+                # ignore for other cluster block
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8] if recomputed_state else None,state_hash[:8] if state_hash else None)
                 return False
+            if not belong_cluster and state_hash != blkw.state_root_hash:
+                LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ",state_hash[:8])
+                scheduler.update_state_hash(blkw.state_root_hash,state_hash)
             LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8] if recomputed_state else None)
 
         return True
@@ -740,6 +749,7 @@ class ChainController(object):
                  on_chain_updated,
                  on_head_updated,
                  get_recompute_context,
+                 belong_cluster,
                  squash_handler,
                  context_handlers,
                  chain_id_manager,
@@ -794,6 +804,7 @@ class ChainController(object):
         self._notify_on_chain_updated = on_chain_updated
         self._notify_on_head_updated = on_head_updated
         self._get_recompute_context = get_recompute_context
+        self._belong_cluster = belong_cluster
         self._squash_handler = squash_handler
         self._context_handlers=context_handlers
         self._identity_signer = identity_signer
@@ -1041,6 +1052,7 @@ class ChainController(object):
                 done_cb=self.on_block_validated,
                 executor=self._transaction_executor,
                 get_recompute_context=self._get_recompute_context, # from publisher candidate which is freezed
+                belong_cluster=self._belong_cluster,
                 squash_handler=self._squash_handler,
                 context_handlers=self._context_handlers,
                 identity_signer=self._identity_signer,

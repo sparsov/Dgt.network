@@ -35,11 +35,12 @@ class ConsensusNotifier:
         self._service = consensus_service
         self._registered_engines = ConcurrentSet()
         self._cluster = None
-
+    """
     def set_cluster(self,cluster):
         self._cluster = cluster
         LOGGER.debug('ConsensusNotifier: set cluster=%s',cluster)
         self._service.set_cluster(self._cluster)
+    """
     def _notify(self, message_type, message):
         """
         for cluster topology we should isolate others cluster from our message
@@ -78,9 +79,12 @@ class ConsensusNotifier:
         LOGGER.debug('ConsensusNotifier: notify_peer_message=%s sender_id=%s',message_type,sender_id.hex()[:8])
         if message_type == 'Arbitration':
             """
-            before send Arbitration we should be shure that this validator know about this block
+            before send Arbitration we should be shure that this validator(sender_id) know about this block
+            so we can send this block right now and send arbitration too or we can ask this block into Arbiter after recieving this msg
             """
             LOGGER.debug('ConsensusNotifier: CHECK BLOCK for arbitration before send message consensus engine')
+        elif message_type == 'ArbitrationDone':
+            LOGGER.debug('ConsensusNotifier:  ArbitrationDone send block to arbiters')
 
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_MESSAGE,

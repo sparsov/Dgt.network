@@ -83,6 +83,8 @@ def main(args=None):
     protoc(proto_dir, "bgx/consensus/pbft_python", "bgx_pbft_common/protobuf")
     protoc(proto_dir, "bgx/consensus/devmode_python", "sawtooth_bgt_common/protobuf")
     protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf")
+    # validator should know about arbitration message
+    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
 
     # Generate common protos for new validator - can change some proto from /protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/common")

@@ -257,6 +257,7 @@ class PbftOracle:
         else:
             # num is the same genesis for instance
             if new_fork_head.block_id != cur_fork_head.block_id:
+                LOGGER.debug('PbftOracle: switch_forks HEAD MISMATCH')
                 return False
             else:
                 """
@@ -269,7 +270,7 @@ class PbftOracle:
                     LOGGER.debug('PbftOracle: switch_forks FALSE blocks ID are the same')
                     return False
 
-
+        LOGGER.debug('PbftOracle: switch_forks DONE FALSE')
         return False
 
     def get_consensus_state_for_block_id(self,block,force = True):

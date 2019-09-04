@@ -309,6 +309,7 @@ class Validator(object):
             on_chain_updated=block_publisher.on_chain_updated,
             on_head_updated=block_publisher.on_head_updated,
             get_recompute_context=block_publisher.get_recompute_context,
+            belong_cluster = block_publisher.belong_cluster,
             squash_handler=context_manager.get_squash_handler(),
             context_handlers=context_manager.get_context_handlers(),
             chain_id_manager=chain_id_manager,

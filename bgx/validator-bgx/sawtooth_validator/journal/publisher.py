@@ -628,6 +628,10 @@ class BlockPublisher(object):
     def candidate_blocks(self):
         return [blk.nest_color+':'+str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()]
 
+    def belong_cluster(self,peer_id):
+        LOGGER.debug('Check CLUSTER for peer_id=%s',peer_id[:8])
+        return (peer_id in self._cluster) if self._cluster else True
+
     def get_topology_info(self,state_root_hash):
         """
         get topology info - we should know own nests color
@@ -661,10 +665,9 @@ class BlockPublisher(object):
             get_cluster_info(topology['name'],topology['children'])
         if self._nest_color is None:
             self._nest_color = 'Genesis'
-            self._cluster    = {}
+            #self._cluster    = None
         else:
-            # set cluster info for consensus notifier
-            #self._consensus_notifier.set_cluster(self._cluster)
+            # set cluster info for block and batch sender
             self._block_sender.set_cluster(self._cluster)
             self._batch_sender.set_cluster(self._cluster)
 
@@ -1395,6 +1398,13 @@ class BlockPublisher(object):
             # need new block candidate
             self._candidate_block = None
 
+    def arbitrate_block(self,peer_id,block):
+        """
+        consensus ask arbitration - send this block to arbiter
+        id consensus ask us - it means we leader of this cluster
+        """
+        LOGGER.debug('BlockPublisher:arbitrate_block block=%s arbiter=%s',block.header_signature[:8],peer_id[:8])
+        self._block_sender.send_arbiter(block)
         
 class _RollingAverage(object):
 

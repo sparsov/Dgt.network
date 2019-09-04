@@ -19,6 +19,8 @@ from collections import namedtuple
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.journal.block_wrapper import BlockStatus
+from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessage
+from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -36,12 +38,12 @@ StartupInfo = namedtuple(
 
 
 class ConsensusProxy:
-    """Receives requests from the consensus engine handlers and delegates them
-    to the appropriate components."""
+    """
+    Receives requests from the consensus engine handlers and delegates them
+    to the appropriate components.
+    """
 
-    def __init__(self, block_manager, block_publisher,
-                 chain_controller, gossip, identity_signer,
-                 settings_view_factory, state_view_factory):
+    def __init__(self, block_manager, block_publisher,chain_controller, gossip, identity_signer,settings_view_factory, state_view_factory):
 
         self._block_manager = block_manager
         self._chain_controller = chain_controller
@@ -68,9 +70,29 @@ class ConsensusProxy:
     # Using network service
     def send_to(self, peer_id, message):
         """
-        send to peer consensus message
+        send to peer consensus message 
+        it could be Arbitration - in than case we can send block to peer too
+        we can see on this code as expanded consensus API
         """
+        #LOGGER.debug("ConsensusProxy:send_to peer=%s message=%s",peer_id.hex()[:8],message)
+        peer_message = ConsensusPeerMessage()
+        peer_message.ParseFromString(message)
         LOGGER.debug("ConsensusProxy:send_to peer=%s",peer_id.hex()[:8])
+        if peer_message.message_type == 'Arbitration':
+            """
+            inform peer about this block
+            """
+            payload = PbftMessage()
+            payload.ParseFromString(peer_message.content)
+            block_id = payload.block.block_id.hex()
+            LOGGER.debug("Consensus '%s' ask ARBITRATION from peer=%s for block=%s",peer_message.name,peer_id.hex()[:8],block_id[:8])
+            try:
+                block = next(self._block_manager.get([block_id]))
+                LOGGER.debug("ARBITRATION:contains in block manager ID=%s",block.header_signature[:8])
+                self._block_publisher.arbitrate_block(peer_id.hex(),block)
+            except StopIteration:
+                LOGGER.debug("ARBITRATION: for UNDEFINED block=%s",block_id[:8])
+
         self._gossip.send_consensus_message(
             peer_id=peer_id.hex(),
             message=message,

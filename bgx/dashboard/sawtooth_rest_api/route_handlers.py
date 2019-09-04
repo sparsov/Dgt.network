@@ -594,11 +594,13 @@ class RouteHandler:
             Message.CLIENT_TOPOLOGY_GET_REQUEST,
             client_topology_pb2.ClientTopologyGetResponse,
             client_topology_pb2.ClientTopologyGetRequest())
-
+        topology = base64.b64decode(response['topology'])
+        #LOGGER.debug('Request fetch_topology=%s',topology)
         return self._wrap_response(
             request,
-            data=response['topology'],
+            data=json.loads(topology),
             metadata=self._get_metadata(request, response))
+
 
 
     async def list_dag(self, request):

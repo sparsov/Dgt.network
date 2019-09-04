@@ -52,3 +52,13 @@ class BroadcastBlockSender(BlockSender):
 
         self._gossip.broadcast_block(block,exclude=exclude)
         self._completer.add_block(block)
+
+    def send_arbiter(self, block):
+        """
+        use from publisher for sending new block to peers or arbiter 
+        we know about arbiters from topology
+        """
+        #exclude = self._gossip.get_exclude(self._cluster) if self._cluster else None
+        self._gossip.broadcast_block(block)
+        
+
