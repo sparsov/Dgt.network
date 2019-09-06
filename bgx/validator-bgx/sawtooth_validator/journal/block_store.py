@@ -272,9 +272,10 @@ class BlockStore(MutableMapping):
                 peers = self._block_nums[block_num]
                 if signer in peers:
                     peers.remove(signer)
+                    LOGGER.debug("POP block number=%s drop signer=%s",block_num,signer[:8])
                 if len(peers) == 0:
                     del self._block_nums[block_num]
-            LOGGER.debug("BlockStore:pop_block_number  num=%s sig=%s nums=%s",block_num,signer[:8],self._block_nums) # [key for key in self._block_nums.keys()]
+            LOGGER.debug("POP force=%s block number=%s sig=%s nums=%s",force,block_num,signer[:8],self._block_nums) # [key for key in self._block_nums.keys()]
 
     def ref_block_number(self,block_num,signer):
         # for external Block  make ref for block num
@@ -285,7 +286,7 @@ class BlockStore(MutableMapping):
             self._block_nums[block_num] = peers
 
         peers.append(signer)
-        LOGGER.debug("BlockStore:ref_block_number num=%s signer=%s nums=%s",block_num,signer[:8],self._block_nums)
+        LOGGER.debug("REF block number=%s signer=%s nums=%s",block_num,signer[:8],self._block_nums)
 
     def free_block_number(self,block_num,signer):
         # free block number - because block was not validated
@@ -294,7 +295,7 @@ class BlockStore(MutableMapping):
         if block_num < head.block_num + 1:
             # put into free block num list
             self._free_block_nums.append(block_num)
-            LOGGER.debug("BlockStore:free_block_number  num=%s free=%s",block_num,self._free_block_nums)
+            LOGGER.debug("FREE block number=%s free=%s",block_num,self._free_block_nums)
 
     def set_global_state_db(self,global_state_db):
         # for DAG - use mercle database for getting root state

@@ -350,6 +350,9 @@ class BlockValidator(object):
                 return False
 
             if not belong_cluster and state_hash != blkw.state_root_hash:
+                """
+                for other's cluster blocks we excecute transactions only once and fix merkle root state without comparing this state with state from publisher   
+                """
                 LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ARBITRATED BLOCK",state_hash[:8])
                 scheduler.update_state_hash(blkw.state_root_hash,state_hash)
 
