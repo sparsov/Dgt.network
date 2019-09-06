@@ -45,6 +45,7 @@ from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
+from sawtooth_rest_api.protobuf import client_heads_pb2,client_topology_pb2
 
 # pylint: disable=too-many-lines
 

@@ -520,6 +520,7 @@ class PbftEngine(Engine):
         self._peers_branches = {}
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
+        self._arbitration_msgs = {} 
         self._path_config = path_config
         self._component_endpoint = component_endpoint
         self._service = None
@@ -1095,6 +1096,13 @@ class PbftEngine(Engine):
                     return True
             return False
 
+        def check_arbitration(branch,block_id):
+            if block_id in self._arbitration_msgs:
+                # reply on arbitration msg
+                (block,peer_id) = self._arbitration_msgs[block_id]
+                branch.arbitration(block,peer_id)
+                del self._arbitration_msgs[block_id]
+
         LOGGER.info('=> BLOCK_COMMIT Chain head updated to %s, abandoning block in progress heads=%s',_short_id(block_id),[key[:8] for key in self._new_heads.keys()])
         # for DAG new head for branch will be this block_id
         # and we should use it for asking chain head for this branch 
@@ -1103,6 +1111,7 @@ class PbftEngine(Engine):
             LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s+%s',hid[:8],block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if hid in self._branches:
                 branch = self._branches.pop(hid)
+                check_arbitration(branch,block_id)
                 branch.cancel_block(block_id) # change parent_id too 
                 branch.reset_state()    
                 self._branches[block_id] = branch
@@ -1112,9 +1121,10 @@ class PbftEngine(Engine):
                 LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s peers branches=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK,[key[:8] for key in self._peers_branches.keys()])
             else:
                 # external block
-                LOGGER.info('head updated for=%s  peers branches=%s',_short_id(block_id),[key[:8] for key in self._peers_branches.keys()])
+                LOGGER.info('head updated for=%s  peers branches=%s arb=%s',_short_id(block_id),[key[:8] for key in self._peers_branches.keys()],[key[:8] for key in self._arbitration_msgs.keys()])
                 if block_id in self._peers_branches:
                     branch = self._peers_branches[block_id]
+                    check_arbitration(branch,block_id)
                     branch.cancel_block(block_id) # change parent_id too 
                     branch.reset_state()
                     del self._peers_branches[block_id] 
@@ -1259,6 +1269,11 @@ class PbftEngine(Engine):
                 branch = self._branches[block_id]
                 LOGGER.debug("=>ARBITRATION_DONE for block=%s peer branch=%s",block_id[:8],branch)
                 branch.arbitration(block,peer_id)
+            else:
+                # usually we get this message before new block - so save it
+                if block_id not in self._arbitration_msgs:
+                    LOGGER.debug("SAVE ARBITRATION for block=%s",block_id[:8])
+                    self._arbitration_msgs[block_id] = (block,peer_id)
 
         elif msg_type == PbftMessageInfo.ARBITRATION_DONE_MSG:
             LOGGER.debug("=>ARBITRATION_DONE for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])

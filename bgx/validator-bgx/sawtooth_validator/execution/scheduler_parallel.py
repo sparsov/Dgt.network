@@ -509,7 +509,11 @@ class ParallelScheduler(Scheduler):
         return contexts
 
     def _is_state_hash_correct(self, state_hash, batch_id):
-        return state_hash == self._batches_with_state_hash[batch_id]
+        """
+        in this place we check state which was calculated into publisher and state from chain controller
+        in case of arbitration we should fix without comparing  
+        """
+        return state_hash == self._batches_with_state_hash[batch_id] or self._batches_with_state_hash[batch_id] == 'arbitration'
 
     def get_batch_execution_result(self, batch_signature):
         with self._condition:

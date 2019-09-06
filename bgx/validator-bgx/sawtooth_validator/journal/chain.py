@@ -303,7 +303,7 @@ class BlockValidator(object):
                             """  
                             LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8] if recomputed_state else None)
                             #FOR ARBITRATION force fixing new state 
-                            scheduler.add_batch(batch,recomputed_state) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
+                            scheduler.add_batch(batch,recomputed_state if belong_cluster else 'arbitration') # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
 
                 except InvalidBatch:
                     #the same block was already commited
@@ -348,9 +348,11 @@ class BlockValidator(object):
                 # ignore for other cluster block
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8] if recomputed_state else None,state_hash[:8] if state_hash else None)
                 return False
+
             if not belong_cluster and state_hash != blkw.state_root_hash:
-                LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ",state_hash[:8])
+                LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ARBITRATED BLOCK",state_hash[:8])
                 scheduler.update_state_hash(blkw.state_root_hash,state_hash)
+
             LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8] if recomputed_state else None)
 
         return True

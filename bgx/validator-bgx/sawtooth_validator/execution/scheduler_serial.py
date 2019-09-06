@@ -395,8 +395,9 @@ class SerialScheduler(Scheduler):
             self._state_recompute_context['deletes'] = deletes
             if self._always_persist is True:
                 return state_hash
-            if state_hash == required_state_root:
+            if state_hash == required_state_root or required_state_root == 'arbitration':
                 # if new state correct fix it 
+                # for external cluster block don't control state
                 self._squash(state_root=self._previous_state_hash,
                              context_ids=[self._previous_valid_batch_c_id],
                              persist=True, clean_up=True)
