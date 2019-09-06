@@ -194,7 +194,18 @@ class BlockStore(MutableMapping):
             if blk.block_num != 0 and blk.previous_block_id not in self:
                 err = 'prev,'
             if block_num != -1 and block_num != blk.block_num+1:
-                err += 'num,'
+                # gap between block number
+                # check block from blk.block_num+1 < block_num
+                gap = range(blk.block_num+1,block_num-1)
+                LOGGER.debug("check_integrity GAP=%s NUMS=%s",gap,self._block_nums)
+                skip = 0
+                for num in gap:
+                    # check mayby this number reserved for block candidate
+                    if num not in self._block_nums:
+                        skip += 1
+                if skip > 0:
+                    err += "num({}),".format(skip)
+
             block_num = blk.block_num
             if err != '':
                 bad_block.append("{}.{}:{}".format(blk.block_num,blk.identifier[:8],err))

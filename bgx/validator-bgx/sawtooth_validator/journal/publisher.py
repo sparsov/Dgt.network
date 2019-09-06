@@ -719,6 +719,10 @@ class BlockPublisher(object):
         """
         with self._lock:
             return [cand.nest_color+':'+str(cand.block_num)+':'+cand.identifier for key,cand in self._candidate_blocks.items()]
+    """
+    def is_block_num_in_nest(self,block_num):
+        pass
+    """
 
     @property
     def chain_head_lock(self):
