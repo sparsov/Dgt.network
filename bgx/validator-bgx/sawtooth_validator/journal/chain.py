@@ -1009,9 +1009,17 @@ class ChainController(object):
                     # head of branch can be changed because of commiting another block with the same summary
                     chain_head = self.get_real_head_of_branch(branch_id)
             else:
-                # block from another node - try to use last head
+                """
+                block from another node but list head should have head connected with this block
+                try to use last head
+                """
                 LOGGER.debug("_submit_blocks_for_verification: EXTERNAL block=%s signer=%s",blkw.identifier[:8],blkw.signer_id[:8])
-                chain_head = main_head
+                if branch_id in self._chain_heads:
+                    # block from our publisher
+                    chain_head = self._chain_heads[branch_id]
+                    LOGGER.debug("_submit_blocks_for_verification: EXTERNAL block=%s take head=%s",blkw.identifier[:8],chain_head[:8])
+                else:
+                    chain_head = main_head
 
             state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # for DAG use main_head instead chain_head
             LOGGER.debug("ChainController: _submit_blocks_for_verification BRANCH=%s head=%s",branch_id[:8],chain_head == self.chain_head)

@@ -839,8 +839,9 @@ class BlockPublisher(object):
             nest_color)
         # add new candidate into list
         self._candidate_blocks[bid] = self._candidate_block
-        LOGGER.debug("NEW candidate block[%s]=%s candidates=%s batches=%s recom=%s",self._candidate_block.block_num,bid[:8],
-                     [str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()],
+        LOGGER.debug("NEW candidate=<%s:%s:%s> candidates=%s batches=%s recom=%s",
+                     nest_color,self._candidate_block.block_num,bid[:8],
+                     self.candidate_blocks,
                      [key[:8] for key in self._pending_batch_ids],
                      self.queued_batch_recomm
                      )
@@ -863,10 +864,10 @@ class BlockPublisher(object):
             self._candidate_block._batches_num = self._pending_batch_recomm[ind][1]
             num += 1
             recomm_num = self._pending_batch_recomm[ind][0]
-            LOGGER.debug("NEW candidate=%s.%s add recomended batch[%s]=%s start=%s total=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind,num)
+            LOGGER.debug("NEW candidate=<%s:%s:%s> add recomended batch[%s]=%s start=%s total=%s",nest_color,self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind,num)
             if self._candidate_block.block_num != recomm_num:
                 # this candidate with wrong block number
-                LOGGER.debug("NEW candidate=%s.%s missmatch cand block num=%s!!!\n\n",self._candidate_block.block_num,bid[:8],recomm_num)
+                LOGGER.debug("NEW candidate=<%s:%s:%s> missmatch cand block num=%s!!!\n\n",nest_color,self._candidate_block.block_num,bid[:8],recomm_num)
                 self.correct_candidate_num(self._candidate_block,recomm_num)
 
             self._candidate_block.add_batch(batch)
@@ -875,7 +876,7 @@ class BlockPublisher(object):
         if num == 0:
             # there are no recomended batch for this candidate- take batch without recomendation
             # because candidate for batch with recomendation could not be ready
-            LOGGER.debug("Try add batch to NEW candidate=%s.%s cid=%s",self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
+            LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> cid=%s",nest_color,self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
             for (ind,batch) in enumerate(self._pending_batches):
                 if self._pending_batch_cid[ind] != '':
                     continue # skip recomended batch
@@ -891,7 +892,7 @@ class BlockPublisher(object):
                     break
             
 
-        LOGGER.debug("NEW candidate block[%s]=%s DONE batches total=%s pending=%s",self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
+        LOGGER.debug("NEW candidate=<%s:%s:%s> DONE batches total=%s pending=%s",nest_color,self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
        
     def correct_candidate_num(self,recomm_cand,recomm_num):
         # for DAG - correct candidate block number
@@ -939,7 +940,7 @@ class BlockPublisher(object):
                     if cid in self._candidate_blocks and self._candidate_blocks[cid].can_add_batch:
                         candidate = self._candidate_blocks[cid]
                         candidate._batches_num = num
-                        LOGGER.debug("On batch=%s received use recomended CANDIDATE=%s COLOR=%s FROM=%s",batch.header_signature[:8],candidate.identifier[:8],candidate.nest_color,self.candidate_blocks)
+                        LOGGER.debug("On batch=%s received use recomended candidate=<%s:%s:%s> from=%s",batch.header_signature[:8],candidate.nest_color,candidate.block_num,candidate.identifier[:8],self.candidate_blocks)
                         if candidate.block_num != block_num:
                             # there is candidate but with wrong block number
                             LOGGER.debug("On batch=%s received missmatch cand block num=%s~%s!!!\n\n",batch.header_signature[:8],candidate.block_num,block_num)
@@ -957,7 +958,7 @@ class BlockPublisher(object):
                             and set cid for marker 
                             """
                             candidate,cid,block_num = cand,cand.identifier,cand.block_num
-                            LOGGER.debug("On batch=%s received use CANDIDATE=%s FROM=%s",batch.header_signature[:8],candidate.identifier[:8],self.candidate_blocks)
+                            LOGGER.debug("On batch=%s received use candidate=<%s:%s:%s> from=%s",batch.header_signature[:8],cand.nest_color,cand.block_num,candidate.identifier[:8],self.candidate_blocks)
                             # send batch to peers and say about selected branch 
                             #self._batch_publisher.send_batch(batch,candidate.identifier)
                             candidate._make_batch_broadcast = True # mark for broadcasting
