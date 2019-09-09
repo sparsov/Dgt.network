@@ -1076,9 +1076,12 @@ class ChainController(object):
                 block_manager=self._block_manager,
                 merkle_lock = self._merkle_lock)
             self._blocks_processing[blkw.block.header_signature] = validator
-            # ref block num for external block 
+            """
+            ref block_num for external block - it prevents against using this block number for other candidate
+            """ 
             if blkw.signer_id != self._validator_id:
                 self._block_store.ref_block_number(blkw.block_num,blkw.signer_id)
+            # start validation
             self._thread_pool.submit(validator.run)
             LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s BRANCH=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8],branch_id[:8])
 
