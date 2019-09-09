@@ -101,10 +101,10 @@ class ZmqService(Service):
 
     # -- Block Creation --
 
-    def initialize_block(self, previous_id=None,nest_color=None):
+    def initialize_block(self, previous_id=None,nest_colour=None):
         request = (
             consensus_pb2.ConsensusInitializeBlockRequest(
-                previous_id=previous_id,nest_color=nest_color)
+                previous_id=previous_id,nest_colour=nest_colour)
             if previous_id
             else consensus_pb2.ConsensusInitializeBlockRequest()
         )

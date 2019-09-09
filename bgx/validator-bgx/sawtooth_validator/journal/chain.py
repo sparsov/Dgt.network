@@ -1080,6 +1080,7 @@ class ChainController(object):
             ref block_num for external block - it prevents against using this block number for other candidate
             """ 
             if blkw.signer_id != self._validator_id:
+                # in this case blkw.block_num is already coloured
                 self._block_store.ref_block_number(blkw.block_num,blkw.signer_id)
             # start validation
             self._thread_pool.submit(validator.run)

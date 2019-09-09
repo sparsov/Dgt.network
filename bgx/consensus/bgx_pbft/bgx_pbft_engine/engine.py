@@ -628,7 +628,7 @@ class PbftEngine(Engine):
         try:
             bid = branch.hex() if branch is not None else chain_head.block_id.hex()
             color = self._branches[bid].nest_color if bid in self._branches else self.nest_color
-            self._service.initialize_block(previous_id=chain_head.block_id,nest_color=color)
+            self._service.initialize_block(previous_id=chain_head.block_id,nest_colour=color)
             # for remove this branch to another point 
             #bid = branch.hex() if branch is not None else chain_head.block_id.hex()
             parent = chain_head.previous_block_id

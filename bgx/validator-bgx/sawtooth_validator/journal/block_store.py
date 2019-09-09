@@ -27,6 +27,127 @@ from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.state.merkle import MerkleDatabase,INIT_ROOT_KEY
 LOGGER = logging.getLogger(__name__)
 
+FEDERATION_NUM = 0
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
+
+@static_vars(NUM=0)
+class Federation(object):
+    
+    """
+    for block_num generation 
+    """
+    def __init__(self, colour,store):
+        Federation.NUM += 1
+        self._colour = colour
+        self._store = store
+        self._feder_num = Federation.NUM
+        #self._num = 0               # separated from others cluster blocks numeration
+        self._last_num = 0          # separated from others cluster blocks numeration
+        self._block_nums  = {}      # for DAG - list of reserved block candidate number and signers for it  
+        self._free_block_nums  = [] # for DAG - list of free block number's
+        LOGGER.debug("NEW FEDERATION=%s.%s",self._feder_num,colour)
+
+    @property
+    def feder_num(self):
+        return self._feder_num
+
+    def update_head(self,num):
+        self._last_num = num
+        LOGGER.debug("NEW HEAD=%s INTO FEDERATION=%s.%s",num,self._feder_num,colour)
+
+    def get_block_num(self,signer):
+        """
+        get block number 
+        take last fixed head and use his number
+        BUT FOR FEDERATION mode we should take last fixed block for federation 
+        """
+        block_num = self._last_num
+        LOGGER.debug("FIND from last num=%s",block_num)
+        while block_num in self._block_nums:
+            peers = self._block_nums[block_num]
+            if signer not in peers:
+                # other peer already make block with this number and we can use this num too
+                # stop and add own key into peers for this num
+                break
+            # already reserved by some branch try take next number
+            block_num += 1
+        return block_num
+
+    def get_internal_num(self,coloured):
+        return int(str(coloured)[1:])
+
+    def make_coloured_num(self,block_num):
+        return int(str(self._feder_num)+str(block_num))
+
+    def get_free_block_num(self,parent_num):
+        LOGGER.debug("Feder=%s block_nums=%s free=%s for=%s",self._colour,self._block_nums,sorted(self._free_block_nums),parent_num)
+        if len(self._free_block_nums) > 0:
+            """
+            for new federation _free_block_nums will be empty 
+            not new federation can connect only into the same federation
+            """
+            pnum = self.get_internal_num(parent_num)
+            if max(self._free_block_nums) > pnum:
+                
+                for num in sorted(self._free_block_nums):
+                    if num > pnum:
+                        # there is free number more then parent number
+                        self._free_block_nums.remove(num)
+                        colour_num = self.make_coloured_num(num)
+                        LOGGER.debug("USE num=%s coloured=%d free=%s",num,colour_num,self._free_block_nums)
+                        return colour_num
+
+        return None
+
+    def ref_block_number(self,block_num,signer):
+        # for external Block  make ref for block num - this block can appeared before we allocate this number
+        # in this case block_num is not coloured yet
+        if block_num in self._block_nums:
+            peers = self._block_nums[block_num]
+        else:
+            peers = []
+            self._block_nums[block_num] = peers
+
+        peers.append(signer)
+        colour_num = self.make_coloured_num(block_num) 
+        LOGGER.debug("REF block number=%s coloured=%s signer=%s nums=%s",block_num,colour_num,signer[:8],self._block_nums)
+        return colour_num
+
+    def pop_block_number(self,block_num,signer,force=False):
+        """
+        for external Block pop too because we make ref for external block
+        drop signer from list
+        """
+        if block_num in self._block_nums:
+            if force:
+                del self._block_nums[block_num]
+            else:
+                peers = self._block_nums[block_num]
+                if signer in peers:
+                    peers.remove(signer)
+                    LOGGER.debug("POP block number=%s drop signer=%s",block_num,signer[:8])
+                if len(peers) == 0:
+                    del self._block_nums[block_num]
+            LOGGER.debug("POP force=%s block number=%s sig=%s nums=%s",force,block_num,signer[:8],self._block_nums) # [key for key in self._block_nums.keys()]
+
+    def free_block_number(self,block_num,signer):
+        # free block number - because block was not validated
+        # block_num is coloured here
+        
+        if block_num < self._last_num:
+            # put into free block num list
+            self._free_block_nums.append(block_num)
+            LOGGER.debug("FREE block number=%s free=%s",block_num,self._free_block_nums)
+
+    @property
+    def last_num(self):
+        return self._last_num
+
 class BlockStore(MutableMapping):
     """
     A dict like interface wrapper around the block store to guarantee,
@@ -36,9 +157,14 @@ class BlockStore(MutableMapping):
 
     def __init__(self, block_db):
         self._block_store = block_db
+        self._federations = {}
+        self._num2federations = {}
         self._chain_heads = {} # for DAG
-        self._block_nums  = {} # for DAG - list of reserved block candidate number and signers for it  
-        self._free_block_nums  = [] # for DAG - list of free block number's 
+
+        #self._block_nums  = {} # for DAG - list of reserved block candidate number and signers for it  
+        #self._free_block_nums  = [] # for DAG - list of free block number's 
+        
+
     def __setitem__(self, key, value):
         if key != value.identifier:
             raise KeyError(
@@ -128,12 +254,18 @@ class BlockStore(MutableMapping):
         None
         """
         add_pairs = [(blkw.header_signature, blkw) for blkw in new_chain]
+        add_block_nums = [blkw.block_num for blkw in new_chain]
         if old_chain:
             del_keys = [blkw.header_signature for blkw in old_chain]
         else:
             del_keys = []
 
         self._block_store.update(add_pairs, del_keys)
+        # update head for federations
+        for block_num in add_block_nums:
+            feder,num = self.get_feder_num(block_num)
+            if feder:
+                feder.update_head(num)
 
     def add_branch(self,block_id,block):
         # for DAG version - add new branch from block with block_id
@@ -186,7 +318,9 @@ class BlockStore(MutableMapping):
         block_num = -1
         num = 0
         start = timeit.default_timer()
-        
+        """
+        FIXME - when we will check block num we should control numbers integrity inside cluster only 1.0 1.1 1.2 ... 2.0 2.1 2.3 
+        """
         for blk in self:
             #LOGGER.debug("check_integrity blk=%s prev=%s",blk.block_num,blk.previous_block_id[:8])
             num += 1
@@ -227,7 +361,7 @@ class BlockStore(MutableMapping):
     @property
     def chain_head(self):
         """
-        Return the head block of the current chain.
+        Return the head block of the current chain. LAST FIXED in database
         for DAG return last from sorted node's list
         """
         with self._block_store.cursor(index='block_num') as curs:
@@ -235,67 +369,93 @@ class BlockStore(MutableMapping):
             return curs.value()
 
     
-    def get_block_num(self,parent_num,signer):
+    def get_block_num(self,parent_num,signer,colour):
         """
         for DAG version
         Return the last head block of sorted graph and reserve this number because others branch can ask this number
+        FOR federation mode use federation color 
+        parent_num - already coloured
         """
-        LOGGER.debug("BlockStore:block_nums=%s free=%s for=%s",self._block_nums,sorted(self._free_block_nums),parent_num)
-        if len(self._free_block_nums) > 0 and max(self._free_block_nums) > parent_num:
-            for num in sorted(self._free_block_nums):
-                if num > parent_num:
-                    self._free_block_nums.remove(num)
-                    LOGGER.debug("BlockStore: use num=%s free=%s",num,self._free_block_nums)
-                    return num
+        if colour not in self._federations:
+            # new federation
+            feder = Federation(colour,self)
+            self._federations[colour] = feder
+            self._num2federations[feder.feder_num] = feder
+        else:
+            feder = self._federations[colour]
 
+        
+        num = feder.get_free_block_num(parent_num)
+        if num:
+            return num
+
+        """
+        take last fixed head and use his number
+        BUT FOR FEDERATION mode we should take last fixed block for federation 
+        """
+        block_num = feder.last_num
+        """
         head = self.chain_head
-        LOGGER.debug("BlockStore: find from last=%s",head.block_num)
         block_num = head.block_num + 1
-        while block_num in self._block_nums:
-            peers = self._block_nums[block_num]
+        LOGGER.debug("BlockStore: find from last=%s",head.block_num)
+        """
+        LOGGER.debug("BlockStore: find from last=%s",block_num)
+        
+        while block_num in feder._block_nums:
+            peers = feder._block_nums[block_num]
             if signer not in peers:
+                # other peer already make block with this number and 
                 # stop - only others peer make ref
                 break
             # already reserved by some branch try take next number
             block_num += 1
-        # add into reserved list  - taken by candidate
-        self.ref_block_number(block_num,signer)
+        """
+        add into reserved list  - taken by candidate for current federation
+        and return coloured num
+        """
+        block_num = feder.ref_block_number(block_num,signer)
         return block_num
 
     def pop_block_number(self,block_num,signer,force=False):
         # for external Block pop too because we make ref for external block
         # drop signer from list
-        if block_num in self._block_nums:
-            if force:
-                del self._block_nums[block_num]
-            else:
-                peers = self._block_nums[block_num]
-                if signer in peers:
-                    peers.remove(signer)
-                    LOGGER.debug("POP block number=%s drop signer=%s",block_num,signer[:8])
-                if len(peers) == 0:
-                    del self._block_nums[block_num]
-            LOGGER.debug("POP force=%s block number=%s sig=%s nums=%s",force,block_num,signer[:8],self._block_nums) # [key for key in self._block_nums.keys()]
+        feder,num = self.get_feder_num(block_num)
+        feder.pop_block_number(num,signer,force)
+       
+
+    def get_feder_num(self,block_num):
+        # get federation and block num into it
+        # now only one position for federation so only 9 maximum 
+        snum = str(block_num)
+        num = int(snum[1:]) if snum[1:] != '' else -1 # genesis num
+        fnum = int(snum[0:1])
+        if fnum in self._num2federations:
+            return self._num2federations[fnum],num 
+        
+        return None,num
 
     def ref_block_number(self,block_num,signer):
-        # for external Block  make ref for block num
-        if block_num in self._block_nums:
-            peers = self._block_nums[block_num]
-        else:
-            peers = []
-            self._block_nums[block_num] = peers
-
-        peers.append(signer)
-        LOGGER.debug("REF block number=%s signer=%s nums=%s",block_num,signer[:8],self._block_nums)
+        """
+        for external Block  make ref for block num
+        block_num is coloured here
+        """
+        feder,num = self.get_feder_num(block_num)
+        feder.ref_block_number(num,signer)
+        
 
     def free_block_number(self,block_num,signer):
         # free block number - because block was not validated
-        self.pop_block_number(block_num,signer)
+        # block_num is coloured here
+        feder,num = self.get_feder_num(block_num)
+        feder.pop_block_number(num,signer)
+        feder.free_block_number(num,signer)
+        """
         head = self.chain_head
         if block_num < head.block_num + 1:
             # put into free block num list
             self._free_block_nums.append(block_num)
             LOGGER.debug("FREE block number=%s free=%s",block_num,self._free_block_nums)
+        """
 
     def set_global_state_db(self,global_state_db):
         # for DAG - use mercle database for getting root state

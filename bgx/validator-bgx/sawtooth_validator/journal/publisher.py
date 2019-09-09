@@ -142,7 +142,7 @@ class _CandidateBlock(object):
                  max_batches,
                  batch_injectors,
                  identifier,
-                 nest_color='Genesis'
+                 nest_colour='Genesis'
                  ):
         self._pending_batches = []
         self._pending_batch_ids = set()
@@ -163,7 +163,7 @@ class _CandidateBlock(object):
         self._make_batch_broadcast = False
         self._batches_num = 0 # must have batches
         # cluster info
-        self._nest_color = nest_color
+        self._nest_colour = nest_colour
         
 
     def __del__(self):
@@ -184,8 +184,8 @@ class _CandidateBlock(object):
         return self._make_batch_broadcast
 
     @property
-    def nest_color(self):
-        return self._nest_color 
+    def nest_colour(self):
+        return self._nest_colour 
 
     @property
     def block_num(self):
@@ -555,7 +555,7 @@ class BlockPublisher(object):
         for modern proxy consensus -
         wait until external engine  ask block candidate for one of the DAG's branch - 
         """  
-        self._nest_color = None # own color
+        self._nest_colour = None # own color
         self._cluster    = None # own cluster
 
         self._engine_ask_candidate = {}
@@ -620,13 +620,13 @@ class BlockPublisher(object):
         return [recom[:8] for recom in self._pending_batch_cid]
 
     @property
-    def nest_color(self):
+    def nest_colour(self):
         # own validator color
-        return self._nest_color
+        return self._nest_colour
 
     @property
     def candidate_blocks(self):
-        return [blk.nest_color+':'+str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()]
+        return [blk.nest_colour+':'+str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()]
 
     def belong_cluster(self,peer_id):
         LOGGER.debug('Check CLUSTER for peer_id=%s',peer_id[:8])
@@ -640,7 +640,7 @@ class BlockPublisher(object):
             for key,val in children.items():
                 #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
                 if key == self._validator_id:
-                    self._nest_color = name
+                    self._nest_colour = name
                     self._cluster    = children
                     LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
                     return
@@ -649,7 +649,7 @@ class BlockPublisher(object):
                     cluster = val['cluster']
                     if 'name' in cluster and 'children' in cluster:
                         get_cluster_info(cluster['name'],cluster['children'])
-                        if self._nest_color is not None:
+                        if self._nest_colour is not None:
                             return
         # get topology
         #LOGGER.debug('get topology from chain')
@@ -663,8 +663,8 @@ class BlockPublisher(object):
         #LOGGER.debug('get_topology=%s',topology)
         if 'name' in topology and 'children' in topology:
             get_cluster_info(topology['name'],topology['children'])
-        if self._nest_color is None:
-            self._nest_color = 'Genesis'
+        if self._nest_colour is None:
+            self._nest_colour = 'Genesis'
             #self._cluster    = None
         else:
             # set cluster info for block and batch sender
@@ -718,7 +718,7 @@ class BlockPublisher(object):
         Send for rest-api list of condidate
         """
         with self._lock:
-            return [cand.nest_color+':'+str(cand.block_num)+':'+cand.identifier for key,cand in self._candidate_blocks.items()]
+            return [cand.nest_colour+':'+str(cand.block_num)+':'+cand.identifier for key,cand in self._candidate_blocks.items()]
     """
     def is_block_num_in_nest(self,block_num):
         pass
@@ -740,7 +740,7 @@ class BlockPublisher(object):
         #LOGGER.debug("BUILD CANDIDATE BLOCK..")
         main_head = self._block_cache.block_store.chain_head
         bid = chain_head.identifier
-        if self.nest_color is None:
+        if self.nest_colour is None:
             self.get_topology_info(main_head.state_root_hash)
 
         
@@ -794,9 +794,11 @@ class BlockPublisher(object):
         """
         For DAG version we should ask block_num for last node into sorted graph - FIXME
         block_num for new candidate should be more then block_num of its parent
+        and in this case block_num is coloured
         """
+        nest_colour = self._engine_ask_candidate[bid][1] if hasattr(consensus, 'set_publisher') else 'Genesis'
         
-        block_num = self._block_store.get_block_num(chain_head.block_num,self._validator_id)
+        block_num = self._block_store.get_block_num(chain_head.block_num,self._validator_id,nest_colour)
         LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
         block_header = BlockHeader(
             block_num=block_num , # ask last block number from store
@@ -809,10 +811,9 @@ class BlockPublisher(object):
             LOGGER.debug("Consensus not ready to build candidate block.")
             self._block_store.pop_block_number(block_num,self._validator_id)
             return None
-        nest_color = 'Genesis'
+        
         if hasattr(consensus, 'set_publisher'):
             # switch of marker from proxy engine
-            nest_color = self._engine_ask_candidate[bid][1]
             del self._engine_ask_candidate[bid] 
         """
         create a new scheduler
@@ -836,11 +837,11 @@ class BlockPublisher(object):
             max_batches,
             batch_injectors,
             bid,
-            nest_color)
+            nest_colour)
         # add new candidate into list
         self._candidate_blocks[bid] = self._candidate_block
         LOGGER.debug("NEW candidate=<%s:%s:%s> candidates=%s batches=%s recom=%s",
-                     nest_color,self._candidate_block.block_num,bid[:8],
+                     nest_colour,self._candidate_block.block_num,bid[:8],
                      self.candidate_blocks,
                      [key[:8] for key in self._pending_batch_ids],
                      self.queued_batch_recomm
@@ -864,10 +865,10 @@ class BlockPublisher(object):
             self._candidate_block._batches_num = self._pending_batch_recomm[ind][1]
             num += 1
             recomm_num = self._pending_batch_recomm[ind][0]
-            LOGGER.debug("NEW candidate=<%s:%s:%s> add recomended batch[%s]=%s start=%s total=%s",nest_color,self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind,num)
+            LOGGER.debug("NEW candidate=<%s:%s:%s> add recomended batch[%s]=%s start=%s total=%s",nest_colour,self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],start_ind,num)
             if self._candidate_block.block_num != recomm_num:
                 # this candidate with wrong block number
-                LOGGER.debug("NEW candidate=<%s:%s:%s> missmatch cand block num=%s!!!\n\n",nest_color,self._candidate_block.block_num,bid[:8],recomm_num)
+                LOGGER.debug("NEW candidate=<%s:%s:%s> missmatch cand block num=%s!!!\n\n",nest_colour,self._candidate_block.block_num,bid[:8],recomm_num)
                 self.correct_candidate_num(self._candidate_block,recomm_num)
 
             self._candidate_block.add_batch(batch)
@@ -876,7 +877,7 @@ class BlockPublisher(object):
         if num == 0:
             # there are no recomended batch for this candidate- take batch without recomendation
             # because candidate for batch with recomendation could not be ready
-            LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> cid=%s",nest_color,self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
+            LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> cid=%s",nest_colour,self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
             for (ind,batch) in enumerate(self._pending_batches):
                 if self._pending_batch_cid[ind] != '':
                     continue # skip recomended batch
@@ -892,7 +893,7 @@ class BlockPublisher(object):
                     break
             
 
-        LOGGER.debug("NEW candidate=<%s:%s:%s> DONE batches total=%s pending=%s",nest_color,self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
+        LOGGER.debug("NEW candidate=<%s:%s:%s> DONE batches total=%s pending=%s",nest_colour,self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
        
     def correct_candidate_num(self,recomm_cand,recomm_num):
         # for DAG - correct candidate block number
@@ -940,7 +941,7 @@ class BlockPublisher(object):
                     if cid in self._candidate_blocks and self._candidate_blocks[cid].can_add_batch:
                         candidate = self._candidate_blocks[cid]
                         candidate._batches_num = num
-                        LOGGER.debug("On batch=%s received use recomended candidate=<%s:%s:%s> from=%s",batch.header_signature[:8],candidate.nest_color,candidate.block_num,candidate.identifier[:8],self.candidate_blocks)
+                        LOGGER.debug("On batch=%s received use recomended candidate=<%s:%s:%s> from=%s",batch.header_signature[:8],candidate.nest_colour,candidate.block_num,candidate.identifier[:8],self.candidate_blocks)
                         if candidate.block_num != block_num:
                             # there is candidate but with wrong block number
                             LOGGER.debug("On batch=%s received missmatch cand block num=%s~%s!!!\n\n",batch.header_signature[:8],candidate.block_num,block_num)
@@ -951,14 +952,14 @@ class BlockPublisher(object):
                     # take first ready candidate 
                     # FIXME - think about strategy for candidate choice
                     for cand in self._candidate_blocks.values():
-                        if cand.nest_color == self.nest_color and cand.can_add_batch:
+                        if cand.nest_colour == self.nest_colour and cand.can_add_batch:
                             """
                             there is block candidate and we can add batch into them
                             for DAG we should choice one of the block candidate and inform others peer about that choice
                             and set cid for marker 
                             """
                             candidate,cid,block_num = cand,cand.identifier,cand.block_num
-                            LOGGER.debug("On batch=%s received use candidate=<%s:%s:%s> from=%s",batch.header_signature[:8],cand.nest_color,cand.block_num,candidate.identifier[:8],self.candidate_blocks)
+                            LOGGER.debug("On batch=%s received use candidate=<%s:%s:%s> from=%s",batch.header_signature[:8],cand.nest_colour,cand.block_num,candidate.identifier[:8],self.candidate_blocks)
                             # send batch to peers and say about selected branch 
                             #self._batch_publisher.send_batch(batch,candidate.identifier)
                             candidate._make_batch_broadcast = True # mark for broadcasting
@@ -1085,7 +1086,7 @@ class BlockPublisher(object):
                                 mark try because consensus engine will switch branch on new head too
                                 and use the same color
                                 """
-                                self._engine_ask_candidate[chain_head.identifier] = (True,candidate.nest_color) 
+                                self._engine_ask_candidate[chain_head.identifier] = (True,candidate.nest_colour) 
                                 break
                     # update head for DAG branch
                     self._chain_heads[chain_head.identifier] = chain_head
@@ -1271,7 +1272,7 @@ class BlockPublisher(object):
                         # for correct block number allocation we should keep block number relation this candidate
                         self._block_store.pop_block_number(candidate.block_num,self._validator_id)
                         # Use color from self._candidate_blocks[bid]
-                        self._engine_ask_candidate[bid] = (True,candidate.nest_color)
+                        self._engine_ask_candidate[bid] = (True,candidate.nest_colour)
                         del self._candidate_blocks[bid]
 
 
@@ -1336,12 +1337,12 @@ class BlockPublisher(object):
         LOGGER.debug('BlockPublisher: on_finalize_block parent block=%s total ready=%s',block_header.previous_block_id[:8],len(self._blocks_summarize))
         # try to wait until proxy.finalize_block
 
-    def initialize_block(self, block,nest_color='Genesis'):
+    def initialize_block(self, block,nest_colour='Genesis'):
         """
         we are know parent's ID from chain_head_get()
         """
-        LOGGER.debug('BlockPublisher: initialize_block for BLOCK=%s.%s COLOR=%s\n',block.block_num, block.identifier[:8],nest_color)
-        self._engine_ask_candidate[block.identifier] = (True,nest_color)
+        LOGGER.debug('BlockPublisher: initialize_block for BLOCK=%s.%s COLOR=%s\n',block.block_num, block.identifier[:8],nest_colour)
+        self._engine_ask_candidate[block.identifier] = (True,nest_colour)
         self._can_print_summarize = True
         self.on_initialize_build_candidate(block)
         LOGGER.debug('BlockPublisher: initialize_block DONE for BLOCK=%s.%s\n',block.block_num, block.identifier[:8])    
