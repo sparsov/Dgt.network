@@ -929,6 +929,7 @@ class ChainController(object):
         for DAG version - in case new_parent_id != None - switch parent_id to new_parent_id block as new branch 
         """ 
         if parent_id is None:
+            LOGGER.debug("get_chain_head: parent_id=None GENESIS heads=%s",self._heads_list)
             return self._chain_head
 
         if parent_id in self._chain_heads:
@@ -1017,7 +1018,7 @@ class ChainController(object):
                 if branch_id in self._chain_heads:
                     # block from our publisher
                     chain_head = self._chain_heads[branch_id]
-                    LOGGER.debug("_submit_blocks_for_verification: EXTERNAL block=%s take head=%s",blkw.identifier[:8],chain_head[:8])
+                    LOGGER.debug("_submit_blocks_for_verification: EXTERNAL block=%s take head=%s",blkw.identifier[:8],chain_head)
                 else:
                     chain_head = main_head
 

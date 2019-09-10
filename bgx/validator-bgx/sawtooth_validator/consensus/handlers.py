@@ -201,7 +201,7 @@ class ConsensusInitializeBlockHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             LOGGER.debug('ConsensusInitializeBlockHandler: initialize_block block=%s colour=(%s)',request.previous_id.hex()[:8],request.nest_colour)
-            self._proxy.initialize_block(request.previous_id,request.nest_colour if request.nest_colour != '' else 'Genesis' )
+            self._proxy.initialize_block(request.previous_id,request.nest_colour)
         except MissingPredecessor:
             response.status = consensus_pb2.ConsensusInitializeBlockResponse.UNKNOWN_BLOCK
         except BlockInProgress:

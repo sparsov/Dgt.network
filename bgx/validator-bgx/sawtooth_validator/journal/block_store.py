@@ -47,7 +47,7 @@ class Federation(object):
         self._store = store
         self._feder_num = Federation.NUM
         #self._num = 0               # separated from others cluster blocks numeration
-        self._last_num = 0          # separated from others cluster blocks numeration
+        self._last_num = -1          # separated from others cluster blocks numeration
         self._block_nums  = {}      # for DAG - list of reserved block candidate number and signers for it  
         self._free_block_nums  = [] # for DAG - list of free block number's
         LOGGER.debug("NEW FEDERATION=%s.%s",self._feder_num,colour)
@@ -56,9 +56,13 @@ class Federation(object):
     def feder_num(self):
         return self._feder_num
 
+    @property
+    def block_nums(self):
+        return self._block_nums
+
     def update_head(self,num):
         self._last_num = num
-        LOGGER.debug("NEW HEAD=%s INTO FEDERATION=%s.%s",num,self._feder_num,colour)
+        LOGGER.debug("NEW HEAD=%s INTO FEDERATION=%s.%s",num,self._feder_num,self._colour)
 
     def get_block_num(self,signer):
         """
@@ -66,7 +70,7 @@ class Federation(object):
         take last fixed head and use his number
         BUT FOR FEDERATION mode we should take last fixed block for federation 
         """
-        block_num = self._last_num
+        block_num = self._last_num + 1
         LOGGER.debug("FIND from last num=%s",block_num)
         while block_num in self._block_nums:
             peers = self._block_nums[block_num]
@@ -313,9 +317,11 @@ class BlockStore(MutableMapping):
         return [str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()]
 
     def check_integrity(self):
-        # check DAG intergity
+        """
+        check DAG intergity
+        """
         bad_block = []
-        block_num = -1
+        block_nums = [-1 for i in range(len(self._federations)+1)]
         num = 0
         start = timeit.default_timer()
         """
@@ -327,20 +333,25 @@ class BlockStore(MutableMapping):
             err = ''
             if blk.block_num != 0 and blk.previous_block_id not in self:
                 err = 'prev,'
-            if block_num != -1 and block_num != blk.block_num+1:
-                # gap between block number
-                # check block from blk.block_num+1 < block_num
-                gap = range(blk.block_num+1,block_num-1)
-                LOGGER.debug("check_integrity GAP=%s NUMS=%s",gap,self._block_nums)
-                skip = 0
-                for num in gap:
-                    # check mayby this number reserved for block candidate
-                    if num not in self._block_nums:
-                        skip += 1
-                if skip > 0:
-                    err += "num({}),".format(skip)
+            feder,fnum = self.get_feder_num(blk.block_num)
+            if feder:
+                # skip genesis block
+                block_num = block_nums[feder.feder_num] # previous block num into this federation 
+                if block_num != -1 and block_num != fnum+1:
+                    # gap between block number
+                    # check block from blk.block_num+1 < block_num
+                    gap = range(fnum+1,block_num-1)
+                    LOGGER.debug("check_integrity GAP=%s NUMS=%s",gap,feder.block_nums)
+                    skip = 0
+                    for n in gap:
+                        # check mayby this number reserved for block candidate
+                        if n not in feder.block_nums:
+                            skip += 1
+                    if skip > 0:
+                        err += "num({}),".format(skip)
 
-            block_num = blk.block_num
+                block_nums[feder.feder_num] = fnum
+
             if err != '':
                 bad_block.append("{}.{}:{}".format(blk.block_num,blk.identifier[:8],err))
         spent = timeit.default_timer()-start
@@ -393,34 +404,20 @@ class BlockStore(MutableMapping):
         take last fixed head and use his number
         BUT FOR FEDERATION mode we should take last fixed block for federation 
         """
-        block_num = feder.last_num
-        """
-        head = self.chain_head
-        block_num = head.block_num + 1
-        LOGGER.debug("BlockStore: find from last=%s",head.block_num)
-        """
-        LOGGER.debug("BlockStore: find from last=%s",block_num)
-        
-        while block_num in feder._block_nums:
-            peers = feder._block_nums[block_num]
-            if signer not in peers:
-                # other peer already make block with this number and 
-                # stop - only others peer make ref
-                break
-            # already reserved by some branch try take next number
-            block_num += 1
+        num = feder.get_block_num(signer)
         """
         add into reserved list  - taken by candidate for current federation
         and return coloured num
         """
-        block_num = feder.ref_block_number(block_num,signer)
+        block_num = feder.ref_block_number(num,signer)
         return block_num
 
     def pop_block_number(self,block_num,signer,force=False):
         # for external Block pop too because we make ref for external block
         # drop signer from list
         feder,num = self.get_feder_num(block_num)
-        feder.pop_block_number(num,signer,force)
+        if feder:
+            feder.pop_block_number(num,signer,force)
        
 
     def get_feder_num(self,block_num):
@@ -440,15 +437,17 @@ class BlockStore(MutableMapping):
         block_num is coloured here
         """
         feder,num = self.get_feder_num(block_num)
-        feder.ref_block_number(num,signer)
+        if feder:
+            feder.ref_block_number(num,signer)
         
 
     def free_block_number(self,block_num,signer):
         # free block number - because block was not validated
         # block_num is coloured here
         feder,num = self.get_feder_num(block_num)
-        feder.pop_block_number(num,signer)
-        feder.free_block_number(num,signer)
+        if feder:
+            feder.pop_block_number(num,signer)
+            feder.free_block_number(num,signer)
         """
         head = self.chain_head
         if block_num < head.block_num + 1:

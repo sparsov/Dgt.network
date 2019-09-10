@@ -526,10 +526,11 @@ class PbftEngine(Engine):
         self._service = None
         self._oracle = None
         self._skip   = False
-        self._chain_head = None
+        self._chain_head = None # GENESIS - keep for making federation palette 
         # state variables
         self._exit = False
-        self._published = False
+        self._published = False # maker of federation's palette ready
+        self._palette = False
         self._building = False
         self._committing = False
         self._can_fail_block = False #True #False # True for testing
@@ -562,7 +563,7 @@ class PbftEngine(Engine):
 
     @property
     def dag_step(self):
-        return self._dag_step
+        return self._dag_step if self._palette else 0
 
     @property
     def is_ready_arbiter(self):
@@ -591,6 +592,9 @@ class PbftEngine(Engine):
         color = self._nest_color.pop()
         LOGGER.debug('NEST COLOR=%s',color) 
         return color
+    @property
+    def genesis_id(self):
+        return self._chain_head.block_id if self._chain_head else None
 
     def belonge_cluster(self,peer_id):
         return peer_id in self._cluster
@@ -616,6 +620,7 @@ class PbftEngine(Engine):
         except exceptions.TooManyBranch:
             LOGGER.debug('PbftEngine: CANT CREATE NEW BRANCH (limit is reached)')
             self._make_branch = False
+            self._palette     = True # pallete is ready
             return False
         except exceptions.NoChainHead:
             # head was updated or not commited yet
@@ -667,6 +672,8 @@ class PbftEngine(Engine):
     def create_branch(self,bid,parent,block_num):
         branch = BranchState(bid, parent, block_num, self._service, self._oracle, self,self._num_branches)
         self._num_branches += 1
+        #if self._num_branches == 5:
+        #    self._published = True
         return branch
 
     def is_not_build(self):
@@ -757,11 +764,15 @@ class PbftEngine(Engine):
     def _real_mode(self):
         # real mode consensus
         if not self._published :
-            # FIRST publish
-            if not self._skip and self._initialize_block() :  
+            """
+            FIRST publish or maybe we should make publish for all federations and connect all first candidates to genesis block
+            """
+            if not self._skip and self._initialize_block(branch=self.genesis_id,is_new=(self._chain_head is not None)) :  
                 # at this point we can ask settings via chain using initial chain_head state_hash 
                 self.get_chain_settings()
                 self._published = True
+                #if len(self._branches) == 5:
+                #    self._published = True
         else: 
             for bid,branch in list(self._branches.items()):
                 if not branch._published:

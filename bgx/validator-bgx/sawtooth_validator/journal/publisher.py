@@ -874,23 +874,27 @@ class BlockPublisher(object):
             self._candidate_block.add_batch(batch)
             
 
-        if num == 0:
+        if num == 0 :
             # there are no recomended batch for this candidate- take batch without recomendation
             # because candidate for batch with recomendation could not be ready
-            LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> cid=%s",nest_colour,self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
-            for (ind,batch) in enumerate(self._pending_batches):
-                if self._pending_batch_cid[ind] != '':
-                    continue # skip recomended batch
-                if self._candidate_block.can_add_batch and num < max_batches:
-                    num += 1
-                    #LOGGER.debug("NEW candidate=%s.%s add batch[%s]=%s total=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],num)
-                    # mark taken batch with recomendation (but with num == 0)- because others candidate can take it too
-                    # when we make block and same bacthes becaime incompleted unmark it
-                    self._pending_batch_cid[ind] = bid #  self._pending_batch_num[ind] == 0 
-                    self._candidate_block._make_batch_broadcast = True
-                    self._candidate_block.add_batch(batch)
-                else:
-                    break
+            if nest_colour == self.nest_colour:
+                LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> cid=%s",nest_colour,self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
+                for (ind,batch) in enumerate(self._pending_batches):
+                    if self._pending_batch_cid[ind] != '':
+                        continue # skip recomended batch
+                    if self._candidate_block.can_add_batch and num < max_batches:
+                        num += 1
+                        #LOGGER.debug("NEW candidate=%s.%s add batch[%s]=%s total=%s",self._candidate_block.block_num,bid[:8],ind,batch.header_signature[:8],num)
+                        # mark taken batch with recomendation (but with num == 0)- because others candidate can take it too
+                        # when we make block and same bacthes becaime incompleted unmark it
+                        self._pending_batch_cid[ind] = bid #  self._pending_batch_num[ind] == 0 
+                        self._candidate_block._make_batch_broadcast = True
+                        self._candidate_block.add_batch(batch)
+                    else:
+                        break
+            else:
+                LOGGER.debug("SKIP NEW candidate=<%s:%s:%s> as belonging other federation",nest_colour,self._candidate_block.block_num,bid[:8])
+
             
 
         LOGGER.debug("NEW candidate=<%s:%s:%s> DONE batches total=%s pending=%s",nest_colour,self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
@@ -1311,13 +1315,15 @@ class BlockPublisher(object):
             LOGGER.info('get_recompute_context NO BRANCH=%s HEAD CONTEXT\n',bid[:8])
             return None
 
-    def on_initialize_build_candidate(self, chain_head = None):
+    def on_initialize_build_candidate(self,nest_colour, chain_head = None):
         """
         build only after request from consensus engine and for chain_head only 
         external consensus have got chain_head via chain_head_get()     
         """
         try:
             with self._lock:
+                # DO IT HERE because of conflict with call _build_candidate_block() into on_check_publish_block
+                self._engine_ask_candidate[chain_head.identifier] = (True,nest_colour)
                 if chain_head is not None:
                     #self._chain_head = chain_head
                     LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
@@ -1325,7 +1331,7 @@ class BlockPublisher(object):
 
         # pylint: disable=broad-except
         except Exception as exc:
-            LOGGER.critical("on_initialize_build_candidate exception.")
+            LOGGER.critical("on_initialize_build_candidate exception parent=%s.",chain_head.identifier[:8])
             raise exc
             #LOGGER.exception(exc)
 
@@ -1337,14 +1343,16 @@ class BlockPublisher(object):
         LOGGER.debug('BlockPublisher: on_finalize_block parent block=%s total ready=%s',block_header.previous_block_id[:8],len(self._blocks_summarize))
         # try to wait until proxy.finalize_block
 
-    def initialize_block(self, block,nest_colour='Genesis'):
+    def initialize_block(self, block,nest_colour=''):
         """
         we are know parent's ID from chain_head_get()
         """
+        if nest_colour == '':
+            nest_colour = 'Genesis'
         LOGGER.debug('BlockPublisher: initialize_block for BLOCK=%s.%s COLOR=%s\n',block.block_num, block.identifier[:8],nest_colour)
-        self._engine_ask_candidate[block.identifier] = (True,nest_colour)
+        #self._engine_ask_candidate[block.identifier] = (True,nest_colour)
         self._can_print_summarize = True
-        self.on_initialize_build_candidate(block)
+        self.on_initialize_build_candidate(nest_colour,block)
         LOGGER.debug('BlockPublisher: initialize_block DONE for BLOCK=%s.%s\n',block.block_num, block.identifier[:8])    
         #raise BlockInProgress
 
