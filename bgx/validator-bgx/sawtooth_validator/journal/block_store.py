@@ -61,8 +61,11 @@ class Federation(object):
         return self._block_nums
 
     def update_head(self,num):
-        self._last_num = num
-        LOGGER.debug("NEW HEAD=%s INTO FEDERATION=%s.%s",num,self._feder_num,self._colour)
+        if num > self._last_num:
+            self._last_num = num
+            LOGGER.debug("NEW HEAD=%s INTO FEDERATION=%s.%s",num,self._feder_num,self._colour)
+        else:
+            LOGGER.debug("COMMIT HEAD=%s INTO FEDERATION=%s.%s LAST=%s",num,self._feder_num,self._colour,self._last_num)
 
     def get_block_num(self,signer):
         """

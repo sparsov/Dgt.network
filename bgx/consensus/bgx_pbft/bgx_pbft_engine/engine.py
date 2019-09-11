@@ -563,7 +563,7 @@ class PbftEngine(Engine):
 
     @property
     def dag_step(self):
-        return self._dag_step if self._palette else 0
+        return self._dag_step if self._palette else 1
 
     @property
     def is_ready_arbiter(self):
