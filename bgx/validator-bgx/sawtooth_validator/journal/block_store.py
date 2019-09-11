@@ -368,6 +368,39 @@ class BlockStore(MutableMapping):
     def get_graph(self):
         bad_block = ['save']
         LOGGER.debug("get_graph DONE\n")
+        fed_colour = ['white','yellow','green']
+        gv = open('DAG.gv', 'w')
+        gv.write("digraph DAG {\n")
+        #gv.write('node [style="filled", fillcolor="yellow", fontcolor="black", margin="0.01"]')
+        prev = None
+        feder_num = -1
+        for blk in self:
+            prev = blk.previous_block_id[:8] 
+            feder,fnum = self.get_feder_num(blk.block_num)
+            if feder :
+                if feder.feder_num != feder_num:
+                    if feder_num != -1:
+                        gv.write('}\n')
+                    gv.write('{\n node [style="filled", fillcolor="'+fed_colour[feder.feder_num]+'", fontcolor="black", margin="0.01"]')
+                    feder_num = feder.feder_num
+            else:
+                gv.write('}\n')
+
+            gv.write('"{}" -> "{}";\n'.format(blk.identifier[:8],prev)) 
+            
+            if feder :
+                LOGGER.debug("feder=%s nums=%s\n",feder.feder_num,feder.block_nums)
+                if fnum in feder.block_nums:
+                    # add nest marker
+                    gv.write('"{}" -> "{}";\n'.format(fnum,blk.identifier[:8])) 
+
+                
+
+
+        gv.write('"{}" [fillcolor="red",shape="circle"];\n'.format(prev))         
+        gv.write("}\n")
+        gv.close()
+
     @property
     def chain_heads(self):
         return self._chain_heads
