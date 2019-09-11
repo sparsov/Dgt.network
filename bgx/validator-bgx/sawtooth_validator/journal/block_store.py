@@ -387,14 +387,14 @@ class BlockStore(MutableMapping):
                 gv.write('}\n')
 
             gv.write('"{}" -> "{}";\n'.format(blk.identifier[:8],prev)) 
-            
+            """
             if feder :
                 LOGGER.debug("feder=%s nums=%s\n",feder.feder_num,feder.block_nums)
                 if fnum in feder.block_nums:
                     # add nest marker
                     gv.write('"{}" -> "{}";\n'.format(fnum,blk.identifier[:8])) 
 
-                
+            """    
 
 
         gv.write('"{}" [fillcolor="red",shape="circle"];\n'.format(prev))         

@@ -479,6 +479,9 @@ class BranchState(object):
         ask arbitration
         """
         self._send_arbitration_done(block,peer_id)
+        if self.is_leader:
+            LOGGER.info('arbitration: broadcast ARBITRATION DONE for own cluster block=%s ???', self.block_num)
+            self.broadcast_arbitration_done(block)
 
     def arbitration_done(self,block):
         """
@@ -486,12 +489,14 @@ class BranchState(object):
         """
         self._num_arbiters -= 1
         if self._num_arbiters == 0:
-            #we have answer fron all arbiter
+            #we have answer from all arbiter
             if self.is_leader:
                 LOGGER.info('arbitration_done: broadcast ARBITRATION DONE for own cluster block=%s', self.block_num)
                 self.broadcast_arbitration_done(block)
             LOGGER.info('arbitration_done: for block=%s', self.block_num)
             self.commit_block(block.block_id)
+        else:
+            LOGGER.info('arbitration_done: for block=%s (%s) arbiters reply', self.block_num,self._num_arbiters)
 
     def reset_state(self):
         LOGGER.info('reset_state: for BRANCH[%s]=%s\n', self._ind,self._head_id[:8])
@@ -825,6 +830,7 @@ class PbftEngine(Engine):
         """
         for cluster topology use ring of arbiter
         """
+        self._genesis_node = self._oracle.genesis_node # genesis node of all net - we take its genesis block for all net
         self._genesis      = self._oracle.genesis      # genesis cluster name
         self._cluster_name = self._oracle.cluster_name # own clusters name
         self._own_type = self._oracle.own_type
@@ -852,7 +858,7 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug("Genesis=%s Node=%s in cluster=%s nodes=%s arbiters=%s",self._genesis,self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],self.arbiters_info)
+        LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],self.arbiters_info)
         LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full)
         #self._service.initialize_block()
         while True:

@@ -100,7 +100,8 @@ class PbftOracle:
         self._cluster_name = None
         self._cluster = {}
         self._arbiters = {} # ring of arbiters
-        self._genesis  = self._nodes['name']
+        self._genesis  = self._nodes['name'] # genesis cluster
+        self._genesis_node = None
         self.get_cluster_info(None,None,self._nodes['name'],self._nodes['children'])
         self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
@@ -127,6 +128,10 @@ class PbftOracle:
         return self._genesis
 
     @property
+    def genesis_node(self):
+        return self._genesis_node
+
+    @property
     def own_type(self):
         return self._node if self._node is not None else 'UNDEF' 
 
@@ -149,6 +154,11 @@ class PbftOracle:
                 # check only other cluster and add delegate
                 if 'delegate' in val:
                     self._arbiters[key] = ('delegate',False,name)
+
+            if self._genesis_node is None and 'genesis' in val:
+                # this is genesis node of all network
+                self._genesis_node = key
+
             if 'cluster' in val:
                 cluster = val['cluster']
                 if 'name' in cluster and 'children' in cluster:
@@ -171,7 +181,7 @@ class PbftOracle:
                 self._cluster_name = name 
                 LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))
                 return
-
+           
             if 'cluster' in val:
                 cluster = val['cluster']
                 if 'name' in cluster and 'children' in cluster:
