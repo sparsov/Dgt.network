@@ -138,6 +138,9 @@ class Gossip(object):
         self._topology = None
         self._peers = {}
         self._cluster = None
+        # feder topology
+        self._stopology = None
+        self._ftopology = None
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -205,16 +208,32 @@ class Gossip(object):
         with self._lock:
             return copy.copy(self._peers)
 
+    def is_peers(self):
+        with self._lock:
+            return len(self._peers) > 0
+
+    def load_topology(self):
+        self._stopology = self._settings_cache.get_setting(
+                "bgx.consensus.pbft.nodes",
+                self._current_root_func(),
+                default_value='{}'
+            ).replace("'",'"')
+        self._ftopology = json.loads(self._stopology)
+        LOGGER.debug("LOAD topology=%s",self._ftopology) 
+
     def get_topology(self):
         """
         topology with cluster  
         FIXME - we should extend base version with information about status peers
         """
-        stopology = self._settings_cache.get_setting(
+        if self._stopology is None:
+            stopology = self._settings_cache.get_setting(
                 "bgx.consensus.pbft.nodes",
                 self._current_root_func(),
                 default_value='{}'
             ).replace("'",'"')
+        else:
+            stopology = self._stopology
                 
         #topology = json.loads(stopology)
         #LOGGER.debug("get topology=%s",stopology.encode("utf-8")) 
@@ -234,22 +253,24 @@ class Gossip(object):
             endpoint (str): The publically reachable endpoint of the new
                 peer
         """
+        if len(self._peers) == 0:
+            # load topology
+            self.load_topology()
+
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
+                LOGGER.debug("Current peers=%s",[cid[:8] for cid in self._peers])
                 self._peers[connection_id] = endpoint
                 self._topology.set_connection_status(connection_id,PeerStatus.PEER)
                 LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id, endpoint, self._peers)
             else:
-                raise PeeringException(
-                    "At maximum configured number of peers: {} "
-                    "Rejecting peering request from {}.".format(
-                        self._maximum_peer_connectivity,
-                        endpoint))
+                raise PeeringException("At maximum configured number of peers: {} Rejecting peering request from {}.".format(self._maximum_peer_connectivity,endpoint))
 
         public_key = self.peer_to_public_key(connection_id)
         if public_key:
             #send message about peer to consensus engine
-            self._consensus_notifier.notify_peer_connected(public_key)
+            pass
+            #self._consensus_notifier.notify_peer_connected(public_key)
 
     def unregister_peer(self, connection_id):
         """Removes a connection_id from the registry.
@@ -269,6 +290,17 @@ class Gossip(object):
                 self._topology.set_connection_status(connection_id,PeerStatus.TEMP)
             else:
                 LOGGER.debug("Connection unregister failed as connection was not registered: %s",connection_id)
+
+    def switch_on_federations(self):
+        # send request about block HEAD
+        LOGGER.debug("switch_on_federations peers=%s",len(self._peers))
+        with self._lock:
+            peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers] 
+        LOGGER.debug("switch_on_federations peers=%s",peer_keys)
+        for public_key in set(peer_keys):
+            if public_key:
+                LOGGER.debug("switch_on_federations peer=%s send HEAD request",public_key[:8])
+                self._consensus_notifier.notify_peer_connected(public_key)
 
     def get_time_to_live(self):
         time_to_live = \
@@ -296,8 +328,7 @@ class Gossip(object):
             block_id=block_id,
             nonce=binascii.b2a_hex(os.urandom(16)),
             time_to_live=time_to_live)
-        self.broadcast(block_request,
-                       validator_pb2.Message.GOSSIP_BLOCK_REQUEST)
+        self.broadcast(block_request,validator_pb2.Message.GOSSIP_BLOCK_REQUEST)
 
     def send_block_request(self, block_id, connection_id):
         time_to_live = self.get_time_to_live()
@@ -483,7 +514,7 @@ class ConnectionManager(InstrumentedThread):
     def __init__(self, gossip, network, endpoint,
                  initial_peer_endpoints, initial_seed_endpoints,
                  peering_mode, min_peers=3, max_peers=10,
-                 check_frequency=1):
+                 check_frequency=1,federations_timeout=6):
         """Constructor for the ConnectionManager class.
 
         Args:
@@ -525,9 +556,14 @@ class ConnectionManager(InstrumentedThread):
         self._connection_statuses = {}
         self._temp_endpoints = {}
         self._static_peer_status = {}
+        # federation
+        self._is_federations_checked = False
+        self._federations_timeout = federations_timeout
+        self._check_time = 0
 
     def start(self):
         # First, attempt to connect to explicit peers
+        
         for endpoint in self._initial_peer_endpoints:
             self._static_peer_status[endpoint] = \
                 StaticPeerInfo(
@@ -608,7 +644,15 @@ class ConnectionManager(InstrumentedThread):
                 pass
 
     def retry_static_peering(self):
+        """
+        for federation topology try to wait peers connection before send CHAIN HEAD request
+        """
         with self._lock:
+            if not self._is_federations_checked and self._gossip.is_peers():
+                # not checked and there is some registered peers
+                if self._check_time > self._federations_timeout:
+                    self.check_federations_status()
+                self._check_time += 1
             # Endpoints that have reached their retry count and should be
             # removed
             to_remove = []
@@ -616,8 +660,7 @@ class ConnectionManager(InstrumentedThread):
             for endpoint in self._initial_peer_endpoints:
                 connection_id = None
                 try:
-                    connection_id = \
-                        self._network.get_connection_id_by_endpoint(endpoint)
+                    connection_id = self._network.get_connection_id_by_endpoint(endpoint)
                 except KeyError:
                     #LOGGER.debug("retry_static_peering:KeyError for %s",endpoint)
                     pass
@@ -627,8 +670,7 @@ class ConnectionManager(InstrumentedThread):
                     if connection_id in self._connection_statuses:
                         # Endpoint is already a Peer
                         #LOGGER.debug("retry_static_peering:Endpoint %s is already a Peer",endpoint)
-                        if self._connection_statuses[connection_id] == \
-                                PeerStatus.PEER:
+                        if self._connection_statuses[connection_id] == PeerStatus.PEER:
                             # reset static peering info
                             self._static_peer_status[endpoint] = \
                                 StaticPeerInfo(
@@ -637,12 +679,8 @@ class ConnectionManager(InstrumentedThread):
                                     count=0)
                             continue
                 #LOGGER.debug("retry_static_peering:KeyError for %s threshold=%s",str(time.time() - static_peer_info.time),static_peer_info.retry_threshold)
-                if (time.time() - static_peer_info.time) > \
-                        static_peer_info.retry_threshold:
-                    LOGGER.debug("Endpoint has not completed authorization in "
-                                 "%s seconds: %s",
-                                 static_peer_info.retry_threshold,
-                                 endpoint)
+                if (time.time() - static_peer_info.time) > static_peer_info.retry_threshold:
+                    LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s",static_peer_info.retry_threshold,endpoint)
                     if connection_id is not None:
                         # If the connection exists remove it before retrying to
                         # authorize.
@@ -651,8 +689,7 @@ class ConnectionManager(InstrumentedThread):
                         except KeyError:
                             pass
 
-                    if static_peer_info.retry_threshold == \
-                            MAXIMUM_STATIC_RETRY_FREQUENCY:
+                    if static_peer_info.retry_threshold == MAXIMUM_STATIC_RETRY_FREQUENCY:
                         if static_peer_info.count >= MAXIMUM_STATIC_RETRIES:
                             # Unable to peer with endpoint
                             to_remove.append(endpoint)
@@ -851,6 +888,14 @@ class ConnectionManager(InstrumentedThread):
         with self._lock:
             self._candidate_peer_endpoints = []
 
+    def check_federations_status(self):
+        """
+        check may be we can send HEAD block request
+        """
+        self._is_federations_checked = True
+        LOGGER.debug("CHECK federations_status !\n")
+        self._gossip.switch_on_federations()
+
     def _peer_callback(self, request, result, connection_id, endpoint=None):
         LOGGER.debug("_peer_callback %s",endpoint)
         with self._lock:
@@ -858,17 +903,21 @@ class ConnectionManager(InstrumentedThread):
             ack.ParseFromString(result.content)
 
             if ack.status == ack.ERROR:
-                LOGGER.debug("Peering request to %s was NOT successful",
-                             connection_id)
+                LOGGER.debug("Peering request to %s was NOT successful",connection_id)
                 self._remove_temporary_connection(connection_id)
             elif ack.status == ack.OK:
-                LOGGER.debug("Peering request to %s was successful",connection_id[:10])
+                LOGGER.debug("Peering request to %s was successful",connection_id[:8])
                 if endpoint:
                     try:
                         self._gossip.register_peer(connection_id, endpoint)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
-                        LOGGER.debug("Peering register_peer send_block_request to conn=%s", endpoint )
+                        LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s", endpoint,self._gossip.peer_to_public_key(connection_id) )
+                        """
+                        for federation topology try to wait sometime until peers connected
+                        and only after this timeout send HEAD block request
+                        """
                         self._gossip.send_block_request("HEAD", connection_id)
+
                     except PeeringException as e:
                         # Remove unsuccessful peer
                         LOGGER.warning('Unable to successfully peer with connection_id: %s, due to %s',connection_id[:10], str(e))

@@ -488,7 +488,7 @@ class BranchState(object):
         this is answer on arbitration
         """
         self._num_arbiters -= 1
-        if self._num_arbiters == 0:
+        if self._num_arbiters <= 0:
             #we have answer from all arbiter
             if self.is_leader:
                 LOGGER.info('arbitration_done: broadcast ARBITRATION DONE for own cluster block=%s', self.block_num)
@@ -840,7 +840,7 @@ class PbftEngine(Engine):
         
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
-        service.set_cluster(self._peers) # use only active peers
+        service.set_cluster(self.peers) # use only active peers
 
         # 1. Wait for an incoming message.
         # 2. Check for exit.

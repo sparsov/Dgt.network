@@ -93,7 +93,10 @@ class ConsensusNotifier:
                 sender_id=sender_id))
 
     def notify_block_new(self, block):
-        """A new block was received and passed initial consensus validation"""
+        """
+        A new block was received and passed initial consensus validation
+        in federation mode - send only own cluster's nodes
+        """
         
         summary = hashlib.sha256()
         for batch in block.batches:

@@ -246,7 +246,7 @@ class Validator(object):
             initial_peer_endpoints=peer_list,
             minimum_peer_connectivity=minimum_peer_connectivity,
             maximum_peer_connectivity=maximum_peer_connectivity,
-            topology_check_frequency=1
+            topology_check_frequency=1 # signer=identity_signer own key
         )
 
         completer = Completer(block_store, gossip)

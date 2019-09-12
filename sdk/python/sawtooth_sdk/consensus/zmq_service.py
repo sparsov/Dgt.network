@@ -43,6 +43,7 @@ class ZmqService(Service):
     # -- P2P --
     def set_cluster(self,cluster):
         self._cluster = cluster
+        LOGGER.debug('SET CLUSTER=%s',[id[:8] for id in self._cluster.keys()])
          
     def send_to(self, peer_id, message_type, payload):
         message = consensus_pb2.ConsensusPeerMessage(

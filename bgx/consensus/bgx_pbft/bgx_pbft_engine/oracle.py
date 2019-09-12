@@ -240,8 +240,15 @@ class PbftOracle:
 
     def switch_forks(self, cur_fork_head, new_fork_head):
         '''"compare_forks" is not an intuitive name.'''
-        LOGGER.debug('PbftOracle: switch_forks %s',cur_fork_head)
+        LOGGER.debug('PbftOracle: switch_forks %s signer=%s~%s',cur_fork_head,cur_fork_head.signer_id.hex()[:8],new_fork_head.signer_id.hex()[:8])
+        if new_fork_head.block_num == 0 and new_fork_head.block_num == cur_fork_head.block_num:
+            # use genesis block from 
+            is_genesis_node = new_fork_head.signer_id.hex() == self.genesis_node
+            LOGGER.debug('PbftOracle: IS GENESIS_NODE=%s',is_genesis_node)
+            return True if is_genesis_node else False
+
         if new_fork_head.block_num > cur_fork_head.block_num or (new_fork_head.block_num == cur_fork_head.block_num and new_fork_head.block_id > cur_fork_head.block_id) :
+            
             """
             if new_fork_head.block_num == 0 and self._node == 'plink':
                 LOGGER.debug('PbftOracle:switch_forks TRUE for LEADER')
