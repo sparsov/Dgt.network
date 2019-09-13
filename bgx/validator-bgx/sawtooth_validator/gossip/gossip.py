@@ -454,7 +454,7 @@ class Gossip(object):
                 exclude = []
             for connection_id in self._peers.copy():
                 if connection_id not in exclude:
-                    LOGGER.info("gossip:broadcast: send %s to %s",get_enum_name(message_type),connection_id)
+                    LOGGER.info("gossip:broadcast: send %s to %s",get_enum_name(message_type),self._peers[connection_id])
                     self.send(
                         message_type,
                         gossip_message.SerializeToString(),
