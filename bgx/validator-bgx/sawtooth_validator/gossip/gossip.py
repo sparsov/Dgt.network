@@ -159,7 +159,7 @@ class Gossip(object):
                 public_key = self._network.connection_id_to_public_key(peer)
                 if public_key not in cluster:
                     exclude.append(peer)
-        LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude)
+        LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
     def send_peers(self, connection_id):
