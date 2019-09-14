@@ -150,10 +150,12 @@ class Gossip(object):
     def set_cluster(self,cluster):
         self._cluster = cluster
 
-    def get_exclude(self,cluster):
+    def get_exclude(self,cluster = None):
         # get list of peers not from our cluster
         LOGGER.debug("get_exclude peers=%s",self._peers)
         exclude = []
+        if cluster is None:
+            cluster = self._cluster
         with self._lock:
             for peer in self._peers.keys() :
                 public_key = self._network.connection_id_to_public_key(peer)

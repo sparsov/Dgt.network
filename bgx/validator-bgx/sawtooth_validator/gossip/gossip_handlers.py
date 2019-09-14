@@ -292,7 +292,10 @@ class GossipBroadcastHandler(Handler):
             LOGGER.debug("GossipBroadcastHandler:handle BLOCK=%s !!!",block.header_signature[:8])
             # If we already have this block, don't forward it
             if not self._completer.get_block(block.header_signature):
-                LOGGER.debug("GossipBroadcastHandler:broadcast block=%s!!!",block.header_signature[:8])
+                # dont send block to others cluster
+                exclude = self._gossip.get_exclude()
+                exclude.append(connection_id)
+                LOGGER.debug("broadcast block=%s exclude=%s !!!",block.header_signature[:8],[self._gossip._peers[cid] for cid in exclude])
                 self._gossip.broadcast_block(block, exclude)
        
         else:
