@@ -77,10 +77,26 @@ class ZmqService(Service):
         """
         FIXME - better use special message like CONSENSUS_BROADCAST_REQUEST and send only one message and validator take cluster's peer from topology
         """
-        for peer_id in self._cluster.keys():
-            LOGGER.debug('send to peer=%s',peer_id[:8])
-            self.send_to(bytes.fromhex(peer_id),message_type,payload)
+        message = consensus_pb2.ConsensusPeerMessage(
+            message_type=message_type,
+            content=payload,
+            name=self._name,
+            version=self._version)
 
+        request = consensus_pb2.ConsensusBroadcastArbiterRequest(message=message)
+        response = self._send(
+            request=request,
+            message_type=Message.CONSENSUS_BROADCAST_ARBITER_REQUEST,
+            response_type=consensus_pb2.ConsensusBroadcastArbiterResponse)
+
+        if response.status != consensus_pb2.ConsensusBroadcastArbiterResponse.OK:
+            raise exceptions.ReceiveError(
+                'Failed with status {}'.format(response.status))
+        """
+        for peer_id in self._cluster.keys():
+            LOGGER.debug('send to arbiter=%s',peer_id[:8])
+            self.send_to(bytes.fromhex(peer_id),message_type,payload)
+        """
 
     def broadcast(self, message_type, payload):
         message = consensus_pb2.ConsensusPeerMessage(

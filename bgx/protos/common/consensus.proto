@@ -190,7 +190,37 @@ message ConsensusBroadcastRequest {
   ConsensusPeerMessage message = 1;
 }
 
+// Broadcast a consensus message to all cluster
+message ConsensusBroadcastClusterRequest {
+  ConsensusPeerMessage message = 1;
+}
+
+// Broadcast a consensus message to all arbiters
+message ConsensusBroadcastArbiterRequest {
+  ConsensusPeerMessage message = 1;
+}
+
 message ConsensusBroadcastResponse {
+  enum Status {
+    STATUS_UNSET = 0;
+    OK = 1;
+    BAD_REQUEST = 2;
+    SERVICE_ERROR = 3;
+    NOT_READY = 4;
+  }
+  Status status = 1;
+}
+message ConsensusBroadcastArbiterResponse {
+  enum Status {
+    STATUS_UNSET = 0;
+    OK = 1;
+    BAD_REQUEST = 2;
+    SERVICE_ERROR = 3;
+    NOT_READY = 4;
+  }
+  Status status = 1;
+}
+message ConsensusBroadcastClusterResponse {
   enum Status {
     STATUS_UNSET = 0;
     OK = 1;

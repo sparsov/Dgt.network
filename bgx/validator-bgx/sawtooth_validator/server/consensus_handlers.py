@@ -33,6 +33,14 @@ def add(
     handler = handlers.ConsensusBroadcastHandler(consensus_proxy)
     dispatcher.add_handler(handler.request_type, handler, thread_pool)
 
+
+    handler = handlers.ConsensusBroadcastArbiterHandler(consensus_proxy)
+    dispatcher.add_handler(handler.request_type, handler, thread_pool)
+
+
+    handler = handlers.ConsensusBroadcastClusterHandler(consensus_proxy)
+    dispatcher.add_handler(handler.request_type, handler, thread_pool)
+
     handler = handlers.ConsensusInitializeBlockHandler(consensus_proxy)
     dispatcher.add_handler(handler.request_type, handler, thread_pool)
 

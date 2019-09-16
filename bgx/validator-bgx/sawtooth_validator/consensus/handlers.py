@@ -139,13 +139,9 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
 
         response.local_peer_info.peer_id = local_peer_info
 
-        self._consensus_notifier.add_registered_engine(request.name,
-                                                       request.version)
+        self._consensus_notifier.add_registered_engine(request.name,request.version)
 
-        LOGGER.info(
-            "Consensus engine registered: %s %s",
-            request.name,
-            request.version)
+        LOGGER.info("Consensus engine registered: %s %s",request.name,request.version)
 
 
 class ConsensusSendToHandler(ConsensusServiceHandler):
@@ -186,6 +182,44 @@ class ConsensusBroadcastHandler(ConsensusServiceHandler):
             LOGGER.exception("ConsensusBroadcast")
             response.status =\
                 consensus_pb2.ConsensusBroadcastResponse.SERVICE_ERROR
+
+
+class ConsensusBroadcastArbiterHandler(ConsensusServiceHandler):
+    def __init__(self, proxy):
+        super().__init__(
+            consensus_pb2.ConsensusBroadcastArbiterRequest,
+            validator_pb2.Message.CONSENSUS_BROADCAST_ARBITER_REQUEST,
+            consensus_pb2.ConsensusBroadcastArbiterResponse,
+            validator_pb2.Message.CONSENSUS_BROADCAST_ARBITER_RESPONSE)
+
+        self._proxy = proxy
+
+    def handle_request(self, request, response):
+        try:
+            LOGGER.debug('ConsensusBroadcastArbiterHandler: proxy.broadcast2arbiter')
+            self._proxy.broadcast2arbiter(request.message.SerializeToString())
+        except Exception:  # pylint: disable=broad-except
+            LOGGER.exception("ConsensusBroadcast arbiter")
+            response.status = consensus_pb2.ConsensusBroadcastArbiterResponse.SERVICE_ERROR
+
+
+class ConsensusBroadcastClusterHandler(ConsensusServiceHandler):
+    def __init__(self, proxy):
+        super().__init__(
+            consensus_pb2.ConsensusBroadcastClusterRequest,
+            validator_pb2.Message.CONSENSUS_BROADCAST_CLUSTER_REQUEST,
+            consensus_pb2.ConsensusBroadcastClusterResponse,
+            validator_pb2.Message.CONSENSUS_BROADCAST_CLUSTER_RESPONSE)
+
+        self._proxy = proxy
+
+    def handle_request(self, request, response):
+        try:
+            LOGGER.debug('ConsensusBroadcastClusterHandler: proxy.broadcast2cluster')
+            self._proxy.broadcast2cluster(request.message.SerializeToString())
+        except Exception:  # pylint: disable=broad-except
+            LOGGER.exception("ConsensusBroadcast cluster")
+            response.status = consensus_pb2.ConsensusBroadcastClusterResponse.SERVICE_ERROR
 
 
 class ConsensusInitializeBlockHandler(ConsensusServiceHandler):

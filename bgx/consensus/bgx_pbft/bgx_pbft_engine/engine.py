@@ -163,6 +163,28 @@ class BranchState(object):
         self._service.broadcast_to_cluster(mgs_type,payload.SerializeToString())
         #self._service.broadcast(mgs_type,payload.SerializeToString())
 
+    def _broadcast2arbiter(self,payload,msg_type,block_id):
+        """
+        broadcast message to arbiter  - it means we send message only nodes which belonge arbiter's ring
+        """ 
+        block_id = block_id.hex()
+        #state.shift_sequence_number(block_id,self._consensus_state_store)
+        mgs_type = CONSENSUS_MSG[msg_type]
+        LOGGER.debug("BROADCAST2ARBITER =>> '%s' for block_id=%s",mgs_type,_short_id(block_id))
+        self._service.broadcast_to_arbiter(mgs_type,payload.SerializeToString())
+        #self._service.broadcast(mgs_type,payload.SerializeToString())
+
+    def _broadcast2cluster(self,payload,msg_type,block_id):
+        """
+        broadcast message to cluster  - it means we send message only nodes which belonge arbiter's ring
+        """ 
+        block_id = block_id.hex()
+        #state.shift_sequence_number(block_id,self._consensus_state_store)
+        mgs_type = CONSENSUS_MSG[msg_type]
+        LOGGER.debug("BROADCAST2CLUSTER =>> '%s' for block_id=%s",mgs_type,_short_id(block_id))
+        self._service.broadcast_to_cluster(mgs_type,payload.SerializeToString())
+        #self._service.broadcast(mgs_type,payload.SerializeToString())
+
     def _send_to(self,peer_id,payload,msg_type,block_id):
         """
         send message to peer_is  
@@ -217,13 +239,15 @@ class BranchState(object):
         if self.is_leader :
             # send as leader
             message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG) 
-            
+            self._broadcast2arbiter(message,PbftMessageInfo.ARBITRATION_MSG,block.block_id)
+            """
             for aid,val in self.arbiters.items():
                 if val[1]:
                     # send message to all ready nodes 
                     self._num_arbiters += 1 # wait reply from arbiter
                     LOGGER.debug("SEND ARBITRATION_MSG  block=%s\n",block.block_id.hex()[:8])
                     self._send_to(aid,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
+            """
         else:
             # wait only one message from own leader
             self._num_arbiters = 1
@@ -239,7 +263,7 @@ class BranchState(object):
 
     def broadcast_arbitration_done(self,block):
         message = self._make_message(block,PbftMessageInfo.ARBITRATION_DONE_MSG)
-        self._broadcast(message, PbftMessageInfo.ARBITRATION_DONE_MSG, block.block_id)
+        self._broadcast2cluster(message, PbftMessageInfo.ARBITRATION_DONE_MSG, block.block_id)
                     
     def _send_checkpoint(self,block):
         """

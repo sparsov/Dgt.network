@@ -138,6 +138,7 @@ class Gossip(object):
         self._topology = None
         self._peers = {}
         self._cluster = None
+        self._arbiters = None
         # feder topology
         self._stopology = None
         self._ftopology = None
@@ -147,11 +148,13 @@ class Gossip(object):
         """
         LOGGER.debug("Gossip peers=%s",initial_peer_endpoints)
 
-    def set_cluster(self,cluster):
+    def set_cluster(self,cluster,arbiters):
         self._cluster = cluster
+        self._arbiters = arbiters
+        LOGGER.debug("set cluster=%s arbiters=%s",cluster,arbiters)
 
     def get_exclude(self,cluster = None):
-        # get list of peers not from our cluster
+        # get list of peers not from our cluster or arbiters ring
         LOGGER.debug("get_exclude peers=%s",self._peers)
         exclude = []
         if cluster is None:
@@ -420,6 +423,28 @@ class Gossip(object):
                 message=message,
                 time_to_live=self.get_time_to_live()),
             validator_pb2.Message.GOSSIP_CONSENSUS_MESSAGE)
+
+    def broadcast_arbiter_consensus_message(self, message, public_key):
+        # make exclude
+        exclude = self.get_exclude(self._arbiters) if self._arbiters else None
+        LOGGER.debug('Gossip: broadcast_arbiter_consensus_message exclude=%s',exclude)
+        self.broadcast(
+            GossipConsensusMessage(
+                message=message,
+                time_to_live=self.get_time_to_live()),
+            validator_pb2.Message.GOSSIP_CONSENSUS_MESSAGE,
+            exclude=exclude)
+
+    def broadcast_cluster_consensus_message(self, message, public_key):
+        # make exclude
+        exclude = self.get_exclude(self._cluster) if self._cluster else None
+        LOGGER.debug('Gossip: broadcast_cluster_consensus_message exclude=%s',exclude)
+        self.broadcast(
+            GossipConsensusMessage(
+                message=message,
+                time_to_live=self.get_time_to_live()),
+            validator_pb2.Message.GOSSIP_CONSENSUS_MESSAGE,
+            exclude=exclude)
 
     def send(self, message_type, message, connection_id, one_way=False):
         """Sends a message via the network.

@@ -557,6 +557,7 @@ class BlockPublisher(object):
         """  
         self._nest_colour = None # own color
         self._cluster    = None # own cluster
+        self._arbiters   = {} # arbiters ring
 
         self._engine_ask_candidate = {}
         self._blocks_summarize = [] # list of blocks which could be summarized
@@ -636,10 +637,12 @@ class BlockPublisher(object):
         """
         get topology info - we should know own nests color
         """ 
-        def get_cluster_info(name,children):
+        def get_cluster_info(arbiter_id,parent_name,name,children):
             for key,val in children.items():
                 #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
                 if key == self._validator_id:
+                    if arbiter_id is not None:
+                        self._arbiters[arbiter_id] = ('arbiter',parent_name)
                     self._nest_colour = name
                     self._cluster    = children
                     LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
@@ -648,9 +651,22 @@ class BlockPublisher(object):
                 if 'cluster' in val:
                     cluster = val['cluster']
                     if 'name' in cluster and 'children' in cluster:
-                        get_cluster_info(cluster['name'],cluster['children'])
+                        get_cluster_info(key,name,cluster['name'],cluster['children'])
                         if self._nest_colour is not None:
                             return
+
+        def get_arbiters(arbiter_id,name,children):
+            # make ring of arbiter - add only arbiter from other cluster
+            for key,val in children.items():
+                if self._nest_colour != name:
+                    # check only other cluster and add delegate
+                    if 'delegate' in val:
+                        self._arbiters[key] = ('delegate',name)
+                    
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        get_arbiters(key,cluster['name'],cluster['children'])
         # get topology
         #LOGGER.debug('get topology from chain')
         topology = self._settings_cache.get_setting(
@@ -662,13 +678,16 @@ class BlockPublisher(object):
         topology = json.loads(topology)
         #LOGGER.debug('get_topology=%s',topology)
         if 'name' in topology and 'children' in topology:
-            get_cluster_info(topology['name'],topology['children'])
+            get_cluster_info(None,None,topology['name'],topology['children'])
         if self._nest_colour is None:
             self._nest_colour = 'Genesis'
             #self._cluster    = None
         else:
+            # get arbiters
+            get_arbiters(None,topology['name'],topology['children'])
+            LOGGER.debug('Arbiters RING=%s',self._arbiters)
             # set cluster info for block and batch sender
-            self._block_sender.set_cluster(self._cluster)
+            self._block_sender.set_cluster(self._cluster,self._arbiters)
             self._batch_sender.set_cluster(self._cluster)
 
     def start(self):
@@ -1412,12 +1431,12 @@ class BlockPublisher(object):
             # need new block candidate
             self._candidate_block = None
 
-    def arbitrate_block(self,peer_id,block):
+    def arbitrate_block(self,block):
         """
         consensus ask arbitration - send this block to arbiter
         id consensus ask us - it means we leader of this cluster
         """
-        LOGGER.debug('BlockPublisher:arbitrate_block block=%s arbiter=%s',block.header_signature[:8],peer_id[:8])
+        LOGGER.debug('BlockPublisher:arbitrate_block block=%s to arbiters',block.header_signature[:8])
         self._block_sender.send_arbiter(block)
         
 class _RollingAverage(object):

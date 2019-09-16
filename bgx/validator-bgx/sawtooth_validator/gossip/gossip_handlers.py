@@ -279,7 +279,7 @@ class GossipBroadcastHandler(Handler):
             LOGGER.debug("GossipBroadcastHandler: check BATCH=%s !!!",batch.header_signature[:8])
             if not self._completer.get_batch(batch.header_signature):
                 # this new batch for this node 
-                LOGGER.debug("GossipBroadcastHandler: new BATCH=%s !!!",batch.header_signature[:8])
+                LOGGER.debug("GossipBroadcastHandler: new BATCH=%s exclude=%s!!!",batch.header_signature[:8],[self._gossip._peers[cid] for cid in exclude])
                 self._gossip.broadcast_batch(batch, exclude)
 
         elif gossip_message.content_type == GossipMessage.BATCHES:
@@ -293,10 +293,13 @@ class GossipBroadcastHandler(Handler):
             # If we already have this block, don't forward it
             if not self._completer.get_block(block.header_signature):
                 # dont send block to others cluster
-                exclude = self._gossip.get_exclude()
-                exclude.append(connection_id)
-                LOGGER.debug("broadcast block=%s exclude=%s !!!",block.header_signature[:8],[self._gossip._peers[cid] for cid in exclude])
-                self._gossip.broadcast_block(block, exclude)
+                cluster_exclude = self._gossip.get_exclude()
+                if cluster_exclude:
+                    cluster_exclude.append(connection_id)
+                else:
+                    cluster_exclude = [connection_id]
+                LOGGER.debug("broadcast block=%s exclude=%s !!!",block.header_signature[:8],[self._gossip._peers[cid] for cid in cluster_exclude])
+                self._gossip.broadcast_block(block, cluster_exclude)
        
         else:
             LOGGER.info("received %s, not BATCH or BLOCK",gossip_message.content_type)
