@@ -360,7 +360,7 @@ class Gossip(object):
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
-    def broadcast_batches(self, batches, exclude=None, time_to_live=None,candidate_id = None,block_num=None):
+    def broadcast_batches(self, batches, exclude=None, time_to_live=None):
         if time_to_live is None:
             time_to_live = self.get_time_to_live()
         gossip_message = GossipMessage(
@@ -370,7 +370,7 @@ class Gossip(object):
             #candidate_id=bytes.fromhex(candidate_id) if candidate_id is not None else None,
             #block_num = block_num
             )
-        LOGGER.debug("Gossip::broadcast_batches for candidate=%s block_num=%s",candidate_id[:8] if candidate_id is not None else None,block_num)
+        LOGGER.debug("Gossip::broadcast_batches...")
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
@@ -455,8 +455,7 @@ class Gossip(object):
             connection_id (str): The connection to send it to.
         """
         try:
-            self._network.send(message_type, message, connection_id,
-                               one_way=one_way)
+            self._network.send(message_type, message, connection_id,one_way=one_way)
         except ValueError:
             LOGGER.debug("Connection %s is no longer valid. Removing from list of peers.",connection_id)
             if connection_id in self._peers:

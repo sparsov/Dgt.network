@@ -42,7 +42,7 @@ services:
         cd families/settings
         python3 setup.py clean --all
         python3 setup.py build
-        settings-tp -vv -C tcp://validator-bgx-4:4009
+        settings-tp -vv -C tcp://validator-bgx-4:4010
       "
     stop_signal: SIGKILL
 
@@ -70,7 +70,7 @@ services:
         cd bgx/families/bgt_python
         python3 setup.py clean --all
         python3 setup.py build
-        bgt-tp-python -vv -C tcp://validator-bgx-4:4009
+        bgt-tp-python -vv -C tcp://validator-bgx-4:4010
       "
     stop_signal: SIGKILL
 
@@ -98,7 +98,7 @@ services:
 #        cd bgx/families/bgx_validator_registry
 #        python3 setup.py clean --all
 #        python3 setup.py build
-#        bgx-validator-registry -vv -C tcp://validator-bgx-4:4009
+#        bgx-validator-registry -vv -C tcp://validator-bgx-4:4010
 #      "
 #    stop_signal: SIGKILL
 
@@ -179,11 +179,11 @@ services:
       - ../..:/project/${BGX_TOP}
     container_name: validator-nbgx-4
     expose:
-      - 4009
+      - 4010
       - 8803
       - 5053
     ports:
-      - "4009:4009"
+      - "4010:4010"
       - "8803:8803"
     # start the validator with an empty genesis batch sawtooth.consensus.algorithm=devmode and ADD sawtooth.consensus.version=0.1
     command: |
@@ -200,7 +200,7 @@ services:
         sawadm genesis config-genesis.batch  sawset.batch
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-4:8803 \
-            --bind component:tcp://eth0:4009 \
+            --bind component:tcp://eth0:4010 \
             --bind network:tcp://eth0:8803 \
             --bind consensus:tcp://eth0:5053 \
       "
@@ -232,7 +232,7 @@ services:
         cd bgx/rest-api
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api -vv --connect tcp://validator-bgx-4:4009 --bind bgx-api-4:8011
+        bgx-rest-api -vv --connect tcp://validator-bgx-4:4010 --bind bgx-api-4:8011
       "
     stop_signal: SIGKILL
 
@@ -262,7 +262,7 @@ services:
         cd bgx/consensus/bgx_pbft
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-pbft -vv --connect tcp://validator-bgx-4:5053 --component tcp://validator-bgx-4:4009
+        bgx-pbft -vv --connect tcp://validator-bgx-4:5053 --component tcp://validator-bgx-4:4010
       "
     stop_signal: SIGKILL
 
@@ -291,7 +291,7 @@ services:
 #       cd bgx/consensus/devmode_python
 #       python3 setup.py clean --all
 #       python3 setup.py build
-#       devmode-python -vv --connect tcp://validator-bgx-4:5053 --component tcp://validator-bgx-4:4009
+#       devmode-python -vv --connect tcp://validator-bgx-4:5053 --component tcp://validator-bgx-4:4010
 #     "
 #   stop_signal: SIGKILL
 

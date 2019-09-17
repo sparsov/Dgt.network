@@ -120,6 +120,13 @@ class BranchState(object):
     @property
     def arbiters(self):
         return self._engine.arbiters
+    @property
+    def num_arbiters(self):
+        num = 0
+        for val in self.arbiters.values():
+            if val[1]:
+                num += 1
+        return num
 
     @property
     def parent(self):
@@ -238,16 +245,12 @@ class BranchState(object):
         self._num_arbiters = 0
         if self.is_leader :
             # send as leader
+            # and wait messages from all rest arbiters which is active
+            self._num_arbiters = self.num_arbiters
+            LOGGER.debug("_send_arbitration _num_arbiters=%s",self._num_arbiters)
             message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG) 
             self._broadcast2arbiter(message,PbftMessageInfo.ARBITRATION_MSG,block.block_id)
-            """
-            for aid,val in self.arbiters.items():
-                if val[1]:
-                    # send message to all ready nodes 
-                    self._num_arbiters += 1 # wait reply from arbiter
-                    LOGGER.debug("SEND ARBITRATION_MSG  block=%s\n",block.block_id.hex()[:8])
-                    self._send_to(aid,message,PbftMessageInfo.ARBITRATION_MSG,block.block_id) 
-            """
+            
         else:
             # wait only one message from own leader
             self._num_arbiters = 1
@@ -454,7 +457,11 @@ class BranchState(object):
         else:
             LOGGER.info('Ignoring block=%s for BRANCH=%s', _short_id(block.block_id.hex()),self._head_id[:8])
             self.reset_state()
-            self.ignore_block(block.block_id)
+            try:    
+                self.ignore_block(block.block_id)
+            except exceptions.UnknownBlock:
+                # block could be already rejected - it's not a problem in this case
+                LOGGER.info('UnknownBlock block=%s already was DELLED', _short_id(block.block_id.hex()))    
             return Consensus.fail
 
     def check_commit(self,block):
@@ -512,7 +519,7 @@ class BranchState(object):
         this is answer on arbitration
         """
         self._num_arbiters -= 1
-        if self._num_arbiters <= 0:
+        if self._num_arbiters == 0:
             #we have answer from all arbiter
             if self.is_leader:
                 LOGGER.info('arbitration_done: broadcast ARBITRATION DONE for own cluster block=%s', self.block_num)

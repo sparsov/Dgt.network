@@ -78,7 +78,7 @@ class ConsensusProxy:
         peer_message = ConsensusPeerMessage()
         peer_message.ParseFromString(message)
         LOGGER.debug("ConsensusProxy:send_to peer=%s",peer_id.hex()[:8])
-        if peer_message.message_type == 'Arbitration' or peer_message.message_type == 'ArbitrationDone':
+        if peer_message.message_type == 'ArbitrationDone':
             """
             inform peer about this block
             """
@@ -86,23 +86,7 @@ class ConsensusProxy:
             payload.ParseFromString(peer_message.content)
             block_id = payload.block.block_id.hex()
             LOGGER.debug("Consensus '%s' ask %s from peer=%s for block=%s",peer_message.name,peer_message.message_type,peer_id.hex()[:8],block_id[:8])
-            if peer_message.message_type == 'Arbitration' : 
-                # send to all know arbiters
-                try:
-                    block = next(self._block_manager.get([block_id]))
-                    LOGGER.debug("ARBITRATION:contains in block manager ID=%s",block.header_signature[:8])
-                    self._block_publisher.arbitrate_block(peer_id.hex(),block)
-                except StopIteration:
-                    LOGGER.debug("ARBITRATION: for UNDEFINED block=%s",block_id[:8])
-            else:
-                # send to all own cluster peers and other cluster which ask arbitration
-                # all own peers should get this block 
-                try:
-                    block = next(self._block_manager.get([block_id]))
-                    LOGGER.debug("ARBITRATION DONE :contains in block manager ID=%s",block.header_signature[:8])
-                    #self._block_publisher.arbitrate_block(peer_id.hex(),block)
-                except StopIteration:
-                    LOGGER.debug("ARBITRATION DONE : for UNDEFINED block=%s",block_id[:8])
+            
 
         self._gossip.send_consensus_message(
             peer_id=peer_id.hex(),
@@ -124,16 +108,13 @@ class ConsensusProxy:
         payload.ParseFromString(peer_message.content)
         block_id = payload.block.block_id.hex()
         LOGGER.debug("broadcast2arbiter '%s' ask %s from arbiters for block=%s",peer_message.name,peer_message.message_type,block_id[:8])
-        try:
-            block = next(self._block_manager.get([block_id]))
-            LOGGER.debug("ARBITRATION:contains in block manager ID=%s",block.header_signature[:8])
-            if peer_message.message_type == 'Arbitration' : 
+        if peer_message.message_type == 'Arbitration' : 
+            try:
+                block = next(self._block_manager.get([block_id]))
+                LOGGER.debug("ARBITRATION:contains in block manager ID=%s",block.header_signature[:8])
                 self._block_publisher.arbitrate_block(block)
-            elif peer_message.message_type == 'ArbitrationDone' :
-                 LOGGER.debug("ARBITRATION DONE: SEND BLOCK=%s TO OWN CLUSTER",block.header_signature[:8])
-
-        except StopIteration:
-            LOGGER.debug("ARBITRATION: for UNDEFINED block=%s",block_id[:8])
+            except StopIteration:
+                LOGGER.debug("ARBITRATION: for UNDEFINED block=%s",block_id[:8])
 
         self._gossip.broadcast_arbiter_consensus_message(
             message=message,
@@ -141,18 +122,19 @@ class ConsensusProxy:
 
     def broadcast2cluster(self,message):
         # ARBITER DONE = send to cluster
+        peer_message = ConsensusPeerMessage()
+        peer_message.ParseFromString(message)
         payload = PbftMessage()
         payload.ParseFromString(peer_message.content)
         block_id = payload.block.block_id.hex()
         LOGGER.debug("broadcast2cluster '%s' ask %s from arbiters for block=%s",peer_message.name,peer_message.message_type,block_id[:8])
-        try:
-            block = next(self._block_manager.get([block_id]))
-            LOGGER.debug("ARBITRATION DONE:contains in block manager ID=%s",block.header_signature[:8])
-            if peer_message.message_type == 'ArbitrationDone' :
+        if peer_message.message_type == 'ArbitrationDone' :
+            try:
+                block = next(self._block_manager.get([block_id]))
                 LOGGER.debug("ARBITRATION DONE: SEND BLOCK=%s TO OWN CLUSTER",block.header_signature[:8])
-
-        except StopIteration:
-            LOGGER.debug("ARBITRATION: for UNDEFINED block=%s",block_id[:8])
+                self._block_publisher.arbitrate_block(block,False)
+            except StopIteration:
+                LOGGER.debug("ARBITRATION: for UNDEFINED block=%s",block_id[:8])
 
         self._gossip.broadcast_cluster_consensus_message(
             message=message,

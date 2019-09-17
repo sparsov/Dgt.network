@@ -1204,7 +1204,7 @@ class BlockPublisher(object):
                 """
                 pending_batches = []   
                 last_batch = candidate.last_batch
-                LOGGER.debug("BlockPublisher: before finalize BLOCK=%s->%s last_batch=%s make_batch_broadcast=%s\n",candidate.block_num,bid[:8],last_batch.header_signature[:8],candidate._make_batch_broadcast)
+                LOGGER.debug("BlockPublisher: before finalize BLOCK=%s->%s last_batch=%s make_batch_broadcast=%s\n",candidate.block_num,bid[:8],last_batch.header_signature[:8],candidate.make_batch_broadcast)
                 block = candidate.finalize_block(self._identity_signer,pending_batches)
                 LOGGER.debug("BlockPublisher: after finalize BLOCK=%s->%s pending BATCHS=%s+%s block=%s",candidate.block_num,bid[:8],len(self._pending_batches),[batch.header_signature[:8] for batch in pending_batches],block is not None)
                 """
@@ -1244,7 +1244,7 @@ class BlockPublisher(object):
                         self._pending_batch_recomm = unsent_batch_recomm
 
                         self._pending_batch_gauge.set_value(len(self._pending_batches))
-                        LOGGER.debug("BlockPublisher: After finalize for BRANCH=%s new pending=%s batches=%s cid=%s\n", bid[:8],len(self._pending_batches),
+                        LOGGER.debug("BlockPublisher: After finalize for BRANCH=%s.%s new pending=%s batches=%s cid=%s\n",candidate.block_num,bid[:8],len(self._pending_batches),
                                      [key[:8] for key in self._pending_batch_ids], self.pending_batch_recomm
                                      )
                     except ValueError:
@@ -1252,9 +1252,10 @@ class BlockPublisher(object):
 
                     if block:
                         blkw = BlockWrapper(block)
-                        LOGGER.info("Claimed Block: for branch=%s NEW BLOCK=%s.%s BATCHES=%s\n",bid[:8],blkw.block_num,blkw.identifier[:8],[batch.header_signature[:8] for batch in blkw.batches])
+                        LOGGER.debug("Claimed Block: for branch=%s NEW BLOCK=%s.%s BATCHES=%s\n",bid[:8],blkw.block_num,blkw.identifier[:8],[batch.header_signature[:8] for batch in blkw.batches])
                         if candidate.make_batch_broadcast : 
                             # send in case batch owner
+                            # only to peers own cluster
                             self._batch_publisher.send_batches(blkw.batches,candidate.identifier,candidate.block_num)
                             #ind = 0
                             #for batch in blkw.batches:
@@ -1270,6 +1271,7 @@ class BlockPublisher(object):
                         """
                         send block to others peers but we should use cluster info
                         """
+                        LOGGER.debug("SEND NEW BLOCK=%s.%s\n",bid[:8],blkw.block_num,blkw.identifier[:8])
                         self._block_sender.send(blkw.block)
                         self._blocks_published_count.inc()
 
@@ -1284,14 +1286,14 @@ class BlockPublisher(object):
                         send branch id as additional argument for on_chain_updated()
                         """
                         self.on_chain_updated(None,branch_id=bid)
-                        LOGGER.info("on_check_publish_block: after update candidates=%s heads=%s",self.candidate_blocks,[key[:8] for key in self._chain_heads.keys()])
+                        LOGGER.debug("on_check_publish_block: after update candidates=%s heads=%s",self.candidate_blocks,[key[:8] for key in self._chain_heads.keys()])
                     else:
                         """
                         candidate.finalize_block() return None but external consensus don't know about this and use bid for reply summarize()
                         so we should create new candidate for this BID in this function
                         also _chain_heads has head for branch bid
                         """ 
-                        LOGGER.info("on_check_publish_block: was not finalize branch=%s REBUILD THIS CANDIDATE block=%s!!!!\n\n",bid[:8],candidate.block_num)
+                        LOGGER.debug("on_check_publish_block: was not finalize branch=%s REBUILD THIS CANDIDATE block=%s!!!!\n\n",bid[:8],candidate.block_num)
                         # for correct block number allocation we should keep block number relation this candidate
                         self._block_store.pop_block_number(candidate.block_num,self._validator_id)
                         # Use color from self._candidate_blocks[bid]
@@ -1431,13 +1433,14 @@ class BlockPublisher(object):
             # need new block candidate
             self._candidate_block = None
 
-    def arbitrate_block(self,block):
+    def arbitrate_block(self,block,arbiter=True):
         """
         consensus ask arbitration - send this block to arbiter
         id consensus ask us - it means we leader of this cluster
         """
-        LOGGER.debug('BlockPublisher:arbitrate_block block=%s to arbiters',block.header_signature[:8])
-        self._block_sender.send_arbiter(block)
+        LOGGER.debug('BlockPublisher:arbitrate_block block=%s to arbiter=%s',block.header_signature[:8],arbiter)
+        self._block_sender.send_arbiter(block,arbiter)
+        
         
 class _RollingAverage(object):
 

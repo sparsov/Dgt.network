@@ -138,7 +138,9 @@ class GossipMessageDuplicateHandler(Handler):
                 has_block = True
 
             if has_block:
+                LOGGER.debug("GossipMessageDuplicateHandler: DROP BLOCK=%s", block.header_signature[:8])
                 return HandlerResult(HandlerStatus.DROP)
+            LOGGER.debug("GossipMessageDuplicateHandler: PASS BLOCK=%s", block.header_signature[:8])
 
         if gossip_message.content_type == gossip_message.BATCH:
             batch = Batch()
