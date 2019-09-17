@@ -557,6 +557,7 @@ class PbftEngine(Engine):
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
         self._arbitration_msgs = {} 
+        self._nest_color = []     # add color for nests
         self._path_config = path_config
         self._component_endpoint = component_endpoint
         self._service = None
@@ -621,9 +622,9 @@ class PbftEngine(Engine):
             if self._cluster_name != self._genesis:
                 self._nest_color.append(self._cluster_name)
             for cluster in self.arbiters.values():
-                self._nest_color.append(cluster[2])
-            if self._genesis not in self._nest_color:
-                self._nest_color.append(self._genesis)
+                if cluster[2] != self._genesis:
+                    self._nest_color.append(cluster[2])
+            self._nest_color.append(self._genesis)
             LOGGER.debug('NEW NEST COLORS=%s',self._nest_color)
         color = self._nest_color.pop()
         LOGGER.debug('NEST COLOR=%s',color) 
@@ -867,7 +868,7 @@ class PbftEngine(Engine):
         self._own_type = self._oracle.own_type
         self._arbiters = self._oracle.arbiters         # ring of arbiter     
         self._cluster = self._oracle.cluster           # own cluster's peers
-        self._nest_color = []                          # add color for nests 
+         
         
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
