@@ -29,10 +29,10 @@ services:
         cd bgx/dashboard
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-dashboard -vv  --connect tcp://validator-bgx:4004 --bind bgx-dashboard:8003
+        bgx-dashboard -vv  --connect tcp://validator-bgx-1:4004 --bind bgx-dashboard:8003
       "
     stop_signal: SIGKILL
 
 networks:
   network1:
-     name: bgx-network
+     name: bgx1-network

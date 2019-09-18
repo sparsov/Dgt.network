@@ -19,4 +19,4 @@
 #
 
 # The REST API URL
-   url = "http://rest-api:8009"
+   url = "http://bgx-api-5:8012"

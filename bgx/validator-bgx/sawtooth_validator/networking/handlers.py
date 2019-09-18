@@ -116,8 +116,7 @@ class ConnectHandler(Handler):
                 auth_type=ConnectionResponse.CHALLENGE)
             connection_response = ConnectionResponse(roles=[role_type])
         else:
-            LOGGER.warning("Network role is set to an unsupported"
-                           "Authorization Type: %s", auth_type)
+            LOGGER.warning("Network role is set to an unsupported Authorization Type: %s", auth_type)
             connection_response = ConnectionResponse(
                 status=ConnectionResponse.ERROR)
             return HandlerResult(
@@ -135,7 +134,7 @@ class ConnectHandler(Handler):
 
         if not is_outbound_connection:
             if self._network.allow_inbound_connection():
-                LOGGER.debug("Allowing incoming connection: %s", connection_id)
+                LOGGER.debug("Allowing incoming connection: %s(%s)", connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
                 connection_response.status = connection_response.OK
             else:
                 connection_response.status = connection_response.ERROR
@@ -146,8 +145,7 @@ class ConnectHandler(Handler):
                     AUTHORIZATION_CONNECTION_RESPONSE)
 
         if self._network.get_connection_status(connection_id) is not None:
-            LOGGER.debug("Connection has already sent ConnectionRequest:"
-                         " %s, Remove connection.", connection_id)
+            LOGGER.debug("Connection has already sent ConnectionRequest: %s, Remove connection.", connection_id[:8])
             connection_response.status = connection_response.ERROR
             return HandlerResult(
                 HandlerStatus.RETURN_AND_CLOSE,

@@ -299,4 +299,9 @@ services:
 networks:
   network1:
      name: bgx${N}-network
+
+#        driver: default
+#        config:
+#          - subnet: "172.16.32.0/24"
+          
   
