@@ -368,7 +368,7 @@ class BlockStore(MutableMapping):
     def get_graph(self):
         bad_block = ['save']
         LOGGER.debug("get_graph DONE\n")
-        fed_colour = ['white','yellow','green']
+        fed_colour = ['white','yellow','green','blue','grey']
         gv = open('DAG.gv', 'w')
         gv.write("digraph DAG {\n")
         #gv.write('node [style="filled", fillcolor="yellow", fontcolor="black", margin="0.01"]')

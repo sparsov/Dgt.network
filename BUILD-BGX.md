@@ -60,3 +60,10 @@ docker-compose -f bgx/docker/docker-compose-dashboard-bgx2.yaml up
 # valid
 docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 docker-compose -f bgx/docker/docker-compose-net2-bgx-val-pbft.yaml up
+# nodes
+export N=1 API=8008 COMP=4004 NET=8800 CONS=5050;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export N=2 API=8009 COMP=4006 NET=8801 CONS=5051;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export N=3 API=8010 COMP=4008 NET=8802 CONS=5052;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export N=4 API=8011 COMP=4009 NET=8803 CONS=5053;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export N=5 API=8012 COMP=4010 NET=8804 CONS=5054;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+

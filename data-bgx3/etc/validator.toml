@@ -27,9 +27,9 @@
 # of strings in the format "option:endpoint", where the options are currently
 # network and component.
 bind = [
-  "network:tcp://validator-bgx-2:8801",
-  "component:tcp://127.0.0.1:4006",
-  "consensus:tcp://127.0.0.1:5051"
+  "network:tcp://validator-bgx-3:8802",
+  "component:tcp://127.0.0.1:4008",
+  "consensus:tcp://127.0.0.1:5052"
 ]
 
 # The type of peering approach the validator should take. Choices are 'static'
@@ -40,7 +40,7 @@ bind = [
 peering = "static"
 
 # Advertised network endpoint URL.
-endpoint = "tcp://validator-bgx-2:8801"
+endpoint = "tcp://validator-bgx-3:8802"
 
 # Uri(s) to connect to in order to initially connect to the validator network,
 # in the format tcp://hostname:port. This is not needed in static peering mode
@@ -49,11 +49,11 @@ endpoint = "tcp://validator-bgx-2:8801"
 
 # A list of peers to attempt to connect to in the format tcp://hostname:port.
 # It defaults to None. Replace host1 with the peer's hostname or IP address.
- peers = ["tcp://validator-bgx-1:8800","tcp://validator-bgx-3:8802","tcp://validator-bgx-4:8803"]
+peers = ["tcp://validator-bgx-1:8800","tcp://validator-bgx-2:8801","tcp://validator-bgx-4:8803"]
 
 # The type of scheduler to use. The choices are 'serial' or 'parallel'.
-#scheduler = 'serial'
 scheduler = 'parallel'
+#database  = 'uri://admin:foo@orientdb:2424/blocks'
 # A Curve ZMQ key pair are used to create a secured network based on side-band
 # sharing of a single network key pair to all participating nodes.
 # Note if the config file does not exist or these are not set, the network

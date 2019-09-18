@@ -175,8 +175,10 @@ class PbftOracle:
                 set own node type and cluster info
                 """
                 self._node = val['type'] if 'type' in val else 'plink'
+                """
                 if arbiter_id is not None:
                     self._arbiters[arbiter_id] = ('arbiter',False,parent_name)  # type of arbiter and status(not ready)
+                """
                 self._cluster = children
                 self._cluster_name = name 
                 LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))

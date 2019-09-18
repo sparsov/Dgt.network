@@ -619,11 +619,13 @@ class PbftEngine(Engine):
     def nest_color(self):
         if len(self._nest_color) == 0:
             # make list color for nests
+            colors = []
             if self._cluster_name != self._genesis:
-                self._nest_color.append(self._cluster_name)
+                colors.append(self._cluster_name)
             for cluster in self.arbiters.values():
                 if cluster[2] != self._genesis:
-                    self._nest_color.append(cluster[2])
+                    colors.append(cluster[2])
+            self._nest_color = sorted(colors)
             self._nest_color.append(self._genesis)
             LOGGER.debug('NEW NEST COLORS=%s',self._nest_color)
         color = self._nest_color.pop()
@@ -1117,9 +1119,14 @@ class PbftEngine(Engine):
             LOGGER.info('EXTERNAL BLOCK=%s(%s) num=%s prev=%s', _short_id(block_id),signer_id[:8],block.block_num,bid[:8])
             if block_id in self._peers_branches:
                 # head could be already changed - we can get new head for this branch
-                chain_head = self._get_chain_head(None if bid == NULL_BLOCK_IDENTIFIER else bbid) # ask head for branch
-                branch = self._peers_branches[block_id] 
-                resolve_fork(branch,chain_head,block)
+                head_id = (None if bid == NULL_BLOCK_IDENTIFIER else bbid)
+                try:
+                    chain_head = self._get_chain_head(head_id) # ask head for branch
+                    branch = self._peers_branches[block_id] 
+                    resolve_fork(branch,chain_head,block)
+                except exceptions.NoChainHead:
+                    LOGGER.info('EXTERNAL BLOCK=%s.%s NO DAG HEAD=%s\n\n',block.block_num,_short_id(block_id),head_id)
+                    
                 
 
 
