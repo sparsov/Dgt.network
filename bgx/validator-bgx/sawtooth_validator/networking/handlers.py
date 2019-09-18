@@ -196,8 +196,7 @@ class PingHandler(Handler):
         request.ParseFromString(message_content)
 
         ack = PingResponse()
-        if self._network.get_connection_status(connection_id) == \
-                ConnectionStatus.CONNECTED:
+        if self._network.get_connection_status(connection_id) == ConnectionStatus.CONNECTED:
 
             if connection_id in self._last_message:
                 del self._last_message[connection_id]
@@ -208,10 +207,8 @@ class PingHandler(Handler):
                 message_type=validator_pb2.Message.PING_RESPONSE)
 
         if connection_id in self._last_message:
-            if time.time() - self._last_message[connection_id] < \
-                    self._allowed_frequency:
-                LOGGER.debug("Too many Pings in %s seconds before "
-                             "authorization is complete: %s",
+            if time.time() - self._last_message[connection_id] < self._allowed_frequency:
+                LOGGER.debug("Too many Pings in %s seconds before authorization is complete: %s",
                              self._allowed_frequency,
                              connection_id)
                 violation = AuthorizationViolation(
