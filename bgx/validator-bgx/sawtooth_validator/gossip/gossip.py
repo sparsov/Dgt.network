@@ -137,9 +137,10 @@ class Gossip(object):
 
         self._topology = None
         self._peers = {}
-        self._cluster = None
-        self._arbiters = None
+        
         # feder topology
+        self._is_federations_checked = False
+        self._fbft = None
         self._stopology = None
         self._ftopology = None
         """
@@ -148,17 +149,21 @@ class Gossip(object):
         """
         LOGGER.debug("Gossip peers=%s",initial_peer_endpoints)
 
-    def set_cluster(self,cluster,arbiters):
-        self._cluster = cluster
-        self._arbiters = arbiters
-        LOGGER.debug("set cluster=%s arbiters=%s",cluster,arbiters)
+    @property
+    def is_federations_checked(self):
+        return self._is_federations_checked
+
+    def set_cluster(self,topology):
+        self._fbft = topology
+        
+        LOGGER.debug("set cluster=%s arbiters=%s",self._fbft.cluster,self._fbft.arbiters)
 
     def get_exclude(self,cluster = None):
         # get list of peers not from our cluster or arbiters ring
         LOGGER.debug("get_exclude peers=%s",self._peers)
         exclude = []
         if cluster is None:
-            cluster = self._cluster
+            cluster = self._fbft.cluster
         with self._lock:
             for peer in self._peers.keys() :
                 public_key = self._network.connection_id_to_public_key(peer)
@@ -272,10 +277,12 @@ class Gossip(object):
                 raise PeeringException("At maximum configured number of peers: {} Rejecting peering request from {}.".format(self._maximum_peer_connectivity,endpoint))
 
         public_key = self.peer_to_public_key(connection_id)
-        if public_key:
-            #send message about peer to consensus engine
-            pass
-            #self._consensus_notifier.notify_peer_connected(public_key)
+        if public_key and self.is_federations_checked:
+            """
+            send message about peer to consensus engine
+            in case timeout for waiting peers is expired
+            """
+            self._consensus_notifier.notify_peer_connected(public_key)
 
     def unregister_peer(self, connection_id):
         """Removes a connection_id from the registry.
@@ -298,13 +305,18 @@ class Gossip(object):
 
     def switch_on_federations(self):
         # send request about block HEAD
+        self._is_federations_checked = True
         LOGGER.debug("switch_on_federations peers=%s",len(self._peers))
         with self._lock:
-            peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers] 
+            peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
+            keys_cid  = {self._network.connection_id_to_public_key(cid) : cid for cid in self._peers} 
         LOGGER.debug("switch_on_federations peers=%s",peer_keys)
         for public_key in set(peer_keys):
             if public_key:
-                LOGGER.debug("switch_on_federations peer=%s send HEAD request",public_key[:8])
+                cid = keys_cid[public_key]
+                LOGGER.debug("switch_on_federations peer=%s send HEAD request cid=%s",public_key[:8],cid[:8])
+                if self._fbft.genesis_node == public_key:
+                    self.send_block_request("HEAD", cid)
                 self._consensus_notifier.notify_peer_connected(public_key)
 
     def get_time_to_live(self):
@@ -426,7 +438,7 @@ class Gossip(object):
 
     def broadcast_arbiter_consensus_message(self, message, public_key):
         # make exclude
-        exclude = self.get_exclude(self._arbiters) if self._arbiters else None
+        exclude = self.get_exclude(self._fbft.arbiters) if self._fbft.arbiters else None
         LOGGER.debug('Gossip: broadcast_arbiter_consensus_message exclude=%s',exclude)
         self.broadcast(
             GossipConsensusMessage(
@@ -437,7 +449,7 @@ class Gossip(object):
 
     def broadcast_cluster_consensus_message(self, message, public_key):
         # make exclude
-        exclude = self.get_exclude(self._cluster) if self._cluster else None
+        exclude = self.get_exclude(self._fbft.cluster) if self._fbft.cluster else None
         LOGGER.debug('Gossip: broadcast_cluster_consensus_message exclude=%s',exclude)
         self.broadcast(
             GossipConsensusMessage(
@@ -583,9 +595,12 @@ class ConnectionManager(InstrumentedThread):
         self._temp_endpoints = {}
         self._static_peer_status = {}
         # federation
-        self._is_federations_checked = False
         self._federations_timeout = federations_timeout
         self._check_time = 0
+
+    @property
+    def is_federations_checked(self):
+        return self._gossip.is_federations_checked
 
     def start(self):
         # First, attempt to connect to explicit peers
@@ -674,7 +689,7 @@ class ConnectionManager(InstrumentedThread):
         for federation topology try to wait peers connection before send CHAIN HEAD request
         """
         with self._lock:
-            if not self._is_federations_checked and self._gossip.is_peers():
+            if not self.is_federations_checked and self._gossip.is_peers():
                 # not checked and there is some registered peers
                 if self._check_time > self._federations_timeout:
                     self.check_federations_status()
@@ -914,11 +929,11 @@ class ConnectionManager(InstrumentedThread):
         with self._lock:
             self._candidate_peer_endpoints = []
 
+ 
     def check_federations_status(self):
         """
         check may be we can send HEAD block request
         """
-        self._is_federations_checked = True
         LOGGER.debug("CHECK federations_status !\n")
         self._gossip.switch_on_federations()
 
@@ -942,7 +957,7 @@ class ConnectionManager(InstrumentedThread):
                         for federation topology try to wait sometime until peers connected
                         and only after this timeout send HEAD block request
                         """
-                        self._gossip.send_block_request("HEAD", connection_id)
+                        #self._gossip.send_block_request("HEAD", connection_id)
 
                     except PeeringException as e:
                         # Remove unsuccessful peer

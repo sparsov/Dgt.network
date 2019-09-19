@@ -170,14 +170,14 @@ services:
         - https_proxy
         - no_proxy
         - BGX_TOP=bgx
-    image: validator-nbgx-4:${ISOLATION_ID}
+    image: validator-bgx-4:${ISOLATION_ID}
     networks:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx4
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: validator-nbgx-4
+    container_name: validator-bgx-4
     expose:
       - 4009
       - 8803
@@ -298,5 +298,6 @@ services:
 
 networks:
   network1:
-     name: bgx4-network
+    external:
+     name: bgx1-network
   

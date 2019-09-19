@@ -52,14 +52,10 @@ class Dispatcher(InstrumentedThread):
             validator_pb2.Message.PING_REQUEST: HIGH_PRIORITY,
             validator_pb2.Message.GOSSIP_GET_PEERS_REQUEST: MED_PRIORITY,
             validator_pb2.Message.GOSSIP_REGISTER: MED_PRIORITY,
-            validator_pb2.Message.AUTHORIZATION_CONNECTION_RESPONSE:
-                MED_PRIORITY,
-            validator_pb2.Message.AUTHORIZATION_TRUST_REQUEST:
-                MED_PRIORITY,
-            validator_pb2.Message.AUTHORIZATION_CHALLENGE_REQUEST:
-                MED_PRIORITY,
-            validator_pb2.Message.AUTHORIZATION_CHALLENGE_SUBMIT:
-                MED_PRIORITY
+            validator_pb2.Message.AUTHORIZATION_CONNECTION_RESPONSE: MED_PRIORITY,
+            validator_pb2.Message.AUTHORIZATION_TRUST_REQUEST: MED_PRIORITY,
+            validator_pb2.Message.AUTHORIZATION_CHALLENGE_REQUEST: MED_PRIORITY,
+            validator_pb2.Message.AUTHORIZATION_CHALLENGE_SUBMIT: MED_PRIORITY
         }
 
     def _get_dispatch_timer(self, tag):

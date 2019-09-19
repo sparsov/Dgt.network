@@ -53,6 +53,84 @@ NUM_PUBLISH_COUNT_SAMPLES = 5
 INITIAL_PUBLISH_COUNT = 30
 _MAX_BATCHES_ = 6
 
+class FbftTopology(object):
+    """
+    F-BFT topology
+    """
+    def __init__(self,validator_id):
+        self._validator_id = validator_id
+        self._nest_colour = None
+        self._genesis_node = None
+        self._arbiters = {}
+        self._cluster = None
+        self._topology  = None
+
+    @property
+    def nest_colour(self):
+        return self._nest_colour
+
+    @property
+    def cluster(self):
+        return self._cluster
+
+    @property
+    def arbiters(self):
+        return self._arbiters
+
+    @property
+    def genesis_node(self):
+        return self._genesis_node if self._genesis_node else ''
+
+    def get_topology(self,stopology):
+        # get topology from string
+      
+        def get_cluster_info(arbiter_id,parent_name,name,children):
+            for key,val in children.items():
+                #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
+                if key == self._validator_id:
+                    if arbiter_id is not None:
+                        self._arbiters[arbiter_id] = ('arbiter',parent_name)
+                    self._nest_colour = name
+                    self._cluster    = children
+                    LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
+                    return
+
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        get_cluster_info(key,name,cluster['name'],cluster['children'])
+                        if self._nest_colour is not None:
+                            return
+
+        def get_arbiters(arbiter_id,name,children):
+            # make ring of arbiter - add only arbiter from other cluster
+            for key,val in children.items():
+                if self._nest_colour != name:
+                    # check only other cluster and add delegate
+                    if 'delegate' in val:
+                        self._arbiters[key] = ('delegate',name)
+
+                if self._genesis_node is None and 'genesis' in val:
+                    # this is genesis node of all network
+                    self._genesis_node = key
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        get_arbiters(key,cluster['name'],cluster['children'])
+
+        topology = json.loads(stopology)
+        self._topology = topology
+        #LOGGER.debug('get_topology=%s',topology)
+        if 'name' in topology and 'children' in topology:
+            get_cluster_info(None,None,topology['name'],topology['children'])
+        if self._nest_colour is None:
+            self._nest_colour = 'Genesis'
+        else:
+            # get arbiters
+            get_arbiters(None,topology['name'],topology['children'])
+            LOGGER.debug('Arbiters RING=%s GENESIS=%s',self._arbiters,self.genesis_node[:8])
+
+
 
 class PendingBatchObserver(metaclass=abc.ABCMeta):
     """An interface class for components wishing to be notified when a Batch
@@ -555,10 +633,7 @@ class BlockPublisher(object):
         for modern proxy consensus -
         wait until external engine  ask block candidate for one of the DAG's branch - 
         """  
-        self._nest_colour = None # own color
-        self._cluster    = None # own cluster
-        self._arbiters   = {} # arbiters ring
-
+        
         self._engine_ask_candidate = {}
         self._blocks_summarize = [] # list of blocks which could be summarized
         self._consensus_notifier = consensus_notifier
@@ -590,6 +665,8 @@ class BlockPublisher(object):
         self._get_merkle_root = context_handlers['merkle_root']
         self._identity_signer = identity_signer
         self._validator_id = identity_signer.get_public_key().as_hex()
+        # FBFT Topology
+        self._topology = FbftTopology(self._validator_id)
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._permission_verifier = permission_verifier
@@ -623,7 +700,7 @@ class BlockPublisher(object):
     @property
     def nest_colour(self):
         # own validator color
-        return self._nest_colour
+        return self._topology.nest_colour
 
     @property
     def candidate_blocks(self):
@@ -631,64 +708,23 @@ class BlockPublisher(object):
 
     def belong_cluster(self,peer_id):
         LOGGER.debug('Check CLUSTER for peer_id=%s',peer_id[:8])
-        return (peer_id in self._cluster) if self._cluster else True
-
+        return (peer_id in self._topology.cluster) if self._topology.cluster else True
+    
     def get_topology_info(self,state_root_hash):
         """
         get topology info - we should know own nests color
         """ 
-        def get_cluster_info(arbiter_id,parent_name,name,children):
-            for key,val in children.items():
-                #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
-                if key == self._validator_id:
-                    if arbiter_id is not None:
-                        self._arbiters[arbiter_id] = ('arbiter',parent_name)
-                    self._nest_colour = name
-                    self._cluster    = children
-                    LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
-                    return
-
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
-                        get_cluster_info(key,name,cluster['name'],cluster['children'])
-                        if self._nest_colour is not None:
-                            return
-
-        def get_arbiters(arbiter_id,name,children):
-            # make ring of arbiter - add only arbiter from other cluster
-            for key,val in children.items():
-                if self._nest_colour != name:
-                    # check only other cluster and add delegate
-                    if 'delegate' in val:
-                        self._arbiters[key] = ('delegate',name)
-                    
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
-                        get_arbiters(key,cluster['name'],cluster['children'])
         # get topology
-        #LOGGER.debug('get topology from chain')
-        topology = self._settings_cache.get_setting(
+        stopology = self._settings_cache.get_setting(
                 "bgx.consensus.pbft.nodes",
                 state_root_hash,
                 default_value='{}'
             ).replace("'",'"')
-        #LOGGER.debug('get topology=%s',topology)
-        topology = json.loads(topology)
-        #LOGGER.debug('get_topology=%s',topology)
-        if 'name' in topology and 'children' in topology:
-            get_cluster_info(None,None,topology['name'],topology['children'])
-        if self._nest_colour is None:
-            self._nest_colour = 'Genesis'
-            #self._cluster    = None
-        else:
-            # get arbiters
-            get_arbiters(None,topology['name'],topology['children'])
-            LOGGER.debug('Arbiters RING=%s',self._arbiters)
-            # set cluster info for block and batch sender
-            self._block_sender.set_cluster(self._cluster,self._arbiters)
-            self._batch_sender.set_cluster(self._cluster)
+        #LOGGER.debug('get topology=%s',stopology)
+        self._topology.get_topology(stopology)
+        self._block_sender.set_cluster(self._topology)
+        self._batch_sender.set_cluster(self._topology)
+
 
     def start(self):
         self._publisher_thread = _PublisherThread(

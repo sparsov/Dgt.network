@@ -77,7 +77,7 @@ class ConnectHandler(Handler):
         """
         message = ConnectionRequest()
         message.ParseFromString(message_content)
-        LOGGER.debug("got connect message from %s. sending ack", connection_id)
+        LOGGER.debug("Got connect message from %s(%s). sending ack", connection_id,self._network.connection_id_to_endpoint(connection_id))
 
         # Need to use join here to get the string "0.0.0.0". Otherwise,
         # bandit thinks we are binding to all interfaces and returns a
@@ -86,9 +86,7 @@ class ConnectHandler(Handler):
         interfaces += netifaces.interfaces()
         for interface in interfaces:
             if interface in message.endpoint:
-                LOGGER.debug("Endpoint cannot include '%s': %s",
-                             interface,
-                             message.endpoint)
+                LOGGER.debug("Endpoint cannot include '%s': %s",interface,message.endpoint)
 
                 connection_response = ConnectionResponse(
                     status=ConnectionResponse.ERROR)
@@ -99,8 +97,7 @@ class ConnectHandler(Handler):
                     AUTHORIZATION_CONNECTION_RESPONSE)
 
         LOGGER.debug("Endpoint of connecting node is %s", message.endpoint)
-        self._network.update_connection_endpoint(connection_id,
-                                                 message.endpoint)
+        self._network.update_connection_endpoint(connection_id,message.endpoint)
 
         # Get what AuthorizationType the network role requires
         roles = self._network.roles
@@ -171,8 +168,7 @@ class DisconnectHandler(Handler):
     def handle(self, connection_id, message_content):
         message = DisconnectMessage()
         message.ParseFromString(message_content)
-        LOGGER.debug("got disconnect message from %s. sending ack",
-                     connection_id)
+        LOGGER.debug("got disconnect message from %s(%s). sending ack",connection_id,self._network.connection_id_to_endpoint(connection_id))
 
         ack = NetworkAcknowledgement()
         ack.status = ack.OK
@@ -194,7 +190,7 @@ class PingHandler(Handler):
 
         request = PingRequest()
         request.ParseFromString(message_content)
-
+        #LOGGER.debug("PingHandler PingRequest %s(%s)",connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
         ack = PingResponse()
         if self._network.get_connection_status(connection_id) == ConnectionStatus.CONNECTED:
 
@@ -208,11 +204,8 @@ class PingHandler(Handler):
 
         if connection_id in self._last_message:
             if time.time() - self._last_message[connection_id] < self._allowed_frequency:
-                LOGGER.debug("Too many Pings in %s seconds before authorization is complete: %s",
-                             self._allowed_frequency,
-                             connection_id)
-                violation = AuthorizationViolation(
-                    violation=RoleType.Value("NETWORK"))
+                LOGGER.debug("Too many Pings in %s seconds before authorization is complete: %s",self._allowed_frequency,connection_id)
+                violation = AuthorizationViolation(violation=RoleType.Value("NETWORK"))
 
                 return HandlerResult(
                     HandlerStatus.RETURN_AND_CLOSE,
@@ -246,11 +239,8 @@ class AuthorizationTrustRequestHandler(Handler):
         an AuthorizatinViolation will be returned and the connection will be
         closed.
         """
-        if self._network.get_connection_status(connection_id) != \
-                ConnectionStatus.CONNECTION_REQUEST:
-            LOGGER.debug("Connection's previous message was not a"
-                         " ConnectionRequest, Remove connection to %s",
-                         connection_id)
+        if self._network.get_connection_status(connection_id) != ConnectionStatus.CONNECTION_REQUEST:
+            LOGGER.debug("Connection's previous message was not a ConnectionRequest, Remove connection to %s",connection_id)
             violation = AuthorizationViolation(
                 violation=RoleType.Value("NETWORK"))
             return HandlerResult(
@@ -280,8 +270,7 @@ class AuthorizationTrustRequestHandler(Handler):
                         message_type=validator_pb2.Message
                         .AUTHORIZATION_VIOLATION)
 
-        self._network.update_connection_public_key(connection_id,
-                                                   request.public_key)
+        self._network.update_connection_public_key(connection_id,request.public_key)
 
         if RoleType.Value("NETWORK") in request.roles:
             # Need to send ConnectionRequest to authorize ourself with the
@@ -335,11 +324,8 @@ class AuthorizationChallengeRequestHandler(Handler):
         AuthorizationViolation will be returned and the connection will be
         closed.
         """
-        if self._network.get_connection_status(connection_id) != \
-                ConnectionStatus.CONNECTION_REQUEST:
-            LOGGER.debug("Connection's previous message was not a"
-                         " ConnectionRequest, Remove connection to %s",
-                         connection_id)
+        if self._network.get_connection_status(connection_id) != ConnectionStatus.CONNECTION_REQUEST:
+            LOGGER.debug("Connection's previous message was not a ConnectionRequest, Remove connection to %s",connection_id)
             violation = AuthorizationViolation(
                 violation=RoleType.Value("NETWORK"))
             return HandlerResult(
@@ -395,14 +381,9 @@ class AuthorizationChallengeSubmitHandler(Handler):
         AuthorizationChallengeRequest, the challenge will be rejected and the
         connection will be closed.
         """
-        if self._network.get_connection_status(connection_id) != \
-                ConnectionStatus.AUTH_CHALLENGE_REQUEST:
-            LOGGER.debug("Connection's previous message was not a"
-                         " AuthorizationChallengeRequest, Remove connection to"
-                         "%s",
-                         connection_id)
-            return AuthorizationChallengeSubmitHandler \
-                ._network_violation_result()
+        if self._network.get_connection_status(connection_id) != ConnectionStatus.AUTH_CHALLENGE_REQUEST:
+            LOGGER.debug("Connection's previous message was not a AuthorizationChallengeRequest, Remove connection to %s",connection_id)
+            return AuthorizationChallengeSubmitHandler._network_violation_result()
 
         auth_challenge_submit = AuthorizationChallengeSubmit()
         auth_challenge_submit.ParseFromString(message_content)

@@ -253,6 +253,7 @@ class BranchState(object):
             
         else:
             # wait only one message from own leader
+            LOGGER.debug("Wait arbitration from own leader")
             self._num_arbiters = 1
                     
 
@@ -1204,7 +1205,7 @@ class PbftEngine(Engine):
             if pid in self._cluster:
                 # take only peers from own cluster topology
                 self._peers[pid] = True
-                LOGGER.info('Connected peer with ID=%s\n', _short_id(pid))
+                LOGGER.info('Connected peer with ID=%s own cluster total=%s\n', _short_id(pid),len(self._peers))
             elif pid in self._arbiters:
                 # one of the arbiters - mark as ready
                 val = self._arbiters[pid]
@@ -1212,7 +1213,7 @@ class PbftEngine(Engine):
                     LOGGER.info('Connected peer with ID=%s IS ONE OF THE OUR ARBITER=%s\n', _short_id(pid),val)
                     self._arbiters[pid] = (val[0],True,val[2])
             else:
-                LOGGER.info('Ignore connected peer=%s(not in our cluster)\n', _short_id(pid))
+                LOGGER.info('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
 
     def _handle_peer_message(self, msg):
         """
