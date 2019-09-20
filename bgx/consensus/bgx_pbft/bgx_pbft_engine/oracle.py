@@ -32,8 +32,9 @@ from sawtooth_sdk.protobuf.client_batch_submit_pb2 import ClientBatchSubmitRespo
 from sawtooth_sdk.protobuf.client_block_pb2 import ClientBlockGetByTransactionIdRequest
 from sawtooth_sdk.protobuf.client_block_pb2 import ClientBlockGetResponse
 from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
-from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusBlock
+from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusBlock, ConsensusNotifyPeerConnected
 from sawtooth_sdk.protobuf.validator_pb2 import Message
+
 
 from bgx_pbft.consensus.pbft_block_publisher import PbftBlockPublisher
 from bgx_pbft.consensus.pbft_block_verifier  import PbftBlockVerifier
@@ -153,7 +154,7 @@ class PbftOracle:
             if self._cluster_name != name:
                 # check only other cluster and add delegate
                 if 'delegate' in val:
-                    self._arbiters[key] = ('delegate',False,name)
+                    self._arbiters[key] = ('delegate',ConsensusNotifyPeerConnected.STATUS_UNSET,name)
 
             if self._genesis_node is None and 'genesis' in val:
                 # this is genesis node of all network

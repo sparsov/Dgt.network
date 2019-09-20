@@ -57,14 +57,18 @@ class ConsensusNotifier:
             for future in futures:
                 future.result()
 
-    def notify_peer_connected(self, peer_id):
-        """A new peer was added"""
-        LOGGER.debug('ConsensusNotifier: notify_peer_connected peer_id=%s',peer_id[:10])
+    def notify_peer_connected(self, peer_id,assemble = True):
+        """
+        A new peer was added
+        """
+        LOGGER.debug('ConsensusNotifier: notify_peer_connected peer_id=%s assemble=%s',peer_id[:10],assemble)
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,
             consensus_pb2.ConsensusNotifyPeerConnected(
-                peer_info=consensus_pb2.ConsensusPeerInfo(
-                    peer_id=bytes.fromhex(peer_id))))
+                peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),
+                status = consensus_pb2.ConsensusNotifyPeerConnected.OK if assemble else consensus_pb2.ConsensusNotifyPeerConnected.NOT_READY
+                )
+            )
 
     def notify_peer_disconnected(self, peer_id):
         """An existing peer was dropped"""

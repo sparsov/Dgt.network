@@ -72,6 +72,87 @@ MAXIMUM_STATIC_RETRIES = 24
 TIME_TO_LIVE = 3
 
 
+class FbftTopology(object):
+    """
+    F-BFT topology
+    """
+    def __init__(self):
+        self._validator_id = None
+        self._nest_colour = None
+        self._genesis_node = None
+        self._arbiters = {}
+        self._cluster = None
+        self._topology  = None
+
+    @property
+    def nest_colour(self):
+        return self._nest_colour
+
+    @property
+    def cluster(self):
+        return self._cluster
+
+    @property
+    def arbiters(self):
+        return self._arbiters
+
+    @property
+    def genesis_node(self):
+        return self._genesis_node if self._genesis_node else ''
+
+    def get_topology(self,topology,validator_id):
+        # get topology from string
+
+        def get_cluster_info(arbiter_id,parent_name,name,children):
+            for key,val in children.items():
+                #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
+                if key == self._validator_id:
+                    if arbiter_id is not None:
+                        self._arbiters[arbiter_id] = ('arbiter',parent_name)
+                    self._nest_colour = name
+                    self._cluster    = children
+                    LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
+                    return
+
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        get_cluster_info(key,name,cluster['name'],cluster['children'])
+                        if self._nest_colour is not None:
+                            return
+
+        def get_arbiters(arbiter_id,name,children):
+            # make ring of arbiter - add only arbiter from other cluster
+            for key,val in children.items():
+                if self._nest_colour != name:
+                    # check only other cluster and add delegate
+                    if 'delegate' in val:
+                        self._arbiters[key] = ('delegate',name)
+
+                if self._genesis_node is None and 'genesis' in val:
+                    # this is genesis node of all network
+                    self._genesis_node = key
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        get_arbiters(key,cluster['name'],cluster['children'])
+
+        #topology = json.loads(stopology)
+        self._validator_id = validator_id
+        self._topology = topology
+        #LOGGER.debug('get_topology=%s',topology)
+        if 'name' in topology and 'children' in topology:
+            get_cluster_info(None,None,topology['name'],topology['children'])
+        if self._nest_colour is None:
+            self._nest_colour = 'Genesis'
+        else:
+            # get arbiters
+            get_arbiters(None,topology['name'],topology['children'])
+            LOGGER.debug('Arbiters RING=%s GENESIS=%s',self._arbiters,self.genesis_node[:8])
+
+
+
+
 class Gossip(object):
     def __init__(self, network,
                  settings_cache,
@@ -139,10 +220,10 @@ class Gossip(object):
         self._peers = {}
         
         # feder topology
-        self._is_federations_checked = False
-        self._fbft = None
-        self._stopology = None
-        self._ftopology = None
+        self._is_federations_assembled = False # point of assemble
+        self._fbft = FbftTopology()            # F-BFT topology
+        self._stopology = None                 # string 
+        self._ftopology = None                 # json 
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -150,8 +231,11 @@ class Gossip(object):
         LOGGER.debug("Gossip peers=%s",initial_peer_endpoints)
 
     @property
-    def is_federations_checked(self):
-        return self._is_federations_checked
+    def f_topology(self):
+        return self._fbft
+    @property
+    def is_federations_assembled(self):
+        return self._is_federations_assembled
 
     def set_cluster(self,topology):
         self._fbft = topology
@@ -171,6 +255,26 @@ class Gossip(object):
                     exclude.append(peer)
         LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
+
+    def notify_peer_connected(self,public_key,assemble=False):
+        """
+        Use topology for restrict peer notification
+        """
+        if public_key in self._fbft.cluster or public_key in self._fbft.arbiters:
+            # own cluster or arbiters
+            LOGGER.debug("Inform engine ADD peer=%s assemble=%s",public_key[:8],assemble)
+            self._consensus_notifier.notify_peer_connected(public_key,assemble)
+        else:
+            LOGGER.debug("Inform engine IGNORE peer=%s",public_key[:8])
+
+    def notify_peer_disconnected(self,public_key):
+        """
+        Use topology for restrict peer notification
+        """
+        if public_key in self._fbft.cluster or public_key in self._fbft.arbiters:
+            # own cluster or arbiters
+            LOGGER.debug("Inform engine DEL peer=%s",public_key[:8])
+            self._consensus_notifier.notify_peer_disconnected(public_key)
 
     def send_peers(self, connection_id):
         """Sends a message containing our peers to the
@@ -219,10 +323,20 @@ class Gossip(object):
             return copy.copy(self._peers)
 
     def is_peers(self):
+        """
+        use for check peer registration - we should waiting until some arbiter or own cluster peers appeared
+        """
         with self._lock:
-            return len(self._peers) > 0
+            peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
+        for key  in set(peer_keys):
+            if key in self._fbft.cluster or key in self._fbft.arbiters:
+                return True
+        return False
+        #return max(peer_keys, key = lambda pk: 1 if pk in self._fbft.cluster or pk in self._fbft.arbiters  else 0) > 0
 
+ 
     def load_topology(self):
+        LOGGER.debug("LOAD topology ...\n")
         self._stopology = self._settings_cache.get_setting(
                 "bgx.consensus.pbft.nodes",
                 self._current_root_func(),
@@ -230,6 +344,8 @@ class Gossip(object):
             ).replace("'",'"')
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
+        self._fbft.get_topology(self._ftopology,self._network.validator_id)
+        
 
     def get_topology(self):
         """
@@ -263,10 +379,7 @@ class Gossip(object):
             endpoint (str): The publically reachable endpoint of the new
                 peer
         """
-        if len(self._peers) == 0:
-            # load topology
-            self.load_topology()
-
+        
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
                 LOGGER.debug("Current peers=%s",[cid[:8] for cid in self._peers])
@@ -277,12 +390,12 @@ class Gossip(object):
                 raise PeeringException("At maximum configured number of peers: {} Rejecting peering request from {}.".format(self._maximum_peer_connectivity,endpoint))
 
         public_key = self.peer_to_public_key(connection_id)
-        if public_key and self.is_federations_checked:
+        if public_key and self.is_federations_assembled:
             """
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
-            self._consensus_notifier.notify_peer_connected(public_key)
+            self.notify_peer_connected(public_key)
 
     def unregister_peer(self, connection_id):
         """Removes a connection_id from the registry.
@@ -293,7 +406,7 @@ class Gossip(object):
         """
         public_key = self.peer_to_public_key(connection_id)
         if public_key:
-            self._consensus_notifier.notify_peer_disconnected(public_key)
+            self.notify_peer_disconnected(public_key)
 
         with self._lock:
             if connection_id in self._peers:
@@ -304,8 +417,12 @@ class Gossip(object):
                 LOGGER.debug("Connection unregister failed as connection was not registered: %s",connection_id)
 
     def switch_on_federations(self):
-        # send request about block HEAD
-        self._is_federations_checked = True
+        """
+        inform consensus engine about peers and 
+        send request about block HEAD
+        that topology point of assemble after that we suppose all appeared peers inconsistent 
+        """
+        self._is_federations_assembled = True
         LOGGER.debug("switch_on_federations peers=%s",len(self._peers))
         with self._lock:
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
@@ -317,7 +434,8 @@ class Gossip(object):
                 LOGGER.debug("switch_on_federations peer=%s send HEAD request cid=%s",public_key[:8],cid[:8])
                 if self._fbft.genesis_node == public_key:
                     self.send_block_request("HEAD", cid)
-                self._consensus_notifier.notify_peer_connected(public_key)
+                self.notify_peer_connected(public_key,assemble=True)
+                
 
     def get_time_to_live(self):
         time_to_live = \
@@ -522,6 +640,8 @@ class Gossip(object):
             self._topology.remove_temp_endpoint(endpoint)
 
     def start(self):
+        # load topology
+        self.load_topology()
         self._topology = ConnectionManager(
             gossip=self,
             network=self._network,
@@ -597,10 +717,11 @@ class ConnectionManager(InstrumentedThread):
         # federation
         self._federations_timeout = federations_timeout
         self._check_time = 0
+        self._peer_timeout = 0
 
     @property
-    def is_federations_checked(self):
-        return self._gossip.is_federations_checked
+    def is_federations_assembled(self):
+        return self._gossip.is_federations_assembled
 
     def start(self):
         # First, attempt to connect to explicit peers
@@ -687,13 +808,24 @@ class ConnectionManager(InstrumentedThread):
     def retry_static_peering(self):
         """
         for federation topology try to wait peers connection before send CHAIN HEAD request
+        we will wait own cluster peer's 
         """
         with self._lock:
-            if not self.is_federations_checked and self._gossip.is_peers():
-                # not checked and there is some registered peers
-                if self._check_time > self._federations_timeout:
-                    self.check_federations_status()
-                self._check_time += 1
+            if not self.is_federations_assembled :
+                if self._peer_timeout > self._federations_timeout or self._gossip.is_peers():
+                    # not checked and there is some registered peers
+                    if self._peer_timeout < self._federations_timeout :
+                        self._peer_timeout = self._federations_timeout + 1 # don't check is_peers() 
+                    else:
+                        # no peers at all - make point of assemble
+                        self.check_federations_status()
+                            
+                    if self._check_time > self._federations_timeout:
+                        self.check_federations_status()
+                    self._check_time += 1
+                self._peer_timeout += 1
+            
+                
             # Endpoints that have reached their retry count and should be
             # removed
             to_remove = []

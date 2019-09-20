@@ -39,10 +39,11 @@ class BroadcastBlockSender(BlockSender):
         self._topology = None
         
 
-    def set_cluster(self,topology,arbiters= None):
+    def get_topology(self):
         # set cluster topology
-        self._topology = topology
-        self._gossip.set_cluster(topology)
+        self._topology = self._gossip.f_topology
+        #self._gossip.set_cluster(topology)
+        return  self._topology
 
     def send(self, block):
         """

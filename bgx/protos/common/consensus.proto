@@ -97,7 +97,13 @@ message ConsensusRegisterResponse {
 
 // A new peer was added
 message ConsensusNotifyPeerConnected {
+   enum Status {
+    OK        = 0;
+    NOT_READY = 1; // for peers connected after point of assemble
+    STATUS_UNSET = 2;
+  }
   ConsensusPeerInfo peer_info = 1;
+  Status            status = 2;
 }
 
 // An existing peer was dropped

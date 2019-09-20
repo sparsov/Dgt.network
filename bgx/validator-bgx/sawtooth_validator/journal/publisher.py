@@ -53,83 +53,6 @@ NUM_PUBLISH_COUNT_SAMPLES = 5
 INITIAL_PUBLISH_COUNT = 30
 _MAX_BATCHES_ = 6
 
-class FbftTopology(object):
-    """
-    F-BFT topology
-    """
-    def __init__(self,validator_id):
-        self._validator_id = validator_id
-        self._nest_colour = None
-        self._genesis_node = None
-        self._arbiters = {}
-        self._cluster = None
-        self._topology  = None
-
-    @property
-    def nest_colour(self):
-        return self._nest_colour
-
-    @property
-    def cluster(self):
-        return self._cluster
-
-    @property
-    def arbiters(self):
-        return self._arbiters
-
-    @property
-    def genesis_node(self):
-        return self._genesis_node if self._genesis_node else ''
-
-    def get_topology(self,stopology):
-        # get topology from string
-      
-        def get_cluster_info(arbiter_id,parent_name,name,children):
-            for key,val in children.items():
-                #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
-                if key == self._validator_id:
-                    if arbiter_id is not None:
-                        self._arbiters[arbiter_id] = ('arbiter',parent_name)
-                    self._nest_colour = name
-                    self._cluster    = children
-                    LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
-                    return
-
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
-                        get_cluster_info(key,name,cluster['name'],cluster['children'])
-                        if self._nest_colour is not None:
-                            return
-
-        def get_arbiters(arbiter_id,name,children):
-            # make ring of arbiter - add only arbiter from other cluster
-            for key,val in children.items():
-                if self._nest_colour != name:
-                    # check only other cluster and add delegate
-                    if 'delegate' in val:
-                        self._arbiters[key] = ('delegate',name)
-
-                if self._genesis_node is None and 'genesis' in val:
-                    # this is genesis node of all network
-                    self._genesis_node = key
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
-                        get_arbiters(key,cluster['name'],cluster['children'])
-
-        topology = json.loads(stopology)
-        self._topology = topology
-        #LOGGER.debug('get_topology=%s',topology)
-        if 'name' in topology and 'children' in topology:
-            get_cluster_info(None,None,topology['name'],topology['children'])
-        if self._nest_colour is None:
-            self._nest_colour = 'Genesis'
-        else:
-            # get arbiters
-            get_arbiters(None,topology['name'],topology['children'])
-            LOGGER.debug('Arbiters RING=%s GENESIS=%s',self._arbiters,self.genesis_node[:8])
-
 
 
 class PendingBatchObserver(metaclass=abc.ABCMeta):
@@ -666,7 +589,7 @@ class BlockPublisher(object):
         self._identity_signer = identity_signer
         self._validator_id = identity_signer.get_public_key().as_hex()
         # FBFT Topology
-        self._topology = FbftTopology(self._validator_id)
+        self._topology = None
         self._data_dir = data_dir
         self._config_dir = config_dir
         self._permission_verifier = permission_verifier
@@ -710,19 +633,14 @@ class BlockPublisher(object):
         LOGGER.debug('Check CLUSTER for peer_id=%s',peer_id[:8])
         return (peer_id in self._topology.cluster) if self._topology.cluster else True
     
-    def get_topology_info(self,state_root_hash):
+    def get_topology_info(self):
         """
         get topology info - we should know own nests color
         """ 
         # get topology
-        stopology = self._settings_cache.get_setting(
-                "bgx.consensus.pbft.nodes",
-                state_root_hash,
-                default_value='{}'
-            ).replace("'",'"')
         #LOGGER.debug('get topology=%s',stopology)
-        self._topology.get_topology(stopology)
-        self._block_sender.set_cluster(self._topology)
+        #self._topology.get_topology(stopology)
+        self._topology = self._block_sender.get_topology()
         self._batch_sender.set_cluster(self._topology)
 
 
@@ -795,8 +713,8 @@ class BlockPublisher(object):
         #LOGGER.debug("BUILD CANDIDATE BLOCK..")
         main_head = self._block_cache.block_store.chain_head
         bid = chain_head.identifier
-        if self.nest_colour is None:
-            self.get_topology_info(main_head.state_root_hash)
+        if self._topology is None:
+            self.get_topology_info()
 
         
         LOGGER.debug("BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main=%s STATE=%s~%s",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])

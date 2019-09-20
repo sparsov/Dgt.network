@@ -681,7 +681,7 @@ class Interconnect(object):
 
         self._authorize = authorize
         self._signer = signer
-
+        
         self._send_receive_thread = _SendReceive(
             "ServerThread",
             connections=self._connections,
@@ -703,6 +703,10 @@ class Interconnect(object):
         # cluster info
         self._cluster = None
         LOGGER.debug("Interconnect init endpoint=%s",self._endpoint)
+
+    @property
+    def validator_id(self):
+        return self._signer.get_public_key().as_hex()
 
     @property
     def roles(self):
