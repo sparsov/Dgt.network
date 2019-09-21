@@ -74,7 +74,7 @@ TIME_TO_LIVE = 3
 
 class FbftTopology(object):
     """
-    F-BFT topology
+    F-BFT topology 
     """
     def __init__(self):
         self._validator_id = None
@@ -233,13 +233,13 @@ class Gossip(object):
     @property
     def f_topology(self):
         return self._fbft
+
     @property
     def is_federations_assembled(self):
         return self._is_federations_assembled
 
     def set_cluster(self,topology):
         self._fbft = topology
-        
         LOGGER.debug("set cluster=%s arbiters=%s",self._fbft.cluster,self._fbft.arbiters)
 
     def get_exclude(self,cluster = None):
