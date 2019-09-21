@@ -56,6 +56,8 @@ class ConsensusNotifier:
             #LOGGER.debug('ConsensusNotifier: sent _notify to num=%s peers',len(futures))
             for future in futures:
                 future.result()
+        else:
+            LOGGER.debug('ConsensusNotifier: CANT _notify - no registered engine ')
 
     def notify_peer_connected(self, peer_id,assemble = True):
         """
