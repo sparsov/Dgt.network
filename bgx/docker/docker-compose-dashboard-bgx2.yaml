@@ -35,4 +35,4 @@ services:
 
 networks:
   network1:
-     name: bgx2-network
+     name: bgx1-network
