@@ -709,11 +709,10 @@ class PbftEngine(Engine):
             LOGGER.debug('PbftEngine: _initialize_block ERROR InvalidState')
             self._skip = True
             return False
-        """
         except Exception as ex:
             LOGGER.debug('PbftEngine: _initialize_block HEAD=%s.%s ERROR %s!!!\n',chain_head.block_num,chain_head.block_id.hex()[:8],ex)
             return False
-        """
+
         return True
 
     def create_branch(self,bid,parent,block_num):
