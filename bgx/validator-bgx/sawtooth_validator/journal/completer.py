@@ -117,7 +117,7 @@ class Completer(object):
                 if block.previous_block_id in self._requested:
                     return None
 
-                LOGGER.debug("Request missing predecessor: %s",block.previous_block_id[:8])
+                LOGGER.debug("Request missing predecessor: %s.%s",block.block_num,block.previous_block_id[:8])
                 self._requested[block.previous_block_id] = None
                 self.gossip.broadcast_block_request(block.previous_block_id)
                 return None
@@ -279,7 +279,7 @@ class Completer(object):
             block = self._complete_block(blkw)
             if block is not None:
                 self.block_cache[block.header_signature] = blkw
-                LOGGER.debug("ADD BLOCK=%s",block.header_signature[:8])
+                LOGGER.debug("ADD BLOCK=%s.%s",block.block_num,block.header_signature[:8])
                 """
                 PUT BLOCK into chain controller queue
                 """
