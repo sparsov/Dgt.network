@@ -233,6 +233,9 @@ class Gossip(object):
     @property
     def f_topology(self):
         return self._fbft
+    @property
+    def is_registered_engines(self):
+        return self._consensus_notifier._registered_engines
 
     @property
     def is_federations_assembled(self):
@@ -812,7 +815,7 @@ class ConnectionManager(InstrumentedThread):
         """
         with self._lock:
             if not self.is_federations_assembled :
-                if self._peer_timeout > self._federations_timeout or self._gossip.is_peers():
+                if self._gossip.is_registered_engines and (self._peer_timeout > self._federations_timeout or self._gossip.is_peers()):
                     # not checked and there is some registered peers
                     if self._peer_timeout < self._federations_timeout :
                         self._peer_timeout = self._federations_timeout + 1 # don't check is_peers() 
