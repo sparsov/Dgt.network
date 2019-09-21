@@ -124,7 +124,7 @@ class BranchState(object):
     def num_arbiters(self):
         num = 0
         for val in self.arbiters.values():
-            if val[1]:
+            if val[1] == ConsensusNotifyPeerConnected.OK:
                 num += 1
         return num
 
