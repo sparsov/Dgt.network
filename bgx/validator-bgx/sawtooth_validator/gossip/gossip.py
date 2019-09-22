@@ -466,7 +466,7 @@ class Gossip(object):
         """
         time_to_live = self.get_time_to_live()
         block_request = GossipBlockRequest(
-            block_id=block_id if block_num is None else "N{}.{}".format(block_num,block_id)
+            block_id=block_id if block_num is None else "N{}.{}".format(block_num,block_id),
             nonce=binascii.b2a_hex(os.urandom(16)),
             time_to_live=time_to_live)
         self.broadcast(block_request,validator_pb2.Message.GOSSIP_BLOCK_REQUEST)
