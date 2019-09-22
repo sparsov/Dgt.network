@@ -134,7 +134,7 @@ class BlockResponderHandler(Handler):
             check if there is a GAP between block_num and block.block_num send block block_num-1 instead block
             peer as block
             """ 
-            gap = int(block_num) - block.block_num
+            gap = int(block_num) - block.block_num if block_num else 0  
             LOGGER.debug("Responding to block requests: BLOCK=%s GAP=%s",block.get_block().header_signature[:8],gap)
 
             block_response = network_pb2.GossipBlockResponse(
