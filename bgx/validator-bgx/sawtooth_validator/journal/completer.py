@@ -109,8 +109,7 @@ class Completer(object):
             if not self._has_block(block.previous_block_id):
                 if block.previous_block_id not in self._incomplete_blocks:
                     self._incomplete_blocks[block.previous_block_id] = [block]
-                elif block not in \
-                        self._incomplete_blocks[block.previous_block_id]:
+                elif block not in self._incomplete_blocks[block.previous_block_id]:
                     self._incomplete_blocks[block.previous_block_id] += [block]
 
                 # We have already requested the block, do not do so again
@@ -119,7 +118,7 @@ class Completer(object):
 
                 LOGGER.debug("Request missing predecessor: %s.%s",block.block_num,block.previous_block_id[:8])
                 self._requested[block.previous_block_id] = None
-                self.gossip.broadcast_block_request(block.previous_block_id)
+                self.gossip.broadcast_block_request(block.previous_block_id,block.block_num)
                 return None
 
         # Check for same number of batch_ids and batches
@@ -257,8 +256,7 @@ class Completer(object):
                     inc_blocks = self._incomplete_blocks[my_key]
                     for inc_block in inc_blocks:
                         if self._complete_block(inc_block):
-                            self.block_cache[inc_block.header_signature] = \
-                                inc_block
+                            self.block_cache[inc_block.header_signature] = inc_block
                             self._on_block_received(inc_block)
                             to_complete.append(inc_block.header_signature)
                     del self._incomplete_blocks[my_key]

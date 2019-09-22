@@ -94,10 +94,19 @@ class BlockResponderHandler(Handler):
             LOGGER.debug("Received repeat GossipBlockRequest from %s",connection_id)
 
             return HandlerResult(HandlerStatus.DROP)
-
+        """
+        block_id format - HEAD/ID/N<NUM>.ID
+        """
         block_id = block_request_message.block_id
+        block_num = None
+        if block_id[0] == 'N':
+            # contain block number
+            parts = block_id.split('.')
+            block_id = parts[1]
+            block_num = parts[0][1:]
+
         block = self._responder.check_for_block(block_id)
-        LOGGER.debug("BlockResponderHandler:ID=%s BLOCK=%s.",block_id if block_id == "HEAD" else block_id[:8],block)
+        LOGGER.debug("BlockResponderHandler:ID=%s NUM=%s BLOCK=%s.",block_id if block_id == "HEAD" else block_id[:8],block_num,block)
         if block is None:
             # No block found, broadcast original message to other peers
             # and add to pending requests
@@ -113,8 +122,7 @@ class BlockResponderHandler(Handler):
                             validator_pb2.Message.GOSSIP_BLOCK_REQUEST,
                             exclude=[connection_id])
 
-                        self._seen_requests[block_request_message.nonce] = \
-                            block_request_message.block_id
+                        self._seen_requests[block_request_message.nonce] = block_request_message.block_id
 
                         self._responder.add_request(block_id, connection_id)
                 else:

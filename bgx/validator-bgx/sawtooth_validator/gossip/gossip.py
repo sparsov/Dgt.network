@@ -460,10 +460,13 @@ class Gossip(object):
 
         self.broadcast(gossip_message, validator_pb2.Message.GOSSIP_MESSAGE, exclude)
 
-    def broadcast_block_request(self, block_id):
+    def broadcast_block_request(self, block_id,block_num=None):
+        """
+        for DAG send current block num too - it helps reconstruct DAG chain without gap 
+        """
         time_to_live = self.get_time_to_live()
         block_request = GossipBlockRequest(
-            block_id=block_id,
+            block_id=block_id if block_num is None else "N{}.{}".format(block_num,block_id)
             nonce=binascii.b2a_hex(os.urandom(16)),
             time_to_live=time_to_live)
         self.broadcast(block_request,validator_pb2.Message.GOSSIP_BLOCK_REQUEST)
