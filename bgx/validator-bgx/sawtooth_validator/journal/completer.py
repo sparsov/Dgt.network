@@ -69,12 +69,9 @@ class Completer(object):
         # avoid throwing away the genesis block
         self.block_cache[NULL_BLOCK_IDENTIFIER] = None
         self._seen_txns = TimedCache(cache_keep_time, cache_purge_frequency)
-        self._incomplete_batches = TimedCache(cache_keep_time,
-                                              cache_purge_frequency)
-        self._incomplete_blocks = TimedCache(cache_keep_time,
-                                             cache_purge_frequency)
-        self._requested = TimedCache(requested_keep_time,
-                                     cache_purge_frequency)
+        self._incomplete_batches = TimedCache(cache_keep_time,cache_purge_frequency)
+        self._incomplete_blocks = TimedCache(cache_keep_time,cache_purge_frequency)
+        self._requested = TimedCache(requested_keep_time,cache_purge_frequency)
         self._on_block_received = None
         self._on_batch_received = None
         self._has_block = None
@@ -104,19 +101,25 @@ class Completer(object):
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
             return None
-
+        #LOGGER.debug("Сomplete block=%s",block)
         if block.previous_block_id not in self.block_cache:
             if not self._has_block(block.previous_block_id):
                 if block.previous_block_id not in self._incomplete_blocks:
                     self._incomplete_blocks[block.previous_block_id] = [block]
                 elif block not in self._incomplete_blocks[block.previous_block_id]:
-                    self._incomplete_blocks[block.previous_block_id] += [block]
-
+                    # insert before block with more number
+                    #self._incomplete_blocks[block.previous_block_id] += [block]
+                    for i, blk in enumerate(self._incomplete_blocks[block.previous_block_id]):
+                        if blk.block_num >  block.block_num:
+                            # insert before
+                            self._incomplete_blocks[block.previous_block_id].insert(i,block)
+                            LOGGER.debug("incomplete_blocks key=%s  blocks=%s",block.previous_block_id[:8],[blk.header_signature[:8] for blk in self._incomplete_blocks[block.previous_block_id]])
+                            break
                 # We have already requested the block, do not do so again
                 if block.previous_block_id in self._requested:
                     return None
-
-                LOGGER.debug("Request missing predecessor: %s.%s",block.block_num,block.previous_block_id[:8])
+        
+                LOGGER.debug("Request missing predecessor: %s.%s incompleted=%s IS=%s",block.block_num,block.previous_block_id[:8],len(self._incomplete_blocks[block.previous_block_id]),block.header_signature in self._incomplete_blocks)
                 self._requested[block.previous_block_id] = None
                 self.gossip.broadcast_block_request(block.previous_block_id,block.block_num)
                 return None
@@ -170,6 +173,7 @@ class Completer(object):
             if batch_id_list == list(block.header.batch_ids):
                 if block.header_signature in self._requested:
                     del self._requested[block.header_signature]
+                LOGGER.debug("Block completed BLOCK=%s", block)
                 return block
             # Check to see if the block has all batch_ids and they can be put
             # in the correct order
@@ -188,8 +192,7 @@ class Completer(object):
 
                 return block
             else:
-                LOGGER.debug("Block.header.batch_ids does not match set of "
-                             "batches in block.batches Dropping %s", block)
+                LOGGER.debug("Block.header.batch_ids does not match set of batches in block.batches Dropping %s", block)
                 return None
 
     def _finalize_batch_list(self, block, temp_batches):
@@ -249,14 +252,16 @@ class Completer(object):
         if key in self._incomplete_blocks:
             to_complete = deque()
             to_complete.append(key)
-
+            LOGGER.debug("process_incomplete_blocks KEY=%s blocks=%s",key[:8],[bid[:8] for bid in self._incomplete_blocks.keys()])
             while to_complete:
                 my_key = to_complete.popleft()
                 if my_key in self._incomplete_blocks:
                     inc_blocks = self._incomplete_blocks[my_key]
+                    LOGGER.debug("process_incomplete_blocks MY_KEY=%s inc_blocks=%s",my_key[:8],[blk.header_signature[:8] for blk in inc_blocks])
                     for inc_block in inc_blocks:
                         if self._complete_block(inc_block):
                             self.block_cache[inc_block.header_signature] = inc_block
+                            LOGGER.debug("ADD BLOCK=%s.%s INCOMP",inc_block.block_num,inc_block.header_signature[:8])
                             self._on_block_received(inc_block)
                             to_complete.append(inc_block.header_signature)
                     del self._incomplete_blocks[my_key]
@@ -283,6 +288,7 @@ class Completer(object):
                 """
                 self._on_block_received(blkw)
                 self._process_incomplete_blocks(block.header_signature)
+                LOGGER.debug("ADD INCOMPLETED BLOCKS DONE\n")
 
     def add_batch(self, batch,recomm=None):
         """
@@ -320,6 +326,11 @@ class Completer(object):
             if block_id in self.block_cache:
                 return self.block_cache[block_id]
             return None
+
+    def get_block_by_num(self, block_num):
+        with self.lock:
+            return self._block_store.get_block_by_number(block_num)
+
 
     def get_batch(self, batch_id):
         with self.lock:
@@ -378,6 +389,7 @@ class CompleterGossipHandler(Handler):
         if gossip_message.content_type == network_pb2.GossipMessage.BLOCK:
             block = Block()
             block.ParseFromString(gossip_message.content)
+            LOGGER.debug("CompleterGossipHandler: BLOCK=%s",block.header_signature[:8])
             self._completer.add_block(block)
         elif gossip_message.content_type == network_pb2.GossipMessage.BATCH:
             batch = Batch()
@@ -414,6 +426,7 @@ class CompleterGossipBlockResponseHandler(Handler):
 
         block = Block()
         block.ParseFromString(block_response_message.content)
+        LOGGER.debug("CompleterGossipBlockResponseHandler: BLOCK=%s",block.header_signature[:8])
         self._completer.add_block(block)
 
         return HandlerResult(status=HandlerStatus.PASS)

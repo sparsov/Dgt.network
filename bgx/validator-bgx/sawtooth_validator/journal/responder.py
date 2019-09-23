@@ -36,8 +36,7 @@ class Responder(object):
                  cache_keep_time=300,
                  cache_purge_frequency=30):
         self.completer = completer
-        self.pending_requests = TimedCache(cache_keep_time,
-                                           cache_purge_frequency)
+        self.pending_requests = TimedCache(cache_keep_time,cache_purge_frequency)
         self._lock = RLock()
 
     def check_for_block(self, block_id):
@@ -47,6 +46,9 @@ class Responder(object):
         else:
             block = self.completer.get_block(block_id)
         return block
+
+    def get_block_by_num(self,block_num):
+        return self.completer.get_block_by_num(block_num)
 
     def check_for_batch(self, batch_id):
         batch = self.completer.get_batch(batch_id)
@@ -86,6 +88,7 @@ class BlockResponderHandler(Handler):
         self._responder = responder
         self._gossip = gossip
         self._seen_requests = TimedCache(CACHE_KEEP_TIME)
+        #self._pending = TimedCache(CACHE_KEEP_TIME) # block keeped because of gap
 
     def handle(self, connection_id, message_content):
         block_request_message = network_pb2.GossipBlockRequest()
@@ -134,15 +137,29 @@ class BlockResponderHandler(Handler):
             check if there is a GAP between block_num and block.block_num send block block_num-1 instead block
             peer as block
             """ 
+            blocks = []
             gap = int(block_num) - block.block_num if block_num else 0  
             LOGGER.debug("Responding to block requests: BLOCK=%s GAP=%s",block.get_block().header_signature[:8],gap)
+            if gap > 1 and gap < 10:
+                # get block by number
+                num = int(block_num) - 1
+                # save request
+                self._responder.add_request(block_id, connection_id)
+                block = self._responder.get_block_by_num(num)
+                blocks.append(block)
+                LOGGER.debug("Responding BLOCK=%s",block)
+            else:
+                # check may be prev block already was asked
+                blocks.append(block)
+                if self._responder.already_requested(block.previous_block_id):
+                    LOGGER.debug("Responding already requested BLOCK=%s",block.previous_block_id[:8])
+                    self._responder.remove_request(block.previous_block_id)
+                    blocks.append(self._responder.check_for_block(block.previous_block_id))
 
-            block_response = network_pb2.GossipBlockResponse(
-                content=block.get_block().SerializeToString())
-
-            self._gossip.send(validator_pb2.Message.GOSSIP_BLOCK_RESPONSE,
-                              block_response.SerializeToString(),
-                              connection_id)
+            for block in blocks:
+                LOGGER.debug("Responding SEND BLOCK=%s",block)
+                block_response = network_pb2.GossipBlockResponse(content=block.get_block().SerializeToString())
+                self._gossip.send(validator_pb2.Message.GOSSIP_BLOCK_RESPONSE,block_response.SerializeToString(),connection_id)
 
         return HandlerResult(HandlerStatus.PASS)
 
@@ -298,8 +315,7 @@ class BatchByTransactionIdResponderHandler(Handler):
                 if batch_request_message.time_to_live > 0:
                     self._seen_requests[batch_request_message.nonce] = \
                         batch_request_message.ids
-                    new_request = \
-                        network_pb2.GossipBatchByTransactionIdRequest()
+                    new_request = network_pb2.GossipBatchByTransactionIdRequest()
                     # only request batches we have not requested already
                     new_request.ids.extend(not_requested)
                     # Keep same nonce as original message
