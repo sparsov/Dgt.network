@@ -97,6 +97,14 @@ class Completer(object):
             is added to the block_cache and is returned.
 
         """
+        def insert_lost_block(block):
+            for pid,blocks in self._incomplete_blocks.items():
+                LOGGER.debug("CHECK INSER LOST for=%s blocks=%s",pid[:8],["{}.{}".format(blk.block_num,blk.header_signature[:8]) for blk in blocks])
+                for i,blk in enumerate(blocks):
+                    if blk.block_num == block.block_num+1:
+                        blocks.insert(i,block)
+                        LOGGER.debug("INSER LOST for=%s blocks=%s",pid[:8],["{}.{}".format(blk.block_num,blk.header_signature[:8]) for blk in blocks])
+                        return
 
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
@@ -110,6 +118,8 @@ class Completer(object):
                     # insert before block with more number
                     #self._incomplete_blocks[block.previous_block_id] += [block]
                     for i, blk in enumerate(self._incomplete_blocks[block.previous_block_id]):
+                        if blk.block_num == block.block_num:
+                            break
                         if blk.block_num >  block.block_num:
                             # insert before
                             self._incomplete_blocks[block.previous_block_id].insert(i,block)
@@ -118,8 +128,12 @@ class Completer(object):
                 # We have already requested the block, do not do so again
                 if block.previous_block_id in self._requested:
                     return None
-        
-                LOGGER.debug("Request missing predecessor: %s.%s incompleted=%s IS=%s",block.block_num,block.previous_block_id[:8],len(self._incomplete_blocks[block.previous_block_id]),block.header_signature in self._incomplete_blocks)
+                #if block.header_signature not in self._incomplete_blocks:
+                # it could be block from others branch try to find 
+                insert_lost_block(block)
+                    
+
+                LOGGER.debug("Request missing predecessor: %s.%s IS=%s num=%s",block.block_num,block.previous_block_id[:8],block.header_signature in self._incomplete_blocks,len(self._incomplete_blocks))
                 self._requested[block.previous_block_id] = None
                 self.gossip.broadcast_block_request(block.previous_block_id,block.block_num)
                 return None

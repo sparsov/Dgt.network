@@ -994,6 +994,9 @@ class ChainController(object):
         return self._chain_head
 
     def _submit_blocks_for_verification(self, blocks):
+        """
+        order of blocks is important - before try to verificate block - we should  check nest for block
+        """
         for blkw in blocks:
             """
             blkw could be from another nodes
@@ -1344,7 +1347,7 @@ class ChainController(object):
                 # Remove this block from the pending queue, obtaining any
                 # immediate descendants of this block in the process.
                 descendant_blocks = self._blocks_pending.pop(new_block.identifier, [])
-
+                LOGGER.info("on_block_validated: immediate descendants=%s",[block.identifier[:8] for block in descendant_blocks])
                 # if the head has changed, since we started the work. For instance was commited own block for this branch and appeared external block
                 # FIXME for DAG check branch relating to new block 
                 # result["chain_head"] is value from BlockValidator  for DAG we should analize here corresponding BRANCH 
@@ -1401,10 +1404,7 @@ class ChainController(object):
                         self._consensus_notifier.notify_block_invalid(new_block.header_signature)
                     # Submit for verification any immediate descendant blocks
                     # that arrived while we were processing this block.
-                    LOGGER.debug(
-                        'Verify descendant blocks: %s (%s)',
-                        new_block,
-                        [block.identifier[:8] for block in descendant_blocks])
+                    LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
                     LOGGER.info('Rejected descendant_blocks num=%s',len(descendant_blocks))
                     self._submit_blocks_for_verification(descendant_blocks)
 
@@ -1417,6 +1417,16 @@ class ChainController(object):
         """
         it could be from completer or from publisher
         """
+        def try_append_by_num(block):
+            for pid,blocks in self._blocks_pending.items():
+                for blk in blocks:
+                    if blk.block_num+1 == block.block_num:
+                        # blk is predecessor of block by number
+                        self._blocks_pending[blk.identifier] = [block]
+                        LOGGER.debug('For block=%s pending=[%s] by num', blk.identifier[:8],block.identifier[:8])
+                        return True
+            return False
+
         try:
             with self._lock:
                 if self.has_block(block.header_signature):
@@ -1437,16 +1447,26 @@ class ChainController(object):
                 LOGGER.debug("Block received: id=%s", block.identifier[:8])
                 if (block.previous_block_id in self._blocks_processing or block.previous_block_id in self._blocks_pending):
                     LOGGER.debug('Block pending: id=%s', block.identifier[:8])
-                    # if the previous block is being processed, put it in a
-                    # wait queue, Also need to check if previous block is
-                    # in the wait queue.
+                    """
+                    if the previous block is being processed, put it in a
+                    wait queue, Also need to check if previous block is
+                    in the wait queue.
+                    But first check maybe there is block with number before this block and add current block for it  
+                    """
+                    #if not try_append_by_num(block):
                     pending_blocks = self._blocks_pending.get(block.previous_block_id,[])
                     # Though rare, the block may already be in the
                     # pending_block list and should not be re-added.
-                    if block not in pending_blocks:
-                        pending_blocks.append(block)
+                    if len(pending_blocks) == 0:
+                        if block not in pending_blocks:
+                            pending_blocks.append(block)
+                        LOGGER.debug('For block=%s pending=%s', block.previous_block_id[:8],[blk.identifier[:8] for blk in pending_blocks])
+                        self._blocks_pending[block.previous_block_id] = pending_blocks
+                    else: 
+                        # maybe this is branch point
+                        if not try_append_by_num(block):
+                            LOGGER.debug('Block pending: id=%s cant add by num!!!\n', block.identifier[:8])
 
-                    self._blocks_pending[block.previous_block_id] = pending_blocks
                 else:
                     # schedule this block for validation.
                     self._submit_blocks_for_verification([block])

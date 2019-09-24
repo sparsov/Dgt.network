@@ -1114,7 +1114,7 @@ class PbftEngine(Engine):
             else:
                 # pending start commiting
                 LOGGER.info('START COMMITING for BLOCK=%s(%s)',_short_id(block_id),signer_id[:8])
-        LOGGER.info('_resolve_fork  BLOCK=%s(%s)',bbid[:8],signer_id[:8])
+        LOGGER.info('_resolve_fork  BLOCK=%s(%s)',bid[:8],signer_id[:8])
         if signer_id == self._validator_id:
             if bid in self._branches:
                 # head could be already changed - we can get new head for this branch

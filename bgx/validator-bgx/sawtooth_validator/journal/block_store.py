@@ -373,10 +373,13 @@ class BlockStore(MutableMapping):
         gv.write("digraph DAG {\n")
         #gv.write('node [style="filled", fillcolor="yellow", fontcolor="black", margin="0.01"]')
         prev = None
+        prev_num = None
         feder_num = -1
         for blk in self:
             prev = blk.previous_block_id[:8] 
             feder,fnum = self.get_feder_num(blk.block_num)
+            prev_num = self._get_block(blk.previous_block_id).block_num if blk.previous_block_id in self else -1
+            
             if feder :
                 if feder.feder_num != feder_num:
                     if feder_num != -1:
@@ -385,8 +388,10 @@ class BlockStore(MutableMapping):
                     feder_num = feder.feder_num
             else:
                 gv.write('}\n')
-
-            gv.write('"{}" -> "{}";\n'.format(blk.identifier[:8],prev)) 
+            if prev_num == -1:
+                gv.write('"{}.{}" -> "{}";\n'.format(blk.block_num,blk.identifier[:8],prev))
+            else:
+                gv.write('"{}.{}" -> "{}.{}";\n'.format(blk.block_num,blk.identifier[:8],prev_num,prev)) 
             """
             if feder :
                 LOGGER.debug("feder=%s nums=%s\n",feder.feder_num,feder.block_nums)
