@@ -127,7 +127,7 @@ class FbftTopology(object):
             LOGGER.debug("update_peer_activity: peer=%s",peer)
 
 
-    def get_topology(self,topology,validator_id):
+    def get_topology(self,topology,validator_id,peering_mode='static'):
         # get topology from string
 
         def get_cluster_info(arbiter_id,parent_name,name,children):
@@ -168,6 +168,7 @@ class FbftTopology(object):
         self._validator_id = validator_id
         self._topology = topology
         #LOGGER.debug('get_topology=%s',topology)
+        topology['topology'] = peering_mode
         if 'name' in topology and 'children' in topology:
             get_cluster_info(None,None,topology['name'],topology['children'])
         if self._nest_colour is None:
@@ -379,7 +380,7 @@ class Gossip(object):
             ).replace("'",'"')
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
-        self._fbft.get_topology(self._ftopology,self._network.validator_id)
+        self._fbft.get_topology(self._ftopology,self._network.validator_id,self._peering_mode)
         
 
     def get_topology(self):
