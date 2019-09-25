@@ -81,6 +81,9 @@ class Completer(object):
     @property
     def incomplete_blocks(self):
         return ["{}({})".format(bid[:8],len(blks)) for bid,blks in self._incomplete_blocks.items()]
+    @property
+    def requested(self):
+        return ["{}".format(bid[:8]) for bid in self._requested.keys()]
 
     def _complete_block(self, block):
         """ Check the block to see if it is complete and if it can be passed to
@@ -146,6 +149,7 @@ class Completer(object):
                     """
                 # We have already requested the block, do not do so again
                 if block.previous_block_id in self._requested:
+                    LOGGER.debug("Missing predecessor=%s already requested=%s",block.previous_block_id[:8],self.requested)
                     return None
                 #if block.header_signature not in self._incomplete_blocks:
                 # it could be block from others branch try to find 
