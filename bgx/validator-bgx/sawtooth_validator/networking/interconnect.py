@@ -1097,8 +1097,7 @@ class Interconnect(object):
                                connection_info.public_key)
 
         else:
-            LOGGER.debug("Could not update the endpoint %s for "
-                         "connection_id %s. The connection does not "
+            LOGGER.debug("Could not update the endpoint %s for connection_id %s. The connection does not "
                          "exist.",
                          endpoint,
                          connection_id)
@@ -1153,11 +1152,11 @@ class Interconnect(object):
             connection_id = connection.connection_id
             if connection_id not in self._connections:
                 self._connections[connection_id] = ConnectionInfo(ConnectionType.OUTBOUND_CONNECTION,connection,uri,None,None)
-                LOGGER.debug("ADD CONN=%s uri=%s total=%s", connection_id[:8], uri, self.connections_info)
+                #LOGGER.debug("ADD CONN=%s uri=%s total=%s", connection_id[:8], uri, self.connections_info)
 
     def remove_connection(self, connection_id):
         with self._connections_lock:
-            LOGGER.debug("RM CONN=%s total=%s", connection_id[:8],self.connections_info)
+            #LOGGER.debug("RM CONN=%s total=%s", connection_id[:8],self.connections_info)
             if connection_id in self._connections:
                 connection_info = self._connections[connection_id]
 
@@ -1180,8 +1179,7 @@ class Interconnect(object):
         if connection_id not in self._connections:
             raise ValueError("Unknown connection id: {}".format(connection_id))
         connection_info = self._connections.get(connection_id)
-        if connection_info.connection_type == \
-                ConnectionType.ZMQ_IDENTITY:
+        if connection_info.connection_type == ConnectionType.ZMQ_IDENTITY:
             message = validator_pb2.Message(
                 correlation_id=_generate_id(),
                 content=data,
@@ -1211,8 +1209,7 @@ class Interconnect(object):
 
     def is_outbound_connection(self, connection_id):
         connection_info = self._connections[connection_id]
-        if connection_info.connection_type == \
-                ConnectionType.OUTBOUND_CONNECTION:
+        if connection_info.connection_type == ConnectionType.OUTBOUND_CONNECTION:
             return True
         return False
 

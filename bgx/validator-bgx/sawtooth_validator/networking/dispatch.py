@@ -110,13 +110,9 @@ class Dispatcher(InstrumentedThread):
         """
         if connection in self._send_message:
             del self._send_message[connection]
-            LOGGER.debug("Removed send_message function "
-                         "for connection %s", connection)
+            LOGGER.debug("Removed send_message function for connection %s", connection)
         else:
-            LOGGER.debug("Attempted to remove send_message "
-                         "function for connection %s, but no "
-                         "send_message function was registered",
-                         connection)
+            LOGGER.debug("Attempted to remove send_message function for connection %s, but no send_message function was registered",connection)
 
     def remove_send_last_message(self, connection):
         """Removes a send_last_message function previously registered
@@ -128,13 +124,9 @@ class Dispatcher(InstrumentedThread):
         """
         if connection in self._send_last_message:
             del self._send_last_message[connection]
-            LOGGER.debug("Removed send_last_message function "
-                         "for connection %s", connection)
+            LOGGER.debug("Removed send_last_message function for connection %s", connection)
         else:
-            LOGGER.debug("Attempted to remove send_last_message "
-                         "function for connection %s, but no "
-                         "send_last_message function was registered",
-                         connection)
+            LOGGER.debug("Attempted to remove send_last_message function for connection %s, but no send_last_message function was registered",connection)
 
     def dispatch(self, connection, message, connection_id):
         if message.message_type in self._msg_type_handlers:
@@ -153,10 +145,7 @@ class Dispatcher(InstrumentedThread):
             if queue_size > 10:
                 LOGGER.debug("Dispatch incoming queue size: %s", queue_size)
         else:
-            LOGGER.info("received a message of type %s "
-                        "from %s but have no handler for that type",
-                        get_enum_name(message.message_type),
-                        connection_id)
+            LOGGER.info("received a message of type %s from %s but have no handler for that type",get_enum_name(message.message_type),connection_id)
 
     def add_handler(self, message_type, handler, executor):
         if not isinstance(handler, Handler):
@@ -222,15 +211,13 @@ class Dispatcher(InstrumentedThread):
                     self._send_message[connection](msg=message,
                                                    connection_id=connection_id)
                 except KeyError:
-                    LOGGER.info("Can't send message %s back to "
-                                "%s because connection %s not in dispatcher",
+                    LOGGER.info("Can't send message %s back to %s because connection %s not in dispatcher",
                                 get_enum_name(message.message_type),
                                 connection_id,
                                 connection)
                 self._process(message_id)
             else:
-                LOGGER.error("HandlerResult with status of RETURN_AND_PASS "
-                             "is missing message_out or message_type")
+                LOGGER.error("HandlerResult with status of RETURN_AND_PASS is missing message_out or message_type")
 
         elif res.status == HandlerStatus.RETURN:
             connection, connection_id,  \
@@ -247,14 +234,12 @@ class Dispatcher(InstrumentedThread):
                     self._send_message[connection](msg=message,
                                                    connection_id=connection_id)
                 except KeyError:
-                    LOGGER.info("Can't send message %s back to "
-                                "%s because connection %s not in dispatcher",
+                    LOGGER.info("Can't send message %s back to %s because connection %s not in dispatcher",
                                 get_enum_name(message.message_type),
                                 connection_id,
                                 connection)
             else:
-                LOGGER.error("HandlerResult with status of RETURN "
-                             "is missing message_out or message_type")
+                LOGGER.error("HandlerResult with status of RETURN is missing message_out or message_type")
 
         elif res.status == HandlerStatus.RETURN_AND_CLOSE:
             connection, connection_id,  \
@@ -272,14 +257,12 @@ class Dispatcher(InstrumentedThread):
                         msg=message,
                         connection_id=connection_id)
                 except KeyError:
-                    LOGGER.info("Can't send last message %s back to "
-                                "%s because connection %s not in dispatcher",
+                    LOGGER.info("Can't send last message %s back to %s because connection %s not in dispatcher",
                                 get_enum_name(message.message_type),
                                 connection_id,
                                 connection)
             else:
-                LOGGER.error("HandlerResult with status of RETURN_AND_CLOSE "
-                             "is missing message_out or message_type")
+                LOGGER.error("HandlerResult with status of RETURN_AND_CLOSE is missing message_out or message_type")
         with self._condition:
             if not self._message_information:
                 self._condition.notify()

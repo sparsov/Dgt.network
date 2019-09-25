@@ -21,6 +21,7 @@ from sawtooth_validator.journal.block_cache import BlockCache
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
 from sawtooth_validator.journal.timed_cache import TimedCache
+from sawtooth_validator.journal.block_store import Federation
 from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader
@@ -77,6 +78,10 @@ class Completer(object):
         self._has_block = None
         self.lock = RLock()
 
+    @property
+    def incomplete_blocks(self):
+        return ["{}({})".format(bid[:8],len(blks)) for bid,blks in self._incomplete_blocks.items()]
+
     def _complete_block(self, block):
         """ Check the block to see if it is complete and if it can be passed to
             the journal. If the block's predecessor is not in the block_cache
@@ -97,6 +102,7 @@ class Completer(object):
             is added to the block_cache and is returned.
 
         """
+        
         def insert_lost_block(block):
             for pid,blocks in self._incomplete_blocks.items():
                 LOGGER.debug("CHECK INSER LOST for=%s blocks=%s",pid[:8],["{}.{}".format(blk.block_num,blk.header_signature[:8]) for blk in blocks])
@@ -106,17 +112,29 @@ class Completer(object):
                         LOGGER.debug("INSER LOST for=%s blocks=%s",pid[:8],["{}.{}".format(blk.block_num,blk.header_signature[:8]) for blk in blocks])
                         return
 
+        def add_missing_predecessor(block):
+            # we should take all chain of predecessors
+            pass
+
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
             return None
         #LOGGER.debug("Сomplete block=%s",block)
         if block.previous_block_id not in self.block_cache:
             if not self._has_block(block.previous_block_id):
+                """
+                block incompleted ask missing block
+                """
+                LOGGER.debug("Incomplete block=%s.%s incompletes=%s",block.block_num,block.header_signature[:8],self.incomplete_blocks)
+                previous_block_num = Federation.dec_feder_num(block.block_num)
+                if previous_block_num not in self._incomplete_blocks:
+                    self._incomplete_blocks[previous_block_num] = [block]
                 if block.previous_block_id not in self._incomplete_blocks:
                     self._incomplete_blocks[block.previous_block_id] = [block]
                 elif block not in self._incomplete_blocks[block.previous_block_id]:
                     # insert before block with more number
-                    #self._incomplete_blocks[block.previous_block_id] += [block]
+                    self._incomplete_blocks[block.previous_block_id] += [block]
+                    """
                     for i, blk in enumerate(self._incomplete_blocks[block.previous_block_id]):
                         if blk.block_num == block.block_num:
                             break
@@ -125,12 +143,13 @@ class Completer(object):
                             self._incomplete_blocks[block.previous_block_id].insert(i,block)
                             LOGGER.debug("incomplete_blocks key=%s  blocks=%s",block.previous_block_id[:8],[blk.header_signature[:8] for blk in self._incomplete_blocks[block.previous_block_id]])
                             break
+                    """
                 # We have already requested the block, do not do so again
                 if block.previous_block_id in self._requested:
                     return None
                 #if block.header_signature not in self._incomplete_blocks:
                 # it could be block from others branch try to find 
-                insert_lost_block(block)
+                #insert_lost_block(block)
                     
 
                 LOGGER.debug("Request missing predecessor: %s.%s IS=%s num=%s",block.block_num,block.previous_block_id[:8],block.header_signature in self._incomplete_blocks,len(self._incomplete_blocks))
@@ -261,23 +280,23 @@ class Completer(object):
                 self.add_batch(batch)
             del self._incomplete_batches[key]
 
-    def _process_incomplete_blocks(self, key):
+    def _process_incomplete_blocks(self, key,num_mode=False):
         # Keys are either a block_id or batch_id
         if key in self._incomplete_blocks:
             to_complete = deque()
             to_complete.append(key)
-            LOGGER.debug("process_incomplete_blocks KEY=%s blocks=%s",key[:8],[bid[:8] for bid in self._incomplete_blocks.keys()])
+            LOGGER.debug("process_incomplete_blocks mode=%s KEY=%s blocks=%s",num_mode,key[:8],self.incomplete_blocks)
             while to_complete:
                 my_key = to_complete.popleft()
                 if my_key in self._incomplete_blocks:
                     inc_blocks = self._incomplete_blocks[my_key]
-                    LOGGER.debug("process_incomplete_blocks MY_KEY=%s inc_blocks=%s",my_key[:8],[blk.header_signature[:8] for blk in inc_blocks])
+                    LOGGER.debug("process_incomplete_blocks MY_KEY=%s inc_blocks=%s",my_key[:8],["{}.{}".format(blk.block_num,blk.header_signature[:8]) for blk in inc_blocks])
                     for inc_block in inc_blocks:
                         if self._complete_block(inc_block):
                             self.block_cache[inc_block.header_signature] = inc_block
                             LOGGER.debug("ADD BLOCK=%s.%s INCOMP",inc_block.block_num,inc_block.header_signature[:8])
                             self._on_block_received(inc_block)
-                            to_complete.append(inc_block.header_signature)
+                            to_complete.append(inc_block.header_signature if not num_mode else str(inc_block.block_num))
                     del self._incomplete_blocks[my_key]
 
     def set_on_block_received(self, on_block_received_func):
@@ -293,15 +312,19 @@ class Completer(object):
     def add_block(self, block):
         with self.lock:
             blkw = BlockWrapper(block)
+            # new block from net
             block = self._complete_block(blkw)
             if block is not None:
+                # completed block - in sync mode genesis block
                 self.block_cache[block.header_signature] = blkw
                 LOGGER.debug("ADD BLOCK=%s.%s",block.block_num,block.header_signature[:8])
                 """
                 PUT BLOCK into chain controller queue
                 """
                 self._on_block_received(blkw)
-                self._process_incomplete_blocks(block.header_signature)
+                # take all rest blocks 
+                #self._process_incomplete_blocks(block.header_signature)
+                self._process_incomplete_blocks(str(block.block_num),True)
                 LOGGER.debug("ADD INCOMPLETED BLOCKS DONE\n")
 
     def add_batch(self, batch,recomm=None):

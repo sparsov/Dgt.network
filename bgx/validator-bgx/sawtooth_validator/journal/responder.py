@@ -20,6 +20,7 @@ from sawtooth_validator.networking.dispatch import Handler
 from sawtooth_validator.networking.dispatch import HandlerResult
 from sawtooth_validator.networking.dispatch import HandlerStatus
 from sawtooth_validator.journal.timed_cache import TimedCache
+from sawtooth_validator.journal.block_store import Federation
 from sawtooth_validator.protobuf import network_pb2
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.protobuf import block_pb2
@@ -138,11 +139,11 @@ class BlockResponderHandler(Handler):
             peer as block
             """ 
             blocks = []
-            gap = int(block_num) - block.block_num if block_num else 0  
+            gap = Federation.gap_feder_num(block_num,block.block_num) if block_num else 0  
             LOGGER.debug("Responding to block requests: BLOCK=%s GAP=%s",block.get_block().header_signature[:8],gap)
-            if gap > 1 and gap < 10:
+            if gap > 1 :
                 # get block by number
-                num = int(block_num) - 1
+                num = int(Federation.dec_feder_num(block_num))
                 # save request
                 self._responder.add_request(block_id, connection_id)
                 block = self._responder.get_block_by_num(num)

@@ -60,6 +60,28 @@ class Federation(object):
     def block_nums(self):
         return self._block_nums
 
+    @staticmethod
+    def feder_num_to_num(block_num):
+        snum = str(block_num)
+        num = int(snum[1:]) if snum[1:] != '' else -1 # genesis num
+        fnum = int(snum[0:1])    
+        return fnum,num
+
+    @staticmethod
+    def dec_feder_num(block_num):
+        fnum,num = Federation.feder_num_to_num(block_num)
+        if num <= 0:
+            return str(0)
+        return str(fnum)+str(num-1)
+
+    def gap_feder_num(prev_num,block_num):
+        pfnum,pnum = Federation.feder_num_to_num(prev_num)
+        fnum,num = Federation.feder_num_to_num(block_num)
+        if pfnum != fnum:
+            # difference federation
+            return 0
+        return pnum - num 
+
     def update_head(self,num):
         if num > self._last_num:
             self._last_num = num

@@ -100,6 +100,33 @@ class FbftTopology(object):
     def genesis_node(self):
         return self._genesis_node if self._genesis_node else ''
 
+    @property
+    def topology(self):
+        return self._topology
+
+    def update_peer_activity(self,key,endpoint,mode):
+        def find_topology_peer(children,peer_key):
+            peer = None
+            for key,val in children.items():
+                if key == peer_key:
+                    peer = val
+                    break
+                if 'cluster' in val:
+                    cluster = val['cluster']
+                    if 'name' in cluster and 'children' in cluster:
+                        peer = find_topology_peer(cluster['children'],peer_key)
+                        if peer is not None:
+                            break
+            return peer
+
+        peer = find_topology_peer(self._topology['children'],key)
+        if peer:
+            peer['endpoint'] = endpoint
+            peer['node_state'] = 'active' if mode else 'inactive'
+             
+            LOGGER.debug("update_peer_activity: peer=%s",peer)
+
+
     def get_topology(self,topology,validator_id):
         # get topology from string
 
@@ -259,6 +286,10 @@ class Gossip(object):
         LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
+    def update_federation_topology(self,key,endpoint,mode=True):
+        LOGGER.debug("update_federation_topology peer=%s %s mode=%s",key[:8],endpoint,mode)
+        self._fbft.update_peer_activity(key,endpoint,mode)
+
     def notify_peer_connected(self,public_key,assemble=False):
         """
         Use topology for restrict peer notification
@@ -268,6 +299,7 @@ class Gossip(object):
             LOGGER.debug("Inform engine ADD peer=%s assemble=%s",public_key[:8],assemble)
             self._consensus_notifier.notify_peer_connected(public_key,assemble)
         else:
+            # set into self._fbft activity of peer - for dashboard
             LOGGER.debug("Inform engine IGNORE peer=%s",public_key[:8])
 
     def notify_peer_disconnected(self,public_key):
@@ -355,16 +387,20 @@ class Gossip(object):
         topology with cluster  
         FIXME - we should extend base version with information about status peers
         """
-        if self._stopology is None:
+        if self._fbft is None:
             stopology = self._settings_cache.get_setting(
                 "bgx.consensus.pbft.nodes",
                 self._current_root_func(),
                 default_value='{}'
             ).replace("'",'"')
-        else:
-            stopology = self._stopology
-                
-        #topology = json.loads(stopology)
+            return stopology.encode("utf-8")
+        # 
+        stopology = json.dumps(
+                self._fbft.topology,
+                indent=2,
+                separators=(',', ': '),
+                sort_keys=True)        
+        
         #LOGGER.debug("get topology=%s",stopology.encode("utf-8")) 
         return stopology.encode("utf-8")
 
@@ -393,12 +429,16 @@ class Gossip(object):
                 raise PeeringException("At maximum configured number of peers: {} Rejecting peering request from {}.".format(self._maximum_peer_connectivity,endpoint))
 
         public_key = self.peer_to_public_key(connection_id)
-        if public_key and self.is_federations_assembled:
+        if public_key:
             """
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
-            self.notify_peer_connected(public_key)
+            self.update_federation_topology(public_key,endpoint,True)
+            if self.is_federations_assembled:
+                self.notify_peer_connected(public_key)
+            
+                
 
     def unregister_peer(self, connection_id):
         """Removes a connection_id from the registry.
@@ -410,6 +450,7 @@ class Gossip(object):
         public_key = self.peer_to_public_key(connection_id)
         if public_key:
             self.notify_peer_disconnected(public_key)
+            self.update_federation_topology(public_key,self._peers[connection_id],False)
 
         with self._lock:
             if connection_id in self._peers:
@@ -438,6 +479,7 @@ class Gossip(object):
                 if self._fbft.genesis_node == public_key:
                     self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
+                self.update_federation_topology(public_key,self._peers[cid],True)
                 
 
     def get_time_to_live(self):

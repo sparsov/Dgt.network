@@ -1134,7 +1134,7 @@ class PbftEngine(Engine):
                     branch = self._peers_branches[block_id] 
                     resolve_fork(branch,chain_head,block)
                 except exceptions.NoChainHead:
-                    LOGGER.info('EXTERNAL BLOCK=%s.%s NO DAG HEAD=%s\n\n',block.block_num,_short_id(block_id),head_id)
+                    LOGGER.info('EXTERNAL BLOCK=%s.%s NO DAG HEAD=%s\n\n',block.block_num,_short_id(block_id),head_id if head_id is None else bid[:8])
                     
                 
 

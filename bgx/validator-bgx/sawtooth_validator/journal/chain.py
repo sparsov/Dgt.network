@@ -1024,6 +1024,7 @@ class ChainController(object):
                     LOGGER.debug("_submit_blocks_for_verification: EXTERNAL block=%s take head=%s",blkw.identifier[:8],chain_head)
                 else:
                     chain_head = main_head
+                    LOGGER.debug("_submit_blocks_for_verification: EXTERNAL block=%s take MAIN HEAD=%s\n",blkw.identifier[:8],chain_head)
 
             state_view = BlockWrapper.state_view_for_block(main_head,self._state_view_factory) # for DAG use main_head instead chain_head
             LOGGER.debug("ChainController: _submit_blocks_for_verification BRANCH=%s head=%s",branch_id[:8],chain_head == self.chain_head)
@@ -1466,6 +1467,10 @@ class ChainController(object):
                         # maybe this is branch point
                         if not try_append_by_num(block):
                             LOGGER.debug('Block pending: id=%s cant add by num!!!\n', block.identifier[:8])
+                            if block not in pending_blocks:
+                                pending_blocks.append(block)
+                                LOGGER.debug('For block=%s pending=%s', block.previous_block_id[:8],[blk.identifier[:8] for blk in pending_blocks])
+                                self._blocks_pending[block.previous_block_id] = pending_blocks
 
                 else:
                     # schedule this block for validation.
