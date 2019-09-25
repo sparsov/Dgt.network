@@ -104,7 +104,7 @@ class FbftTopology(object):
     def topology(self):
         return self._topology
 
-    def update_peer_activity(self,key,endpoint,mode):
+    def update_peer_activity(self,key,endpoint,mode,sync):
         def find_topology_peer(children,peer_key):
             peer = None
             for key,val in children.items():
@@ -122,7 +122,7 @@ class FbftTopology(object):
         peer = find_topology_peer(self._topology['children'],key)
         if peer:
             peer['endpoint'] = endpoint
-            peer['node_state'] = 'active' if mode else 'inactive'
+            peer['node_state'] = ('active' if sync else 'nosync') if mode else 'inactive'
              
             LOGGER.debug("update_peer_activity: peer=%s",peer)
 
@@ -286,9 +286,9 @@ class Gossip(object):
         LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
-    def update_federation_topology(self,key,endpoint,mode=True):
-        LOGGER.debug("update_federation_topology peer=%s %s mode=%s",key[:8],endpoint,mode)
-        self._fbft.update_peer_activity(key,endpoint,mode)
+    def update_federation_topology(self,key,endpoint,mode=True,sync=False):
+        LOGGER.debug("update_federation_topology peer=%s %s mode=%s sync=%s",key[:8],endpoint,mode,sync)
+        self._fbft.update_peer_activity(key,endpoint,mode,sync)
 
     def notify_peer_connected(self,public_key,assemble=False):
         """
@@ -479,7 +479,7 @@ class Gossip(object):
                 if self._fbft.genesis_node == public_key:
                     self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
-                self.update_federation_topology(public_key,self._peers[cid],True)
+                self.update_federation_topology(public_key,self._peers[cid],True,True)
                 
 
     def get_time_to_live(self):
