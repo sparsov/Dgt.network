@@ -71,6 +71,7 @@ message NetworkAcknowledgement {
     }
 
     Status status = 1;
+    bool   sync   = 2; // True if answered peer already make net sync
 }
 
 message GossipBlockRequest {

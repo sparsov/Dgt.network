@@ -83,7 +83,7 @@ class FbftTopology(object):
         self._arbiters = {}
         self._cluster = None
         self._topology  = None
-
+        self._nosync = False
     @property
     def nest_colour(self):
         return self._nest_colour
@@ -123,8 +123,10 @@ class FbftTopology(object):
         if peer:
             peer['endpoint'] = endpoint
             peer['node_state'] = ('active' if sync else 'nosync') if mode else 'inactive'
-             
-            LOGGER.debug("update_peer_activity: peer=%s",peer)
+            if not sync and not self._nosync:
+                self._nosync = True
+                self._topology['sync'] = not self._nosync 
+            LOGGER.debug("update_peer_activity: nosync=%s peer=%s",self._nosync,peer)
 
 
     def get_topology(self,topology,validator_id,peering_mode='static'):
@@ -169,6 +171,7 @@ class FbftTopology(object):
         self._topology = topology
         #LOGGER.debug('get_topology=%s',topology)
         topology['topology'] = peering_mode
+        topology['sync'] = not self._nosync
         if 'name' in topology and 'children' in topology:
             get_cluster_info(None,None,topology['name'],topology['children'])
         if self._nest_colour is None:
@@ -252,6 +255,7 @@ class Gossip(object):
         self._fbft = FbftTopology()            # F-BFT topology
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
+        self._nosync    = False                # need sync with other net 
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -289,7 +293,18 @@ class Gossip(object):
 
     def update_federation_topology(self,key,endpoint,mode=True,sync=False):
         LOGGER.debug("update_federation_topology peer=%s %s mode=%s sync=%s",key[:8],endpoint,mode,sync)
+        if not sync:
+            # in case only one unsync peer mark this peer as unsync
+            self._nosync = True
         self._fbft.update_peer_activity(key,endpoint,mode,sync)
+
+    def try_to_sync_with_net(self):
+        """
+        try:to sync in case we are out of sync
+        """
+        if self._nosync:
+            LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
+            # send message to all unsync peers
 
     def notify_peer_connected(self,public_key,assemble=False):
         """
@@ -410,19 +425,21 @@ class Gossip(object):
         with self._lock:
             return self._network.connection_id_to_public_key(peer)
 
-    def register_peer(self, connection_id, endpoint):
+    def register_peer(self, connection_id, endpoint,sync=None):
         """Registers a connected connection_id.
 
         Args:
             connection_id (str): A unique identifier which identifies an
                 connection on the network server socket.
-            endpoint (str): The publically reachable endpoint of the new
-                peer
+            endpoint (str): The publically reachable endpoint of the new peer
+            sync - if sync == None this is request from other peer if sync == (true|false) this is reply on our request
+            sync == true - means that we connected after point of assemble - so we must do sync 
+            sync == false - means that we connected in time 
         """
         
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
-                LOGGER.debug("Current peers=%s",[cid[:8] for cid in self._peers])
+                LOGGER.debug("Register endpoint=%s assembled=%s SYNC=%s peers=%s",endpoint,self.is_federations_assembled,sync,[cid[:8] for cid in self._peers])
                 self._peers[connection_id] = endpoint
                 self._topology.set_connection_status(connection_id,PeerStatus.PEER)
                 LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id, endpoint, self._peers)
@@ -435,9 +452,12 @@ class Gossip(object):
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
-            self.update_federation_topology(public_key,endpoint,True)
+            if sync is not None:
+                self.update_federation_topology(public_key,endpoint,sync = (not self.is_federations_assembled and not sync))
             if self.is_federations_assembled:
                 self.notify_peer_connected(public_key)
+
+        return self.is_federations_assembled
             
                 
 
@@ -480,7 +500,7 @@ class Gossip(object):
                 if self._fbft.genesis_node == public_key:
                     self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
-                self.update_federation_topology(public_key,self._peers[cid],True,True)
+                #self.update_federation_topology(public_key,self._peers[cid],True,True)
                 
 
     def get_time_to_live(self):
@@ -700,7 +720,9 @@ class Gossip(object):
             peering_mode=self._peering_mode,
             min_peers=self._minimum_peer_connectivity,
             max_peers=self._maximum_peer_connectivity,
-            check_frequency=self._topology_check_frequency)
+            check_frequency=self._topology_check_frequency
+            # take from topology federations_timeout
+            )
 
         self._topology.start()
 
@@ -721,7 +743,7 @@ class ConnectionManager(InstrumentedThread):
     def __init__(self, gossip, network, endpoint,
                  initial_peer_endpoints, initial_seed_endpoints,
                  peering_mode, min_peers=3, max_peers=10,
-                 check_frequency=1,federations_timeout=6):
+                 check_frequency=1,federations_timeout=10):
         """Constructor for the ConnectionManager class.
 
         Args:
@@ -1119,6 +1141,9 @@ class ConnectionManager(InstrumentedThread):
         self._gossip.switch_on_federations()
 
     def _peer_callback(self, request, result, connection_id, endpoint=None):
+        """
+        reply on register request
+        """
         LOGGER.debug("_peer_callback %s",endpoint)
         with self._lock:
             ack = NetworkAcknowledgement()
@@ -1128,10 +1153,14 @@ class ConnectionManager(InstrumentedThread):
                 LOGGER.debug("Peering request to %s was NOT successful",connection_id)
                 self._remove_temporary_connection(connection_id)
             elif ack.status == ack.OK:
-                LOGGER.debug("Peering request to %s was successful",connection_id[:8])
+                LOGGER.debug("Peering request to %s(%s) was successful. Peer already SYNC=%s",connection_id[:8],endpoint,ack.sync)
                 if endpoint:
                     try:
-                        self._gossip.register_peer(connection_id, endpoint)
+                        """
+                        in case (ack.sync == TRUE) peer already make point of assemble and we should make sync with them 
+                        and inform them after synchronization
+                        """
+                        self._gossip.register_peer(connection_id, endpoint,ack.sync)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
                         LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s", endpoint,self._gossip.peer_to_public_key(connection_id) )
                         """

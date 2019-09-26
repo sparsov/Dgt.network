@@ -110,7 +110,7 @@ class BlockResponderHandler(Handler):
             block_num = parts[0][1:]
 
         block = self._responder.check_for_block(block_id)
-        LOGGER.debug("BlockResponderHandler:ID=%s NUM=%s BLOCK=%s.",block_id if block_id == "HEAD" else block_id[:8],block_num,block)
+        LOGGER.debug("BlockResponderHandler:ID=%s NUM=%s nonce=%s BLOCK=%s.",block_id if block_id == "HEAD" else block_id[:8],block_num,block_request_message.nonce,block)
         if block is None:
             # No block found, broadcast original message to other peers
             # and add to pending requests
@@ -152,11 +152,21 @@ class BlockResponderHandler(Handler):
             else:
                 # check may be prev block already was asked
                 blocks.append(block)
-                if self._responder.already_requested(block.previous_block_id):
-                    LOGGER.debug("Responding already requested BLOCK=%s",block.previous_block_id[:8])
-                    self._responder.remove_request(block.previous_block_id)
-                    blocks.append(self._responder.check_for_block(block.previous_block_id))
-
+            while True:
+                prev_num = int(Federation.dec_feder_num(block.block_num)) 
+                block = self._responder.get_block_by_num(prev_num)
+                prev_block_id = block.get_block().header_signature
+                if self._responder.already_requested(prev_block_id):
+                    self._responder.remove_request(prev_block_id)
+                    blocks.append(block)
+                else:
+                    break
+            """
+            if self._responder.already_requested(block.previous_block_id):
+                LOGGER.debug("Responding already requested BLOCK=%s",block.previous_block_id[:8])
+                self._responder.remove_request(block.previous_block_id)
+                blocks.append(self._responder.check_for_block(block.previous_block_id))
+            """
             for block in blocks:
                 LOGGER.debug("Responding SEND BLOCK=%s",block)
                 block_response = network_pb2.GossipBlockResponse(content=block.get_block().SerializeToString())

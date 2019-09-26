@@ -1321,6 +1321,10 @@ class ChainController(object):
 
             # Submit any immediate descendant blocks for verification
             LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
+            if len(descendant_blocks) == 0 and len(self._blocks_pending) == 0:
+                LOGGER.debug('There are no descendant blocks - TRY TO SYNC WITH OTHER PEERS\n')
+                self._block_sender.try_to_sync_with_net()
+
             self._submit_blocks_for_verification(descendant_blocks)
 
             for block in reversed(result["new_chain"]):

@@ -86,8 +86,11 @@ class PeerRegisterHandler(Handler):
 
         ack = NetworkAcknowledgement()
         try:
-            self._gossip.register_peer(connection_id, request.endpoint)
+            sync = self._gossip.register_peer(connection_id, request.endpoint)
+            # say asked peer about point of assemble
             ack.status = ack.OK
+            ack.sync   = sync
+            LOGGER.debug("register peer sync=%s(%s)",sync,request.endpoint)
         except PeeringException:
             ack.status = ack.ERROR
 

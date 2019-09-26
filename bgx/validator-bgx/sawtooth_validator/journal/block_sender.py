@@ -44,6 +44,8 @@ class BroadcastBlockSender(BlockSender):
         self._topology = self._gossip.f_topology
         #self._gossip.set_cluster(topology)
         return  self._topology
+    def try_to_sync_with_net(self):
+        self._gossip.try_to_sync_with_net()
 
     def send(self, block):
         """
