@@ -196,6 +196,7 @@ class FbftTopology(object):
             # get arbiters
             get_arbiters(None,topology['name'],topology['children'])
             # add Identity
+            topology['Network'] = 'BGX TEST network'
             topology['Identity'] = {'PubKey': self._validator_id,
                                     'IP' : self._endpoint,
                                     'Cluster' : self._nest_colour,
