@@ -56,6 +56,10 @@ class EndpointStatus(Enum):
     # Endpoint will be used to request peers
     TOPOLOGY = 2
 
+class PeerSync():
+    inactive = 'inactive'
+    active   = 'active'
+    nosync   = 'nosync'
 
 EndpointInfo = namedtuple('EndpointInfo',
                           ['status', 'time', "retry_threshold"])
@@ -80,6 +84,9 @@ class FbftTopology(object):
         self._validator_id = None
         self._nest_colour = None
         self._genesis_node = None
+        self._parent = None
+        self._leader = None
+        self._endpoint = None
         self._arbiters = {}
         self._cluster = None
         self._topology  = None
@@ -104,32 +111,37 @@ class FbftTopology(object):
     def topology(self):
         return self._topology
 
-    def update_peer_activity(self,key,endpoint,mode,sync):
-        def find_topology_peer(children,peer_key):
-            peer = None
+    def get_topology_iter(self):
+        def iter_topology(children):
             for key,val in children.items():
-                if key == peer_key:
-                    peer = val
-                    break
+                #LOGGER.debug("iter_topology key %s",key)
+                yield key,val
                 if 'cluster' in val:
                     cluster = val['cluster']
                     if 'name' in cluster and 'children' in cluster:
-                        peer = find_topology_peer(cluster['children'],peer_key)
-                        if peer is not None:
-                            break
-            return peer
+                        #LOGGER.debug("iter_topology >>> %s",cluster['name'])
+                        yield from iter_topology(cluster['children'])
+                        #LOGGER.debug("iter_topology <<< %s",cluster['name'])
+                        
+            
+        return iter_topology(self._topology['children'])
 
-        peer = find_topology_peer(self._topology['children'],key)
-        if peer:
-            peer['endpoint'] = endpoint
-            peer['node_state'] = ('active' if sync else 'nosync') if mode else 'inactive'
-            if not sync and not self._nosync:
-                self._nosync = True
-                self._topology['sync'] = not self._nosync 
-            LOGGER.debug("update_peer_activity: nosync=%s peer=%s",self._nosync,peer)
+    def __iter__(self):
+        return self.get_topology_iter()
+
+    def update_peer_activity(self,peer_key,endpoint,mode,sync):
+        for key,peer in self.get_topology_iter():
+            if key == peer_key:
+                peer['endpoint'] = endpoint
+                peer['node_state'] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
+                if not sync and not self._nosync:
+                    self._nosync = True
+                    self._topology['sync'] = not self._nosync 
+                LOGGER.debug("update_peer_activity: nosync=%s peer=%s",self._nosync,peer)
+                break
 
 
-    def get_topology(self,topology,validator_id,peering_mode='static'):
+    def get_topology(self,topology,validator_id,endpoint,peering_mode='static'):
         # get topology from string
 
         def get_cluster_info(arbiter_id,parent_name,name,children):
@@ -140,6 +152,7 @@ class FbftTopology(object):
                         self._arbiters[arbiter_id] = ('arbiter',parent_name)
                     self._nest_colour = name
                     self._cluster    = children
+                    self._parent     = arbiter_id
                     LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
                     return
 
@@ -157,6 +170,8 @@ class FbftTopology(object):
                     # check only other cluster and add delegate
                     if 'delegate' in val:
                         self._arbiters[key] = ('delegate',name)
+                        if arbiter_id == self._parent:
+                            self._leader = key
 
                 if self._genesis_node is None and 'genesis' in val:
                     # this is genesis node of all network
@@ -168,6 +183,7 @@ class FbftTopology(object):
 
         #topology = json.loads(stopology)
         self._validator_id = validator_id
+        self._endpoint = endpoint
         self._topology = topology
         #LOGGER.debug('get_topology=%s',topology)
         topology['topology'] = peering_mode
@@ -179,6 +195,16 @@ class FbftTopology(object):
         else:
             # get arbiters
             get_arbiters(None,topology['name'],topology['children'])
+            # add Identity
+            topology['Identity'] = {'PubKey': self._validator_id,
+                                    'IP' : self._endpoint,
+                                    'Cluster' : self._nest_colour,
+                                    'Genesis' : self._genesis_node,
+                                    'Leader'  : self._leader if self._leader else 'UNDEF',
+                                    'Parent'  : self._parent if self._parent else 'UNDEF',
+                                    'KYCKey'  : '0ABD7E'
+
+            }
             LOGGER.debug('Arbiters RING=%s GENESIS=%s',self._arbiters,self.genesis_node[:8])
 
 
@@ -272,7 +298,9 @@ class Gossip(object):
     @property
     def is_federations_assembled(self):
         return self._is_federations_assembled
-
+    @property
+    def validator_id(self):
+        return self._network.validator_id
     def set_cluster(self,topology):
         self._fbft = topology
         LOGGER.debug("set cluster=%s arbiters=%s",self._fbft.cluster,self._fbft.arbiters)
@@ -298,13 +326,76 @@ class Gossip(object):
             self._nosync = True
         self._fbft.update_peer_activity(key,endpoint,mode,sync)
 
+    def _peer_sync_callback(self, request, result, connection_id, endpoint=None):
+        """
+        # REPLY ON SYNC
+        """
+        LOGGER.debug("_peer_sync_callback endpoint=%s",endpoint)
+        with self._lock:
+            ack = NetworkAcknowledgement()
+            ack.ParseFromString(result.content)
+            if ack.status == ack.ERROR:
+                LOGGER.debug("SYNC request to %s was NOT successful",endpoint)
+                
+            elif ack.status == ack.OK:
+                if endpoint:
+                    try:
+                        """
+                        in case (ack.sync == TRUE) peer was synchronized 
+                        and inform them after synchronization
+                        """
+                        peer_key = self._network.connection_id_to_public_key(connection_id)
+                        LOGGER.debug("SYNC request to %s(%s) was successful. Peer=%s SYNC=%s",connection_id[:8],endpoint,peer_key[:8],ack.sync)
+                        self.update_federation_topology(peer_key,endpoint,sync=ack.sync)
+                        if ack.sync:
+                            self.notify_peer_connected(self.validator_id,assemble=True)
+                    except PeeringException as e:
+                        # Remove unsuccessful peer
+                        LOGGER.warning('Unable to successfully SYNC peer with endpoint: %s, due to %s',endpoint, str(e))
+            
+                else:
+                    LOGGER.debug("Cannot SYNC peer with no endpoint for connection_id: %s",connection_id)
+        LOGGER.debug("_peer_sync_callback endpoint=%s DONE",endpoint)
+                    
+
+    def sync_to_peer_with_endpoint(self, endpoint):
+        LOGGER.debug("Attempting to sync peer with endpoint=%s", endpoint)
+
+        # check if the connection exists, if it does - send,
+        # otherwise create it
+        try:
+            connection_id = self._network.get_connection_id_by_endpoint(endpoint)
+
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.SYNC)
+
+            self._network.send(
+                validator_pb2.Message.GOSSIP_REGISTER,
+                register_request.SerializeToString(),
+                connection_id,
+                callback=partial(
+                    self._peer_sync_callback,
+                    endpoint=endpoint,
+                    connection_id=connection_id))
+        except KeyError:
+            # if the connection uri wasn't found in the network's
+            # connections, it raises a KeyError and we need to add
+            # a new outbound connection
+            LOGGER.debug("Error attempting to sync peer with %s NO CONNECTION", endpoint)    
+
+
     def try_to_sync_with_net(self):
         """
         try:to sync in case we are out of sync
         """
         if self._nosync:
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
-            # send message to all unsync peers
+            for key,peer in self._fbft.get_topology_iter():
+                # send message to all unsync peers
+                if 'node_state' in peer and peer['node_state'] == PeerSync.nosync:
+                    LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer['endpoint'],peer['node_state'])
+                    self.sync_to_peer_with_endpoint(peer['endpoint'])
+
+            LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE\n")
 
     def notify_peer_connected(self,public_key,assemble=False):
         """
@@ -395,7 +486,7 @@ class Gossip(object):
             ).replace("'",'"')
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
-        self._fbft.get_topology(self._ftopology,self._network.validator_id,self._peering_mode)
+        self._fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode)
         
 
     def get_topology(self):
@@ -424,6 +515,17 @@ class Gossip(object):
         """Returns the public key for the associated peer."""
         with self._lock:
             return self._network.connection_id_to_public_key(peer)
+
+    def sync_peer(self, connection_id, endpoint):
+        """
+        peer endpoint ask sync him with this validator
+        """
+        with self._lock:
+            public_key = self._network.connection_id_to_public_key(connection_id)
+            LOGGER.debug("sync_peer: SYNC with peer=%s key=%s",endpoint,public_key[:8])
+            self.update_federation_topology(public_key,endpoint,sync = True)
+            self.notify_peer_connected(public_key,assemble=True)
+        return True
 
     def register_peer(self, connection_id, endpoint,sync=None):
         """Registers a connected connection_id.
@@ -496,7 +598,7 @@ class Gossip(object):
         for public_key in set(peer_keys):
             if public_key:
                 cid = keys_cid[public_key]
-                LOGGER.debug("switch_on_federations peer=%s send HEAD request cid=%s",public_key[:8],cid[:8])
+                LOGGER.debug("Switch on federations peer=%s send HEAD request cid=%s SYNC=%s",public_key[:8],cid[:8],not self._nosync)
                 if self._fbft.genesis_node == public_key:
                     self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
@@ -1102,12 +1204,9 @@ class ConnectionManager(InstrumentedThread):
         # check if the connection exists, if it does - send,
         # otherwise create it
         try:
-            connection_id = \
-                self._network.get_connection_id_by_endpoint(
-                    endpoint)
+            connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(
-                endpoint=self._endpoint)
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -1225,7 +1324,7 @@ class ConnectionManager(InstrumentedThread):
         LOGGER.debug("Connection to %s succeeded endpoint=%s", connection_id,endpoint)
 
         register_request = PeerRegisterRequest(
-            endpoint=self._endpoint)
+            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER)
         self._connection_statuses[connection_id] = PeerStatus.TEMP
         try:
             self._network.send(

@@ -1218,8 +1218,10 @@ class PbftEngine(Engine):
     def _handle_peer_connected(self, notif):
         #LOGGER.debug('Connected peer status=%s',notif[1])
         pid = notif[0].peer_id.hex()
-        if pid not in self._peers and pid != self._validator_id:
-            if pid in self._cluster:
+        if pid not in self._peers:
+            if pid == self.validator_id:
+                LOGGER.debug('Change OWN SYNC STATUS=%s\n', notif[1])
+            elif pid in self._cluster:
                 # take only peers from own cluster topology 
                 # save status of peer
                 self._peers[pid] = notif[1]

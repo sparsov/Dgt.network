@@ -196,9 +196,7 @@ class BlockStore(MutableMapping):
 
     def __setitem__(self, key, value):
         if key != value.identifier:
-            raise KeyError(
-                "Invalid key to store block under: {} expected {}".format(
-                    key, value.identifier))
+            raise KeyError("Invalid key to store block under: {} expected {}".format(key, value.identifier))
         self._block_store.put(key, value)
 
     def __getitem__(self, key):
@@ -553,8 +551,7 @@ class BlockStore(MutableMapping):
         """
         return self.get_block_iter(start_block=starting_block)
 
-    def get_block_iter(self, start_block=None, start_block_num=None,
-                       reverse=True):
+    def get_block_iter(self, start_block=None, start_block_num=None,reverse=True):
         """Returns an iterator that traverses blocks in block number order.
 
         Args:
@@ -577,15 +574,12 @@ class BlockStore(MutableMapping):
         LOGGER.debug("BlockStore: get_block_iter...")
         with self._block_store.cursor(index='block_num') as curs:
             if start_block:
-                start_block_num = BlockStore.block_num_to_hex(
-                    start_block.block_num)
+                start_block_num = BlockStore.block_num_to_hex(start_block.block_num)
                 if not curs.seek(start_block_num):
-                    raise ValueError(
-                        'block {} is not a valid block'.format(start_block))
+                    raise ValueError('block {} is not a valid block'.format(start_block))
             elif start_block_num:
                 if not curs.seek(start_block_num):
-                    raise ValueError('Block number {} does not reference a '
-                                     'valid block'.format(start_block_num))
+                    raise ValueError('Block number {} does not reference a valid block'.format(start_block_num))
 
             iterator = None
             if reverse:

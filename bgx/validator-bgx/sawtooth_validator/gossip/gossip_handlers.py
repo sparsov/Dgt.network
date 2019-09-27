@@ -82,17 +82,24 @@ class PeerRegisterHandler(Handler):
         request = PeerRegisterRequest()
         request.ParseFromString(message_content)
 
-        LOGGER.debug("Got peer register message from %s(%s)",request.endpoint,connection_id[:10])
+        LOGGER.debug("Got peer register message MODE=%s from %s(%s)",request.mode,request.endpoint,connection_id[:10])
 
         ack = NetworkAcknowledgement()
         try:
-            sync = self._gossip.register_peer(connection_id, request.endpoint)
-            # say asked peer about point of assemble
-            ack.status = ack.OK
-            ack.sync   = sync
-            LOGGER.debug("register peer sync=%s(%s)",sync,request.endpoint)
+            if request.mode == PeerRegisterRequest.REGISTER:
+                sync = self._gossip.register_peer(connection_id, request.endpoint)
+                # say asked peer about point of assemble
+                ack.status = ack.OK
+                ack.sync   = sync
+                LOGGER.debug("register peer sync=%s(%s)",sync,request.endpoint)
+            else:
+                ack.status = ack.OK
+                ack.sync   = self._gossip.sync_peer(connection_id, request.endpoint)
+                LOGGER.debug("SYNC request from peer=%s\n",request.endpoint)
+
         except PeeringException:
             ack.status = ack.ERROR
+            LOGGER.debug("ERROR SYNC request from peer=%s\n",request.endpoint)
 
         return HandlerResult(
             HandlerStatus.RETURN,
