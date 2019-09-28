@@ -210,7 +210,7 @@ class FbftTopology(object):
             self._nest_colour = 'Genesis'
         else:
             # get arbiters
-            get_arbiters(None,topology[v],topology[PeerAtr.children])
+            get_arbiters(None,topology[PeerAtr.name],topology[PeerAtr.children])
             for key,peer in self._cluster.items():
                 if peer[PeerAtr.type] == 'leader':
                     self._leader = key
