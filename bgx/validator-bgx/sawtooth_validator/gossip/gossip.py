@@ -61,6 +61,16 @@ class PeerSync():
     active   = 'active'
     nosync   = 'nosync'
 
+class PeerAtr():
+    endpoint   = 'endpoint'
+    node_state = 'node_state'
+    cluster    = 'cluster'
+    children   = 'children'
+    name       = 'name'
+    role       = 'role'
+    delegate   = 'delegate'
+    genesis    = 'genesis'
+
 EndpointInfo = namedtuple('EndpointInfo',
                           ['status', 'time', "retry_threshold"])
 
@@ -116,18 +126,18 @@ class FbftTopology(object):
      
     def get_topology_iter(self, root=None):
         def iter_topology(children):
-            for key,val in children.items():
+            for key,peer in children.items():
                 #LOGGER.debug("iter_topology key %s",key)
-                yield key,val
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
+                yield key,peer
+                if PeerAtr.cluster in peer:
+                    cluster = peer[PeerAtr.cluster]
+                    if PeerAtr.name in cluster and PeerAtr.children in cluster:
                         #LOGGER.debug("iter_topology >>> %s",cluster['name'])
-                        yield from iter_topology(cluster['children'])
+                        yield from iter_topology(cluster[PeerAtr.children])
                         #LOGGER.debug("iter_topology <<< %s",cluster['name'])
                         
             
-        return iter_topology(self._topology['children'] if root is None else root)
+        return iter_topology(self._topology[PeerAtr.children] if root is None else root)
 
     def __iter__(self):
         return self.get_topology_iter()
@@ -135,8 +145,8 @@ class FbftTopology(object):
     def update_peer_activity(self,peer_key,endpoint,mode,sync):
         for key,peer in self.get_topology_iter():
             if key == peer_key:
-                peer['endpoint'] = endpoint
-                peer['node_state'] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
+                peer[PeerAtr.endpoint] = endpoint
+                peer[PeerAtr.node_state] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
                 if not sync and not self._nosync:
                     self._nosync = True
                     self._topology['sync'] = not self._nosync 
@@ -148,7 +158,7 @@ class FbftTopology(object):
         # get topology from string
 
         def get_cluster_info(arbiter_id,parent_name,name,children):
-            for key,val in children.items():
+            for key,peer in children.items():
                 #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
                 if key == self._validator_id:
                     if arbiter_id is not None:
@@ -156,33 +166,36 @@ class FbftTopology(object):
                     self._nest_colour = name
                     self._cluster    = children
                     self._parent     = arbiter_id
+                    #  yourself 
+                    peer[PeerAtr.endpoint] = endpoint
+                    peer[PeerAtr.node_state] = PeerSync.active
                     LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
                     return
 
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
-                        get_cluster_info(key,name,cluster['name'],cluster['children'])
+                if PeerAtr.cluster in peer:
+                    cluster = peer[PeerAtr.cluster]
+                    if PeerAtr.name in cluster and PeerAtr.children in cluster:
+                        get_cluster_info(key,name,cluster[PeerAtr.name],cluster[PeerAtr.children])
                         if self._nest_colour is not None:
                             return
 
         def get_arbiters(arbiter_id,name,children):
             # make ring of arbiter - add only arbiter from other cluster
-            for key,val in children.items():
+            for key,peer in children.items():
                 if self._nest_colour != name:
                     # check only other cluster and add delegate
-                    if 'delegate' in val:
-                        self._arbiters[key] = ('delegate',name)
+                    if PeerAtr.delegate in peer:
+                        self._arbiters[key] = (PeerAtr.delegate,name)
                         #if arbiter_id == self._parent:
                         #    self._leader = key
 
-                if self._genesis_node is None and 'genesis' in val:
+                if self._genesis_node is None and PeerAtr.genesis in peer:
                     # this is genesis node of all network
                     self._genesis_node = key
-                if 'cluster' in val:
-                    cluster = val['cluster']
-                    if 'name' in cluster and 'children' in cluster:
-                        get_arbiters(key,cluster['name'],cluster['children'])
+                if PeerAtr.cluster in peer:
+                    cluster = peer[PeerAtr.cluster]
+                    if PeerAtr.name in cluster and PeerAtr.children in cluster:
+                        get_arbiters(key,cluster[PeerAtr.name],cluster[PeerAtr.children])
 
         #topology = json.loads(stopology)
         self._validator_id = validator_id
@@ -191,15 +204,15 @@ class FbftTopology(object):
         #LOGGER.debug('get_topology=%s',topology)
         topology['topology'] = peering_mode
         topology['sync'] = not self._nosync
-        if 'name' in topology and 'children' in topology:
-            get_cluster_info(None,None,topology['name'],topology['children'])
+        if PeerAtr.name in topology and PeerAtr.children in topology:
+            get_cluster_info(None,None,topology[PeerAtr.name],topology[PeerAtr.children])
         if self._nest_colour is None:
             self._nest_colour = 'Genesis'
         else:
             # get arbiters
-            get_arbiters(None,topology['name'],topology['children'])
+            get_arbiters(None,topology[v],topology[PeerAtr.children])
             for key,peer in self._cluster.items():
-                if peer['type'] == 'leader':
+                if peer[PeerAtr.type] == 'leader':
                     self._leader = key
                     break
             # add Identity
