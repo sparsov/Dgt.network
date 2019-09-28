@@ -70,6 +70,7 @@ class PeerAtr():
     role       = 'role'
     delegate   = 'delegate'
     genesis    = 'genesis'
+    type       = 'type'
 
 EndpointInfo = namedtuple('EndpointInfo',
                           ['status', 'time', "retry_threshold"])
