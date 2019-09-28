@@ -180,7 +180,7 @@ class Federation(object):
     def last_feder_num(self):
         if self.last_num < 0:
             return 0
-        self.make_coloured_num(self.last_num)
+        return self.make_coloured_num(self.last_num)
 
 class BlockStore(MutableMapping):
     """
