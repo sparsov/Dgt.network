@@ -43,7 +43,8 @@ class Responder(object):
     def check_for_block(self, block_id):
         # Ask Completer
         if block_id == "HEAD":
-            block = self.completer.get_chain_head()
+            block = self.completer.get_federation_heads()
+            #block = self.completer.get_chain_head()
         else:
             block = self.completer.get_block(block_id)
         return block
@@ -138,35 +139,33 @@ class BlockResponderHandler(Handler):
             check if there is a GAP between block_num and block.block_num send block block_num-1 instead block
             peer as block
             """ 
-            blocks = []
-            gap = Federation.gap_feder_num(block_num,block.block_num) if block_num else 0  
-            LOGGER.debug("Responding to block requests: BLOCK=%s GAP=%s",block.get_block().header_signature[:8],gap)
-            if gap > 1 :
-                # get block by number
-                num = int(Federation.dec_feder_num(block_num))
-                # save request
-                self._responder.add_request(block_id, connection_id)
-                block = self._responder.get_block_by_num(num)
-                blocks.append(block)
-                LOGGER.debug("Responding BLOCK=%s",block)
-            else:
-                # check may be prev block already was asked
-                blocks.append(block)
-            while True:
-                prev_num = int(Federation.dec_feder_num(block.block_num)) 
-                block = self._responder.get_block_by_num(prev_num)
-                prev_block_id = block.get_block().header_signature
-                if self._responder.already_requested(prev_block_id):
-                    self._responder.remove_request(prev_block_id)
+            if block_id != "HEAD":
+                blocks = []
+                gap = Federation.gap_feder_num(block_num,block.block_num) if block_num else 0  
+                LOGGER.debug("Responding to block requests: BLOCK=%s GAP=%s",block.get_block().header_signature[:8],gap)
+                if gap > 1 :
+                    # get block by number
+                    num = int(Federation.dec_feder_num(block_num))
+                    # save request
+                    self._responder.add_request(block_id, connection_id)
+                    block = self._responder.get_block_by_num(num)
                     blocks.append(block)
+                    LOGGER.debug("Responding BLOCK=%s",block)
                 else:
-                    break
-            """
-            if self._responder.already_requested(block.previous_block_id):
-                LOGGER.debug("Responding already requested BLOCK=%s",block.previous_block_id[:8])
-                self._responder.remove_request(block.previous_block_id)
-                blocks.append(self._responder.check_for_block(block.previous_block_id))
-            """
+                    # check may be prev block already was asked
+                    blocks.append(block)
+                while True:
+                    prev_num = int(Federation.dec_feder_num(block.block_num)) 
+                    block = self._responder.get_block_by_num(prev_num)
+                    prev_block_id = block.get_block().header_signature
+                    if self._responder.already_requested(prev_block_id):
+                        self._responder.remove_request(prev_block_id)
+                        blocks.append(block)
+                    else:
+                        break
+            else:
+                blocks = block # list of heads
+            
             for block in blocks:
                 LOGGER.debug("Responding SEND BLOCK=%s",block)
                 block_response = network_pb2.GossipBlockResponse(content=block.get_block().SerializeToString())
