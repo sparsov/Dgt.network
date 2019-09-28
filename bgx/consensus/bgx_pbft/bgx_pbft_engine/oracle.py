@@ -106,7 +106,7 @@ class PbftOracle:
         self.get_cluster_info(None,None,self._nodes['name'],self._nodes['children'])
         self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
-        #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['type'],self._node['cluster'])
+        #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['role'],self._node['cluster'])
         
         self._canceled = False
         #sid = self.get_validator_id().encode()
@@ -175,7 +175,7 @@ class PbftOracle:
                 this is me - stop searching
                 set own node type and cluster info
                 """
-                self._node = val['type'] if 'type' in val else 'plink'
+                self._node = val['role'] if 'role' in val else 'plink'
                 """
                 if arbiter_id is not None:
                     self._arbiters[arbiter_id] = ('arbiter',False,parent_name)  # type of arbiter and status(not ready)
@@ -200,7 +200,7 @@ class PbftOracle:
         return self._validator_id 
 
     def get_node_type_by_id(self,vid):
-        return self._cluster[vid]['type'] if vid in self._nodes else 'UNDEF'
+        return self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF'
 
     def initialize_block(self, previous_block):
         block_header = NewBlockHeader(

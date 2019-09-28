@@ -60,6 +60,8 @@ class PeerSync():
     inactive = 'inactive'
     active   = 'active'
     nosync   = 'nosync'
+class PeerRole():
+    leader = 'leader'
 
 class PeerAtr():
     endpoint   = 'endpoint'
@@ -70,7 +72,7 @@ class PeerAtr():
     role       = 'role'
     delegate   = 'delegate'
     genesis    = 'genesis'
-    type       = 'type'
+    ptype       = 'type'
 
 EndpointInfo = namedtuple('EndpointInfo',
                           ['status', 'time', "retry_threshold"])
@@ -213,7 +215,7 @@ class FbftTopology(object):
             # get arbiters
             get_arbiters(None,topology[PeerAtr.name],topology[PeerAtr.children])
             for key,peer in self._cluster.items():
-                if peer[PeerAtr.type] == 'leader':
+                if peer[PeerAtr.ptype] == PeerRole.leader:
                     self._leader = key
                     break
             # add Identity
@@ -413,9 +415,9 @@ class Gossip(object):
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
             for key,peer in self._fbft.get_topology_iter():
                 # send message to all unsync peers
-                if 'node_state' in peer and peer['node_state'] == PeerSync.nosync:
-                    LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer['endpoint'],peer['node_state'])
-                    self.sync_to_peer_with_endpoint(peer['endpoint'])
+                if PeerAtr.node_state in peer and peer[PeerAtr.node_state] == PeerSync.nosync:
+                    LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer[PeerAtr.endpoint],peer[PeerAtr.node_state])
+                    self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
 
             LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE\n")
 
