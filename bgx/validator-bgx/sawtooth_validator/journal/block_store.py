@@ -442,7 +442,7 @@ class BlockStore(MutableMapping):
 
     @property
     def federation_heads(self):
-        for colour,fedef in self._federations.items():
+        for colour,feder in self._federations.items():
             LOGGER.debug("federation_heads colour=%s head=%s",colour,feder.last_num)    
     
     def get_block_num(self,parent_num,signer,colour):
