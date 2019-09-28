@@ -111,7 +111,10 @@ class FbftTopology(object):
     def topology(self):
         return self._topology
 
-    def get_topology_iter(self):
+    def get_topology_iter_from(self,root):
+        return self.get_topology_iter(root)
+     
+    def get_topology_iter(self, root=None):
         def iter_topology(children):
             for key,val in children.items():
                 #LOGGER.debug("iter_topology key %s",key)
@@ -124,7 +127,7 @@ class FbftTopology(object):
                         #LOGGER.debug("iter_topology <<< %s",cluster['name'])
                         
             
-        return iter_topology(self._topology['children'])
+        return iter_topology(self._topology['children'] if root is None else root)
 
     def __iter__(self):
         return self.get_topology_iter()
@@ -170,8 +173,8 @@ class FbftTopology(object):
                     # check only other cluster and add delegate
                     if 'delegate' in val:
                         self._arbiters[key] = ('delegate',name)
-                        if arbiter_id == self._parent:
-                            self._leader = key
+                        #if arbiter_id == self._parent:
+                        #    self._leader = key
 
                 if self._genesis_node is None and 'genesis' in val:
                     # this is genesis node of all network
@@ -195,6 +198,10 @@ class FbftTopology(object):
         else:
             # get arbiters
             get_arbiters(None,topology['name'],topology['children'])
+            for key,peer in self._cluster.items():
+                if peer['type'] == 'leader':
+                    self._leader = key
+                    break
             # add Identity
             topology['Network'] = 'BGX TEST network'
             topology['Identity'] = {'PubKey': self._validator_id,
