@@ -176,6 +176,9 @@ class Federation(object):
     @property
     def last_num(self):
         return self._last_num
+    @property
+    def last_feder_num(self):
+        self.make_coloured_num(self.last_num)
 
 class BlockStore(MutableMapping):
     """
@@ -443,7 +446,7 @@ class BlockStore(MutableMapping):
     @property
     def federation_heads(self):
         for colour,feder in self._federations.items():
-            LOGGER.debug("federation_heads colour=%s head=%s",colour,feder.last_num)    
+            LOGGER.debug("federation_heads colour=%s head=%s",colour,feder.last_feder_num)    
     
     def get_block_num(self,parent_num,signer,colour):
         """
