@@ -327,19 +327,23 @@ class Completer(object):
         with self.lock:
             blkw = BlockWrapper(block)
             # new block from net
-            block = self._complete_block(blkw)
-            if block is not None:
-                # completed block - in sync mode genesis block
-                self.block_cache[block.header_signature] = blkw
-                LOGGER.debug("ADD BLOCK=%s.%s",block.block_num,block.header_signature[:8])
-                """
-                PUT BLOCK into chain controller queue
-                """
-                self._on_block_received(blkw)
-                # take all rest blocks 
-                #self._process_incomplete_blocks(block.header_signature)
-                self._process_incomplete_blocks(str(block.block_num),True)
-                LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self._pending_heads])
+            while blkw is not None:
+                block = self._complete_block(blkw)
+                blkw = None 
+                if block is not None:
+                    # completed block - in sync mode genesis block
+                    self.block_cache[block.header_signature] = blkw
+                    LOGGER.debug("ADD BLOCK=%s.%s",block.block_num,block.header_signature[:8])
+                    """
+                    PUT BLOCK into chain controller queue
+                    """
+                    self._on_block_received(blkw)
+                    # take all rest blocks 
+                    #self._process_incomplete_blocks(block.header_signature)
+                    self._process_incomplete_blocks(str(block.block_num),True)
+                    LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self._pending_heads])
+                    blkw = self._pending_heads.pop() if len(self._pending_heads) > 0 else None
+                
 
     def add_batch(self, batch,recomm=None):
         """
