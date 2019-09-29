@@ -329,7 +329,7 @@ class Completer(object):
             # new block from net
             while blkw is not None:
                 block = self._complete_block(blkw)
-                blkw = None 
+                 
                 if block is not None:
                     # completed block - in sync mode genesis block
                     self.block_cache[block.header_signature] = blkw
@@ -343,6 +343,9 @@ class Completer(object):
                     self._process_incomplete_blocks(str(block.block_num),True)
                     LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self._pending_heads])
                     blkw = self._pending_heads.pop() if len(self._pending_heads) > 0 else None
+                else:
+                    blkw = None
+
                 
 
     def add_batch(self, batch,recomm=None):
