@@ -327,7 +327,7 @@ class Completer(object):
         with self.lock:
             blkw = BlockWrapper(block)
             # new block from net
-            while blkw is not None:
+            while True:
                 block = self._complete_block(blkw)
                  
                 if block is not None:
@@ -342,9 +342,11 @@ class Completer(object):
                     #self._process_incomplete_blocks(block.header_signature)
                     self._process_incomplete_blocks(str(block.block_num),True)
                     LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self._pending_heads])
-                    blkw = self._pending_heads.pop() if len(self._pending_heads) > 0 else None
+                    if len(self._pending_heads) == 0:
+                        break
+                    blkw = self._pending_heads.pop()
                 else:
-                    blkw = None
+                    break
 
                 
 
