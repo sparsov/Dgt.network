@@ -457,7 +457,7 @@ class BlockStore(MutableMapping):
 
     def has_federation(self,block_num):
         feder,num = self.get_feder_num(block_num)
-        return feder is not None
+        return (feder is not None or block_num == 0)
     
     def get_block_num(self,parent_num,signer,colour):
         """
