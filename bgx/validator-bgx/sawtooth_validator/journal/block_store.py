@@ -78,8 +78,8 @@ class Federation(object):
         pfnum,pnum = Federation.feder_num_to_num(prev_num)
         fnum,num = Federation.feder_num_to_num(block_num)
         if pfnum != fnum:
-            # difference federation
-            return 0
+            # difference federation - say there is a gap
+            return 2
         return pnum - num 
 
     def update_head(self,num):
