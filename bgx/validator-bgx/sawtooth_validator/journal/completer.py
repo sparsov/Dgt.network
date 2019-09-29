@@ -339,7 +339,7 @@ class Completer(object):
                 # take all rest blocks 
                 #self._process_incomplete_blocks(block.header_signature)
                 self._process_incomplete_blocks(str(block.block_num),True)
-                LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self.self._pending_heads])
+                LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self._pending_heads])
 
     def add_batch(self, batch,recomm=None):
         """
