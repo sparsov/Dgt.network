@@ -215,7 +215,7 @@ class FbftTopology(object):
             # get arbiters
             get_arbiters(None,topology[PeerAtr.name],topology[PeerAtr.children])
             for key,peer in self._cluster.items():
-                if peer[PeerAtr.ptype] == PeerRole.leader:
+                if peer[PeerAtr.role] == PeerRole.leader:
                     self._leader = key
                     break
             # add Identity

@@ -360,10 +360,11 @@ class Completer(object):
             BlockWrapper: The head of the chain.
         """
         with self.lock:
-            LOGGER.debug("federation_heads=%s",[blk.header_signature[:8] for blk in self._block_store.federation_heads])
+            #LOGGER.debug("federation_heads=%s",[blk.header_signature[:8] for blk in self._block_store.federation_heads])
             return self._block_store.chain_head
 
-    def get_federation_heads(self):
+    def get_federation_heads(self,feder=None):
+        #all heads or exactly feder
         with self.lock:
             return self._block_store.federation_heads
          
