@@ -116,9 +116,14 @@ class Completer(object):
                         LOGGER.debug("INSER LOST for=%s blocks=%s",pid[:8],["{}.{}".format(blk.block_num,blk.header_signature[:8]) for blk in blocks])
                         return
 
-        def add_missing_predecessor(block):
+        def check_missing_predecessor(previous_block_id,previous_block_num):
             # we should take all chain of predecessors
-            pass
+            if previous_block_id not in self.block_cache :
+                return True
+            else:
+                # check num
+                blk = self.block_cache[previous_block_id]
+                return blk.block_num != previous_block_num 
 
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
@@ -133,13 +138,14 @@ class Completer(object):
                 self._pending_heads.append(block)
             return None
         #LOGGER.debug("Сomplete block=%s",block)
-        if block.previous_block_id not in self.block_cache:
+        previous_block_num = Federation.dec_feder_num(block.block_num)
+        if check_missing_predecessor(block.previous_block_id,previous_block_num):
             if not self._has_block(block.previous_block_id):
                 """
                 block incompleted ask missing block
                 """
                 LOGGER.debug("Incomplete block=%s.%s incompletes=%s",block.block_num,block.header_signature[:8],self.incomplete_blocks)
-                previous_block_num = Federation.dec_feder_num(block.block_num)
+                #previous_block_num = Federation.dec_feder_num(block.block_num)
                 if previous_block_num not in self._incomplete_blocks:
                     self._incomplete_blocks[previous_block_num] = [block]
                 if block.previous_block_id not in self._incomplete_blocks:
