@@ -122,6 +122,7 @@ class Completer(object):
                 return True
             else:
                 # check num
+                return False
                 blk = self.block_cache[previous_block_id]
                 return blk is not None and blk.block_num != previous_block_num 
 
