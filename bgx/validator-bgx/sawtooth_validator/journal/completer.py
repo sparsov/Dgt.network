@@ -123,7 +123,7 @@ class Completer(object):
             else:
                 # check num
                 blk = self.block_cache[previous_block_id]
-                return blk.block_num != previous_block_num 
+                return blk is not None and blk.block_num != previous_block_num 
 
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
