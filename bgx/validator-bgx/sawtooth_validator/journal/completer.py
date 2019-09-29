@@ -86,7 +86,7 @@ class Completer(object):
     def requested(self):
         return ["{}".format(bid[:8]) for bid in self._requested.keys()]
 
-    def _complete_block(self, block):
+    def _complete_block(self, block,force=False):
         """ Check the block to see if it is complete and if it can be passed to
             the journal. If the block's predecessor is not in the block_cache
             the predecessor is requested and the current block is added to the
@@ -127,7 +127,7 @@ class Completer(object):
         check federation of block and corresponding nest 
         in case nest is absent keep this block until nest appeared
         """
-        if not self._has_federation_nest(block.block_num):
+        if not self._has_federation_nest(block.block_num) and not force:
             LOGGER.debug("Keep until get federation nest for block: %s", block)
             if block not in self._pending_heads:
                 self._pending_heads.append(block)
@@ -327,8 +327,9 @@ class Completer(object):
         with self.lock:
             blkw = BlockWrapper(block)
             # new block from net
+            force = False
             while True:
-                block = self._complete_block(blkw)
+                block = self._complete_block(blkw,force)
                  
                 if block is not None:
                     # completed block - in sync mode genesis block
@@ -345,6 +346,7 @@ class Completer(object):
                     if len(self._pending_heads) == 0:
                         break
                     blkw = self._pending_heads.pop()
+                    force = True
                 else:
                     break
 
