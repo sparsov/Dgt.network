@@ -122,6 +122,13 @@ class Completer(object):
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
             return None
+        """
+        check federation of block and corresponding nest 
+        in case nest is absent keep this block until nest appeared
+        """
+        if not self._has_federation_nest(block.block_num):
+            LOGGER.debug("Keep until get nest block: %s", block)
+            return None
         #LOGGER.debug("Сomplete block=%s",block)
         if block.previous_block_id not in self.block_cache:
             if not self._has_block(block.previous_block_id):
@@ -362,6 +369,10 @@ class Completer(object):
         with self.lock:
             #LOGGER.debug("federation_heads=%s",[blk.header_signature[:8] for blk in self._block_store.federation_heads])
             return self._block_store.chain_head
+
+    def _has_federation_nest(self,block_num):
+        with self.lock:
+            return self._block_store.has_federation(block_num)
 
     def get_federation_heads(self,feder=None):
         #all heads or exactly feder

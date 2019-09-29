@@ -455,6 +455,9 @@ class BlockStore(MutableMapping):
                 feder_heads.append(self.get_block_by_number(feder.last_feder_num))
         return feder_heads
 
+    def has_federation(self,block_num):
+        feder,num = self.get_feder_num(block_num)
+        return feder is not None
     
     def get_block_num(self,parent_num,signer,colour):
         """
