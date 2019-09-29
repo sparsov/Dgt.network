@@ -73,6 +73,7 @@ class Completer(object):
         self._incomplete_batches = TimedCache(cache_keep_time,cache_purge_frequency)
         self._incomplete_blocks = TimedCache(cache_keep_time,cache_purge_frequency)
         self._requested = TimedCache(requested_keep_time,cache_purge_frequency)
+        self._pending_heads = []
         self._on_block_received = None
         self._on_batch_received = None
         self._has_block = None
@@ -127,7 +128,9 @@ class Completer(object):
         in case nest is absent keep this block until nest appeared
         """
         if not self._has_federation_nest(block.block_num):
-            LOGGER.debug("Keep until get nest block: %s", block)
+            LOGGER.debug("Keep until get federation nest for block: %s", block)
+            if block not in self._pending_heads:
+                self._pending_heads.append(block)
             return None
         #LOGGER.debug("Сomplete block=%s",block)
         if block.previous_block_id not in self.block_cache:
@@ -336,7 +339,7 @@ class Completer(object):
                 # take all rest blocks 
                 #self._process_incomplete_blocks(block.header_signature)
                 self._process_incomplete_blocks(str(block.block_num),True)
-                LOGGER.debug("ADD INCOMPLETED BLOCKS DONE\n")
+                LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self.self._pending_heads])
 
     def add_batch(self, batch,recomm=None):
         """
