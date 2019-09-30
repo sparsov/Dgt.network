@@ -119,12 +119,16 @@ class Completer(object):
         def check_missing_predecessor(previous_block_id,previous_block_num):
             # we should take all chain of predecessors
             if previous_block_id not in self.block_cache :
+                if self._has_block(block.previous_block_id) :
+                    return False
                 return True
             else:
                 # check num
                 
                 blk = self.block_cache[previous_block_id]
                 LOGGER.debug("Check in cache block: %s", blk)
+                if blk is not None and blk.block_num != previous_block_num:
+                    return True
                 return False
                 #return blk is not None and blk.block_num != previous_block_num 
 

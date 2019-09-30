@@ -1484,18 +1484,18 @@ class ChainController(object):
             LOGGER.exception(
                 "Unhandled exception in ChainController.on_block_received()")
 
-    def has_block(self, block_id):
+    def has_block(self, block_id,block_num=None):
         with self._lock:
             if block_id in self._block_cache:
-                LOGGER.debug("ChainController: has_block in CACHE")
+                LOGGER.debug("ChainController: has_block in CACHE block_num=%s",block_num)
                 return True
 
             if block_id in self._blocks_processing:
-                LOGGER.debug("ChainController: has_block in PROCESSING")
+                LOGGER.debug("ChainController: has_block in PROCESSING block_num=%s",block_num)
                 return True
 
             if block_id in self._blocks_pending:
-                LOGGER.debug("ChainController: has_block in PENDING")
+                LOGGER.debug("ChainController: has_block in PENDING block_num=%s",block_num)
                 return True
 
             return False
