@@ -122,9 +122,11 @@ class Completer(object):
                 return True
             else:
                 # check num
-                return False
+                
                 blk = self.block_cache[previous_block_id]
-                return blk is not None and blk.block_num != previous_block_num 
+                LOGGER.debug("Check in cache block: %s", blk)
+                return False
+                #return blk is not None and blk.block_num != previous_block_num 
 
         if block.header_signature in self.block_cache:
             LOGGER.debug("Drop duplicate block: %s", block)
@@ -138,7 +140,7 @@ class Completer(object):
             if block not in self._pending_heads:
                 self._pending_heads.append(block)
             return None
-        #LOGGER.debug("Сomplete block=%s",block)
+        #LOGGER.debug("complete block=%s",block)
         previous_block_num = Federation.dec_feder_num(block.block_num)
         if check_missing_predecessor(block.previous_block_id,previous_block_num):
             if not self._has_block(block.previous_block_id):
