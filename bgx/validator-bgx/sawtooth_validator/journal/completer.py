@@ -129,6 +129,10 @@ class Completer(object):
                 LOGGER.debug("Check in cache block: %s", blk)
                 if blk is not None and Federation.is_diff_feder(previous_block_num,blk.block_num):
                     LOGGER.debug("Check in cache num=%s~%s block: %s", previous_block_num,blk.block_num,previous_block_id[:8])
+                    try:
+                        self._block_store.get_block_by_number(previous_block_num)
+                    except KeyError:
+                        return False
                     return True
                 return False
                 #return blk is not None and blk.block_num != previous_block_num 
