@@ -77,7 +77,7 @@ class Federation(object):
     def is_diff_feder(fnum,fnum1):
         fn,_ = Federation.feder_num_to_num(fnum)
         fn1,_ = Federation.feder_num_to_num(fnum1)
-        return fn != fn1
+        return fn != fn1 and fn > 0 and fn1 > 0
     def gap_feder_num(prev_num,block_num):
         pfnum,pnum = Federation.feder_num_to_num(prev_num)
         fnum,num = Federation.feder_num_to_num(block_num)
