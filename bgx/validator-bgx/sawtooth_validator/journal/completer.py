@@ -132,8 +132,8 @@ class Completer(object):
                     try:
                         self._block_store.get_block_by_number(int(previous_block_num))
                     except KeyError:
-                        return False
-                    return True
+                        return True
+                    return False
                 return False
                 #return blk is not None and blk.block_num != previous_block_num 
 
