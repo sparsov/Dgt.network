@@ -119,8 +119,8 @@ class Completer(object):
         def check_missing_predecessor(previous_block_id,previous_block_num):
             # we should take all chain of predecessors
             if previous_block_id not in self.block_cache :
-                #if self._has_block(block.previous_block_id) :
-                #    return False
+                if self._has_block(block.previous_block_id) :
+                    return False
                 return True
             else:
                 # check num
@@ -148,7 +148,7 @@ class Completer(object):
         #LOGGER.debug("complete block=%s",block)
         previous_block_num = Federation.dec_feder_num(block.block_num)
         if check_missing_predecessor(block.previous_block_id,previous_block_num):
-            if not self._has_block(block.previous_block_id):
+            if True : #not self._has_block(block.previous_block_id):
                 """
                 block incompleted ask missing block
                 """

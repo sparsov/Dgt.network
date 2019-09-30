@@ -1488,6 +1488,9 @@ class ChainController(object):
         with self._lock:
             if block_id in self._block_cache:
                 LOGGER.debug("ChainController: has_block in CACHE block_num=%s",block_num)
+                #if block_num is not None:
+                #    blk = self._block_cache[block_id]
+                #    if :
                 return True
 
             if block_id in self._blocks_processing:
