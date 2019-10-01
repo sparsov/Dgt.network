@@ -69,7 +69,7 @@ minimum_peer_connectivity = 3
 maximum_peer_connectivity = 10
 
 # DAG branches 
-max_dag_branch=12
+max_dag_branch=6
 # The host and port for Open TSDB database used for metrics
 # opentsdb_url = ""
 
