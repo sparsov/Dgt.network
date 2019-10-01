@@ -345,7 +345,7 @@ class Completer(object):
         with self.lock:
             blkw = BlockWrapper(block)
             # new block from net
-            force = False
+            force = True # False
             while True:
                 block = self._complete_block(blkw,force)
                  

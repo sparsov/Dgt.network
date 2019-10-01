@@ -217,7 +217,7 @@ class _SendReceive(object):
         for zmq_identity, elapsed in expired:
 
             if self._is_connection_lost(self._last_message_times[zmq_identity]):
-                LOGGER.info("No response from %s in %s seconds - removing connection.",self._identity_to_connection_id(zmq_identity),elapsed)
+                LOGGER.info("No response zmq from %s in %s seconds - removing connection.",self._identity_to_connection_id(zmq_identity),elapsed)
                 self.remove_connected_identity(zmq_identity)
             else:
                 # This should only log the start of the heartbeat interval, so
