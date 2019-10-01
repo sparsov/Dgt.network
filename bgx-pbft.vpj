@@ -1,0 +1,123 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="Python - Empty Project"
+    WorkingDir=".">
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.py"
+            GUID="{4F3E3040-3099-4B87-1914-CC31BA69B599}">
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/config/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/database/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/journal/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/journal/consensus/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/state/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_common/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_common/protobuf/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_common/validator_registry_view/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_engine/__init__.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/journal/block_wrapper.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/journal/consensus/consensus.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/consensus_state.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/consensus_state_store.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/database/database.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_engine/engine.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/exceptions.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/database/lmdb_nolock_database.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_engine/main.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_engine/oracle.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/config/path.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_engine/config/pbft.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/pbft_block_publisher.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/pbft_block_verifier.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/pbft_fork_resolver.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/pbft_key_state_store.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/pbft_settings_view.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_engine/pending.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/state/settings_view.py"/>
+            <F N="bgx/consensus/bgx_pbft/setup.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/signup_info.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft/consensus/utils.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_common/utils.py"/>
+            <F N="bgx/consensus/bgx_pbft/bgx_pbft_common/validator_registry_view/validator_registry_view.py"/>
+        </Folder>
+        <Folder
+            Name="Other Files"
+            Filters=""
+            GUID="{4AC14BE2-E23A-4472-8350-749444B9ED87}">
+            <F N="bgx/consensus/bgx_pbft/Dockerfile"/>
+            <F N="bgx/consensus/bgx_pbft/Dockerfile-bgx"/>
+            <F N="bgx/consensus/bgx_pbft/Dockerfile-bionic"/>
+            <F N="bgx/consensus/bgx_pbft/Dockerfile-installed"/>
+            <F N="bgx/consensus/bgx_pbft/Dockerfile-installed-bionic"/>
+            <F N="bgx/consensus/bgx_pbft/Dockerfile-installed-xenial"/>
+            <F N="bgx/consensus/bgx_pbft/Dockerfile-xenial"/>
+            <F N="bgx/consensus/bgx_pbft/packaging/systemd/sawtooth-pbft-engine"/>
+            <F N="bgx/consensus/bgx_pbft/packaging/systemd/sawtooth-pbft-engine.service"/>
+        </Folder>
+    </Files>
+    <Config
+        Name="Debug"
+        DebugCallbackName="pydbgp"
+        Type="python"
+        OutputFile=""
+        AppType="python"
+        CompilerConfigName="">
+        <Menu>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_python_options_form Run"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec CmdLine='python %(SLICKEDIT_PYTHON_EXECUTE_ARGS) "%f"'/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_python_options_form Debug"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveNone"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec
+                    CmdLine="python_debug"
+                    Type="Slick-C"/>
+            </Target>
+            <Target
+                Name="Python Options"
+                MenuCaption="Python &amp;Options"
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0">
+                <Exec
+                    CmdLine="pythonoptions"
+                    Type="Slick-C"/>
+            </Target>
+        </Menu>
+        <List Name="Python Options">
+            <Item
+                Name="DefaultFile"
+                Value=""/>
+        </List>
+        <List Name="pydbgp Options">
+            <Item
+                Name="ServerHost"
+                Value="127.0.0.1"/>
+            <Item
+                Name="ServerPort"
+                Value="0"/>
+            <Item
+                Name="ListenInBackground"
+                Value="1"/>
+            <Item
+                Name="show_hidden"
+                Value="0"/>
+        </List>
+    </Config>
+</Project>

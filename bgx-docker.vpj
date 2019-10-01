@@ -1,0 +1,156 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="Makefile"
+    WorkingDir=".">
+    <Config
+        Name="Release"
+        Type="Makefile"
+        OutputFile=""
+        CompilerConfigName="">
+        <Menu>
+            <Target
+                Name="Compile"
+                MenuCaption="&amp;Compile"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Build"
+                MenuCaption="&amp;Build"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Rebuild"
+                MenuCaption="&amp;Rebuild"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                SaveOption="SaveNone"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                SaveOption="SaveNone"
+                RunFromDir="%rw">
+                <Exec CmdLine='"bgx-docker.exe"'/>
+            </Target>
+        </Menu>
+    </Config>
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.c;*.C;*.cc;*.cpp;*.cp;*.cxx;*.c++;*.prg;*.pas;*.dpr;*.asm;*.s;*.bas;*.java;*.cs;*.sc;*.e;*.cob;*.html;*.rc;*.tcl;*.py;*.pl;*.d;*.m;*.mm;*.go"
+            GUID="{771D1BA9-CECB-46BF-E3B4-CD81492883BB}"/>
+        <Folder
+            Name="Header Files"
+            Filters="*.h;*.H;*.hh;*.hpp;*.hxx;*.h++;*.inc;*.sh;*.cpy;*.if"
+            GUID="{AF519938-361C-44B9-B228-68D5970A789F}"/>
+        <Folder
+            Name="Resource Files"
+            Filters="*.ico;*.cur;*.dlg"
+            GUID="{7D2D70FC-F3D7-42BD-AF6C-9969C5A69998}"/>
+        <Folder
+            Name="Bitmaps"
+            Filters="*.bmp"
+            GUID="{9D7232BD-1D3A-4C02-AF5F-A0CEEF5D33A3}"/>
+        <Folder
+            Name="Other Files"
+            Filters=""
+            GUID="{69BD778E-2BF2-4655-E6F8-DF076F7757B5}">
+            <F N="bgx/docker/docker-compose-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-dashboard-bgx-local.yaml"/>
+            <F N="bgx/docker/docker-compose-dashboard-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-dashboard-bgx2.yaml"/>
+            <F N="bgx/docker/docker-compose-dashboard.yaml"/>
+            <F N="bgx/docker/docker-compose-installed-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-net-1-2-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-net-bgx-val-pbft-aws1.yaml"/>
+            <F N="bgx/docker/docker-compose-net-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-net-odb-dev-loc.yaml"/>
+            <F N="bgx/docker/docker-compose-net-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-dev.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-pbft-aws.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-pbft-aws1.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-pbft-loc-n.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-pbft-loc.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net-reg-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net-smart-bgx-1.yaml"/>
+            <F N="bgx/docker/docker-compose-net-smart-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-net-smart-val-aws.yaml"/>
+            <F N="bgx/docker/docker-compose-net1-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-bgx-val-pbft-aws1.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-dev.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-pbft-aws.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-pbft-aws1.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-pbft-loc-n.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-pbft-loc.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-reg-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-smart-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-net2-smart-val-aws.yaml"/>
+            <F N="bgx/docker/docker-compose-net3-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net4-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-net5-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-netall-reg-dev-loc.yaml"/>
+            <F N="bgx/docker/docker-compose-netN-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-rest-api-aws.yaml"/>
+            <F N="bgx/docker/docker-compose-rest-api-local.yaml"/>
+            <F N="bgx/docker/docker-compose-rest-api-stub.yaml"/>
+            <F N="bgx/docker/docker-compose-rest-api.yaml"/>
+            <F N="bgx/docker/docker-compose-rust-bgx.yaml"/>
+            <F N="bgx/docker/rest_api/Dockerfile"/>
+            <F N="bgx/docker/settings/Dockerfile"/>
+            <F N="bgx/docker/validator/Dockerfile"/>
+            <F N="bgx/docker/adm/Dockerfile-bionic"/>
+            <F N="bgx/docker/cli/Dockerfile-bionic"/>
+            <F N="bgx/docker/families/block_info/Dockerfile-bionic"/>
+            <F N="bgx/docker/families/identity/Dockerfile-bionic"/>
+            <F N="bgx/docker/rest_api/Dockerfile-bionic"/>
+            <F N="bgx/docker/sdk/python/Dockerfile-bionic"/>
+            <F N="bgx/docker/settings/Dockerfile-bionic"/>
+            <F N="bgx/docker/signing/Dockerfile-bionic"/>
+            <F N="bgx/docker/validator/Dockerfile-bionic"/>
+            <F N="bgx/docker/validator/Dockerfile-installed"/>
+            <F N="bgx/docker/adm/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/cli/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/families/block_info/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/families/identity/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/rest_api/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/sdk/python/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/settings/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/signing/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/validator/Dockerfile-installed-bionic"/>
+            <F N="bgx/docker/validator/Dockerfile-installed-xenial"/>
+            <F N="bgx/docker/settings/Dockerfile-installed-xinial"/>
+            <F N="bgx/docker/rest_api/Dockerfile-xenial"/>
+            <F N="bgx/docker/validator/Dockerfile-xenial"/>
+            <F N="bgx/docker/settings/Dockerfile-xinial"/>
+            <F N="bgx/docker/ci/sawtooth-meta-bionic"/>
+            <F N="bgx/docker/sawtooth-shell"/>
+            <F N="bgx/docker/sawtooth-shell-bionic"/>
+            <F N="bgx/docker/ci/sawtooth-shell-installed"/>
+            <F N="bgx/docker/ci/sawtooth-shell-installed-bionic"/>
+            <F N="bgx/docker/ci/sawtooth-shell-installed-xenial"/>
+            <F N="bgx/docker/sawtooth-shell-xenial"/>
+        </Folder>
+    </Files>
+</Project>
