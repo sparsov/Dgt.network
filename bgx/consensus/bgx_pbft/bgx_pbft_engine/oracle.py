@@ -150,6 +150,7 @@ class PbftOracle:
 
     def get_arbiters(self,arbiter_id,name,children):
         # make ring of arbiter - add only arbiter from other cluster
+        LOGGER.debug('get arbiters: cluster=%s children=%s self=%s',name,len(children),self._cluster_name)
         for key,val in children.items():
             if self._cluster_name != name:
                 # check only other cluster and add delegate
