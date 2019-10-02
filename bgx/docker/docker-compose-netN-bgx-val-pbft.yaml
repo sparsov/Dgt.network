@@ -143,14 +143,14 @@ services:
         - https_proxy
         - no_proxy
         - BGX_TOP=bgx
-    image: sawtooth-shell-bgx-${N}:${ISOLATION_ID}
+    image: shell-bgx-${N}:${ISOLATION_ID}
     networks:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx${N}
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: sawtooth-shell-bgx-${N}
+    container_name: shell-bgx-${N}
     depends_on:
       - validator-bgx
     command: |
