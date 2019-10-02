@@ -313,7 +313,12 @@ class Gossip(object):
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
         """
-        LOGGER.debug("Gossip endpoint=%s component=%s peers=%s \n",endpoint,component,initial_peer_endpoints)
+        url = urlparse(component)
+        comp_scheme,comp_port = url.scheme, url.port
+        url = urlparse(endpoint)
+        end_host = url.hostname
+
+        LOGGER.debug("Gossip endpoint=%s component=%s%s:%s peers=%s \n",endpoint,comp_scheme,end_host,comp_port,initial_peer_endpoints)
 
     @property
     def f_topology(self):
