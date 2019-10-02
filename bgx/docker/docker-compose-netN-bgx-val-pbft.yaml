@@ -27,19 +27,19 @@ services:
         - https_proxy
         - no_proxy
         - BGX_TOP=bgx
-    image: sawtooth-settings-tp-bgx-${N}:${ISOLATION_ID}
+    image: bgx-settings-tp-bgx-${N}:${ISOLATION_ID}
     networks: 
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx${N}
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: sawtooth-settings-tp-bgx-${N}
+    container_name: bgx-settings-tp-bgx-${N}
     depends_on:
       - validator-bgx
     command: |
       bash -c "
-        cd families/settings
+        cd bgx/families/settings
         python3 setup.py clean --all
         python3 setup.py build
         settings-tp -vv -C tcp://validator-bgx-${N}:${COMP}
