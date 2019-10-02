@@ -145,9 +145,7 @@ class GenesisController(object):
                 genesis_data.ParseFromString(batch_file.read())
             LOGGER.info('Producing genesis block from %s', genesis_file)
         except IOError:
-            raise InvalidGenesisStateError(
-                "Genesis File {} specified, but unreadable".format(
-                    genesis_file))
+            raise InvalidGenesisStateError("Genesis File {} specified, but unreadable".format(genesis_file))
 
         initial_state_root = self._context_manager.get_first_root()
 
@@ -172,9 +170,7 @@ class GenesisController(object):
             result = scheduler.get_batch_execution_result(
                 batch.header_signature)
             if result is None or not result.is_valid:
-                raise InvalidGenesisStateError(
-                    'Unable to create genesis block, due to batch {}'
-                    .format(batch.header_signature))
+                raise InvalidGenesisStateError('Unable to create genesis block, due to batch {}'.format(batch.header_signature))
             if result.state_hash is not None:
                 state_hash = result.state_hash
         LOGGER.debug('Produced state hash %s for genesis block.', state_hash)
@@ -186,13 +182,11 @@ class GenesisController(object):
         block_publisher = self._get_block_publisher(initial_state_root)
         if not block_publisher.initialize_block(block_builder.block_header):
             LOGGER.error('Consensus refused to initialize consensus block.')
-            raise InvalidGenesisConsensusError(
-                'Consensus refused to initialize genesis block.')
+            raise InvalidGenesisConsensusError('Consensus refused to initialize genesis block.')
 
         if not block_publisher.finalize_block(block_builder.block_header):
             LOGGER.error('Consensus refused to finalize genesis block.')
-            raise InvalidGenesisConsensusError(
-                'Consensus refused to finalize genesis block.')
+            raise InvalidGenesisConsensusError('Consensus refused to finalize genesis block.')
 
         self._sign_block(block_builder)
 
@@ -242,8 +236,7 @@ class GenesisController(object):
                     # correctly. Batch publication is not allowed during
                     # genesis operation since there is no network to validate
                     # the batch yet.
-                    raise InvalidGenesisConsensusError(
-                        'Consensus cannot send transactions during genesis.')
+                    raise InvalidGenesisConsensusError('Consensus cannot send transactions during genesis.')
 
             consensus = ConsensusFactory.get_configured_consensus_module(
                 NULL_BLOCK_IDENTIFIER,

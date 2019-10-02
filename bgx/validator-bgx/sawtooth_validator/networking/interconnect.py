@@ -539,15 +539,15 @@ class _SendReceive(object):
         while True:
             try:
                 yield from self._monitor_sock.recv_multipart()
-                self._check_connections()
+                if self._check_connections is not None:
+                    self._check_connections()
             except CancelledError:
                 # The concurrent.futures.CancelledError is caught by asyncio
                 # when the Task associated with the coroutine is cancelled.
                 # The raise is required to stop this component.
                 raise
             except Exception as e:  # pylint: disable=broad-except
-                LOGGER.exception(
-                    "An error occurred while sending heartbeat: %s", e)
+                LOGGER.exception("An error occurred while sending heartbeat: %s", e)
 
     def set_check_connections(self, function):
         self._check_connections = function
