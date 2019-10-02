@@ -643,7 +643,16 @@ class RouteHandler:
             request,
             data=response['heads'],
             metadata=self._get_metadata(request, response))
-
+    async def validator(self,reuest)
+        """
+        change validator
+        """
+        endpoint = request.match_info.get('endpoint', '')
+        LOGGER.debug('Request validator endpoint=%s request=%s',endpoint,request)
+        return self._wrap_response(
+            request,
+            data={},
+            metadata=self._get_metadata(request, response))
 
     async def fetch_nodes(self, request):
         """Fetches the nodes from the validator.

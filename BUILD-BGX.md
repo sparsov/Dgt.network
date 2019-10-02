@@ -21,12 +21,12 @@ To run a full validator node from the local source.
 $ docker-compose -f bgx/docker/docker-compose-net-bgx.yaml up
 
 For running shell-bgx run next bash cmd .
-$ docker exec -it sawtooth-shell-bgx bash
+$ docker exec -it shell-bgx-1 bash
 For list created tokens run into shell-bgx. 
 $ smart-bgt list  --url http://rest-api:8009
 # not in sawtooth shell
 $ curl http://localhost:8008/blocks
-# smart-bgt init BGX_Token 21fad1db7c1e4f3fb98bb16fcff6942b4b2b9f890196b8754399ebfd74718de1 0xFB2F7C8687F6d86a031D2DE3d51f4c62e83AdA22 20 1 1 --url http://rest-api:8008
+# smart-bgt init BGX_Token 21fad1db7c1e4f3fb98bb16fcff6942b4b2b9f890196b8754399ebfd74718de1 0xFB2F7C8687F6d86a031D2DE3d51f4c62e83AdA22 20 1 1 --url http://bgx-api-1:8008
 # smart-bgt transfer 0236bd0b2f6041338ffe5a2236be89f369ec3094e5247bb40aad3aaa18ff2da395 222 0.1 --url http://rest-api:8008 
 
 # start REST-API 
@@ -47,10 +47,10 @@ docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 # docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml 
 
 # for console
-#sawtooth dag show val --url http://bgx-api-2:8009;echo ---;sawtooth dag show nest --url http://bgx-api-2:8009 -Fjson
-#sawtooth dag show integrity --url http://bgx-api:8008;sawtooth dag show integrity --url http://bgx-api-2:8009
-#sawtooth block list --url http://bgx-api:8008;sawtooth block list --url http://bgx-api-2:8009
-#bgt workload --rate 11 -d 5 --url http://bgx-api:8008
+#bgx dag show val --url http://bgx-api-2:8009;echo ---;bgx dag show nest --url http://bgx-api-2:8009 -Fjson
+#bgx dag show integrity --url http://bgx-api-1:8008;bgx dag show integrity --url http://bgx-api-2:8009
+#bgx block list --url http://bgx-api-1:8008;sawtooth block list --url http://bgx-api-2:8009
+#bgt workload --rate 11 -d 5 --url http://bgx-api-1:8008
 
 # dash
 docker-compose -f bgx/docker/docker-compose-dashboard-bgx.yaml up

@@ -131,6 +131,7 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/dag/{head_id}', handler.fetch_dag)
     app.router.add_get('/topology', handler.fetch_topology)
     app.router.add_get('/status', handler.fetch_status)
+    app.router.add_get('/validator', handler.validator)
     # 
     # ADD web app
     app.router.add_get('/', handler.index)
@@ -200,6 +201,7 @@ def main():
         else:
             url = rest_api_config.connect
 
+        # connect to validator
         connection = Connection(url)
 
         log_config = get_log_config(filename="rest_api_log_config.toml")

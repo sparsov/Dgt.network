@@ -264,7 +264,10 @@ class Connection:
     @property
     def url(self):
         return self._url
-
+    def reopen(self,url):
+        self.close()
+        self._url = url
+        self.open()
     def open(self):
         """Opens the connection.
 
