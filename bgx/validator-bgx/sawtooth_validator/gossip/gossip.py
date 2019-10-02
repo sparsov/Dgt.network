@@ -240,6 +240,7 @@ class Gossip(object):
                  current_root_func,
                  consensus_notifier,
                  endpoint=None,
+                 component=None,
                  peering_mode='static',
                  initial_seed_endpoints=None,
                  initial_peer_endpoints=None,
@@ -286,6 +287,7 @@ class Gossip(object):
         self._lock = Lock()
         self._network = network
         self._endpoint = endpoint
+        self._component = component
         self._initial_seed_endpoints = initial_seed_endpoints \
             if initial_seed_endpoints else []
         self._initial_peer_endpoints = initial_peer_endpoints \
@@ -310,7 +312,7 @@ class Gossip(object):
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
         """
-        LOGGER.debug("Gossip peers=%s",initial_peer_endpoints)
+        LOGGER.debug("Gossip peers=%s component=%s\n",initial_peer_endpoints,component)
 
     @property
     def f_topology(self):
@@ -1238,6 +1240,7 @@ class ConnectionManager(InstrumentedThread):
 
         # check if the connection exists, if it does - send,
         # otherwise create it
+        # send for DASHBOARD own componet port 
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
@@ -1362,6 +1365,9 @@ class ConnectionManager(InstrumentedThread):
             endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER)
         self._connection_statuses[connection_id] = PeerStatus.TEMP
         try:
+            """
+            inform peer about component port
+            """
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
                 register_request.SerializeToString(),

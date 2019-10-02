@@ -241,6 +241,7 @@ class Validator(object):
             block_store.chain_head_state_root,
             consensus_notifier,
             endpoint=endpoint,
+            component=bind_component, # for DASHBOARD 
             peering_mode=peering,
             initial_seed_endpoints=seeds_list,
             initial_peer_endpoints=peer_list,

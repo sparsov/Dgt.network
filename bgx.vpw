@@ -8,5 +8,6 @@
 		<Project File="bgx-setting.vpj"/>
 		<Project File="bgx-validator.vpj"/>
 		<Project File="dashboard.vpj"/>
+		<Project File="protos.vpj"/>
 	</Projects>
 </Workspace>
