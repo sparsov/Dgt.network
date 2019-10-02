@@ -39,7 +39,7 @@ services:
       - validator-bgx
     command: |
       bash -c "
-        cd families/settings
+        cd bgx/families/settings
         python3 setup.py clean --all
         python3 setup.py build
         settings-tp -vv -C tcp://validator-bgx-${N}:${COMP}
