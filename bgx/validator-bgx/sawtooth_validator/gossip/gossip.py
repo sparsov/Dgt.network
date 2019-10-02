@@ -1052,13 +1052,14 @@ class ConnectionManager(InstrumentedThread):
                             continue
                 #LOGGER.debug("retry_static_peering:KeyError for %s threshold=%s",str(time.time() - static_peer_info.time),static_peer_info.retry_threshold)
                 if (time.time() - static_peer_info.time) > static_peer_info.retry_threshold:
-                    LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s",static_peer_info.retry_threshold,endpoint)
+                    LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s(%s)",static_peer_info.retry_threshold,endpoint,connection_id)
                     if connection_id is not None:
                         # If the connection exists remove it before retrying to
                         # authorize.
                         try:
                             peer_key = self._network.connection_id_to_public_key(connection_id)
-                            self._gossip.remove_peer(peer_key)
+                            if peer_key is not None:
+                                self._gossip.remove_peer(peer_key)
                             self._network.remove_connection(connection_id)
                         except KeyError:
                             pass
