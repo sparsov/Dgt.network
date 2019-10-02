@@ -652,7 +652,7 @@ class RouteHandler:
         LOGGER.debug('Request validator endpoint=%s request=%s',endpoint,request)
         return self._wrap_response(
             request,
-            data={}
+            data={'endpoint':endpoint}
             )
 
     async def fetch_nodes(self, request):
