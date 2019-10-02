@@ -87,7 +87,7 @@ class PeerRegisterHandler(Handler):
         ack = NetworkAcknowledgement()
         try:
             if request.mode == PeerRegisterRequest.REGISTER:
-                sync = self._gossip.register_peer(connection_id, request.endpoint)
+                sync = self._gossip.register_peer(connection_id, request.endpoint,component=request.component)
                 # say asked peer about point of assemble
                 ack.status = ack.OK
                 ack.sync   = sync

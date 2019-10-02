@@ -572,7 +572,7 @@ class Gossip(object):
             self.notify_peer_connected(public_key,assemble=True)
         return True
 
-    def register_peer(self, connection_id, endpoint,sync=None):
+    def register_peer(self, connection_id, endpoint,sync=None,component=None):
         """Registers a connected connection_id.
 
         Args:
@@ -586,7 +586,7 @@ class Gossip(object):
         
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
-                LOGGER.debug("Register endpoint=%s assembled=%s SYNC=%s peers=%s",endpoint,self.is_federations_assembled,sync,[cid[:8] for cid in self._peers])
+                LOGGER.debug("Register endpoint=%s component=%s assembled=%s SYNC=%s peers=%s",endpoint,component,self.is_federations_assembled,sync,[cid[:8] for cid in self._peers])
                 self._peers[connection_id] = endpoint
                 self._topology.set_connection_status(connection_id,PeerStatus.PEER)
                 LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id, endpoint, self._peers)
@@ -1368,10 +1368,10 @@ class ConnectionManager(InstrumentedThread):
                 del self._temp_endpoints[endpoint]
 
     def _connect_success_peering(self, connection_id, endpoint):
-        LOGGER.debug("Connection to %s succeeded endpoint=%s componet=%s", connection_id,endpoint,self._gossip.component)
+        LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s", connection_id,endpoint,self._gossip.component)
 
         register_request = PeerRegisterRequest(
-            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER)
+            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,component=self._gossip.component)
         self._connection_statuses[connection_id] = PeerStatus.TEMP
         try:
             """

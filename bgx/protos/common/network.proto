@@ -33,6 +33,7 @@ message PeerRegisterRequest {
     // sender.  This version is an increasing value.
     uint32 protocol_version = 2;
     RegisterMode mode  = 3;
+    string component   = 4; // for dashboard  
 }
 
 // The unregistration request from a peer to the validator
