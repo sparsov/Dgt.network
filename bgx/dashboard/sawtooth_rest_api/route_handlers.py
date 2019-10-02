@@ -643,11 +643,12 @@ class RouteHandler:
             request,
             data=response['heads'],
             metadata=self._get_metadata(request, response))
+
     async def validator(self,request):
         """
         change validator
         """
-        endpoint = request.match_info.get('endpoint', '')
+        endpoint = request.url.query.get('endpoint', None) 
         LOGGER.debug('Request validator endpoint=%s request=%s',endpoint,request)
         return self._wrap_response(
             request,
