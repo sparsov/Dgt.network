@@ -57,6 +57,7 @@ def main(args=None):
     protoc(proto_dir, "bgx/dashboard", "sawtooth_rest_api/protobuf")
 
     protoc(proto_dir, "families/settings", "sawtooth_settings/protobuf")
+    protoc(proto_dir, "bgx/families/settings", "bgx_settings/protobuf")
     protoc(proto_dir, "families/identity", "sawtooth_identity/protobuf")
     protoc(proto_dir, "families/block_info", "sawtooth_block_info/protobuf")
 
@@ -64,6 +65,11 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "families/settings/protos")
     protoc(proto_dir, "families/settings", "sawtooth_settings/protobuf")
     protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
+
+    # Generate config protos bgx
+    proto_dir = JOIN(TOP_DIR, "bgx/families/settings/protos")
+    protoc(proto_dir, "bgx/families/settings", "bgx_settings/protobuf")
+    #protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
 
     # Generate identity protos
     proto_dir = JOIN(TOP_DIR, "families/identity/protos")
