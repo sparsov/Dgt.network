@@ -602,7 +602,7 @@ class Gossip(object):
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
-            if sync is not None:
+            if sync is not None or component is not None:
                 self.update_federation_topology(public_key,endpoint,sync = (not self.is_federations_assembled and not sync),component=component)
             if self.is_federations_assembled:
                 self.notify_peer_connected(public_key)
