@@ -37,7 +37,7 @@ if os.path.exists("/lib/systemd/system"):
 setup(
     name='bgx-settings',
     version=subprocess.check_output(
-        ['../../bin/get_version']).decode('utf-8').strip(),
+        ['../../../bin/get_version']).decode('utf-8').strip(),
     description='BGX Settings Transaction Processor',
     author='BGX',
     url='https://github.com/hyperledger/bgx',
