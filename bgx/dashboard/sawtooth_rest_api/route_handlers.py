@@ -643,7 +643,7 @@ class RouteHandler:
             request,
             data=response['heads'],
             metadata=self._get_metadata(request, response))
-    async def validator(self,reuest)
+    async def validator(self,request)
         """
         change validator
         """
