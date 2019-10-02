@@ -66,6 +66,7 @@ class PeerRole():
 
 class PeerAtr():
     endpoint   = 'endpoint'
+    component  = 'component'
     node_state = 'node_state'
     cluster    = 'cluster'
     children   = 'children'
@@ -146,11 +147,13 @@ class FbftTopology(object):
     def __iter__(self):
         return self.get_topology_iter()
 
-    def update_peer_activity(self,peer_key,endpoint,mode,sync=False):
+    def update_peer_activity(self,peer_key,endpoint,mode,sync=False,component=None):
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
                 peer[PeerAtr.endpoint] = endpoint
                 peer[PeerAtr.node_state] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
+                if component:
+                    peer[PeerAtr.component] = component
                 if not sync and not self._nosync:
                     self._nosync = True
                     self._topology['sync'] = not self._nosync 
@@ -354,12 +357,12 @@ class Gossip(object):
         LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
-    def update_federation_topology(self,key,endpoint,mode=True,sync=False):
+    def update_federation_topology(self,key,endpoint,mode=True,sync=False,component=None):
         LOGGER.debug("update_federation_topology peer=%s %s mode=%s sync=%s",key[:8],endpoint,mode,sync)
         if not sync:
             # in case only one unsync peer mark this peer as unsync
             self._nosync = True
-        self._fbft.update_peer_activity(key,endpoint,mode,sync)
+        self._fbft.update_peer_activity(key,endpoint,mode,sync,component)
 
     def _peer_sync_callback(self, request, result, connection_id, endpoint=None):
         """
@@ -600,7 +603,7 @@ class Gossip(object):
             in case timeout for waiting peers is expired
             """
             if sync is not None:
-                self.update_federation_topology(public_key,endpoint,sync = (not self.is_federations_assembled and not sync))
+                self.update_federation_topology(public_key,endpoint,sync = (not self.is_federations_assembled and not sync),component=component)
             if self.is_federations_assembled:
                 self.notify_peer_connected(public_key)
 
