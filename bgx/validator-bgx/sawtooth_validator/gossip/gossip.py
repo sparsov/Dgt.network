@@ -288,7 +288,6 @@ class Gossip(object):
         self._lock = Lock()
         self._network = network
         self._endpoint = endpoint
-        self._component = component
         self._initial_seed_endpoints = initial_seed_endpoints \
             if initial_seed_endpoints else []
         self._initial_peer_endpoints = initial_peer_endpoints \
@@ -317,8 +316,8 @@ class Gossip(object):
         comp_scheme,comp_port = url.scheme, url.port
         url = urlparse(endpoint)
         end_host = url.hostname
-
-        LOGGER.debug("Gossip endpoint=%s component=%s%s:%s peers=%s \n",endpoint,comp_scheme,end_host,comp_port,initial_peer_endpoints)
+        self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
+        LOGGER.debug("Gossip endpoint=%s component=%s peers=%s \n",endpoint,self._component,initial_peer_endpoints)
 
     @property
     def f_topology(self):
