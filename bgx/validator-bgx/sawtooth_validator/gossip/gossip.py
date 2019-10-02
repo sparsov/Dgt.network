@@ -19,6 +19,7 @@ import random
 import os
 import binascii
 import json
+from urllib.parse import urlparse
 
 from threading import Lock
 from functools import partial
