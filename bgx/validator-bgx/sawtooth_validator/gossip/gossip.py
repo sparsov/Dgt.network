@@ -320,6 +320,10 @@ class Gossip(object):
         LOGGER.debug("Gossip endpoint=%s component=%s peers=%s \n",endpoint,self._component,initial_peer_endpoints)
 
     @property
+    def component(self):
+        return self._component
+
+    @property
     def f_topology(self):
         return self._fbft
     @property
@@ -1364,7 +1368,7 @@ class ConnectionManager(InstrumentedThread):
                 del self._temp_endpoints[endpoint]
 
     def _connect_success_peering(self, connection_id, endpoint):
-        LOGGER.debug("Connection to %s succeeded endpoint=%s", connection_id,endpoint)
+        LOGGER.debug("Connection to %s succeeded endpoint=%s componet=%s", connection_id,endpoint,self._gossip.component)
 
         register_request = PeerRegisterRequest(
             endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER)
