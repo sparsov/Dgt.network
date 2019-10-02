@@ -254,8 +254,7 @@ def main(args=None):
             key_dir=path_config.key_dir,
             key_name='validator')
     except LocalConfigurationError as e:
-        log_configuration(log_dir=path_config.log_dir,
-                          name="validator")
+        log_configuration(log_dir=path_config.log_dir,name="validator")
         LOGGER.error(str(e))
         init_errors = True
 
