@@ -27,17 +27,17 @@ from sawtooth_sdk.processor.log import log_configuration
 from sawtooth_sdk.processor.config import get_log_config
 from sawtooth_sdk.processor.config import get_log_dir
 from sawtooth_sdk.processor.config import get_config_dir
-from sawtooth_settings.processor.handler import SettingsTransactionHandler
-from sawtooth_settings.processor.config.settings import SettingsConfig
-from sawtooth_settings.processor.config.settings import \
+from bgx_settings.processor.handler import SettingsTransactionHandler
+from bgx_settings.processor.config.settings import SettingsConfig
+from bgx_settings.processor.config.settings import \
     load_default_settings_config
-from sawtooth_settings.processor.config.settings import \
+from bgx_settings.processor.config.settings import \
     load_toml_settings_config
-from sawtooth_settings.processor.config.settings import \
+from bgx_settings.processor.config.settings import \
     merge_settings_config
 
 
-DISTRIBUTION_NAME = 'sawtooth-settings'
+DISTRIBUTION_NAME = 'bgx-settings'
 
 
 def create_console_handler(verbose_level):

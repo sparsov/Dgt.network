@@ -24,12 +24,12 @@ from sawtooth_sdk.messaging.future import FutureTimeoutError
 from sawtooth_sdk.processor.exceptions import InvalidTransaction
 from sawtooth_sdk.processor.exceptions import InternalError
 
-from sawtooth_settings.protobuf.settings_pb2 import SettingsPayload
-from sawtooth_settings.protobuf.settings_pb2 import SettingProposal
-from sawtooth_settings.protobuf.settings_pb2 import SettingVote
-from sawtooth_settings.protobuf.settings_pb2 import SettingCandidate
-from sawtooth_settings.protobuf.settings_pb2 import SettingCandidates
-from sawtooth_settings.protobuf.setting_pb2 import Setting
+from bgx_settings.protobuf.settings_pb2 import SettingsPayload
+from bgx_settings.protobuf.settings_pb2 import SettingProposal
+from bgx_settings.protobuf.settings_pb2 import SettingVote
+from bgx_settings.protobuf.settings_pb2 import SettingCandidate
+from bgx_settings.protobuf.settings_pb2 import SettingCandidates
+from bgx_settings.protobuf.setting_pb2 import Setting
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ STATE_TIMEOUT_SEC = 10
 class SettingsTransactionHandler(TransactionHandler):
     @property
     def family_name(self):
-        return 'sawtooth_settings'
+        return 'bgx_settings'
 
     @property
     def family_versions(self):

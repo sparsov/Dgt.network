@@ -16,12 +16,12 @@
 import hashlib
 import base64
 
-from sawtooth_settings.protobuf.settings_pb2 import SettingCandidates
-from sawtooth_settings.protobuf.settings_pb2 import SettingCandidate
-from sawtooth_settings.protobuf.settings_pb2 import SettingVote
-from sawtooth_settings.protobuf.settings_pb2 import SettingProposal
+from bgx_settings.protobuf.settings_pb2 import SettingCandidates
+from bgx_settings.protobuf.settings_pb2 import SettingCandidate
+from bgx_settings.protobuf.settings_pb2 import SettingVote
+from bgx_settings.protobuf.settings_pb2 import SettingProposal
 
-from sawtooth_settings_test.settings_message_factory \
+from bgx_settings_test.settings_message_factory \
     import SettingsMessageFactory
 
 from sawtooth_processor_test.transaction_processor_test_case \

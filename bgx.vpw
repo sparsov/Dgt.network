@@ -3,6 +3,7 @@
 	<Projects>
 		<Project File="bgx-docker.vpj"/>
 		<Project File="bgx-pbft.vpj"/>
+		<Project File="bgx-setting.vpj"/>
 		<Project File="bgx-validator.vpj"/>
 	</Projects>
 </Workspace>
