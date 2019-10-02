@@ -145,7 +145,7 @@ class FbftTopology(object):
     def __iter__(self):
         return self.get_topology_iter()
 
-    def update_peer_activity(self,peer_key,endpoint,mode,sync):
+    def update_peer_activity(self,peer_key,endpoint,mode,sync=False):
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
                 peer[PeerAtr.endpoint] = endpoint
