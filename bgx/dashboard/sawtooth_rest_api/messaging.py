@@ -242,6 +242,9 @@ class Connection:
     """
 
     def __init__(self, url):
+        self.conn_init(url)
+
+    def conn_init(self,url):
         self._url = url
 
         self._ctx = Context.instance()
@@ -260,13 +263,14 @@ class Connection:
         self._monitor_sock = None
         self._monitor_fd = None
         self._monitor_task = None
+    
 
     @property
     def url(self):
         return self._url
     def reopen(self,url):
         self.close()
-        self._url = url
+        self.conn_init(url)
         LOGGER.debug('reopen to %s\n', self._url)
         self.open()
     def open(self):
