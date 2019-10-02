@@ -246,11 +246,9 @@ class _SendReceive(object):
 
     @asyncio.coroutine
     def _do_dealer_heartbeat(self):
-        if self._last_message_time and \
-                self._is_connection_lost(self._last_message_time):
+        if self._last_message_time and self._is_connection_lost(self._last_message_time):
             LOGGER.info("No response from %s in %s seconds - removing connection.",self._connection,self._last_message_time)
-            connection_id = hashlib.sha512(
-                self.connection.encode()).hexdigest()
+            connection_id = hashlib.sha512(self.connection.encode()).hexdigest()
             if connection_id in self._connections:
                 del self._connections[connection_id]
             yield from self._stop()
@@ -409,14 +407,12 @@ class _SendReceive(object):
         if connection_id is not None and self._connections is not None:
             if connection_id in self._connections:
                 connection_info = self._connections.get(connection_id)
-                if connection_info.connection_type == \
-                        ConnectionType.ZMQ_IDENTITY:
+                if connection_info.connection_type == ConnectionType.ZMQ_IDENTITY:
                     zmq_identity = connection_info.connection
                 del self._connections[connection_id]
 
             else:
-                LOGGER.debug("Can't send to %s, not in self._connections",
-                             connection_id)
+                LOGGER.debug("Can't send to %s, not in self._connections",connection_id)
                 return
 
         self._ready.wait()

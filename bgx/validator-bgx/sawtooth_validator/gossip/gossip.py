@@ -1120,20 +1120,15 @@ class ConnectionManager(InstrumentedThread):
         with self._lock:
             for endpoint in self._temp_endpoints:
                 endpoint_info = self._temp_endpoints[endpoint]
-                if (time.time() - endpoint_info.time) > \
-                        endpoint_info.retry_threshold:
-                    LOGGER.debug("Endpoint has not completed authorization in "
-                                 "%s seconds: %s",
-                                 endpoint_info.retry_threshold,
-                                 endpoint)
+                if (time.time() - endpoint_info.time) > endpoint_info.retry_threshold:
+                    LOGGER.debug("Check Endpoint has not completed authorization in %s seconds: %s",endpoint_info.retry_threshold,endpoint)
                     try:
                         # If the connection exists remove it before retrying to
                         # authorize. If the connection does not exist, a
                         # KeyError will be thrown.
-                        conn_id = \
-                            self._network.get_connection_id_by_endpoint(
-                                endpoint)
+                        conn_id = self._network.get_connection_id_by_endpoint(endpoint)
                         self._network.remove_connection(conn_id)
+
                     except KeyError:
                         pass
 
