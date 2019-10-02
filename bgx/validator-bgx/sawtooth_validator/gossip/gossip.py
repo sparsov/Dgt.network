@@ -147,7 +147,7 @@ class FbftTopology(object):
 
     def update_peer_activity(self,peer_key,endpoint,mode,sync):
         for key,peer in self.get_topology_iter():
-            if key == peer_key:
+            if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
                 peer[PeerAtr.endpoint] = endpoint
                 peer[PeerAtr.node_state] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
                 if not sync and not self._nosync:
@@ -502,13 +502,15 @@ class Gossip(object):
 
     def remove_peer(self,endpoint):
         LOGGER.debug("remove_peer endpoint=%s...\n",endpoint)
+        self._fbft.update_peer_activity(None,endpoint,False)
+        """
         for key,peer in self._fbft.get_topology_iter():
             # check this endpoint
             if PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint:
                 LOGGER.debug("LOST PEER=%s set inactive",endpoint)
                 peer[PeerAtr.endpoint] = None
                 peer[PeerAtr.node_state] = PeerSync.inactive
- 
+        """
     def load_topology(self):
         LOGGER.debug("LOAD topology ...\n")
         self._stopology = self._settings_cache.get_setting(
