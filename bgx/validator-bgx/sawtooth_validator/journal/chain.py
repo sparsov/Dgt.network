@@ -849,6 +849,12 @@ class ChainController(object):
             self._blocks_considered_count = CounterWrapper()
 
         self._block_queue = queue.Queue()
+        """
+        get max dag from chain
+        """
+        state_view = self._state_view_factory.create_view()
+        self._max_dag_branch = settings_view.get_setting('bgx.dag.max_branch', default_value=MAX_DAG_BRANCH)
+        LOGGER.info("Chain MAX_DAG_BRANCH=%s",self._max_dag_branch)
         # we use thread for each peer and for each head
         self._thread_pool = (
             InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch*PEERS_NUM, name='Validating')
