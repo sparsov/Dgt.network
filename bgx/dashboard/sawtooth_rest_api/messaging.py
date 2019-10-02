@@ -394,7 +394,7 @@ class Connection:
             except asyncio.CancelledError:
                 # We've been cancelled, so let's just exit
                 return
-
+            LOGGER.warning('try reconnect current socket')
             asyncio.ensure_future(self._do_start(reconnect=True))
         except zmq.ZMQError as e:
             # The monitor socket was probably closed
