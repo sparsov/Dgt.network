@@ -500,8 +500,14 @@ class Gossip(object):
         return False
         #return max(peer_keys, key = lambda pk: 1 if pk in self._fbft.cluster or pk in self._fbft.arbiters  else 0) > 0
 
-    def remove_peer(self,peer_key):
-        LOGGER.debug("remove_peer key=%s...\n",peer_key)
+    def remove_peer(self,endpoint):
+        LOGGER.debug("remove_peer endpoint=%s...\n",endpoint)
+        for key,peer in self._fbft.get_topology_iter():
+            # check this endpoint
+            if PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint:
+                LOGGER.debug("LOST PEER=%s set inactive",endpoint)
+                peer[PeerAtr.endpoint] = None
+                peer[PeerAtr.node_state] = PeerSync.inactive
  
     def load_topology(self):
         LOGGER.debug("LOAD topology ...\n")
@@ -1057,12 +1063,15 @@ class ConnectionManager(InstrumentedThread):
                         # If the connection exists remove it before retrying to
                         # authorize.
                         try:
-                            peer_key = self._network.connection_id_to_public_key(connection_id)
-                            if peer_key is not None:
-                                self._gossip.remove_peer(peer_key)
+                            #peer_key = self._network.connection_id_to_public_key(connection_id)
+                            #if peer_key is not None:
+                            #    self._gossip.remove_peer(peer_key)
                             self._network.remove_connection(connection_id)
                         except KeyError:
                             pass
+                    else:
+                        # it could be broken connection
+                        self._gossip.remove_peer(endpoint)     
 
                     if static_peer_info.retry_threshold == MAXIMUM_STATIC_RETRY_FREQUENCY:
                         if static_peer_info.count >= MAXIMUM_STATIC_RETRIES:
