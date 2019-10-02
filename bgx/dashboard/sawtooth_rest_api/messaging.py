@@ -267,6 +267,7 @@ class Connection:
     def reopen(self,url):
         self.close()
         self._url = url
+        LOGGER.debug('reopen to %s\n', self._url)
         self.open()
     def open(self):
         """Opens the connection.
@@ -275,7 +276,7 @@ class Connection:
         Messages are either received as replies to outgoing messages, or
         received from an incoming queue.
         """
-        LOGGER.info('Connecting to %s', self._url)
+        LOGGER.debug('Connecting to %s', self._url)
         asyncio.ensure_future(self._do_start())
 
     def on_connection_state_change(self, event_type, callback):
