@@ -65,8 +65,7 @@ class BatchTracker(ChainObserver,
             for batch_id in self._pending.copy():
                 if self._block_store.has_batch(batch_id):
                     self._pending.remove(batch_id)
-                    self._update_observers(batch_id,
-                                           ClientBatchStatus.COMMITTED)
+                    self._update_observers(batch_id,ClientBatchStatus.COMMITTED)
 
     def notify_txn_invalid(self, txn_id, message=None, extended_data=None):
         """Adds a batch id to the invalid cache along with the id of the
@@ -106,8 +105,7 @@ class BatchTracker(ChainObserver,
         with self._lock:
             self._pending.add(batch.header_signature)
             self._batch_info[batch.header_signature] = txn_ids
-            self._update_observers(batch.header_signature,
-                                   ClientBatchStatus.PENDING)
+            self._update_observers(batch.header_signature,ClientBatchStatus.PENDING)
 
     def get_status(self, batch_id):
         """Returns the status enum for a batch.

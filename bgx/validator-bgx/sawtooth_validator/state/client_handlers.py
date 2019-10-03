@@ -566,7 +566,11 @@ def _format_batch_statuses(statuses, batch_ids, tracker):
            client_batch_submit_pb2.ClientBatchStatus.INVALID:
             invalid_txns = tracker.get_invalid_txn_info(batch_id)
             for txn_info in invalid_txns:
-                txn_info['transaction_id'] = txn_info.pop('id')
+                try:
+                    txn_info['transaction_id'] = txn_info.pop('id')
+                except KeyError:
+                    LOGGER.debug('_format_batch_statuses: error txn_info=%s',txn_info)
+
         else:
             invalid_txns = None
 
@@ -671,8 +675,7 @@ class BatchStatusRequest(_ClientRequestHandler):
                 request.timeout)
         else:
             statuses_dict = self._batch_tracker.get_statuses(request.batch_ids)
-            statuses = _format_batch_statuses(
-                statuses_dict, request.batch_ids, self._batch_tracker)
+            statuses = _format_batch_statuses(statuses_dict, request.batch_ids, self._batch_tracker)
 
         if not statuses:
             return self._status.NO_RESOURCE
