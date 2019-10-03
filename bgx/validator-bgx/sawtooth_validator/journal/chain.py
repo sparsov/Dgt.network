@@ -1562,12 +1562,10 @@ class ChainController(object):
                     LOGGER.debug("ChainController: _notify_on_chain_updated GENESIS ID=%s\n",self._chain_head.identifier[:8])
                     self._notify_on_chain_updated(self._chain_head)
                 else:
-                    LOGGER.warning("The genesis block is not valid. Cannot "
-                                   "set chain head: %s", block)
+                    LOGGER.warning("The genesis block is not valid. Cannot set chain head: %s", block)
 
         else:
-            LOGGER.warning("Cannot set initial chain head, this is not a "
-                           "genesis block: %s", block)
+            LOGGER.warning("Cannot set initial chain head, this is not a genesis block: %s", block)
 
     def _make_receipts(self, results):
         receipts = []
@@ -1578,4 +1576,5 @@ class ChainController(object):
             receipt.events.extend(result.events)
             receipt.transaction_id = result.signature
             receipts.append(receipt)
+            LOGGER.warning("_MAKE_RECEIPTS  tn_id=%s",result.signature)
         return receipts
