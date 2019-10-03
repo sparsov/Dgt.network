@@ -49,7 +49,7 @@ docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 # for console
 #bgx dag show val --url http://bgx-api-2:8009;echo ---;bgx dag show nest --url http://bgx-api-2:8009 -Fjson
 #bgx dag show integrity --url http://bgx-api-1:8008;bgx dag show integrity --url http://bgx-api-2:8009
-#bgx block list --url http://bgx-api-1:8008;sawtooth block list --url http://bgx-api-2:8009
+#bgx block list --url http://bgx-api-1:8008;bgx block list --url http://bgx-api-2:8009
 #bgt workload --rate 11 -d 5 --url http://bgx-api-1:8008
 
 # dash
@@ -63,7 +63,8 @@ docker-compose -f bgx/docker/docker-compose-net2-bgx-val-pbft.yaml up
 # nodes
 export COMPOSE_PROJECT_NAME=1 N=1 API=8008 COMP=4004 NET=8800 CONS=5050;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
 export COMPOSE_PROJECT_NAME=2 N=2 API=8009 COMP=4006 NET=8801 CONS=5051;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
-export COMPOSE_PROJECT_NAME=3 N=3 API=8010 COMP=4008 NET=8802 CONS=5052;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
-export COMPOSE_PROJECT_NAME=4 N=4 API=8011 COMP=4009 NET=8803 CONS=5053;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
-export COMPOSE_PROJECT_NAME=5 N=5 API=8012 COMP=4010 NET=8804 CONS=5054;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export COMPOSE_PROJECT_NAME=3 N=3 API=8010 COMP=4007 NET=8802 CONS=5052;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export COMPOSE_PROJECT_NAME=4 N=4 API=8011 COMP=4008 NET=8803 CONS=5053;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export COMPOSE_PROJECT_NAME=5 N=5 API=8012 COMP=4009 NET=8804 CONS=5054;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
+export COMPOSE_PROJECT_NAME=6 N=6 API=8013 COMP=4010 NET=8805 CONS=5055;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
 
