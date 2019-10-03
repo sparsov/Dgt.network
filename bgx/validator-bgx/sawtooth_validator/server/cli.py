@@ -111,6 +111,10 @@ def parse_args(args):
                         help='set the maximum number of peers to accept',
                         type=int)
 
+    parser.add_argument('--max_dag_branch',
+                        help='set the maximum number of branch for DAG',
+                        type=int)
+
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
     except pkg_resources.DistributionNotFound:
