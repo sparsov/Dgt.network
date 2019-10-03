@@ -202,7 +202,8 @@ services:
             --endpoint tcp://validator-bgx-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \
             --bind network:tcp://eth0:${NET} \
-            --bind consensus:tcp://eth0:${CONS} --max_dag_branch 6 \
+            --bind consensus:tcp://eth0:${CONS} \
+            --max_dag_branch 6 --scheduler parallel \
       "
     stop_signal: SIGKILL
 
