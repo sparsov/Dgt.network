@@ -1,0 +1,87 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="Makefile"
+    WorkingDir=".">
+    <Config
+        Name="Release"
+        Type="Makefile"
+        OutputFile=""
+        CompilerConfigName="">
+        <Menu>
+            <Target
+                Name="Compile"
+                MenuCaption="&amp;Compile"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveCurrent"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Build"
+                MenuCaption="&amp;Build"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Rebuild"
+                MenuCaption="&amp;Rebuild"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                SaveOption="SaveNone"
+                RunFromDir="%rw">
+                <Exec/>
+            </Target>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                SaveOption="SaveNone"
+                RunFromDir="%rw">
+                <Exec CmdLine='"protos.exe"'/>
+            </Target>
+        </Menu>
+    </Config>
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.c;*.C;*.cc;*.cpp;*.cp;*.cxx;*.c++;*.prg;*.pas;*.dpr;*.asm;*.s;*.bas;*.java;*.cs;*.sc;*.e;*.cob;*.html;*.rc;*.tcl;*.py;*.pl;*.d;*.m;*.mm;*.go"
+            GUID="{5DE312BA-27D5-4460-A1B6-4391FE1893BD}">
+            <F N="bgx/protos/common/batch.proto"/>
+            <F N="bgx/protos/common/client_heads.proto"/>
+            <F N="bgx/protos/common/client_topology.proto"/>
+            <F N="bgx/protos/common/consensus.proto"/>
+            <F N="bgx/protos/common/network.proto"/>
+            <F N="bgx/protos/common/transaction.proto"/>
+            <F N="bgx/protos/common/validator.proto"/>
+            <F N="bgx/protos/devmode/validator_registry.proto"/>
+            <F N="bgx/protos/families/smart_bgt/smart_bgt_token.proto"/>
+            <F N="bgx/protos/pbft/bgx_validator_registry.proto"/>
+            <F N="bgx/protos/pbft/pbft_consensus.proto"/>
+        </Folder>
+        <Folder
+            Name="Header Files"
+            Filters="*.h;*.H;*.hh;*.hpp;*.hxx;*.h++;*.inc;*.sh;*.cpy;*.if"
+            GUID="{26E2C4DB-A420-42FE-0A95-8D1B9A2EF3A9}"/>
+        <Folder
+            Name="Resource Files"
+            Filters="*.ico;*.cur;*.dlg"
+            GUID="{B6D23D21-ED36-42D2-9CBB-9C4FD1CBF19F}"/>
+        <Folder
+            Name="Bitmaps"
+            Filters="*.bmp"
+            GUID="{B0856116-F379-44D1-DFCD-BC268B7469B2}"/>
+        <Folder
+            Name="Other Files"
+            Filters=""
+            GUID="{979DA885-C67F-4C8A-D67D-865E2069D388}"/>
+    </Files>
+</Project>

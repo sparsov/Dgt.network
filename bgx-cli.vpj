@@ -1,0 +1,109 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="Python - Empty Project"
+    WorkingDir=".">
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.py"
+            GUID="{2B077593-6C9F-4E9D-229C-2C1C97BCC1B8}">
+            <F N="cli/sawtooth_cli/__init__.py"/>
+            <F N="cli/sawtooth_cli/admin_command/__init__.py"/>
+            <F N="cli/sawtooth_cli/network_command/__init__.py"/>
+            <F N="cli/sawtooth_cli/batch.py"/>
+            <F N="cli/sawtooth_cli/block.py"/>
+            <F N="cli/sawtooth_cli/cli_config.py"/>
+            <F N="cli/sawtooth_cli/network_command/compare.py"/>
+            <F N="cli/sawtooth_cli/admin_command/config.py"/>
+            <F N="cli/sawtooth_cli/exceptions.py"/>
+            <F N="cli/sawtooth_cli/network_command/fork_graph.py"/>
+            <F N="cli/sawtooth_cli/format_utils.py"/>
+            <F N="cli/sawtooth_cli/admin_command/genesis.py"/>
+            <F N="cli/sawtooth_cli/head.py"/>
+            <F N="cli/sawtooth_cli/identity.py"/>
+            <F N="cli/sawtooth_cli/keygen.py"/>
+            <F N="cli/sawtooth_cli/admin_command/keygen.py"/>
+            <F N="cli/sawtooth_cli/network_command/list_blocks.py"/>
+            <F N="cli/sawtooth_cli/main.py"/>
+            <F N="cli/sawtooth_cli/parent_parsers.py"/>
+            <F N="cli/sawtooth_cli/network_command/parent_parsers.py"/>
+            <F N="cli/sawtooth_cli/peer.py"/>
+            <F N="cli/sawtooth_cli/network_command/peers.py"/>
+            <F N="cli/sawtooth_cli/rest_client.py"/>
+            <F N="cli/sawtooth_cli/sawadm.py"/>
+            <F N="cli/sawtooth_cli/sawnet.py"/>
+            <F N="cli/sawtooth_cli/sawset.py"/>
+            <F N="cli/sawtooth_cli/settings.py"/>
+            <F N="cli/sawtooth_cli/state.py"/>
+            <F N="cli/sawtooth_cli/status.py"/>
+            <F N="cli/sawtooth_cli/transaction.py"/>
+            <F N="cli/sawtooth_cli/tty.py"/>
+        </Folder>
+        <Folder
+            Name="Other Files"
+            Filters=""
+            GUID="{9A344A58-9F89-498C-267B-CAF05551D694}"/>
+    </Files>
+    <Config
+        Name="Debug"
+        DebugCallbackName="pydbgp"
+        Type="python"
+        OutputFile=""
+        AppType="python"
+        CompilerConfigName="">
+        <Menu>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_python_options_form Run"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec CmdLine='python %(SLICKEDIT_PYTHON_EXECUTE_ARGS) "%f"'/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_python_options_form Debug"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveNone"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec
+                    CmdLine="python_debug"
+                    Type="Slick-C"/>
+            </Target>
+            <Target
+                Name="Python Options"
+                MenuCaption="Python &amp;Options"
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0">
+                <Exec
+                    CmdLine="pythonoptions"
+                    Type="Slick-C"/>
+            </Target>
+        </Menu>
+        <List Name="Python Options">
+            <Item
+                Name="DefaultFile"
+                Value=""/>
+        </List>
+        <List Name="pydbgp Options">
+            <Item
+                Name="ServerHost"
+                Value="127.0.0.1"/>
+            <Item
+                Name="ServerPort"
+                Value="0"/>
+            <Item
+                Name="ListenInBackground"
+                Value="1"/>
+            <Item
+                Name="show_hidden"
+                Value="0"/>
+        </List>
+    </Config>
+</Project>
