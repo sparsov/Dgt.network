@@ -207,8 +207,8 @@ def create_validator_config(opts):
         opentsdb_url=opts.opentsdb_url,
         opentsdb_db=opts.opentsdb_db,
         minimum_peer_connectivity=opts.minimum_peer_connectivity,
-        maximum_peer_connectivity=opts.maximum_peer_connectivity
-        #max_dag_branch=opts.max_dag_branch
+        maximum_peer_connectivity=opts.maximum_peer_connectivity,
+        max_dag_branch=opts.max_dag_branch
     )
 
 
