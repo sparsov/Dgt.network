@@ -1,0 +1,266 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="Python - Empty Project"
+    WorkingDir=".">
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.py"
+            GUID="{7211FD07-DB2B-4239-D83D-C9E3DB70FFA0}">
+            <F N="bgx/validator-bgx/sawtooth_validator/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/concurrent/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/config/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/consensus/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/database/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/dev_mode/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/genesis/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/proxy/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/metrics/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/networking/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/events/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_authorization_handlers/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_block_cache/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_block_store/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_completer/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_config/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_config_view/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_context_manager/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_devmode_consensus/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_dispatcher/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_duplicate_handler/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_events/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_genesis/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_genesis_consensus/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_identity_view/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_indexing/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_journal/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_merkle_trie/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_message_validation/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_permission_verifier/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_receipt_store/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_responder/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_setting_cache/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_state_view/__init__.py"/>
+            <F N="bgx/validator-bgx/tests/test_validation_rule_enforcer/__init__.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/concurrent/atomic.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/back_pressure_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/base_case.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/batch_injector.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/batch_publisher.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/batch_sender.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/batch_tracker.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/block_builder.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/block_cache.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/block_manager.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/block_sender.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/block_store.py"/>
+            <F N="bgx/validator-bgx/tests/test_journal/block_tree_manager.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/block_wrapper.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/events/broadcaster.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/chain.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/chain_commit_state.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/chain_id_manager.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/cli.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/client_handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/completer.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/component_handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/consensus.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/consensus_factory.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/consensus_handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/context_manager.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/core.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/database/database.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/dev_mode/dev_mode_consensus.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/database/dict_database.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/networking/dispatch.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/event_extractors.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/exceptions.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/execution_context.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/executor.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/events/extractor.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/networking/future.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/genesis.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/genesis/genesis_consensus.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/gossip.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/gossip_handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/consensus/handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/networking/handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/events/handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/identity_observer.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/identity_view.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/database/indexed_database.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/networking/interconnect.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/keys.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/database/lmdb_nolock_database.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/log.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/config/logs.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/merkle.py"/>
+            <F N="bgx/validator-bgx/tests/test_authorization_handlers/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_completer/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_dispatcher/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_duplicate_handler/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_journal/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_responder/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_validation_rule_enforcer/mock.py"/>
+            <F N="bgx/validator-bgx/tests/test_journal/mock_consensus.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/mocks.py"/>
+            <F N="bgx/validator-bgx/tests/test_permission_verifier/mocks.py"/>
+            <F N="bgx/validator-bgx/tests/test_setting_cache/mocks.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/network_handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/consensus/notifier.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/config/path.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/permission_verifier.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/processor_handlers.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/processor_iterator.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/consensus/proxy.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/proxy/proxy_consensus.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/publisher.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/receipt_store.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/responder.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/scheduler.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/scheduler_exceptions.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/scheduler_parallel.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/scheduler_serial.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/settings_cache.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/settings_view.py"/>
+            <F N="bgx/validator-bgx/setup.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/signature_verifier.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/state/state_view.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/structure_verifier.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/server/events/subscription.py"/>
+            <F N="bgx/validator-bgx/tests/test_authorization_handlers/test.py"/>
+            <F N="bgx/validator-bgx/tests/test_completer/test.py"/>
+            <F N="bgx/validator-bgx/tests/test_validation_rule_enforcer/test.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/test_batch_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/test_block_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/test_peer_handler.py"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/test_predecessor_tree.py"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/test_schedulers_with_yaml.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/test_state_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/test_submit_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/test_client_request_handlers/test_txn_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/test_block_cache/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_block_store/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_config/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_config_view/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_context_manager/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_devmode_consensus/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_dispatcher/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_duplicate_handler/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_events/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_genesis/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_genesis_consensus/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_identity_view/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_indexing/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_journal/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_merkle_trie/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_message_validation/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_permission_verifier/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_receipt_store/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_responder/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_setting_cache/tests.py"/>
+            <F N="bgx/validator-bgx/tests/test_state_view/tests.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/concurrent/thread.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/concurrent/threadpool.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/timed_cache.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/execution/tp_state_handlers.py"/>
+            <F N="bgx/validator-bgx/tests/utils.py"/>
+            <F N="bgx/validator-bgx/tests/test_journal/utils.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/journal/validation_rule_enforcer.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/config/validator.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/metrics/wrappers.py"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/yaml_scheduler_tester.py"/>
+        </Folder>
+        <Folder
+            Name="Other Files"
+            Filters=""
+            GUID="{CA4EAC50-E37A-4926-BB8F-A4FCE36D45A8}">
+            <F N="bgx/validator-bgx/.coveragerc"/>
+            <F N="bgx/etc/bgx_val.conf.aws"/>
+            <F N="bgx/etc/bgx_val.conf.tsk"/>
+            <F N="BUILD-BGX.md"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/data/complex_batches_multiple_failures.yaml"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/data/complex_dependency_failures.yaml"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/data/deletes_test.yaml"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/data/dependencies.yaml"/>
+            <F N="bgx/validator-bgx/Dockerfile-bionic"/>
+            <F N="bgx/validator-bgx/tests/test_scheduler/data/enclosing_writer_fails.yaml"/>
+            <F N="bgx/validator-bgx/MANIFEST.in"/>
+            <F N="bgx/validator-bgx/nose2.cfg"/>
+            <F N="bgx/validator-bgx/README.md"/>
+            <F N="bgx/validator-bgx/setup.cfg"/>
+            <F N="bgx/validator-bgx/tests/unit_validator.yaml"/>
+        </Folder>
+    </Files>
+    <Config
+        Name="Debug"
+        DebugCallbackName="pydbgp"
+        Type="python"
+        OutputFile=""
+        AppType="python"
+        CompilerConfigName="">
+        <Menu>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_python_options_form Run"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec CmdLine='python %(SLICKEDIT_PYTHON_EXECUTE_ARGS) "%f"'/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_python_options_form Debug"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveNone"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec
+                    CmdLine="python_debug"
+                    Type="Slick-C"/>
+            </Target>
+            <Target
+                Name="Python Options"
+                MenuCaption="Python &amp;Options"
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0">
+                <Exec
+                    CmdLine="pythonoptions"
+                    Type="Slick-C"/>
+            </Target>
+        </Menu>
+        <List Name="Python Options">
+            <Item
+                Name="DefaultFile"
+                Value=""/>
+        </List>
+        <List Name="pydbgp Options">
+            <Item
+                Name="ServerHost"
+                Value="127.0.0.1"/>
+            <Item
+                Name="ServerPort"
+                Value="0"/>
+            <Item
+                Name="ListenInBackground"
+                Value="1"/>
+            <Item
+                Name="show_hidden"
+                Value="0"/>
+        </List>
+    </Config>
+</Project>

@@ -1,0 +1,98 @@
+<!DOCTYPE Project SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpj.dtd">
+<Project
+    Version="10.0"
+    VendorName="SlickEdit"
+    TemplateName="Python - Empty Project"
+    WorkingDir=".">
+    <Files>
+        <Folder
+            Name="Source Files"
+            Filters="*.py"
+            GUID="{20BBC0EF-9E58-440C-8523-892372D5EABB}">
+            <F N="bgx/families/settings/bgx_settings/__init__.py"/>
+            <F N="bgx/families/settings/bgx_settings/processor/__init__.py"/>
+            <F N="bgx/families/settings/bgx_settings/processor/config/__init__.py"/>
+            <F N="bgx/families/settings/tests/bgx_settings_test/__init__.py"/>
+            <F N="bgx/families/settings/bgx_settings/processor/handler.py"/>
+            <F N="bgx/families/settings/bgx_settings/processor/main.py"/>
+            <F N="bgx/families/settings/bgx_settings/processor/config/settings.py"/>
+            <F N="bgx/families/settings/tests/bgx_settings_test/settings_message_factory.py"/>
+            <F N="bgx/families/settings/setup.py"/>
+            <F N="bgx/families/settings/tests/test_tp_settings.py"/>
+        </Folder>
+        <Folder
+            Name="Other Files"
+            Filters=""
+            GUID="{21EA7975-2A04-4D6E-77F7-5B92ACDF70BA}">
+            <F N="bgx/families/settings/packaging/systemd/bgx-settings-tp"/>
+            <F N="bgx/families/settings/packaging/systemd/bgx-settings-tp.service"/>
+            <F N="bgx/families/settings/Dockerfile"/>
+            <F N="bgx/families/settings/Dockerfile-installed"/>
+            <F N="bgx/families/settings/nose2.cfg"/>
+            <F N="bgx/families/settings/tests/settings.dockerfile"/>
+            <F N="bgx/families/settings/protos/settings.proto"/>
+            <F N="bgx/families/settings/packaging/settings.toml.example"/>
+            <F N="bgx/families/settings/tests/test_tp_settings.yaml"/>
+        </Folder>
+    </Files>
+    <Config
+        Name="Debug"
+        DebugCallbackName="pydbgp"
+        Type="python"
+        OutputFile=""
+        AppType="python"
+        CompilerConfigName="">
+        <Menu>
+            <Target
+                Name="Execute"
+                MenuCaption="E&amp;xecute"
+                Dialog="_python_options_form Run"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveWorkspaceFiles"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec CmdLine='python %(SLICKEDIT_PYTHON_EXECUTE_ARGS) "%f"'/>
+            </Target>
+            <Target
+                Name="Debug"
+                MenuCaption="&amp;Debug"
+                Dialog="_python_options_form Debug"
+                CaptureOutputWith="ProcessBuffer"
+                SaveOption="SaveNone"
+                RunFromDir="%rw"
+                Deletable="0">
+                <Exec
+                    CmdLine="python_debug"
+                    Type="Slick-C"/>
+            </Target>
+            <Target
+                Name="Python Options"
+                MenuCaption="Python &amp;Options"
+                ShowOnMenu="HideIfNoCmdLine"
+                Deletable="0">
+                <Exec
+                    CmdLine="pythonoptions"
+                    Type="Slick-C"/>
+            </Target>
+        </Menu>
+        <List Name="Python Options">
+            <Item
+                Name="DefaultFile"
+                Value=""/>
+        </List>
+        <List Name="pydbgp Options">
+            <Item
+                Name="ServerHost"
+                Value="127.0.0.1"/>
+            <Item
+                Name="ServerPort"
+                Value="0"/>
+            <Item
+                Name="ListenInBackground"
+                Value="1"/>
+            <Item
+                Name="show_hidden"
+                Value="0"/>
+        </List>
+    </Config>
+</Project>
