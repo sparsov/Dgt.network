@@ -141,7 +141,7 @@ class FbftTopology(object):
                         yield from iter_topology(cluster[PeerAtr.children])
                         #LOGGER.debug("iter_topology <<< %s",cluster['name'])
                         
-            
+        #check children FIXME    
         return iter_topology(self._topology[PeerAtr.children] if root is None else root)
 
     def __iter__(self):
@@ -158,7 +158,8 @@ class FbftTopology(object):
                     self._nosync = True
                     self._topology['sync'] = not self._nosync 
                 LOGGER.debug("update_peer_activity: nosync=%s peer=%s",self._nosync,peer)
-                break
+                return key
+        return None
 
     def update_peer_component(self,peer_key,component=None):
         for key,peer in self.get_topology_iter():
@@ -345,6 +346,9 @@ class Gossip(object):
     def is_federations_assembled(self):
         return self._is_federations_assembled
     @property
+    def is_sync(self):
+        return not self._nosync
+    @property
     def validator_id(self):
         return self._network.validator_id
     def set_cluster(self,topology):
@@ -524,15 +528,12 @@ class Gossip(object):
 
     def remove_peer(self,endpoint):
         LOGGER.debug("remove_peer endpoint=%s...\n",endpoint)
-        self._fbft.update_peer_activity(None,endpoint,False)
-        """
-        for key,peer in self._fbft.get_topology_iter():
-            # check this endpoint
-            if PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint:
-                LOGGER.debug("LOST PEER=%s set inactive",endpoint)
-                peer[PeerAtr.endpoint] = None
-                peer[PeerAtr.node_state] = PeerSync.inactive
-        """
+        public_key = self._fbft.update_peer_activity(None,endpoint,False)
+        # inform consensus about new peer status
+        if public_key:
+            # inactive now
+            self.notify_peer_connected(public_key,assemble=False)
+
     def load_topology(self):
         LOGGER.debug("LOAD topology ...\n")
         self._stopology = self._settings_cache.get_setting(
@@ -652,7 +653,9 @@ class Gossip(object):
         with self._lock:
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
             keys_cid  = {self._network.connection_id_to_public_key(cid) : cid for cid in self._peers} 
-        LOGGER.debug("switch_on_federations peers=%s",peer_keys)
+        LOGGER.debug("switch_on_federations peers=%s SYNC=%s",peer_keys,not self._nosync)
+        if self._nosync:
+            self.notify_peer_connected(self.validator_id,assemble=False)
         for public_key in set(peer_keys):
             if public_key:
                 cid = keys_cid[public_key]

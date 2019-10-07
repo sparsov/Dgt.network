@@ -77,6 +77,8 @@ class Completer(object):
         self._on_block_received = None
         self._on_batch_received = None
         self._has_block = None
+        self._has_genesis_federation_block = None
+        self._is_nests_ready = None
         self.lock = RLock()
 
     @property
@@ -86,7 +88,7 @@ class Completer(object):
     def requested(self):
         return ["{}".format(bid[:8]) for bid in self._requested.keys()]
 
-    def _complete_block(self, block,force=False):
+    def _complete_block(self, block):
         """ Check the block to see if it is complete and if it can be passed to
             the journal. If the block's predecessor is not in the block_cache
             the predecessor is requested and the current block is added to the
@@ -143,8 +145,9 @@ class Completer(object):
         """
         check federation of block and corresponding nest 
         in case nest is absent keep this block until nest appeared
+
         """
-        if not self._has_federation_nest(block.block_num) and not force:
+        if not self._has_genesis_federation(block.block_num):
             LOGGER.debug("Keep until get federation nest for block: %s", block)
             if block not in self._pending_heads:
                 self._pending_heads.append(block)
@@ -338,16 +341,25 @@ class Completer(object):
         # this is func which send batch to publisher QUEUE block_publisher.queue_batch
         self._on_batch_received = on_batch_received_func
 
-    def set_chain_has_block(self, set_chain_has_block):
+    def set_chain_has_block(self, set_chain_has_block,set_has_genesis_federation_block,set_is_nests_ready):
         self._has_block = set_chain_has_block
+        self._has_genesis_federation_block = set_has_genesis_federation_block
+        self._is_nests_ready = set_is_nests_ready
 
-    def add_block(self, block):
+
+    def add_block(self, block,check_pending=False):
         with self.lock:
-            blkw = BlockWrapper(block)
+            if check_pending:
+                if len(self._pending_heads) == 0:
+                    return
+                #take from pending queue
+                blkw = self._pending_heads.pop()
+            else:
+                blkw = BlockWrapper(block)
             # new block from net
-            force = True # False
+            
             while True:
-                block = self._complete_block(blkw,force)
+                block = self._complete_block(blkw)
                  
                 if block is not None:
                     # completed block - in sync mode genesis block
@@ -360,11 +372,13 @@ class Completer(object):
                     # take all rest blocks 
                     #self._process_incomplete_blocks(block.header_signature)
                     self._process_incomplete_blocks(str(block.block_num),True)
-                    LOGGER.debug("ADD INCOMPLETED BLOCKS DONE pending=%s\n",[blk.block_num for blk in self._pending_heads])
-                    if len(self._pending_heads) == 0:
+                    LOGGER.debug("ADD INCOMPLETED BLOCKS DONE  nest_ready=%s pending=%s\n",self._is_nests_ready(),[blk.block_num for blk in self._pending_heads])
+                    if len(self._pending_heads) == 0 :
+                        break
+                    if not self._is_nests_ready():
                         break
                     blkw = self._pending_heads.pop()
-                    force = True
+                    
                 else:
                     break
 
@@ -401,6 +415,17 @@ class Completer(object):
         with self.lock:
             #LOGGER.debug("federation_heads=%s",[blk.header_signature[:8] for blk in self._block_store.federation_heads])
             return self._block_store.chain_head
+
+    def _has_genesis_federation(self,block_num):
+        """
+        check for not genesis federation is genesis feder first block present or not 
+        into block store or into queue
+        """
+        fnum,_ = Federation.feder_num_to_num(block_num)
+        if fnum < 2:
+            return True
+        # not genesis - check genesis first block into chain queue or store
+        return self._has_genesis_federation_block()
 
     def _has_federation_nest(self,block_num):
         with self.lock:

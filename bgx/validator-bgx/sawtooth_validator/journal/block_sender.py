@@ -57,6 +57,12 @@ class BroadcastBlockSender(BlockSender):
         self._gossip.broadcast_block(block,exclude=exclude)
         self._completer.add_block(block)
 
+    def check_pending_head(self):
+        self._completer.add_block(None,True)
+    @property
+    def is_sync(self):
+        return self._gossip.is_sync
+
     def send_arbiter(self, block,arbiter=True):
         """
         use from publisher for sending new block to peers or arbiter 

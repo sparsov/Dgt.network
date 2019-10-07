@@ -99,6 +99,9 @@ class BranchState(object):
     def own_type(self):
         return self._engine.own_type
     @property
+    def is_sync(self):
+        return  self._engine.is_sync
+    @property
     def is_leader(self):
         return self.own_type == 'leader'
     @property
@@ -146,7 +149,7 @@ class BranchState(object):
 
     def reset_chain_len(self):
         self._chain_len = 0
-
+        LOGGER.debug("RESET_CHAIN_LEN branch[%s] step=%s",self._ind,self.dag_step) 
     def un_freeze_block(self):
         # for testing only
         block_id,parent_id = None,None
@@ -352,7 +355,7 @@ class BranchState(object):
 
     def new_block(self,block,cluster=True):
         self._cluster = cluster 
-        if cluster and len(self.peers) > 0:
+        if cluster and len(self.peers) > 0 and self.is_sync:
             """
             start consensus for many active peers and in case it is block of own cluster
             """
@@ -449,7 +452,7 @@ class BranchState(object):
             for full version shift into commiting state
             for short we can commit right now
             """
-            if self._oracle.is_pbft_full and (self._cluster or block.block_num == 0):
+            if self._oracle.is_pbft_full and (self._cluster or block.block_num == 0) and self.is_sync:
                 # broadcast commit message and shift into commiting state - NOT for block under arbitration
                 self.shift_to_commiting(block)
                 self._state = State.Commiting
@@ -486,6 +489,9 @@ class BranchState(object):
                 if not self.is_ready_arbiter:
                     # ignore not ready arbiters
                     LOGGER.info('Ready to do commit for block=%s -> Finished(ARBITER UNDEF or DISCONNECTER)', self.block_num)
+                    if self.is_leader:
+                        LOGGER.info('arbitration: broadcast ARBITRATION DONE for own cluster block=%s ???', self.block_num)
+                        self.broadcast_arbitration_done(block)
                     self._state = State.Finished
                     self.commit_block(block.block_id)
                 else:
@@ -564,6 +570,7 @@ class PbftEngine(Engine):
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
         self._arbitration_msgs = {} 
+        self._pending_nest = {} # for waiting nest
         self._nest_color = []     # add color for nests
         self._path_config = path_config
         self._component_endpoint = component_endpoint
@@ -584,6 +591,7 @@ class PbftEngine(Engine):
         self._num_branches = 0 #
         self._validator_id = None
         self._dag_step = CHAIN_LEN_FOR_BRANCH
+        self._is_sync = True
         LOGGER.debug('PbftEngine: init done')
 
     def name(self):
@@ -615,6 +623,9 @@ class PbftEngine(Engine):
     @property
     def own_type(self):
         return self._own_type
+    @property
+    def is_sync(self):
+        return self._is_sync
     @property
     def arbiters(self):
         return self._arbiters
@@ -654,6 +665,12 @@ class PbftEngine(Engine):
         """
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
+        def check_waiting_nest(bid):
+            if bid in self._pending_nest:
+                LOGGER.debug('PbftEngine: WE CAN HANDLE BLOCK WAITING NEST')
+                block = self._pending_nest[bid]
+                del self._pending_nest[bid]
+                self._resolve_fork(block)
         try:
             """
             To paint first nest with Genesis color 
@@ -694,12 +711,15 @@ class PbftEngine(Engine):
                 if new_branch is not None :
                     del self._branches[bid]
                     self._branches[new_branch.hex()] = branch 
+                    check_waiting_nest(new_branch.hex())
                 LOGGER.debug('PbftEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
-                LOGGER.debug('PbftEngine: _initialize_block NEW Branch[%s]=%s color=%s',self._num_branches,bid[:8],color)
+                LOGGER.debug('PbftEngine: _initialize_block NEW Branch[%s]=%s color=%s pending=%s',self._num_branches,bid[:8],color,[pid[:8] for pid in self._pending_nest.keys()])
                 self._branches[bid] = self.create_branch(bid,parent,block_num)
                 self._branches[bid]._try_branch = self._make_branch
                 self._branches[bid].nest_color = color
+                check_waiting_nest(bid)
+                
                 
             
         except exceptions.UnknownBlock:
@@ -894,8 +914,9 @@ class PbftEngine(Engine):
             Message.CONSENSUS_NOTIFY_BLOCK_INVALID : self._handle_invalid_block,
             Message.CONSENSUS_NOTIFY_BLOCK_COMMIT:self._handle_committed_block,
             Message.CONSENSUS_NOTIFY_PEER_CONNECTED:self._handle_peer_connected,
+            Message.CONSENSUS_NOTIFY_PEER_DISCONNECTED:self._handle_peer_disconnected,
             Message.CONSENSUS_NOTIFY_PEER_MESSAGE:self._handle_peer_message,
-            #CONSENSUS_NOTIFY_PEER_DISCONNECTED 
+            # 
         }
         self._sum_cnt = 0
         self.is_real_mode = True
@@ -903,7 +924,9 @@ class PbftEngine(Engine):
                      self.arbiters_info,self.is_ready_arbiter
                      )
         LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full)
-        #self._service.initialize_block()
+        #self._service.initialize_block() is None
+        if self._cluster_name is None:
+            LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
         while True:
             try:
                 try:
@@ -924,6 +947,8 @@ class PbftEngine(Engine):
                     break
 
                 #self._try_to_publish()
+                if self._cluster_name is None:
+                    continue
                 if self.is_real_mode:
                     self._real_mode()
                 else:
@@ -1117,10 +1142,14 @@ class PbftEngine(Engine):
         LOGGER.info('_resolve_fork  BLOCK=%s(%s)',bid[:8],signer_id[:8])
         if signer_id == self._validator_id:
             if bid in self._branches:
-                # head could be already changed - we can get new head for this branch
-                chain_head = self._get_chain_head(bbid)
-                branch = self._branches[bid]
-                resolve_fork(branch,chain_head,block)
+                try:
+                    # head could be already changed - we can get new head for this branch
+                    chain_head = self._get_chain_head(bbid)
+                    branch = self._branches[bid]
+                    resolve_fork(branch,chain_head,block)
+                except exceptions.NoChainHead:
+                    LOGGER.info('BLOCK=%s.%s NO DAG HEAD=%s waiting NEST\n\n',block.block_num,_short_id(block_id),bid[:8])
+                    self._pending_nest[bid] = block
             else:
                 LOGGER.info('HEAD FOR BLOCK=%s(%s) was changed',block.block_num, _short_id(block_id),signer_id[:8])
         else:
@@ -1134,7 +1163,10 @@ class PbftEngine(Engine):
                     branch = self._peers_branches[block_id] 
                     resolve_fork(branch,chain_head,block)
                 except exceptions.NoChainHead:
-                    LOGGER.info('EXTERNAL BLOCK=%s.%s NO DAG HEAD=%s\n\n',block.block_num,_short_id(block_id),head_id if head_id is None else bid[:8])
+                    # in sync mode nest for this federation could be not ready
+                    # we can pending this block until nest ready 
+                    LOGGER.info('EXTERNAL BLOCK=%s.%s NO DAG HEAD=%s waiting NEST\n\n',block.block_num,_short_id(block_id),head_id if head_id is None else bid[:8])
+                    self._pending_nest[bid] = block
                     
                 
 
@@ -1215,12 +1247,16 @@ class PbftEngine(Engine):
     def peer_status(self,peer_id):
         return self._peers[peer_id] if peer_id in self._peers else self._arbiters[peer_id][1]
 
+    def _handle_peer_disconnected(self, notif):
+        LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
+
     def _handle_peer_connected(self, notif):
         #LOGGER.debug('Connected peer status=%s',notif[1])
         pid = notif[0].peer_id.hex()
         if pid not in self._peers:
             if pid == self.validator_id:
                 LOGGER.debug('Change OWN SYNC STATUS=%s\n', notif[1])
+                self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
             elif pid in self._cluster:
                 # take only peers from own cluster topology 
                 # save status of peer
@@ -1234,6 +1270,10 @@ class PbftEngine(Engine):
                     self._arbiters[pid] = (val[0],notif[1],val[2])
             else:
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
+        else:
+            if pid in self._cluster and self._peers[pid] != notif[1]:
+                LOGGER.debug('Change status peer=%s status=%s->%s',pid[:8],self._peers[pid],notif[1])
+                self._peers[pid] = notif[1]
 
     def _handle_peer_message(self, msg):
         """

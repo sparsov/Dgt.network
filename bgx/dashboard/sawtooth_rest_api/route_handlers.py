@@ -649,8 +649,8 @@ class RouteHandler:
         change validator
         """
         endpoint = request.url.query.get('endpoint', None) 
-        if endpoint is not None:
-            self._connection.reopen(endpoint)
+        #if endpoint is not None:
+        self._connection.reopen(endpoint)
         LOGGER.debug('Request validator endpoint=%s request=%s',endpoint,request)
         return self._wrap_response(
             request,

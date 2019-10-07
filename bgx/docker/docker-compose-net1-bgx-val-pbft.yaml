@@ -231,7 +231,7 @@ services:
             --endpoint tcp://validator-bgx-1:8800 \
             --bind component:tcp://eth0:4004 \
             --bind network:tcp://eth0:8800 \
-            --bind consensus:tcp://eth0:5050 --max_dag_branch 6 \
+            --bind consensus:tcp://eth0:5050 --max_dag_branch 6 --scheduler parallel --maximum-peer-connectivity 70 \
       "
     stop_signal: SIGKILL
 

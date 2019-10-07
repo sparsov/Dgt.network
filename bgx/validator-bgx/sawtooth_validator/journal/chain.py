@@ -45,6 +45,8 @@ LOGGER = logging.getLogger(__name__)
 
 MAX_DAG_BRANCH = 3 # for DAG 
 PEERS_NUM      = 3 # threads for peers  
+GENESIS_FEDERATION_BLOCK = 10
+
 class BlockValidationAborted(Exception):
     """
     Indication that the validation of this fork has terminated for an
@@ -100,6 +102,7 @@ class BlockValidator(object):
                  executor,
                  get_recompute_context,
                  belong_cluster,
+                 is_sync,
                  squash_handler,
                  context_handlers,
                  identity_signer,
@@ -149,6 +152,7 @@ class BlockValidator(object):
         # for external block recompute_context == None
         self._get_recompute_context = get_recompute_context
         self._belong_cluster = belong_cluster
+        self._is_sync = is_sync
         self._squash_handler = squash_handler
         self._context_handlers = context_handlers 
         self._check_merkle = context_handlers['check_merkle']
@@ -303,7 +307,7 @@ class BlockValidator(object):
                             """  
                             LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8] if recomputed_state else None)
                             #FOR ARBITRATION force fixing new state 
-                            scheduler.add_batch(batch,recomputed_state if belong_cluster else 'arbitration') # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
+                            scheduler.add_batch(batch,recomputed_state if belong_cluster and self._is_sync else 'arbitration') # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
 
                 except InvalidBatch:
                     #the same block was already commited
@@ -343,17 +347,17 @@ class BlockValidator(object):
             FOR PARALLEL SCHEDULER AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
             and we can unlock merkle state 
             """
-            if (belong_cluster and recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
+            if (belong_cluster and self._is_sync and recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
                 # for DAG this states could be different
                 # ignore for other cluster block
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8] if recomputed_state else None,state_hash[:8] if state_hash else None)
                 return False
 
-            if not belong_cluster and state_hash != blkw.state_root_hash:
+            if (not belong_cluster or not self._is_sync) and state_hash != blkw.state_root_hash:
                 """
                 for other's cluster blocks we excecute transactions only once and fix merkle root state without comparing this state with state from publisher   
                 """
-                LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ARBITRATED BLOCK",state_hash[:8])
+                LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ARBITRATED BLOCK=%s.%s",state_hash[:8],blkw.block_num,blkw.identifier[:8])
                 scheduler.update_state_hash(blkw.state_root_hash,state_hash)
 
             LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8] if recomputed_state else None)
@@ -823,7 +827,8 @@ class ChainController(object):
         # is being processed. Once that completes this block will be
         # scheduled for validation.
         self._chain_id_manager = chain_id_manager
-
+        self._is_genesis_federation_block = False
+        self._is_nests_ready = False
         self._chain_head = None # main branch
         self._chain_heads = {} # for DAG only
         self._permission_verifier = permission_verifier
@@ -922,6 +927,16 @@ class ChainController(object):
                 branch = self._block_cache[branch.previous_block_id]
                 step += 1
         return None
+    
+    def has_genesis_federation_block(self):
+        LOGGER.debug("ChainController: has_genesis_federation_block=%s",self._is_genesis_federation_block)
+        return self._is_genesis_federation_block
+
+    def is_nests_ready(self):
+        """
+        for sync mode - means all nests ready and we can start rest federations
+        """
+        return self._is_nests_ready
 
     @property
     def _heads_list(self):
@@ -964,6 +979,8 @@ class ChainController(object):
             # ask new branch
             if len(self._chain_heads) >= self._max_dag_branch :
                 LOGGER.debug("ChainController: TOO MANY NEW BRANCH heads=%s",self._heads_list)
+                self._is_nests_ready = True
+                self._block_sender.check_pending_head()
                 raise TooManyBranch
                 #return None
             # create new branch for DAG
@@ -1078,6 +1095,7 @@ class ChainController(object):
                 executor=self._transaction_executor,
                 get_recompute_context=self._get_recompute_context, # from publisher candidate which is freezed
                 belong_cluster=self._belong_cluster,
+                is_sync = self._block_sender.is_sync,
                 squash_handler=self._squash_handler,
                 context_handlers=self._context_handlers,
                 identity_signer=self._identity_signer,
@@ -1454,6 +1472,10 @@ class ChainController(object):
                 # don't bother trying to schedule it again.
                 if block.identifier in self._blocks_processing:
                     return
+                # keep info about first genesis federation block
+                if block.block_num == GENESIS_FEDERATION_BLOCK:
+                    LOGGER.debug('GENESIS_FEDERATION_BLOCK APPEARED!!')
+                    self._is_genesis_federation_block = True 
 
                 self._block_cache[block.identifier] = block
                 self._blocks_pending[block.identifier] = []
