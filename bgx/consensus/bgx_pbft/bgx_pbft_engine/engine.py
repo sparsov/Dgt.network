@@ -1079,7 +1079,7 @@ class PbftEngine(Engine):
         self._pending_forks_to_resolve.push(block)
         self._committing = False
         self._process_pending_forks()
-        LOGGER.info('VALID_BLOCK  pending_forks DONE.')
+        LOGGER.info('VALID_BLOCK  pending_forks DONE %s.',self._pending_forks_to_resolve)
 
     def _handle_invalid_block(self,block_id):
         """
@@ -1113,10 +1113,11 @@ class PbftEngine(Engine):
         self.reset_state()
 
     def _process_pending_forks(self):
-        LOGGER.info('_process_pending_forks commiting=%s.',self._committing)
+        LOGGER.info('_process_pending_forks commiting=%s %s.',self._committing,self._pending_forks_to_resolve)
         while not self._committing:
             block = self._pending_forks_to_resolve.pop()
             if block is None:
+                LOGGER.info('_process_pending_forks NO PENDING BLOCK.')
                 break
 
             self._resolve_fork(block)
@@ -1139,11 +1140,12 @@ class PbftEngine(Engine):
             else:
                 # pending start commiting
                 LOGGER.info('START COMMITING for BLOCK=%s(%s)',_short_id(block_id),signer_id[:8])
-        LOGGER.info('_resolve_fork  BLOCK=%s(%s)',bid[:8],signer_id[:8])
-        if signer_id == self._validator_id:
+        LOGGER.info('_resolve_fork PREV=%s BLOCK=%s(%s)',bid[:8],block_id[:8],signer_id[:8])
+        if signer_id == self._validator_id and self.is_sync:
             if bid in self._branches:
                 try:
                     # head could be already changed - we can get new head for this branch
+                    LOGGER.info('BLOCK=%s(%s) num=%s prev=%s', _short_id(block_id),signer_id[:8],block.block_num,bid[:8])
                     chain_head = self._get_chain_head(bbid)
                     branch = self._branches[bid]
                     resolve_fork(branch,chain_head,block)

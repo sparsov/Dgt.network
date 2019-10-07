@@ -51,3 +51,5 @@ class PendingForks:
 
         block = self._blocks.pop(block_id)
         return block
+    def __str__(self):
+        return "PENDING blocks={}->{}".format([bid.hex()[:8] for bid in self._queue],[bid.hex()[:8] for bid in self._blocks.keys()])
