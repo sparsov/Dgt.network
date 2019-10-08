@@ -330,7 +330,7 @@ class GossipConsensusMessageHandler(Handler):
         peer_message = ConsensusPeerMessage()
         peer_message.ParseFromString(gossip_message.message)
 
-        #LOGGER.debug("GossipConsensusMessageHandler:peer_message type=%s",peer_message.message_type)
+        #LOGGER.debug("GossipConsensusMessageHandler:peer_message type=%s peer=%s",peer_message.message_type,gossip_message.sender_id)
         self._notifier.notify_peer_message(
             message=peer_message,
             sender_id=gossip_message.sender_id,

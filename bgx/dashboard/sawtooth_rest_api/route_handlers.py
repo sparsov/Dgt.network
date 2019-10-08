@@ -51,8 +51,20 @@ from sawtooth_rest_api.protobuf import client_heads_pb2,client_topology_pb2
 
 DEFAULT_TIMEOUT = 300
 LOGGER = logging.getLogger(__name__)
-
-
+TX_FAMILIES = {
+    'bgt': {'commands' :{'set':['vallet','amount'],'inc':['vallet','amount'],'dec':['vallet','amount'],'show':['vallet']}}
+    }
+RUN_STATUSES = {
+      "id": "23102b0fcf11e6d6ed0476e08c76dd6ec0a83cf3dba3d77256ede90d048a3545242459efab08627bf622d2da2f1434e48a2e54561df1ada5ba1cc99c02f5c666",
+      "invalid_transactions": [
+        {
+          "id": "5195cd20aa4141605f0172f28b95d041b750d2bc4da5061fda9043089062e75e1020a4cfee46c87e9c09eb6c6be1754502595ae9e0e8790162ff1588148a8f15",
+          "message": "Verb is \"dec\", but result would be less than 0"
+        }
+      ],
+      "status": "INVALID"
+    }
+  
 class CounterWrapper():
     def __init__(self, counter=None):
         self._counter = counter
@@ -655,6 +667,48 @@ class RouteHandler:
         return self._wrap_response(
             request,
             data={'endpoint':endpoint}
+            )
+
+    async def tx_families(self,request):
+        """
+        get  tx families
+        """
+        #endpoint = request.url.query.get('endpoint', None) 
+        #if endpoint is not None:
+        #self._connection.reopen(endpoint)
+        LOGGER.debug('Request tx_families endpoint=%s',request)
+        return self._wrap_response(
+            request,
+            data=TX_FAMILIES
+            )
+
+    async def run_tx(self,request):
+        """
+        get  tx families
+        """
+        #endpoint = request.url.query.get('endpoint', None) 
+        #if endpoint is not None:
+        #self._connection.reopen(endpoint)
+        LOGGER.debug('Request RUN  cmd=%s',request)
+        return self._wrap_response(
+            request,
+            data=None,
+            metadata={
+              'link': "http://bgx-api-2:8009/batch_statuses?id=851262082dac8d49103d1ed7a8426f1ec933e4c09f4067f5c6f3b8443fd8c2236355f9d2a465c304798f532f5de134259625b15399e0299812ae36994330c312",
+            }
+            )
+
+    async def run_statuses(self,request):
+        """
+        get  tx families
+        """
+        #endpoint = request.url.query.get('endpoint', None) 
+        #if endpoint is not None:
+        #self._connection.reopen(endpoint)
+        LOGGER.debug('Request tx_families endpoint=%s',request)
+        return self._wrap_response(
+            request,
+            data=[RUN_STATUSES]
             )
 
     async def fetch_nodes(self, request):

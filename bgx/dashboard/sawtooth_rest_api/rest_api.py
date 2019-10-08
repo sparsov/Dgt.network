@@ -132,6 +132,9 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/topology', handler.fetch_topology)
     app.router.add_get('/status', handler.fetch_status)
     app.router.add_get('/validator', handler.validator)
+    app.router.add_get('/tx_families', handler.tx_families)
+    app.router.add_get('/run', handler.run_tx)
+    app.router.add_get('/run_statuses', handler.run_statuses)
     # 
     # ADD web app
     app.router.add_get('/', handler.index)

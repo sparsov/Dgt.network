@@ -628,6 +628,9 @@ class BlockPublisher(object):
     @property
     def candidate_blocks(self):
         return [blk.nest_colour+':'+str(blk.block_num)+':'+key[:8] for key,blk in self._candidate_blocks.items()]
+    @property
+    def chain_heads(self):
+        return [str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()]
 
     def belong_cluster(self,peer_id):
         LOGGER.debug('Check CLUSTER for peer_id=%s',peer_id[:8])
@@ -772,7 +775,7 @@ class BlockPublisher(object):
         nest_colour = self._engine_ask_candidate[bid][1] if hasattr(consensus, 'set_publisher') else 'Genesis'
         
         block_num = self._block_store.get_block_num(chain_head.block_num,self._validator_id,nest_colour)
-        LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+        LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],self.chain_heads)
         block_header = BlockHeader(
             block_num=block_num , # ask last block number from store
             previous_block_id=chain_head.header_signature,
@@ -905,7 +908,7 @@ class BlockPublisher(object):
                 # execution.
                 
                 LOGGER.debug("On BATCH=%s received candidate block's CID=%s num=%s heads=%s cands=%s",batch.header_signature[:8],cid[:8],num,
-                             [str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()],
+                             self.chain_heads,
                              self.candidate_blocks
                              )
                 """
@@ -1040,7 +1043,7 @@ class BlockPublisher(object):
                     also change _chain_heads for branch branch_candidate_id
                     """
                     branch_candidate_id = chain_head.previous_block_id
-                    LOGGER.info('Now building on top of block: %s-->%s heads=%s',branch_candidate_id[:8],chain_head.identifier[:8],[key[:8] for key in self._chain_heads.keys()])
+                    LOGGER.info('Now building on top of block: %s-->%s heads=%s',branch_candidate_id[:8],chain_head.identifier[:8],self.chain_heads)
                     if branch_candidate_id in self._chain_heads:
                         del self._chain_heads[branch_candidate_id]
                         LOGGER.info('DEL HEAD for DAG branch=%s\n',branch_candidate_id[:8])
@@ -1067,7 +1070,7 @@ class BlockPublisher(object):
                                 break
                     # update head for DAG branch
                     self._chain_heads[chain_head.identifier] = chain_head
-                    LOGGER.info('Current HEADS=%s\n',[key[:8] for key in self._chain_heads.keys()])
+                    LOGGER.info('Current HEADS=%s\n',self.chain_heads)
                     
                 else:
                     """
@@ -1078,7 +1081,7 @@ class BlockPublisher(object):
                     LOGGER.info('Block publishing is suspended until new chain head for %s arrives.',branch_id[:8])
 
                 if branch_candidate_id in self._candidate_blocks:
-                    LOGGER.info('Update DAG branch head for ID=%s heads=%s\n',branch_candidate_id[:8],[key[:8] for key in self._chain_heads.keys()])
+                    LOGGER.info('Update DAG branch head for ID=%s heads=%s\n',branch_candidate_id[:8],self.chain_heads)
                     del self._candidate_blocks[branch_candidate_id]
 
                 """
@@ -1240,19 +1243,21 @@ class BlockPublisher(object):
                         send branch id as additional argument for on_chain_updated()
                         """
                         self.on_chain_updated(None,branch_id=bid)
-                        LOGGER.debug("on_check_publish_block: after update candidates=%s heads=%s",self.candidate_blocks,[key[:8] for key in self._chain_heads.keys()])
+                        LOGGER.debug("on_check_publish_block: after update candidates=%s heads=%s",self.candidate_blocks,self.chain_heads)
                     else:
                         """
                         candidate.finalize_block() return None but external consensus don't know about this and use bid for reply summarize()
                         so we should create new candidate for this BID in this function
                         also _chain_heads has head for branch bid
                         """ 
-                        LOGGER.debug("on_check_publish_block: was not finalize branch=%s REBUILD THIS CANDIDATE block=%s!!!!\n\n",bid[:8],candidate.block_num)
+                        LOGGER.debug("Was not finalize branch=%s REBUILD THIS CANDIDATE block=%s heads=%s!!!!\n\n",bid[:8],candidate.block_num,self.chain_heads)
                         # for correct block number allocation we should keep block number relation this candidate
                         self._block_store.pop_block_number(candidate.block_num,self._validator_id)
                         # Use color from self._candidate_blocks[bid]
                         self._engine_ask_candidate[bid] = (True,candidate.nest_colour)
                         del self._candidate_blocks[bid]
+                        head = self._block_store._get_block(bid)
+                        self._build_candidate_block(head)
 
 
         # pylint: disable=broad-except
@@ -1278,7 +1283,7 @@ class BlockPublisher(object):
             # update head of branch
             del self._chain_heads[hid]
             self._chain_heads[new_hid] = chain_head
-            LOGGER.info('UPDATE HEAD for branch=%s heads=%s\n',hid[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+            LOGGER.info('UPDATE HEAD for branch=%s heads=%s\n',hid[:8],self.chain_heads)
 
     def get_recompute_context(self,bid):
         # for DAG only
@@ -1301,7 +1306,7 @@ class BlockPublisher(object):
                 self._engine_ask_candidate[chain_head.identifier] = (True,nest_colour)
                 if chain_head is not None:
                     #self._chain_head = chain_head
-                    LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],[str(blk.block_num)+':'+key[:8] for key,blk in self._chain_heads.items()])
+                    LOGGER.info('on_initialize_build_candidate: parent=%s heads=%s', chain_head.identifier[:8],self.chain_heads)
                     self._build_candidate_block(chain_head)
 
         # pylint: disable=broad-except

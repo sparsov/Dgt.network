@@ -1100,7 +1100,9 @@ class PbftEngine(Engine):
                     if block.block_num == 0:
                         branch.reset_state()
                     else:
+                        # FIXME -may be we should do reset?
                         LOGGER.info('=> INVALID_BLOCK: DONT DO reset \n')
+                        branch.reset_state()
             else:
                 LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],[key[:8] for key in self._peers_branches.keys()])
                 if bid in self._peers_branches:
@@ -1291,8 +1293,9 @@ class PbftEngine(Engine):
         signer_id = block.signer_id.hex()
         summary  = block.summary.hex()
         peer_id = info.signer_id.hex()
+        peer_status = self.peer_status(peer_id)
         block_num = block.block_num
-        LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8])
+        LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s(%s)",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8],peer_status)
         if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
             # send reply 
             LOGGER.debug("=>PRE PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])

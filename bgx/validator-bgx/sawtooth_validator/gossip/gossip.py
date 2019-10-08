@@ -398,7 +398,8 @@ class Gossip(object):
                         LOGGER.debug("SYNC request to %s(%s) was successful. Peer=%s SYNC=%s",connection_id[:8],endpoint,peer_key[:8],ack.sync)
                         self.update_federation_topology(peer_key,endpoint,sync=ack.sync)
                         if ack.sync:
-                            self.notify_peer_connected(self.validator_id,assemble=True)
+                            self.notify_peer_connected(peer_key,assemble=True)          # peer status
+                            self.notify_peer_connected(self.validator_id,assemble=True) # OWN status
                     except PeeringException as e:
                         # Remove unsuccessful peer
                         LOGGER.warning('Unable to successfully SYNC peer with endpoint: %s, due to %s',endpoint, str(e))

@@ -81,7 +81,10 @@ class ConsensusNotifier:
                 peer_id=bytes.fromhex(peer_id)))
 
     def notify_peer_message(self, message, sender_id,message_type):
-        """A new message was received from a peer"""
+        """
+        A new message was received from a peer
+        before send check peer key using topology
+        """
         LOGGER.debug('ConsensusNotifier: notify_peer_message=%s sender_id=%s',message_type,sender_id.hex()[:8])
         if message_type == 'Arbitration':
             """

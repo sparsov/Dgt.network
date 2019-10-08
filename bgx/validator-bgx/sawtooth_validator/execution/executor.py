@@ -145,7 +145,7 @@ class TransactionExecutorThread(object):
                 processor_type, request, req.signature)
 
         else:
-            LOGGER.debug("_future_done_callback: processor Response.INVALID tnx=%s",req.signature[:8])
+            LOGGER.debug("_future_done_callback: processor Response.INVALID tnx=%s(%s)",req.signature[:8],response.message)
             self._context_manager.delete_contexts(
                 context_id_list=[req.context_id])
 
