@@ -1102,7 +1102,8 @@ class PbftEngine(Engine):
                     else:
                         # FIXME -may be we should do reset?
                         LOGGER.info('=> INVALID_BLOCK: DONT DO reset \n')
-                        branch.reset_state()
+                        if not self.is_sync:
+                            branch.reset_state()
             else:
                 LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],[key[:8] for key in self._peers_branches.keys()])
                 if bid in self._peers_branches:
