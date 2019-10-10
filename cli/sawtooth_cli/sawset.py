@@ -25,7 +25,7 @@ import sys
 import traceback
 import random
 import yaml
-
+import time
 import pkg_resources
 from colorlog import ColoredFormatter
 
@@ -314,7 +314,8 @@ def _create_batch(signer, transactions):
     return Batch(
         header=batch_header,
         header_signature=signer.sign(batch_header),
-        transactions=transactions)
+        transactions=transactions,
+        timestamp=int(time.time()))
 
 
 def _create_propose_txn(signer, setting_key_value):

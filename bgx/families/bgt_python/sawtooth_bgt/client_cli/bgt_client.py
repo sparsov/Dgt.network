@@ -218,5 +218,6 @@ class BgtClient:
         batch = Batch(
             header=header,
             transactions=transactions,
-            header_signature=signature)
+            header_signature=signature,
+            timestamp=int(time.time()))
         return BatchList(batches=[batch])

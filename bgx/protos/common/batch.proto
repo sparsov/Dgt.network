@@ -44,6 +44,7 @@ message Batch {
     // A debugging flag which indicates this batch should be traced through the
     // system, resulting in a higher level of debugging output.
     bool trace = 4;
+    uint32 timestamp = 5; // time of creating 
 }
 
 message BatchList {

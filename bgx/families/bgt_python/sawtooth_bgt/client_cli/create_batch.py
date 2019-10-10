@@ -125,7 +125,8 @@ def create_batch(transactions, signer):
     batch = batch_pb2.Batch(
         header=header_bytes,
         transactions=transactions,
-        header_signature=signature)
+        header_signature=signature,
+        timestamp=int(time.time()))
 
     return batch
 

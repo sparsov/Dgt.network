@@ -667,7 +667,8 @@ class BlockPublisher(object):
         inclusion in the next block.
         num - say number of batches into block
         """
-        LOGGER.debug("BlockPublisher::queue_batch ADD new BATCH=%s recomend=%s.%s num=%s queue=%s",batch.header_signature[:10],recomm[1],recomm[0][:8],recomm[2],self.get_current_queue_info())
+        #batch.header_signature[:10]
+        LOGGER.debug("BlockPublisher::queue_batch ADD new BATCH=%s recomend=%s.%s num=%s queue=%s",batch,recomm[1],recomm[0][:8],recomm[2],self.get_current_queue_info())
         self._batch_queue.put(batch)
         self._queued_batch_ids.append(batch.header_signature)
         self._queued_batch_recomm.append(recomm if recomm else ('',0,0)) # (candidate_id if candidate_id is not None else '',num))
