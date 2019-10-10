@@ -522,7 +522,7 @@ class Gossip(object):
         with self._lock:
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
         for key  in set(peer_keys):
-            if key in self._fbft.cluster or key in self._fbft.arbiters:
+            if key in self._fbft.cluster or key in self._fbft.arbiters: #FIXME check arbiters is None or not
                 return True
         return False
         #return max(peer_keys, key = lambda pk: 1 if pk in self._fbft.cluster or pk in self._fbft.arbiters  else 0) > 0

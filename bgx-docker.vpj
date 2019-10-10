@@ -111,6 +111,8 @@
             <F N="bgx/docker/docker-compose-net4-bgx-val-pbft.yaml"/>
             <F N="bgx/docker/docker-compose-net5-bgx-val-pbft.yaml"/>
             <F N="bgx/docker/docker-compose-netall-reg-dev-loc.yaml"/>
+            <F N="bgx/docker/docker-compose-netC1-1-bgx-val-pbft.yaml"/>
+            <F N="bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml"/>
             <F N="bgx/docker/docker-compose-netN-bgx-val-pbft.yaml"/>
             <F N="bgx/docker/docker-compose-rest-api-aws.yaml"/>
             <F N="bgx/docker/docker-compose-rest-api-local.yaml"/>

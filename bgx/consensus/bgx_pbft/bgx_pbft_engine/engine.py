@@ -1294,7 +1294,7 @@ class PbftEngine(Engine):
         signer_id = block.signer_id.hex()
         summary  = block.summary.hex()
         peer_id = info.signer_id.hex()
-        peer_status = self.peer_status(peer_id)
+        peer_status = self._is_sync if self.validator_id == peer_id else self.peer_status(peer_id)
         block_num = block.block_num
         LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s(%s)",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8],peer_status)
         if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
@@ -1371,7 +1371,7 @@ class PbftEngine(Engine):
             """
             commiting state 
             """
-            LOGGER.debug("=>COMMIT for block=%s peer=%s(%s) branches=%s+%s", block_id[:8], peer_id[:8], self._peers[peer_id], [key[:8] for key in self._branches.keys()], [key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>COMMIT for block=%s peer=%s(%s) branches=%s+%s", block_id[:8], peer_id[:8], peer_status, [key[:8] for key in self._branches.keys()], [key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
                 branch.add_commit_msg(peer_id,block)

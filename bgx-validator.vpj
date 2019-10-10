@@ -187,6 +187,8 @@
             Filters=""
             GUID="{CA4EAC50-E37A-4926-BB8F-A4FCE36D45A8}">
             <F N="bgx/validator-bgx/.coveragerc"/>
+            <F N="bgx/etc/bgx_val.conf.36"/>
+            <F N="bgx/etc/bgx_val.conf.7"/>
             <F N="bgx/etc/bgx_val.conf.aws"/>
             <F N="bgx/etc/bgx_val.conf.tsk"/>
             <F N="BUILD-BGX.md"/>
