@@ -203,6 +203,7 @@
             <F N="bgx/validator-bgx/README.md"/>
             <F N="bgx/validator-bgx/setup.cfg"/>
             <F N="bgx/validator-bgx/tests/unit_validator.yaml"/>
+            <F N="up6leader.sh"/>
         </Folder>
     </Files>
     <Config

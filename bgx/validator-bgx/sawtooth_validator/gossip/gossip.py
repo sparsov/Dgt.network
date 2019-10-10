@@ -357,7 +357,7 @@ class Gossip(object):
 
     def get_exclude(self,cluster = None):
         # get list of peers not from our cluster or arbiters ring
-        LOGGER.debug("get_exclude peers=%s",self._peers)
+        #LOGGER.debug("get_exclude peers=%s",self._peers)
         exclude = []
         if cluster is None:
             cluster = self._fbft.cluster
@@ -366,7 +366,7 @@ class Gossip(object):
                 public_key = self._network.connection_id_to_public_key(peer)
                 if public_key not in cluster:
                     exclude.append(peer)
-        LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
+        #LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
     def update_federation_topology(self,key,endpoint,mode=True,sync=False,component=None):
@@ -843,7 +843,7 @@ class Gossip(object):
                 exclude = []
             for connection_id in self._peers.copy():
                 if connection_id not in exclude:
-                    LOGGER.info("gossip:broadcast: send %s to %s",get_enum_name(message_type),self._peers[connection_id])
+                    #LOGGER.info("gossip:broadcast: send %s to %s",get_enum_name(message_type),self._peers[connection_id])
                     self.send(
                         message_type,
                         gossip_message.SerializeToString(),
