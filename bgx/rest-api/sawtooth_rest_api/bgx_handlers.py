@@ -20,6 +20,7 @@ import json
 import base64
 import hashlib
 import random
+import time
 from datetime import datetime
 
 from aiohttp import web
@@ -122,7 +123,9 @@ class BgxRouteHandler(RouteHandler):
         batch = Batch(
             header=header,
             transactions=transactions,
-            header_signature=signature)
+            header_signature=signature,
+            timestamp=int(time.time())
+            )
         return batch
         #return BatchList(batches=[batch])
 

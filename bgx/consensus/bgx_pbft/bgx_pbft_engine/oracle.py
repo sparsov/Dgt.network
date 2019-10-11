@@ -16,7 +16,7 @@
 import logging
 import os
 import binascii
-
+import time
 import json
 
 import sawtooth_signing as signing
@@ -1237,7 +1237,7 @@ class _BatchPublisherProxy:
         batch = Batch(
             header=header,
             transactions=transactions,
-            header_signature=signature)
+            header_signature=signature,timestamp=int(time.time()))
 
         future = self._stream.send(
             message_type=Message.CLIENT_BATCH_SUBMIT_REQUEST,

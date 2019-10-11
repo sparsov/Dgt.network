@@ -15,7 +15,7 @@
 
 from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.batch_pb2 import BatchHeader
-
+import time
 
 class BatchPublisher(object):
     """ Utility class to help BlockPublisher provide transaction publishing
@@ -51,7 +51,7 @@ class BatchPublisher(object):
         batch = Batch(
             header=header,
             transactions=transactions,
-            header_signature=signature)
+            header_signature=signature,timestamp=int(time.time()))
 
         self._batch_sender.send(batch)
 

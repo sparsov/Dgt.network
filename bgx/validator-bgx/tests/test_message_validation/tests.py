@@ -16,7 +16,7 @@ import unittest
 import hashlib
 import random
 import string
-
+import time
 import cbor
 
 from sawtooth_signing import create_context
@@ -128,7 +128,7 @@ class TestMessageValidation(unittest.TestCase):
             batch = Batch(
                 header=header_bytes,
                 transactions=txn_list,
-                header_signature=signature)
+                header_signature=signature,timestamp=int(time.time()))
 
             batch_list.append(batch)
 

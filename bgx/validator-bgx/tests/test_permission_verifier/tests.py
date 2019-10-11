@@ -17,7 +17,7 @@
 
 import unittest
 import hashlib
-
+import time
 import cbor
 
 from sawtooth_signing import create_context
@@ -123,7 +123,7 @@ class TestPermissionVerifier(unittest.TestCase):
             batch = Batch(
                 header=header_bytes,
                 transactions=txn_list,
-                header_signature=signature)
+                header_signature=signature,timestamp=int(time.time()))
 
             batch_list.append(batch)
 
