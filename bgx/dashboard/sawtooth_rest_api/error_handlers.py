@@ -12,13 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
-
+"""
 from sawtooth_rest_api.protobuf import client_transaction_pb2
 from sawtooth_rest_api.protobuf import client_batch_submit_pb2
 from sawtooth_rest_api.protobuf import client_state_pb2
 from sawtooth_rest_api.protobuf import client_block_pb2
 from sawtooth_rest_api.protobuf import client_batch_pb2
 from sawtooth_rest_api.protobuf import client_receipt_pb2
+"""
+from sawtooth_sdk.protobuf import client_transaction_pb2
+from sawtooth_sdk.protobuf import client_batch_submit_pb2
+from sawtooth_sdk.protobuf import client_state_pb2
+from sawtooth_sdk.protobuf import client_block_pb2
+from sawtooth_sdk.protobuf import client_batch_pb2
+from sawtooth_sdk.protobuf import client_receipt_pb2
 import sawtooth_rest_api.exceptions as errors
 
 

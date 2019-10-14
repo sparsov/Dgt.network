@@ -25,12 +25,31 @@ from aiohttp import web
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
 
-from sawtooth_rest_api.protobuf.validator_pb2 import Message
+
 
 import sawtooth_rest_api.exceptions as errors
 from sawtooth_rest_api import error_handlers
 from sawtooth_rest_api.messaging import DisconnectError
 from sawtooth_rest_api.messaging import SendBackoffTimeoutError
+
+from sawtooth_sdk.protobuf.validator_pb2 import Message
+from sawtooth_sdk.protobuf import client_transaction_pb2
+from sawtooth_sdk.protobuf import client_list_control_pb2
+from sawtooth_sdk.protobuf import client_batch_submit_pb2
+from sawtooth_sdk.protobuf import client_state_pb2
+from sawtooth_sdk.protobuf import client_block_pb2
+from sawtooth_sdk.protobuf import client_batch_pb2
+from sawtooth_sdk.protobuf import client_receipt_pb2
+from sawtooth_sdk.protobuf import client_peers_pb2
+from sawtooth_sdk.protobuf import client_status_pb2
+from sawtooth_sdk.protobuf import client_topology_pb2
+from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
+from sawtooth_sdk.protobuf.batch_pb2 import BatchList
+from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
+from sawtooth_sdk.protobuf.transaction_pb2 import TransactionHeader
+from sawtooth_sdk.protobuf import client_heads_pb2,client_topology_pb2
+"""
+from sawtooth_rest_api.protobuf.validator_pb2 import Message
 from sawtooth_rest_api.protobuf import client_transaction_pb2
 from sawtooth_rest_api.protobuf import client_list_control_pb2
 from sawtooth_rest_api.protobuf import client_batch_submit_pb2
@@ -46,7 +65,7 @@ from sawtooth_rest_api.protobuf.batch_pb2 import BatchList
 from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
 from sawtooth_rest_api.protobuf import client_heads_pb2,client_topology_pb2
-
+"""
 # pylint: disable=too-many-lines
 
 DEFAULT_TIMEOUT = 300

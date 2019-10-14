@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.join(
 sys.path.insert(0, os.path.join(
     TOP_DIR,
     'signing'))
-sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families','bgt_python'))
 
 from sawtooth_rest_api.rest_api import main
 

@@ -23,8 +23,8 @@ from google.protobuf.message import DecodeError
 import zmq
 from zmq.asyncio import Context
 
-from sawtooth_rest_api.protobuf.validator_pb2 import Message
-
+from sawtooth_sdk.protobuf.validator_pb2 import Message
+#from sawtooth_rest_api.protobuf.validator_pb2 import Message
 LOGGER = logging.getLogger(__name__)
 
 
