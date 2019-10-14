@@ -5,9 +5,9 @@
 #export COMPOSE_PROJECT_NAME=5 C=c1 N=5 API=8012 COMP=4109 NET=8105 CONS=5055;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 #export COMPOSE_PROJECT_NAME=6 C=c1 N=6 API=8013 COMP=4110 NET=8106 CONS=5056;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 # cluster 2
-export COMPOSE_PROJECT_NAME=21 C=c2 N=1 API=8208 COMP=4204 NET=8201 CONS=5251;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
-export COMPOSE_PROJECT_NAME=22 C=c2 N=2 API=8209 COMP=4206 NET=8202 CONS=5252;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
-export COMPOSE_PROJECT_NAME=23 C=c2 N=3 API=8210 COMP=4207 NET=8203 CONS=5253;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
+#export COMPOSE_PROJECT_NAME=21 C=c2 N=1 API=8208 COMP=4204 NET=8201 CONS=5251;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
+#export COMPOSE_PROJECT_NAME=22 C=c2 N=2 API=8209 COMP=4206 NET=8202 CONS=5252;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
+#export COMPOSE_PROJECT_NAME=23 C=c2 N=3 API=8210 COMP=4207 NET=8203 CONS=5253;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 # cluster 3
 #export COMPOSE_PROJECT_NAME=31 C=c3 N=1 API=8308 COMP=4304 NET=8301 CONS=5351;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 #export COMPOSE_PROJECT_NAME=32 C=c3 N=2 API=8309 COMP=4306 NET=8302 CONS=5352;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
@@ -24,4 +24,26 @@ export COMPOSE_PROJECT_NAME=23 C=c2 N=3 API=8210 COMP=4207 NET=8203 CONS=5253;do
 #export COMPOSE_PROJECT_NAME=61 C=c6 N=1 API=8608 COMP=4604 NET=8601 CONS=5651;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 #export COMPOSE_PROJECT_NAME=62 C=c6 N=2 API=8609 COMP=4606 NET=8602 CONS=5652;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 #export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
-
+case $1 in
+     1|genesis)
+          echo "Я тоже знаю Ubuntu! Эта система основана на Debian.1"
+          ;;
+     2)
+          echo "Эй! Это мой любимый серверный дистрибутив! 2"
+          ;;
+     3)
+          echo "Очень смешно...3"
+          ;; 
+     4)
+          echo "Очень смешно...4"
+          ;; 
+     5)
+          echo "Очень смешно...5"
+          ;; 
+     6)
+          echo "Очень смешно...6"
+          ;; 
+     *)
+          echo "Хмм, кажется я никогда не использовал этот дистрибутив."
+          ;;
+esac

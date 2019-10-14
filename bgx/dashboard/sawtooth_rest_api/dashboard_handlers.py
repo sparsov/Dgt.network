@@ -24,13 +24,14 @@ import random
 import os
 from aiohttp import web
 import cbor
+import time
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
 
 from sawtooth_rest_api.protobuf.validator_pb2 import Message
-
+#from sawtooth_sdk.protobuf.validator_pb2 import Message
 import sawtooth_rest_api.exceptions as errors
 from sawtooth_rest_api import error_handlers
 from sawtooth_rest_api.messaging import DisconnectError
@@ -47,9 +48,12 @@ from sawtooth_rest_api.protobuf import client_status_pb2
 from sawtooth_rest_api.protobuf.block_pb2 import BlockHeader
 from sawtooth_rest_api.protobuf.batch_pb2 import Batch,BatchHeader,BatchList
 from sawtooth_rest_api.protobuf.transaction_pb2 import Transaction,TransactionHeader
+#from sawtooth_sdk.protobuf.transaction_pb2 import  Transaction,TransactionHeader
+#from sawtooth_sdk.protobuf.batch_pb2 import  Batch,BatchHeader,BatchList
 
 from sawtooth_rest_api.route_handlers import RouteHandler,DEFAULT_TIMEOUT
-
+# bgt families
+#from bgt_python.sawtooth_bgt.client_cli.generate import BgtPayload
 #from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
 #from sawtooth_signing import CryptoFactory,create_context
 
@@ -80,6 +84,52 @@ class DashboardRouteHandler(RouteHandler):
 
         
         #LOGGER.debug('DashboardRouteHandler: network=%s',self._network)
+    def _create_batch(self, transactions):
+        """
+        Create batch for transactions
+        """
+        transaction_signatures = [t.header_signature for t in transactions]
+
+        header = BatchHeader(
+            signer_public_key=self._signer.get_public_key().as_hex(),
+            transaction_ids=transaction_signatures
+        ).SerializeToString()
+
+        signature = self._signer.sign(header)
+
+        batch = Batch(
+            header=header,
+            transactions=transactions,
+            header_signature=signature,
+            timestamp=int(time.time())
+            )
+        return batch
+        #return BatchList(batches=[batch])
+
+    def _create_transaction(self,family,ver,payload,inputs,outputs,dependencies=[]):
+        """
+        make transaction
+        """
+        LOGGER.debug('BgxRouteHandler: _create_transaction make Transaction')
+        txn_header = TransactionHeader(
+            signer_public_key=self._signer.get_public_key().as_hex(),
+            family_name=family,
+            family_version=ver,
+            inputs=inputs,
+            outputs=outputs,
+            dependencies=dependencies,
+            payload_sha512=_sha512(payload),
+            batcher_public_key=self._signer.get_public_key().as_hex(),
+            nonce=hex(random.randint(0, 2**64))
+        ).SerializeToString()
+
+        signature = self._signer.sign(txn_header)
+        transaction = Transaction(
+            header=txn_header,
+            payload=payload,
+            header_signature=signature
+        )
+        return transaction
 
     async def index(self,request):
         html = request.match_info.get('html', '/')

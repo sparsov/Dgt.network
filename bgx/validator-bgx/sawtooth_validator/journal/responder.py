@@ -148,15 +148,23 @@ class BlockResponderHandler(Handler):
                     num = int(Federation.dec_feder_num(block_num))
                     # save request
                     self._responder.add_request(block_id, connection_id)
-                    block = self._responder.get_block_by_num(num)
-                    blocks.append(block)
-                    LOGGER.debug("Responding BLOCK=%s",block)
+                    try:
+                        block = self._responder.get_block_by_num(num)
+                        blocks.append(block)
+                        LOGGER.debug("Responding BLOCK=%s",block)
+                    except KeyError:
+                        LOGGER.debug("THERE IS NO Responding BLOCK=%s",num)
+
                 else:
                     # check may be prev block already was asked
                     blocks.append(block)
                 while True:
                     prev_num = int(Federation.dec_feder_num(block.block_num)) 
-                    block = self._responder.get_block_by_num(prev_num)
+                    try:
+                        block = self._responder.get_block_by_num(prev_num)
+                    except KeyError:
+                        LOGGER.debug("THERE IS NO Responding BLOCK=%s",num)
+                        break
                     prev_block_id = block.get_block().header_signature
                     if self._responder.already_requested(prev_block_id):
                         self._responder.remove_request(prev_block_id)
