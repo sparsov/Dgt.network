@@ -35,8 +35,7 @@ from sawtooth_sdk.processor.config import get_config_dir
 from sawtooth_rest_api.messaging import Connection
 #from sawtooth_rest_api.route_handlers import RouteHandler
 from sawtooth_rest_api.dashboard_handlers import DashboardRouteHandler
-from sawtooth_rest_api.state_delta_subscription_handler \
-    import StateDeltaSubscriberHandler
+from sawtooth_rest_api.state_delta_subscription_handler import StateDeltaSubscriberHandler
 from sawtooth_rest_api.config import load_default_rest_api_config
 from sawtooth_rest_api.config import load_toml_rest_api_config
 from sawtooth_rest_api.config import merge_rest_api_config
@@ -133,8 +132,8 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.router.add_get('/status', handler.fetch_status)
     app.router.add_get('/validator', handler.validator)
     app.router.add_get('/tx_families', handler.tx_families)
-    app.router.add_get('/run', handler.run_tx)
-    app.router.add_get('/run_statuses', handler.run_statuses)
+    app.router.add_get('/run', handler.run_transaction)
+    app.router.add_get('/run_statuses',handler.list_statuses) # handler.run_statuses)
     # 
     # ADD web app
     app.router.add_get('/', handler.index)

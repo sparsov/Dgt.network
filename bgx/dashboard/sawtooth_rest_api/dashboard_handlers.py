@@ -69,9 +69,9 @@ from sawtooth_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
 
 from sawtooth_rest_api.route_handlers import RouteHandler,DEFAULT_TIMEOUT
 # bgt families
-from sawtooth_bgt.client_cli.generate import BgtPayload
-#from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
-#from sawtooth_signing import CryptoFactory,create_context
+from sawtooth_bgt.client_cli.generate import BgtPayload,create_bgt_transaction
+from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
+from sawtooth_signing import CryptoFactory,create_context
 
 
 LOGGER = logging.getLogger(__name__)
@@ -91,6 +91,13 @@ class DashboardRouteHandler(RouteHandler):
 
         super().__init__(loop,connection,timeout,metrics_registry)
         # Dashboard init
+        self._context = create_context('secp256k1') 
+        self._private_key = Secp256k1PrivateKey.new_random()
+        self._public_key = self._context.get_public_key(self._private_key)
+        self._crypto_factory = CryptoFactory(self._context)
+        self._signer = self._crypto_factory.new_signer(self._private_key)
+        self._public_key_id = self._public_key.as_hex()
+        LOGGER.debug('DashboardRouteHandler: _signer PUBLIC_KEY=%s',self._public_key_id[:8])
         self._network = {}
         try:
             with open('./network.json') as file:
@@ -162,6 +169,46 @@ class DashboardRouteHandler(RouteHandler):
         LOGGER.debug('DashboardRouteHandler: javascript=%s',request.path)
         content = open(os.path.join(ROOT,'app/js/'+request.path[1:]), 'r', encoding='utf-8').read()
         return web.Response(content_type='application/javascript', text=content)
+
+    async def run_transaction(self, request):
+        """
+        make transfer from wallet to wallet
+        """
+        families = request.url.query.get('families', None)
+        if families == 'bgt' or True:
+            cmd = request.url.query.get('cmd', None)
+            arg1 = request.url.query.get('vallet', None)
+            arg2 = request.url.query.get('amount', None)
+            LOGGER.debug('run_transaction families=%s cmd=%s(%s,%s) query=%s!!!',families,cmd,arg1,arg2,request.url.query)
+            transaction = create_bgt_transaction(verb=cmd,name=arg1,value=int(arg2),signer=self._signer)
+            batch = self._create_batch([transaction])
+            batch_id = batch.header_signature
+        else:
+            # undefined families
+            batch_id = None
+            link = ''
+
+        if batch_id is not None:
+            error_traps = [error_handlers.BatchInvalidTrap,error_handlers.BatchQueueFullTrap]
+            validator_query = client_batch_submit_pb2.ClientBatchSubmitRequest(batches=[batch])
+            LOGGER.debug('run_transaction send batch_id=%s',batch_id)
+
+            with self._post_batches_validator_time.time():
+                await self._query_validator(
+                    Message.CLIENT_BATCH_SUBMIT_REQUEST,
+                    client_batch_submit_pb2.ClientBatchSubmitResponse,
+                    validator_query,
+                    error_traps)
+            link = self._build_url(request, path='/batch_statuses', id=batch_id)
+        return self._wrap_response(
+            request,
+            data=None,
+            metadata={
+              'link': link,
+            }
+            )
+        
+
 
     async def fetch_peers(self, request):
         """Fetches the peers from the validator.
