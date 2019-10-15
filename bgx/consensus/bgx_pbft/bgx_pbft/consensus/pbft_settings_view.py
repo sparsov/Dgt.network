@@ -149,6 +149,19 @@ class PbftSettingsView:
                     validate_function=lambda value: value >= 0)
 
         return self._view_change_timeout
+    @property
+    def authorized_keys(self):
+        """Return node type.
+        """
+        if self._node is None:
+            self._node = self._get_config_setting(
+                    name='sawtooth.settings.vote.authorized_keys',
+                    value_type=str,
+                    default_value=None,
+                    validate_function=lambda value: value)
+
+        return self._node
+
 
     @property
     def pbft_node(self):

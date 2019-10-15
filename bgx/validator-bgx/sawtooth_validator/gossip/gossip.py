@@ -665,7 +665,9 @@ class Gossip(object):
                     self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
                 #self.update_federation_topology(public_key,self._peers[cid],True,True)
-                
+        if self._fbft.genesis_node == self.validator_id :
+            # this is genesis peer - make nests 
+            LOGGER.debug("switch_on_federations make NESTS for genesis=%s",self.validator_id[:8])
 
     def get_time_to_live(self):
         time_to_live = \

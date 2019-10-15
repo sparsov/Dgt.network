@@ -656,9 +656,12 @@ class PbftEngine(Engine):
     def belonge_cluster(self,peer_id):
         return peer_id in self._cluster
 
-    def get_chain_settings(self):
-        # get setting from chain
-        LOGGER.debug('get_chain_settings HEAD=%s',self._chain_head)
+    def init_dag_nests(self):
+        """
+        genesis node make nests
+        """
+        LOGGER.debug('init_dag_nests %s...',self._chain_head.signer_public_key)
+        self._oracle.make_nest_step(self._chain_head.signer_public_key)
 
     def _initialize_block(self,branch=None,new_branch=None,is_new = False):
         LOGGER.debug('PbftEngine: _initialize_block branch[%s] is_new=%s',branch.hex()[:8] if branch is not None else None,is_new)
@@ -835,7 +838,8 @@ class PbftEngine(Engine):
             """
             if not self._skip and self._initialize_block(branch=self.genesis_id,is_new=(self._chain_head is not None)) :  
                 # at this point we can ask settings via chain using initial chain_head state_hash 
-                self.get_chain_settings()
+                if self._genesis_node == self.validator_id:
+                    self.init_dag_nests()
                 self._published = True
                 #if len(self._branches) == 5:
                 #    self._published = True

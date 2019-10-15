@@ -17,7 +17,46 @@ Utility methods .
 """
 
 import json
+import hashlib
 from collections import OrderedDict
+
+SETTINGS_NAMESPACE = '000000'
+_VREG_ = False
+_MIN_PRINT_WIDTH = 15
+_MAX_KEY_PARTS = 4
+_ADDRESS_PART_SIZE = 16
+
+def _short_hash(in_str):
+    return hashlib.sha256(in_str.encode()).hexdigest()[:_ADDRESS_PART_SIZE]
+
+def _key_to_address(key):
+    """Creates the state address for a given setting key.
+    """
+    key_parts = key.split('.', maxsplit=_MAX_KEY_PARTS - 1)
+    key_parts.extend([''] * (_MAX_KEY_PARTS - len(key_parts)))
+
+    return SETTINGS_NAMESPACE + ''.join(_short_hash(x) for x in key_parts)
+
+def _config_inputs(key):
+    """Creates the list of inputs for a sawtooth_settings transaction, for a
+    given setting key.
+    """
+    return [
+        _key_to_address('sawtooth.settings.vote.proposals'),
+        _key_to_address('sawtooth.settings.vote.authorized_keys'),
+        _key_to_address('sawtooth.settings.vote.approval_threshold'),
+        _key_to_address(key)
+    ]
+
+
+def _config_outputs(key):
+    """Creates the list of outputs for a sawtooth_settings transaction, for a
+    given setting key.
+    """
+    return [
+        _key_to_address('sawtooth.settings.vote.proposals'),
+        _key_to_address(key)
+    ]
 
 
 def _short_id(id):

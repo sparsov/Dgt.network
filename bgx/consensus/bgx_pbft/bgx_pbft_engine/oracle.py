@@ -48,6 +48,16 @@ from bgx_pbft.journal.block_wrapper import BlockWrapper
 
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 from bgx_pbft_common.utils import _short_id
+# for nests making
+from  sawtooth_settings.protobuf.settings_pb2 import SettingProposal
+from  sawtooth_settings.protobuf.settings_pb2 import SettingsPayload
+from bgx_pbft_common.utils import _config_inputs,_config_outputs
+try:
+    import sawtooth_sdk.protobuf.transaction_pb2 as txn_pb
+except TypeError:
+    import sawtooth_validator.protobuf.transaction_pb2 as txn_pb
+import hashlib
+import random
 
 LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +99,8 @@ class PbftOracle:
 
         self._pbft_settings_view = PbftSettingsView(state_view)
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
+        self._authorized_keys = self._pbft_settings_view.authorized_keys
+        LOGGER.debug("authorized_keys=%s\n",self._authorized_keys)
         #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
         
         self._nodes = json.loads(nodes)
@@ -148,6 +160,10 @@ class PbftOracle:
     def validator_id(self):
         return self._validator_id
 
+    @property
+    def authorized_keys(self):
+        return self._authorized_keys
+
     def get_arbiters(self,arbiter_id,name,children):
         # make ring of arbiter - add only arbiter from other cluster
         LOGGER.debug('get arbiters: cluster=%s children=%s self=%s',name,len(children),self._cluster_name)
@@ -202,6 +218,56 @@ class PbftOracle:
 
     def get_node_type_by_id(self,vid):
         return self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF'
+
+    def make_nest_step(self,authorized_keys=None):
+        """
+        proposal request
+        0406e94ff67c5d9aa36f3a7a54f5bddfc4533623301923e827d5eb948afd4249~
+        03aefd25cc96f9b4a55d8ca9e196037571c9a7d696022919964c6eff5676d7b9e4
+        ba4fdc224e993c22a4d43093403366b75f985be3fee5ef265c13c2e5cb29108a
+        03aefd25cc96f9b4a55d8ca9e196037571c9a7d696022919964c6eff5676d7b9e4
+        """
+        public_key_hash1 = hashlib.sha256(authorized_keys.encode() if authorized_keys is not None else self.authorized_keys.encode()).hexdigest()
+        public_key_hash = self._signer.get_public_key().as_hex() # hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
+        setting = 'bgx.dag.nests'
+        nonce=hex(random.randint(0, 2**64))
+        if True:
+            # try to set pbft params
+
+            proposal = SettingProposal(
+                 setting=setting,
+                 value='0',
+                 nonce=nonce)
+            payload = SettingsPayload(data=proposal.SerializeToString(),action=SettingsPayload.PROPOSE)
+            serialized = payload.SerializeToString()
+            input_addresses = _config_inputs(setting) 
+            output_addresses = _config_outputs(setting)
+
+            header = txn_pb.TransactionHeader(
+                signer_public_key=public_key_hash, #self._signer.get_public_key().as_hex(),
+                family_name='bgx_settings',
+                family_version='1.0',
+                inputs=input_addresses,
+                outputs=output_addresses,
+                dependencies=[],
+                payload_sha512=hashlib.sha512(serialized).hexdigest(),
+                batcher_public_key=public_key_hash, #self._signer.get_public_key().as_hex(),
+                nonce=hex(random.randint(0, 2**64))).SerializeToString()
+
+            signature = self._batch_publisher.identity_signer.sign(header)
+
+            transaction = txn_pb.Transaction(
+                    header=header,
+                    payload=serialized,
+                    header_signature=signature)
+
+            LOGGER.debug('payload action=%s nonce=%s public_key_hash=%s~%s',payload.action,nonce,public_key_hash1,public_key_hash)
+
+            self._batch_publisher.send([transaction])
+        else:
+            # get setting
+            pass
+
 
     def initialize_block(self, previous_block):
         block_header = NewBlockHeader(
