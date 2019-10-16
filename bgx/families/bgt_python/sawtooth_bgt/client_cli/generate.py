@@ -65,8 +65,7 @@ class BgtPayload:
 
 
 def create_bgt_transaction(verb, name, value, signer):
-    payload = BgtPayload(
-        verb=verb, name=name, value=value)
+    payload = BgtPayload(verb=verb, name=name, value=value)
 
     # The prefix should eventually be looked up from the
     # validator's namespace registry.
@@ -129,8 +128,7 @@ def generate_word_list(count):
 
 def do_generate(args):
     context = create_context('secp256k1')
-    signer = CryptoFactory(context).new_signer(
-        context.new_random_private_key())
+    signer = CryptoFactory(context).new_signer(context.new_random_private_key())
 
     words = generate_word_list(args.pool_size)
 

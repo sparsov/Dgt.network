@@ -163,7 +163,7 @@ class BlockResponderHandler(Handler):
                     try:
                         block = self._responder.get_block_by_num(prev_num)
                     except KeyError:
-                        LOGGER.debug("THERE IS NO Responding BLOCK=%s",num)
+                        LOGGER.debug("THERE IS NO Responding BLOCK=%s",prev_num)
                         break
                     prev_block_id = block.get_block().header_signature
                     if self._responder.already_requested(prev_block_id):

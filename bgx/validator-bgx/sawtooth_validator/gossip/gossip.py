@@ -150,7 +150,8 @@ class FbftTopology(object):
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,component=None):
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
-                peer[PeerAtr.endpoint] = endpoint
+                if endpoint is not None:
+                    peer[PeerAtr.endpoint] = endpoint
                 peer[PeerAtr.node_state] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
                 if component:
                     peer[PeerAtr.component] = component
@@ -347,7 +348,7 @@ class Gossip(object):
         return self._is_federations_assembled
     @property
     def is_sync(self):
-        return not self._nosync
+        return not (self._nosync or self._fbft.genesis_node != self.validator_id)
     @property
     def validator_id(self):
         return self._network.validator_id
@@ -438,11 +439,11 @@ class Gossip(object):
         """
         try:to sync in case we are out of sync
         """
-        if self._nosync:
+        if not self.is_sync:
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
             for key,peer in self._fbft.get_topology_iter():
                 # send message to all unsync peers
-                if PeerAtr.node_state in peer and peer[PeerAtr.node_state] == PeerSync.nosync:
+                if key != self.validator_id and PeerAtr.node_state in peer and peer[PeerAtr.node_state] == PeerSync.nosync:
                     LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer[PeerAtr.endpoint],peer[PeerAtr.node_state])
                     self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
 
@@ -654,8 +655,11 @@ class Gossip(object):
         with self._lock:
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
             keys_cid  = {self._network.connection_id_to_public_key(cid) : cid for cid in self._peers} 
-        LOGGER.debug("switch_on_federations peers=%s SYNC=%s",peer_keys,not self._nosync)
-        if self._nosync:
+        LOGGER.debug("switch_on_federations peers=%s SYNC=%s",peer_keys,self.is_sync)
+        if not self.is_sync:
+            # in case not genesis peer should first make nests
+            self._fbft.update_peer_activity(self.validator_id,None,True,False)
+            self._fbft.update_peer_activity(self._fbft.genesis_node,None,True,False)
             self.notify_peer_connected(self.validator_id,assemble=False)
         for public_key in set(peer_keys):
             if public_key:
