@@ -39,6 +39,7 @@ TIMEOUT   = 0.1
 PBFT_FULL = False  # full or short mode of PBFT
 
 CHAIN_LEN_FOR_BRANCH = 3 # after this len make a new branch 
+CHAIN_LEN_FOR_NESTING = 1
 CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint','ViewChange','Arbitration','ArbitrationDone']
 
 class Consensus(Enum):
@@ -615,7 +616,7 @@ class PbftEngine(Engine):
 
     @property
     def dag_step(self):
-        return self._dag_step if self._palette else 1
+        return self._dag_step if self._palette else CHAIN_LEN_FOR_NESTING
 
     @property
     def is_ready_arbiter(self):
@@ -660,8 +661,11 @@ class PbftEngine(Engine):
         """
         genesis node make nests
         """
-        LOGGER.debug('init_dag_nests %s...',self._chain_head.signer_public_key)
-        self._oracle.make_nest_step(self._chain_head.signer_public_key)
+        i,num = 0,self._oracle.max_branch*(CHAIN_LEN_FOR_NESTING+1) #len(self.arbiters)*2 # CHAIN_LEN_FOR_BRANCH
+        LOGGER.debug('init_dag_nests num=%s',num)
+        while i < num:
+            self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
+            i += 1
 
     def _initialize_block(self,branch=None,new_branch=None,is_new = False):
         LOGGER.debug('PbftEngine: _initialize_block branch[%s] is_new=%s',branch.hex()[:8] if branch is not None else None,is_new)

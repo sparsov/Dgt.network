@@ -594,6 +594,7 @@ class BlockPublisher(object):
         self._config_dir = config_dir
         self._permission_verifier = permission_verifier
         self._batch_injector_factory = batch_injector_factory
+        self._nest_building_mode = True
 
         # For metric gathering
         if metrics_registry:
@@ -811,7 +812,7 @@ class BlockPublisher(object):
             consensus, scheduler,
             committed_txn_cache,
             block_builder,
-            max_batches,
+            max_batches if not self._nest_building_mode else 1,
             batch_injectors,
             bid,
             nest_colour)
@@ -1392,6 +1393,10 @@ class BlockPublisher(object):
             LOGGER.debug('BlockPublisher:cancel_block Stop adding batches to the current block and abandon it')
             # need new block candidate
             self._candidate_block = None
+
+    def reset_max_batches_per_block(self):
+        self._nest_building_mode = False
+        LOGGER.debug('BlockPublisher:ALL NESTS WERE BUILDED\n')
 
     def arbitrate_block(self,block,arbiter=True):
         """

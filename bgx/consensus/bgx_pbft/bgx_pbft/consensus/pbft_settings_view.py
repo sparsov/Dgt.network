@@ -55,6 +55,7 @@ class PbftSettingsView:
         self._block_claim_delay = 2
         self._dag_step = None
         self._is_pbft_full = None
+        self._max_branch = None
 
     def _get_config_setting(self,
                             name,
@@ -199,7 +200,16 @@ class PbftSettingsView:
                     validate_function=lambda value: value)
 
         return self._dag_step
-
+    @property
+    def max_branch(self):
+        if self._max_branch is None:                                 
+            self._max_branch = self._get_config_setting(             
+                    name='bgx.dag.max_branch',                           
+                    value_type=int,                                
+                    default_value=6,     
+                    validate_function=lambda value: value)         
+                                                                   
+        return self._max_branch                                      
     @property
     def is_pbft_full(self):
         if self._is_pbft_full is None:

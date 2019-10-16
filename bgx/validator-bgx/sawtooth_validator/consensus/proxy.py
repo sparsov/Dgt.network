@@ -169,6 +169,9 @@ class ConsensusProxy:
     def cancel_block(self,branch_id):
         self._block_publisher.cancel_block(branch_id)
 
+    def reset_max_batches_per_block(self):
+        self._block_publisher.reset_max_batches_per_block()
+
     def check_blocks(self, block_ids):
         for block_id in block_ids:
             if block_id.hex() not in self._block_manager:

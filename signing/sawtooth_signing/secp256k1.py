@@ -111,8 +111,7 @@ class Secp256k1Context(Context):
         try:
             sig_bytes = bytes.fromhex(signature)
 
-            sig = public_key.secp256k1_public_key.ecdsa_deserialize_compact(
-                sig_bytes)
+            sig = public_key.secp256k1_public_key.ecdsa_deserialize_compact(sig_bytes)
             return public_key.secp256k1_public_key.ecdsa_verify(message, sig)
         # pylint: disable=broad-except
         except Exception:

@@ -33,7 +33,7 @@ from bgx_settings.protobuf.setting_pb2 import Setting
 
 LOGGER = logging.getLogger(__name__)
 
-
+NO_RESTRICTIONS_PARAMS = ['bgx.dag.nests']
 # The config namespace is special: it is not derived from a hash.
 SETTINGS_NAMESPACE = '000000'
 
@@ -58,24 +58,27 @@ class SettingsTransactionHandler(TransactionHandler):
 
         txn_header = transaction.header
         public_key = txn_header.signer_public_key
-
-        auth_keys = _get_auth_keys(context)
-        if auth_keys and public_key not in auth_keys:
-            raise InvalidTransaction(
-                '{} is not authorized to change settings'.format(public_key))
-
+        # check maybe this special params with access without restriction 
         settings_payload = SettingsPayload()
         settings_payload.ParseFromString(transaction.payload)
+        setting_proposal = SettingProposal()
+        setting_proposal.ParseFromString(settings_payload.data)
+
+        auth_keys = _get_auth_keys(context)
+        LOGGER.debug("AUTH_KEYS=%s batcher_public_key=%s",auth_keys,txn_header.batcher_public_key)
+        if auth_keys and public_key not in auth_keys and setting_proposal.setting not in NO_RESTRICTIONS_PARAMS:
+            raise InvalidTransaction('{} is not authorized to change settings'.format(public_key))
+
+        #settings_payload = SettingsPayload()
+        #settings_payload.ParseFromString(transaction.payload)
 
         if settings_payload.action == SettingsPayload.PROPOSE:
-            return self._apply_proposal(
-                auth_keys, public_key, settings_payload.data, context)
+            return self._apply_proposal(auth_keys, public_key, settings_payload.data, context)
         if settings_payload.action == SettingsPayload.VOTE:
             return self._apply_vote(public_key, settings_payload.data,
                                     auth_keys, context)
 
-        raise InvalidTransaction(
-            "'action' must be one of {PROPOSE, VOTE} in 'Ballot' mode")
+        raise InvalidTransaction("'action' must be one of {PROPOSE, VOTE} in 'Ballot' mode")
 
     def _apply_proposal(self, auth_keys, public_key,
                         setting_proposal_data, context):

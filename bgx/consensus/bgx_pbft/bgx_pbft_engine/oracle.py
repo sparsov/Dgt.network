@@ -74,14 +74,14 @@ class PbftOracle:
     """
     CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
-    def __init__(self, service, component_endpoint,
-                 config_dir, data_dir, key_dir):
+    def __init__(self, service, component_endpoint,config_dir, data_dir, key_dir):
         
         self._config_dir = config_dir
         self._data_dir = data_dir
         self._service = service
         LOGGER.debug('Stream key_dir=%s',key_dir)
         self._signer = _load_identity_signer(key_dir, 'validator')
+        #self._setting_signer = _load_identity_signer('/root/.sawtooth/keys', 'my_key')
         self._validator_id = self._signer.get_public_key().as_hex()
 
         LOGGER.debug('Stream component_endpoint=%s ',component_endpoint)
@@ -90,7 +90,7 @@ class PbftOracle:
         self._block_cache = _BlockCacheProxy(service, stream)
         self._state_view_factory = _StateViewFactoryProxy(service)
 
-        self._batch_publisher = _BatchPublisherProxy(stream, self._signer)
+        self._batch_publisher = _BatchPublisherProxy(stream, self._signer) # self._signer)
         self._publisher = None
         self._consensus_state_store = ConsensusStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
         state_view = BlockWrapper.state_view_for_block(
@@ -128,6 +128,10 @@ class PbftOracle:
     @property
     def dag_step(self):
         return self._pbft_settings_view.dag_step
+    @property
+    def max_branch(self):
+        return self._pbft_settings_view.max_branch
+
     @property
     def is_pbft_full(self):
         return self._pbft_settings_view.is_pbft_full
@@ -219,16 +223,12 @@ class PbftOracle:
     def get_node_type_by_id(self,vid):
         return self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF'
 
-    def make_nest_step(self,authorized_keys=None):
+    def make_nest_step(self,num,authorized_keys=None):
         """
         proposal request
-        0406e94ff67c5d9aa36f3a7a54f5bddfc4533623301923e827d5eb948afd4249~
-        03aefd25cc96f9b4a55d8ca9e196037571c9a7d696022919964c6eff5676d7b9e4
-        ba4fdc224e993c22a4d43093403366b75f985be3fee5ef265c13c2e5cb29108a
-        03aefd25cc96f9b4a55d8ca9e196037571c9a7d696022919964c6eff5676d7b9e4
         """
-        public_key_hash1 = hashlib.sha256(authorized_keys.encode() if authorized_keys is not None else self.authorized_keys.encode()).hexdigest()
-        public_key_hash = self._signer.get_public_key().as_hex() # hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
+        #public_key_hash1 = hashlib.sha256(authorized_keys.encode() if authorized_keys is not None else self.authorized_keys.encode()).hexdigest()
+        public_key_hash = authorized_keys if authorized_keys else self._validator_id #self.authorized_keys #self._signer.get_public_key().as_hex() # hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
         setting = 'bgx.dag.nests'
         nonce=hex(random.randint(0, 2**64))
         if True:
@@ -236,7 +236,7 @@ class PbftOracle:
 
             proposal = SettingProposal(
                  setting=setting,
-                 value='0',
+                 value=str(num),
                  nonce=nonce)
             payload = SettingsPayload(data=proposal.SerializeToString(),action=SettingsPayload.PROPOSE)
             serialized = payload.SerializeToString()
@@ -261,7 +261,7 @@ class PbftOracle:
                     payload=serialized,
                     header_signature=signature)
 
-            LOGGER.debug('payload action=%s nonce=%s public_key_hash=%s~%s',payload.action,nonce,public_key_hash1,public_key_hash)
+            LOGGER.debug('payload action=%s nonce=%s public_key_hash=%s',payload.action,nonce,public_key_hash)
 
             self._batch_publisher.send([transaction])
         else:
@@ -1307,8 +1307,7 @@ class _BatchPublisherProxy:
 
         future = self._stream.send(
             message_type=Message.CLIENT_BATCH_SUBMIT_REQUEST,
-            content=ClientBatchSubmitRequest(
-                batches=[batch]).SerializeToString())
+            content=ClientBatchSubmitRequest(batches=[batch]).SerializeToString())
         LOGGER.debug('_BatchPublisherProxy: future.result ...')
         result = future.result()
         LOGGER.debug('_BatchPublisherProxy: future.result DONE')
@@ -1333,8 +1332,7 @@ def _load_identity_signer(key_dir, key_name):
     key_path = os.path.join(key_dir, '{}.priv'.format(key_name))
 
     if not os.path.exists(key_path):
-        raise Exception(
-            "No such signing key file: {}".format(key_path))
+        raise Exception("No such signing key file: {}".format(key_path))
     if not os.access(key_path, os.R_OK):
         raise Exception(
             "Key file is not readable: {}".format(key_path))

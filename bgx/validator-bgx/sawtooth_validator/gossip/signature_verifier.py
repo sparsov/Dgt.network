@@ -100,18 +100,14 @@ def is_valid_transaction(txn):
 
     context = create_context('secp256k1')
     public_key = Secp256k1PublicKey.from_hex(header.signer_public_key)
-    if not context.verify(txn.header_signature,
-                          txn.header,
-                          public_key):
-        LOGGER.debug("transaction signature invalid for txn: %s",
-                     txn.header_signature)
+    if not context.verify(txn.header_signature,txn.header,public_key):
+        LOGGER.debug("transaction signature invalid for txn: %s",txn.header_signature)
         return False
 
     # verify the payload field matches the header
     txn_payload_sha512 = hashlib.sha512(txn.payload).hexdigest()
     if txn_payload_sha512 != header.payload_sha512:
-        LOGGER.debug("payload doesn't match payload_sha512 of the header"
-                     "for txn: %s", txn.header_signature)
+        LOGGER.debug("payload doesn't match payload_sha512 of the header for txn: %s", txn.header_signature)
         return False
 
     return True

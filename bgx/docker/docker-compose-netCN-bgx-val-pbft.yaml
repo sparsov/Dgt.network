@@ -196,7 +196,7 @@ services:
         sawadm keygen
         sawtooth keygen my_key
         sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch $$(cat ../../bgx/etc/bgx_val.conf)
-        sawset genesis -k /root/.sawtooth/keys/my_key.priv 
+        sawset genesis -k /root/.sawtooth/keys/my_key.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub)
         sawadm genesis config-genesis.batch  sawset.batch
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
