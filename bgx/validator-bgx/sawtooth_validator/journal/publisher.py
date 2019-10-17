@@ -696,7 +696,7 @@ class BlockPublisher(object):
         Send for rest-api list of condidate
         """
         with self._lock:
-            return [cand.nest_colour+':'+str(cand.block_num)+':'+cand.identifier for key,cand in self._candidate_blocks.items()]
+            return sorted([cand.nest_colour+':'+str(cand.block_num)+':'+cand.identifier for key,cand in self._candidate_blocks.items()])
     """
     def is_block_num_in_nest(self,block_num):
         pass
@@ -775,7 +775,7 @@ class BlockPublisher(object):
         and in this case block_num is coloured
         """
         nest_colour = self._engine_ask_candidate[bid][1] if hasattr(consensus, 'set_publisher') else 'Genesis'
-        
+        LOGGER.debug("Get BLOCK NUM for color=%s",nest_colour)
         block_num = self._block_store.get_block_num(chain_head.block_num,self._validator_id,nest_colour)
         LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],self.chain_heads)
         block_header = BlockHeader(

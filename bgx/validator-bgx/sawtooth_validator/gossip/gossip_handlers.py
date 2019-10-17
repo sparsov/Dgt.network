@@ -93,6 +93,7 @@ class PeerRegisterHandler(Handler):
                 ack.sync   = sync
                 LOGGER.debug("register peer sync=%s(%s)",sync,request.endpoint)
             else:
+                # peer ask sync after his nests were builded 
                 ack.status = ack.OK
                 ack.sync   = self._gossip.sync_peer(connection_id, request.endpoint)
                 LOGGER.debug("SYNC request from peer=%s\n",request.endpoint)
