@@ -39,7 +39,18 @@ function upCluster1 {
         3)
           export COMPOSE_PROJECT_NAME=3 C=c1 N=3 API=8010 COMP=4107 NET=8103 CONS=5053;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
-
+        4)
+          export COMPOSE_PROJECT_NAME=4 C=c1 N=4 API=8011 COMP=4108 NET=8104 CONS=5054;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        5)
+          export COMPOSE_PROJECT_NAME=5 C=c1 N=5 API=8012 COMP=4109 NET=8105 CONS=5055;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        6)
+          export COMPOSE_PROJECT_NAME=6 C=c1 N=6 API=8013 COMP=4110 NET=8106 CONS=5056;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        *)
+          echo "Undefined peer into cluster."
+        ;;
      esac
   done
 }
@@ -57,7 +68,9 @@ function upCluster2 {
         3)
           export COMPOSE_PROJECT_NAME=23 C=c2 N=3 API=8210 COMP=4207 NET=8203 CONS=5253;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
-
+        *)
+          echo "Undefined peer into cluster."
+        ;;
      esac
   done
 }
@@ -75,7 +88,9 @@ function upCluster3 {
         3)
           export COMPOSE_PROJECT_NAME=33 C=c3 N=3 API=8310 COMP=4307 NET=8303 CONS=5353;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
-
+        *)
+          echo "Undefined peer into cluster."
+        ;;
      esac
   done
 }
@@ -93,7 +108,9 @@ function upCluster4 {
         3)
           export COMPOSE_PROJECT_NAME=43 C=c4 N=3 API=8410 COMP=4407 NET=8403 CONS=5453;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
-
+        *)
+          echo "Undefined peer into cluster."
+        ;;
      esac
   done
 }
@@ -111,7 +128,9 @@ function upCluster5 {
         3)
           export COMPOSE_PROJECT_NAME=53 C=c5 N=3 API=8510 COMP=4507 NET=8503 CONS=5553;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
-
+        *)
+          echo "Undefined peer into cluster."
+        ;;
      esac
   done
 }
@@ -129,7 +148,9 @@ function upCluster6 {
         3)
           export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
-
+        *)
+          echo "Undefined peer into cluster."
+        ;;
      esac
   done
 }
@@ -141,7 +162,7 @@ case $cluster in
           if (( $# > 0 ));then
             upCluster1 $@
           else  
-            upCluster1 1 2 3 
+            upCluster1 1 2 3 4 5 6
           fi
           ;;
      2)
@@ -149,7 +170,7 @@ case $cluster in
           if (( $# > 0 ));then
             upCluster2 $@
           else  
-            upCluster2 1 2 3 
+            upCluster2 1 2 3 4 5 6
           fi 
           ;;
      3)
@@ -157,7 +178,7 @@ case $cluster in
           if (( $# > 0 ));then
             upCluster3 $@
           else  
-            upCluster3 1 2 3 
+            upCluster3 1 2 3 4 5 6
           fi
           ;; 
      4)
@@ -165,7 +186,7 @@ case $cluster in
           if (( $# > 0 ));then
             upCluster4 $@
           else  
-            upCluster4 1 2 3 
+            upCluster4 1 2 3 4 5 6
           fi 
           ;; 
      5)
@@ -173,7 +194,7 @@ case $cluster in
           if (( $# > 0 ));then
             upCluster5 $@
           else  
-            upCluster5 1 2 3 
+            upCluster5 1 2 3 4 5 6
           fi
           ;; 
      6)
@@ -181,17 +202,17 @@ case $cluster in
           if (( $# > 0 ));then
             upCluster6 $@
           else  
-            upCluster6 1 2 3 
+            upCluster6 1 2 3 4 5 6
           fi
           
           ;; 
      all)
-          upCluster1 1 2 3
-          upCluster2 1 2 3
-          upCluster3 1 2 3
-          upCluster4 1 2 3
-          upCluster5 1 2 3
-          upCluster6 1 2 3  
+          upCluster1 1 2 3 4 5 6
+          upCluster2 1 2 3 4 5 6
+          upCluster3 1 2 3 4 5 6
+          upCluster4 1 2 3 4 5 6
+          upCluster5 1 2 3 4 5 6
+          upCluster6 1 2 3 4 5 6
           ;;  
      *)
           echo "Enter cluster number or all."

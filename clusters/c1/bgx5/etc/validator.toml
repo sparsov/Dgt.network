@@ -40,7 +40,7 @@ bind = [
 peering = "static"
 
 # Advertised network endpoint URL.
-endpoint = "tcp://validator-bgx-6:8803"
+endpoint = "tcp://validator-bgx-c1-5:8105"
 
 # Uri(s) to connect to in order to initially connect to the validator network,
 # in the format tcp://hostname:port. This is not needed in static peering mode
@@ -49,7 +49,7 @@ endpoint = "tcp://validator-bgx-6:8803"
 
 # A list of peers to attempt to connect to in the format tcp://hostname:port.
 # It defaults to None. Replace host1 with the peer's hostname or IP address.
-peers = ["tcp://validator-bgx-1:8800","tcp://validator-bgx-2:8801","tcp://validator-bgx-3:8802","tcp://validator-bgx-4:8803","tcp://validator-bgx-5:8804"]
+peers = ["tcp://validator-bgx-c1-1:8101","tcp://validator-bgx-c1-2:8102","tcp://validator-bgx-c1-4:8104","tcp://validator-bgx-c1-3:8103","tcp://validator-bgx-c1-6:8106"]
 
 # The type of scheduler to use. The choices are 'serial' or 'parallel'.
 scheduler = 'parallel'
@@ -65,7 +65,7 @@ scheduler = 'parallel'
 minimum_peer_connectivity = 3
 
 # The maximum number of peers that will be accepted.
-maximum_peer_connectivity = 10
+maximum_peer_connectivity = 100
 
 # DAG branches 
 max_dag_branch=6
