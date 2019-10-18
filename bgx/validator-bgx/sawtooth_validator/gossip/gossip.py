@@ -471,7 +471,7 @@ class Gossip(object):
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
             for key,peer in self._fbft.get_topology_iter():
                 # send message to all unsync peers
-                if key != self.validator_id and PeerAtr.node_state in peer and peer[PeerAtr.node_state] == PeerSync.nosync:
+                if key != self.validator_id and PeerAtr.node_state in peer and peer[PeerAtr.node_state] == PeerSync.nosync and PeerAtr.endpoint in peer:
                     LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer[PeerAtr.endpoint],peer[PeerAtr.node_state])
                     self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
 

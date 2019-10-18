@@ -69,7 +69,8 @@ from sawtooth_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
 
 from sawtooth_rest_api.route_handlers import RouteHandler,DEFAULT_TIMEOUT
 # bgt families
-from sawtooth_bgt.client_cli.generate import BgtPayload,create_bgt_transaction
+from sawtooth_bgt.client_cli.generate import BgtPayload,create_bgt_transaction,loads_bgt_token
+from sawtooth_bgt.processor.handler import make_bgt_address
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
 from sawtooth_signing import CryptoFactory,create_context
 
@@ -178,6 +179,29 @@ class DashboardRouteHandler(RouteHandler):
         if families == 'bgt' or True:
             cmd = request.url.query.get('cmd', None)
             arg1 = request.url.query.get('vallet', None)
+            if cmd == 'show':
+                address = make_bgt_address(arg1)
+                error_traps = [error_handlers.InvalidAddressTrap,error_handlers.StateNotFoundTrap]
+                response = await self._query_validator(
+                    Message.CLIENT_STATE_GET_REQUEST,
+                    client_state_pb2.ClientStateGetResponse,
+                    client_state_pb2.ClientStateGetRequest(
+                        state_root='',
+                        address=address),
+                    error_traps)
+                LOGGER.debug('run_transaction: BGT show=%s (%s)!',arg1,response)
+                if response['status'] == 'OK':
+                    bgt = loads_bgt_token(response['value'],arg1)
+                    LOGGER.debug('run_transaction: BGT[%s]=%s!',arg1,bgt)
+                else:
+                    bgt = response['value']
+                return self._wrap_response(
+                    request,
+                    data=bgt,
+                    metadata=self._get_metadata(request, response))
+
+
+            
             arg2 = request.url.query.get('amount', None)
             LOGGER.debug('run_transaction families=%s cmd=%s(%s,%s) query=%s!!!',families,cmd,arg1,arg2,request.url.query)
             transaction = create_bgt_transaction(verb=cmd,name=arg1,value=int(arg2),signer=self._signer)

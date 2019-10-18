@@ -92,9 +92,7 @@ class BgtClient:
         result = self._send_request("state/{}".format(address), name=name,)
 
         try:
-            return cbor.loads(
-                base64.b64decode(
-                    yaml.safe_load(result)["data"]))[name]
+            return cbor.loads(base64.b64decode(yaml.safe_load(result)["data"]))[name]
 
         except BaseException:
             return None

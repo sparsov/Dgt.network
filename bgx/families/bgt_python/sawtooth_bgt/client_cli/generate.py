@@ -22,20 +22,26 @@ import logging
 import random
 import string
 import time
-
+import base64
 import cbor
-
+import yaml
 from sawtooth_signing import create_context
 from sawtooth_signing import CryptoFactory
 
 from sawtooth_sdk.protobuf import transaction_pb2
 from sawtooth_sdk.protobuf import batch_pb2
-
+from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
 from sawtooth_bgt.processor.handler import make_bgt_address
 
 
 LOGGER = logging.getLogger(__name__)
 
+def loads_bgt_token(data,name):
+    value = cbor.loads(base64.b64decode(data))[name]
+    token = BgtTokenInfo()
+    token.ParseFromString(value)
+    LOGGER.debug("BGT:%s %s=%s",name,token.group_code,token.decimals)
+    return {'bgt':name,'group':token.group_code,'value':token.decimals,'sign':token.sign}
 
 class BgtPayload:
     def __init__(self, verb, name, value):

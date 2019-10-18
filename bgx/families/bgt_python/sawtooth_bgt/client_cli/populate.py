@@ -65,6 +65,7 @@ class BgtPayload:
         return self._sha512
 
 
+
 def create_bgt_transaction(verb, name, value, signer):
     payload = BgtPayload(
         verb=verb, name=name, value=value)
