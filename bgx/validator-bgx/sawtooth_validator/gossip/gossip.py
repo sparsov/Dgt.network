@@ -148,6 +148,7 @@ class FbftTopology(object):
         return self.get_topology_iter()
 
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False):
+        
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
                 if endpoint is not None:
@@ -165,11 +166,20 @@ class FbftTopology(object):
                 LOGGER.debug("UPDATE peer_activity: nosync=%s peer=%s",self._nosync,peer)
                 return key
         return None
+    def get_peer(self,peer_key):
+        if peer_key in self._cluster:
+            peer = self._cluster[peer_key]
+            return peer
+        else:
+            for key,peer in self.get_topology_iter():
+                if key == peer_key:
+                    return peer
+        return  None
 
     def get_peer_state(self,peer_key):
-        for key,peer in self.get_topology_iter():
-            if peer_key is not None and key == peer_key and PeerAtr.node_state in peer:
-                return peer[PeerAtr.node_state]
+        peer = self.get_peer(peer_key)
+        if peer is not None and PeerAtr.node_state in peer:
+            return peer[PeerAtr.node_state]
         return  PeerSync.inactive
          
     def update_peer_component(self,peer_key,component=None):
@@ -603,6 +613,10 @@ class Gossip(object):
             LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME",endpoint,public_key[:8])
             self.update_federation_topology(public_key,endpoint,sync = True)
             self.notify_peer_connected(public_key,assemble=True)
+            if self._fbft.get_peer_state(self.validator_id) != PeerSync.active:
+                # set own sync status
+                self.update_federation_topology(self.validator_id,None,sync = True)
+                self.notify_peer_connected(self.validator_id,assemble=True)
         return True
 
     def register_peer(self, connection_id, endpoint,sync=None,component=None):

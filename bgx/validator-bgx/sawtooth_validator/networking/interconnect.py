@@ -274,7 +274,7 @@ class _SendReceive(object):
         while True:
             try:
                 queue_size = self._dispatcher_queue.qsize()
-                if queue_size > 10:
+                if queue_size > 20:
                     LOGGER.debug("Dispatch queue size: %s", queue_size)
 
                 zmq_identity, msg_bytes = \

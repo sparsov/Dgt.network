@@ -980,6 +980,7 @@ class ChainController(object):
             if len(self._chain_heads) >= self._max_dag_branch :
                 LOGGER.debug("ChainController: TOO MANY NEW BRANCH heads=%s",self._heads_list)
                 self._is_nests_ready = True
+                # after nests were builded we can start with head of others federations
                 self._block_sender.check_pending_head()
                 raise TooManyBranch
                 #return None
