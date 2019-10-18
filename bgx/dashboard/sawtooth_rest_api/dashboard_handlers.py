@@ -175,8 +175,8 @@ class DashboardRouteHandler(RouteHandler):
         """
         make transfer from wallet to wallet
         """
-        families = request.url.query.get('families', None)
-        if families == 'bgt' or True:
+        family = request.url.query.get('family', None)
+        if family == 'bgt' :
             cmd = request.url.query.get('cmd', None)
             arg1 = request.url.query.get('vallet', None)
             if cmd == 'show':
@@ -203,8 +203,9 @@ class DashboardRouteHandler(RouteHandler):
 
             
             arg2 = request.url.query.get('amount', None)
-            LOGGER.debug('run_transaction families=%s cmd=%s(%s,%s) query=%s!!!',families,cmd,arg1,arg2,request.url.query)
-            transaction = create_bgt_transaction(verb=cmd,name=arg1,value=int(arg2),signer=self._signer)
+            arg3 = request.url.query.get('to', None)
+            LOGGER.debug('run_transaction family=%s cmd=%s(%s,%s) query=%s!!!',family,cmd,arg1,arg2,request.url.query)
+            transaction = create_bgt_transaction(verb=cmd,name=arg1,value=int(arg2),signer=self._signer,to=arg3)
             batch = self._create_batch([transaction])
             batch_id = batch.header_signature
         else:

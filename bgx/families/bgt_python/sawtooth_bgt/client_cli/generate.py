@@ -44,20 +44,25 @@ def loads_bgt_token(data,name):
     return {'bgt':name,'group':token.group_code,'value':token.decimals,'sign':token.sign}
 
 class BgtPayload:
-    def __init__(self, verb, name, value):
+    def __init__(self, verb, name, value,to = None):
         self._verb = verb
         self._name = name
         self._value = value
-
+        self._to    = to
         self._cbor = None
         self._sha512 = None
 
     def to_hash(self):
-        return {
+
+        ret = {
             'Verb': self._verb,
             'Name': self._name,
             'Value': self._value
+
         }
+        if self._to is not None :
+            ret['To'] = self._to
+        return ret
 
     def to_cbor(self):
         if self._cbor is None:
@@ -70,19 +75,25 @@ class BgtPayload:
         return self._sha512
 
 
-def create_bgt_transaction(verb, name, value, signer):
-    payload = BgtPayload(verb=verb, name=name, value=value)
+def create_bgt_transaction(verb, name, value, signer,to = None):
+    payload = BgtPayload(verb=verb, name=name, value=value, to = to)
 
     # The prefix should eventually be looked up from the
     # validator's namespace registry.
     addr = make_bgt_address(name)
-
+    inputs  = [addr]
+    outputs = [addr]
+    if to is not None:
+        addr_to = make_bgt_address(to)
+        inputs.append(addr_to)
+        outputs.append(addr_to)
+    
     header = transaction_pb2.TransactionHeader(
         signer_public_key=signer.get_public_key().as_hex(),
         family_name='bgt',
         family_version='1.0',
-        inputs=[addr],
-        outputs=[addr],
+        inputs=inputs,
+        outputs=outputs,
         dependencies=[],
         payload_sha512=payload.sha512(),
         batcher_public_key=signer.get_public_key().as_hex(),

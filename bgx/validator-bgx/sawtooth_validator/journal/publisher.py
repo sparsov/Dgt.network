@@ -1230,7 +1230,7 @@ class BlockPublisher(object):
                         """
                         send block to others peers but we should use cluster info
                         """
-                        LOGGER.debug("SEND NEW BLOCK=%s.%s\n",bid[:8],blkw.block_num,blkw.identifier[:8])
+                        LOGGER.debug("SEND NEW BLOCK=%s.%s\n",blkw.block_num,blkw.identifier[:8])
                         self._block_sender.send(blkw.block)
                         self._blocks_published_count.inc()
 

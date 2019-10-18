@@ -112,6 +112,7 @@ def create_parser(prog_name):
     add_set_parser(subparsers, parent_parser)
     add_inc_parser(subparsers, parent_parser)
     add_dec_parser(subparsers, parent_parser)
+    add_trans_parser(subparsers, parent_parser)
     add_show_parser(subparsers, parent_parser)
     add_list_parser(subparsers, parent_parser)
 
@@ -248,11 +249,58 @@ def add_dec_parser(subparsers, parent_parser):
         type=int,
         help='set time, in seconds, to wait for transaction to commit')
 
+def add_trans_parser(subparsers, parent_parser):
+    message = 'Sends an bgt transaction from <name> to  <to> by <value>.'
+
+    parser = subparsers.add_parser(
+        'trans',
+        parents=[parent_parser],
+        description=message,
+        help='transfer an bgt value from vallet to vallet')
+
+    parser.add_argument(
+        'name',
+        type=str,
+        help='identify name of key transfer from')
+
+    parser.add_argument(
+        'value',
+        type=int,
+        help='amount to transfer')
+
+    parser.add_argument(
+        'to',
+        type=str,
+        help='identify name of key transfer to')
+
+    parser.add_argument(
+        '--url',
+        type=str,
+        help='specify URL of REST API')
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+    parser.add_argument(
+        '--wait',
+        nargs='?',
+        const=sys.maxsize,
+        type=int,
+            help='set time, in seconds, to wait for transaction to commit')
+
 
 def do_dec(args):
     name, value, wait = args.name, args.value, args.wait
     client = _get_client(args)
     response = client.dec(name, value, wait)
+    print(response)
+
+def do_trans(args):
+    name, value,to, wait = args.name, args.value, args.to, args.wait
+    client = _get_client(args)
+    response = client.trans(name, value, to, wait)
     print(response)
 
 
@@ -352,6 +400,8 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
         do_inc(args)
     elif args.command == 'dec':
         do_dec(args)
+    elif args.command == 'trans':
+        do_trans(args)
     elif args.command == 'show':
         do_show(args)
     elif args.command == 'list':

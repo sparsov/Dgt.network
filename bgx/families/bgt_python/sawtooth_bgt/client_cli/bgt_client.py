@@ -62,13 +62,16 @@ class BgtClient:
                 create_context('secp256k1')).new_signer(private_key)
 
     def set(self, name, value, wait=None):
-        return self._send_transaction('set', name, value, wait=wait)
+        return self._send_transaction('set', name, value, to=None, wait=wait)
 
     def inc(self, name, value, wait=None):
-        return self._send_transaction('inc', name, value, wait=wait)
+        return self._send_transaction('inc', name, value, to=None, wait=wait)
 
     def dec(self, name, value, wait=None):
-        return self._send_transaction('dec', name, value, wait=wait)
+        return self._send_transaction('dec', name, value, to=None, wait=wait)
+
+    def trans(self, name, value, to, wait=None):
+        return self._send_transaction('trans', name, value, to=to, wait=wait)
 
     def list(self):
         result = self._send_request(
@@ -146,22 +149,32 @@ class BgtClient:
 
         return result.text
 
-    def _send_transaction(self, verb, name, value, wait=None):
-        payload = cbor.dumps({
+    def _send_transaction(self, verb, name, value, to=None, wait=None):
+        val = {
             'Verb': verb,
             'Name': name,
             'Value': value,
-        })
+        }
+        if to is not None:
+            val['To'] = to
+
+        payload = cbor.dumps(val)
 
         # Construct the address
         address = self._get_address(name)
+        inputs = [address]
+        outputs = [address]
+        if to is not None:
+            address_to = self._get_address(to)
+            inputs.append(address_to)
+            outputs.append(address_to)
 
         header = TransactionHeader(
             signer_public_key=self._signer.get_public_key().as_hex(),
             family_name="bgt",
             family_version="1.0",
-            inputs=[address],
-            outputs=[address],
+            inputs=inputs,
+            outputs=outputs,
             dependencies=[],
             payload_sha512=_sha512(payload),
             batcher_public_key=self._signer.get_public_key().as_hex(),

@@ -29,7 +29,7 @@ from sawtooth_signing import CryptoFactory,create_context
 LOGGER = logging.getLogger(__name__)
 
 
-VALID_VERBS = 'set', 'inc', 'dec'
+VALID_VERBS = 'set', 'inc', 'dec','trans'
 
 MIN_VALUE = 0
 MAX_VALUE = 4294967295
@@ -70,29 +70,31 @@ class BgtTransactionHandler(TransactionHandler):
         return [BGT_ADDRESS_PREFIX]
 
     def apply(self, transaction, context):
-        verb, name, value = _unpack_transaction(transaction)
+        LOGGER.debug('apply:....\n')
+        verb, name, value, to = _unpack_transaction(transaction)
+        LOGGER.debug('apply:verb=%s name=%s value=%s to=%s',verb, name, value, to)
+        state = _get_state_data(name,to, context)
 
-        state = _get_state_data(name, context)
+        updated_state = self._do_bgt(verb, name, value, to, state)
 
-        updated_state = self._do_bgt(verb, name, value, state)
+        _set_state_data( updated_state, context)
 
-        _set_state_data(name, updated_state, context)
-
-    def _do_bgt(self,verb, name, value, state):
+    def _do_bgt(self,verb, name, value, to, state):
         verbs = {
             'set': self._do_set,
             'inc': self._do_inc,
             'dec': self._do_dec,
+            'trans': self._do_trans,
         }
         LOGGER.debug('_do_bgt request....')
         try:
-            return verbs[verb](name, value, state)
+            return verbs[verb](name, value,to, state)
         except KeyError:
             # This would be a programming error.
             raise InternalError('Unhandled verb: {}'.format(verb))
 
 
-    def _do_set(self,name, value, state):
+    def _do_set(self,name, value, to, state):
         msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
         LOGGER.debug(msg)
         
@@ -112,7 +114,7 @@ class BgtTransactionHandler(TransactionHandler):
         return updated
 
 
-    def _do_inc(self,name, value, state):
+    def _do_inc(self,name, value, to, state):
         msg = 'Incrementing "{n}" by {v}'.format(n=name, v=value)
         LOGGER.debug(msg)
 
@@ -137,7 +139,7 @@ class BgtTransactionHandler(TransactionHandler):
         return updated
 
 
-    def _do_dec(self,name, value, state):
+    def _do_dec(self,name, value, to, state):
         msg = 'Decrementing "{n}" by {v}'.format(n=name, v=value)
         LOGGER.debug(msg)
 
@@ -161,16 +163,48 @@ class BgtTransactionHandler(TransactionHandler):
         updated[name] = token.SerializeToString()
 
         return updated
+
+    def _do_trans(self,vfrom, value, vto, state):
+        msg = 'transfer "{n}"->"{t}" by {v}'.format(n=vfrom,t=vto, v=value)
+        LOGGER.debug(msg)
+
+        if vfrom not in state or vto not in state:
+            raise InvalidTransaction(
+                'Verb is "trans" but vallet "{}" or vallet "{}" not in state'.format(vfrom,vto))
+
+        curr = state[vfrom]
+        token = BgtTokenInfo()
+        token.ParseFromString(curr)
+        to = state[vto]
+        token1 = BgtTokenInfo()
+        token1.ParseFromString(to)
+        LOGGER.debug('_do_tans token[%s]=%s',token.group_code,value) 
+        decd = token.decimals - value
+        if decd < MIN_VALUE:
+            raise InvalidTransaction('Verb is "trans", but result would be less than {}'.format(MIN_VALUE))
+        incd = token1.decimals + value
+        if incd >  MAX_VALUE:
+            raise InvalidTransaction('Verb is "inc", but result would be greater than {}'.format(MAX_VALUE))
+
+        updated = {k: v for k, v in state.items()}
+        token.decimals = decd
+        updated[vfrom] = token.SerializeToString()
+        token1.decimals = incd
+        updated[vto] = token1.SerializeToString() 
+
+        return updated
         
 
 def _unpack_transaction(transaction):
-    verb, name, value = _decode_transaction(transaction)
+    verb, name, value, to = _decode_transaction(transaction)
 
     _validate_verb(verb)
     _validate_name(name)
     _validate_value(value)
+    if to is not None:
+        _validate_name(to)
 
-    return verb, name, value
+    return verb, name, value, to
 
 
 def _decode_transaction(transaction):
@@ -179,6 +213,7 @@ def _decode_transaction(transaction):
     except:
         raise InvalidTransaction('Invalid payload serialization')
 
+    LOGGER.debug('_decode_transaction content=%s',content)
     try:
         verb = content['Verb']
     except AttributeError:
@@ -194,19 +229,25 @@ def _decode_transaction(transaction):
     except AttributeError:
         raise InvalidTransaction('Value is required')
 
-    return verb, name, value
+    LOGGER.debug('_decode_transaction verb=%s',verb)    
+    if verb == 'trans' :
+        if 'To' not in content :
+            raise InvalidTransaction('To is required')
+        to = content['To']
+    else:
+        to = None
+    
+    return verb, name, value, to
 
 
 def _validate_verb(verb):
     if verb not in VALID_VERBS:
-        raise InvalidTransaction('Verb must be "set", "inc", or "dec"')
+        raise InvalidTransaction('Verb must be "set","trans", "inc", or "dec"')
 
 
 def _validate_name(name):
     if not isinstance(name, str) or len(name) > MAX_NAME_LENGTH:
-        raise InvalidTransaction(
-            'Name must be a string of no more than {} characters'.format(
-                MAX_NAME_LENGTH))
+        raise InvalidTransaction('Name must be a string of no more than {} characters'.format(MAX_NAME_LENGTH))
 
 
 def _validate_value(value):
@@ -218,28 +259,36 @@ def _validate_value(value):
                 a=MAX_VALUE))
 
 
-def _get_state_data(name, context):
-    address = make_bgt_address(name)
-
-    state_entries = context.get_state([address])
-
+def _get_state_data(name,to, context):
+    states = [make_bgt_address(name)]
+    if to is not None:
+        states.append(make_bgt_address(to))
+    state_entries = context.get_state(states)
     try:
-        #value = BgtTokenInfo()
-        #value.ParseFromString(state_entries[0].data)
-        return cbor.loads(state_entries[0].data)
+        states = {}
+        for entry in state_entries:
+            state = cbor.loads(entry.data)
+            LOGGER.debug('_get_state_data state=(%s)', state)
+            for key, val in state.items():
+                LOGGER.debug('_get_state_data add=%s', key)
+                states[key] = val
+        return states
     except IndexError:
         return {}
     except:
-        raise InternalError('Failed to load state data')
+        LOGGER.debug('_get_state_data: Failed to load state data')
+        raise InvalidTransaction('Failed to load state data')
 
 
-def _set_state_data(name, state, context):
-    address = make_bgt_address(name)
+def _set_state_data( state, context):
+    new_states = {}
+    for key,val in state.items():
+        LOGGER.debug('_set_state_data  [%s]=%s', key, val)
+        address = make_bgt_address(key)
+        encoded = cbor.dumps({key: val})
+        new_states[address] = encoded
 
-    encoded = cbor.dumps(state)
-
-    addresses = context.set_state({address: encoded})
-
+    addresses = context.set_state(new_states)
     if not addresses:
         raise InternalError('State error')
 
