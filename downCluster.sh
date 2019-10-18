@@ -25,6 +25,7 @@
 #export COMPOSE_PROJECT_NAME=62 C=c6 N=2 API=8609 COMP=4606 NET=8602 CONS=5652;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 #export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 mode=down
+peers="1 2 3"
 function downCluster1 {
   echo "downCluster3 $#"
   for node in $@;do
@@ -162,7 +163,7 @@ case $cluster in
           if (( $# > 0 ));then
             downCluster1 $@
           else  
-            downCluster1 1 2 3 4 5 6 
+            downCluster1 $peers 
           fi
           ;;
      2)
@@ -170,7 +171,7 @@ case $cluster in
           if (( $# > 0 ));then
             downCluster2 $@
           else  
-            downCluster2 1 2 3 4 5 6
+            downCluster2 $peers
           fi 
           ;;
      3)
@@ -178,7 +179,7 @@ case $cluster in
           if (( $# > 0 ));then
             downCluster3 $@
           else  
-            downCluster3 1 2 3 4 5 6
+            downCluster3 $peers
           fi
           ;; 
      4)
@@ -186,7 +187,7 @@ case $cluster in
           if (( $# > 0 ));then
             downCluster4 $@
           else  
-            downCluster4 1 2 3 4 5 6
+            downCluster4 $peers
           fi 
           ;; 
      5)
@@ -194,7 +195,7 @@ case $cluster in
           if (( $# > 0 ));then
             downCluster5 $@
           else  
-            downCluster5 1 2 3 4 5 6
+            downCluster5 $peers
           fi
           ;; 
      6)
@@ -202,17 +203,17 @@ case $cluster in
           if (( $# > 0 ));then
             downCluster6 $@
           else  
-            downCluster6 1 2 3 4 5 6 
+            downCluster6 $peers 
           fi
           
           ;;
      all)
-          downCluster1 1 2 3 4 5 6
-          downCluster2 1 2 3 4 5 6
-          downCluster3 1 2 3 4 5 6
-          downCluster4 1 2 3 4 5 6
-          downCluster5 1 2 3 4 5 6
-          downCluster6 1 2 3 4 5 6 
+          downCluster1 $peers
+          downCluster2 $peers
+          downCluster3 $peers
+          downCluster4 $peers
+          downCluster5 $peers
+          downCluster6 $peers 
           ;;   
      *)
           echo "Enter cluster number."

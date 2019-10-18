@@ -70,6 +70,7 @@ export COMPOSE_PROJECT_NAME=6 N=6 API=8013 COMP=4010 NET=8805 CONS=5055;docker-c
 export COMPOSE_PROJECT_NAME=7 N=7 API=8014 COMP=4011 NET=8806 CONS=5056;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
 # 
 # ssh -i ~/.ssh/aws-bgx.pem ubuntu@bgx
+# scp -i ~/.ssh/aws-bgx.pem ubuntu@bgx:/home/ubuntu/log.tgz .
 # clusters mode 
 # 
 # cluster 1
