@@ -178,7 +178,7 @@ class DashboardRouteHandler(RouteHandler):
         family = request.url.query.get('family', None)
         if family == 'bgt' :
             cmd = request.url.query.get('cmd', None)
-            arg1 = request.url.query.get('vallet', None)
+            arg1 = request.url.query.get('wallet', None)
             if cmd == 'show':
                 address = make_bgt_address(arg1)
                 error_traps = [error_handlers.InvalidAddressTrap,error_handlers.StateNotFoundTrap]
