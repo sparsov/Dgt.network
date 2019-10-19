@@ -71,7 +71,7 @@ from sawtooth_rest_api.protobuf import client_heads_pb2,client_topology_pb2
 DEFAULT_TIMEOUT = 300
 LOGGER = logging.getLogger(__name__)
 TX_FAMILIES = {
-    'bgt': {'commands' :{'set':['vallet','amount'],'inc':['vallet','amount'],'dec':['vallet','amount'],'trans':['vallet','amount','to'],'show':['vallet']}}
+    'bgt': {'commands' :{'set':['wallet','amount'],'inc':['wallet','amount'],'dec':['wallet','amount'],'trans':['wallet','amount','to'],'show':['wallet']}}
     }
 RUN_STATUSES = {
       "id": "23102b0fcf11e6d6ed0476e08c76dd6ec0a83cf3dba3d77256ede90d048a3545242459efab08627bf622d2da2f1434e48a2e54561df1ada5ba1cc99c02f5c666",
