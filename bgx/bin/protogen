@@ -94,6 +94,7 @@ def main(args=None):
 
     # Generate common protos for new validator - can change some proto from /protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/common")
+    #protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf")
     protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
     protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
     protoc(proto_dir, "cli", "sawtooth_cli/protobuf")

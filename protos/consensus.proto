@@ -1,4 +1,4 @@
-// Copyright 2018 Intel Corporation
+// Copyright NTRLab 2019
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -97,7 +97,13 @@ message ConsensusRegisterResponse {
 
 // A new peer was added
 message ConsensusNotifyPeerConnected {
+   enum Status {
+    OK        = 0;
+    NOT_READY = 1; // for peers connected after point of assemble
+    STATUS_UNSET = 2;
+  }
   ConsensusPeerInfo peer_info = 1;
+  Status            status = 2;
 }
 
 // An existing peer was dropped
@@ -190,7 +196,37 @@ message ConsensusBroadcastRequest {
   ConsensusPeerMessage message = 1;
 }
 
+// Broadcast a consensus message to all cluster
+message ConsensusBroadcastClusterRequest {
+  ConsensusPeerMessage message = 1;
+}
+
+// Broadcast a consensus message to all arbiters
+message ConsensusBroadcastArbiterRequest {
+  ConsensusPeerMessage message = 1;
+}
+
 message ConsensusBroadcastResponse {
+  enum Status {
+    STATUS_UNSET = 0;
+    OK = 1;
+    BAD_REQUEST = 2;
+    SERVICE_ERROR = 3;
+    NOT_READY = 4;
+  }
+  Status status = 1;
+}
+message ConsensusBroadcastArbiterResponse {
+  enum Status {
+    STATUS_UNSET = 0;
+    OK = 1;
+    BAD_REQUEST = 2;
+    SERVICE_ERROR = 3;
+    NOT_READY = 4;
+  }
+  Status status = 1;
+}
+message ConsensusBroadcastClusterResponse {
   enum Status {
     STATUS_UNSET = 0;
     OK = 1;
@@ -208,6 +244,7 @@ message ConsensusBroadcastResponse {
 // head will be used.
 message ConsensusInitializeBlockRequest {
   bytes previous_id = 1;
+  string nest_colour = 2; // colour for nest 
 }
 
 message ConsensusInitializeBlockResponse {
@@ -243,6 +280,8 @@ message ConsensusSummarizeBlockResponse {
 
   // A summary of the block contents
   bytes summary = 2;
+  // The parent block id 
+  bytes block_id = 3;
 }
 
 // Insert the given consensus data into the block and sign it. If this call is
@@ -250,6 +289,8 @@ message ConsensusSummarizeBlockResponse {
 message ConsensusFinalizeBlockRequest {
   // The consensus data to include in the finalized block
   bytes data = 1;
+  // The parent block id 
+  bytes block_id = 2;
 }
 
 message ConsensusFinalizeBlockResponse {
@@ -270,7 +311,9 @@ message ConsensusFinalizeBlockResponse {
 }
 
 // Stop adding batches to the current block and abandon it.
-message ConsensusCancelBlockRequest {}
+message ConsensusCancelBlockRequest {
+bytes branch_id = 1;
+}
 
 message ConsensusCancelBlockResponse {
   enum Status {
@@ -403,7 +446,11 @@ message ConsensusBlocksGetResponse {
 }
 
 // Retrieve consensus-related information about the chain head.
-message ConsensusChainHeadGetRequest {}
+message ConsensusChainHeadGetRequest {
+  bytes parent_id = 1;
+  bytes new_parent_id = 2;
+  bool  is_new = 3;  // ask new branch or switch head of branch
+}
 
 message ConsensusChainHeadGetResponse {
   enum Status {
@@ -414,6 +461,7 @@ message ConsensusChainHeadGetResponse {
     NOT_READY = 4;
 
     NO_CHAIN_HEAD = 5;
+    TOO_MANY_BRANCH = 6;
   }
 
   Status status = 1;

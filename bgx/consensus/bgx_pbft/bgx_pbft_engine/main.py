@@ -31,11 +31,11 @@ from bgx_pbft_engine.engine import PbftEngine
 from bgx_pbft.config.path import load_path_config
 from bgx_pbft.exceptions import LocalConfigurationError
 from bgx_pbft_engine.config.pbft import PbftConfig,load_default_pbft_config,load_toml_pbft_config,merge_pbft_config
-
+from sawtooth_sdk.messaging.future import FutureTimeoutError
 DISTRIBUTION_NAME = 'bgx-pbft'
 
 LOGGER = logging.getLogger(__name__)
-
+MAX_CONNECT_ATTEMPTS=4
 
 def parse_args(args):
     parser = argparse.ArgumentParser(
@@ -117,7 +117,14 @@ def main(args=None):
                 component_endpoint=opts.component,
                 pbft_config=pbft_config))
         LOGGER.debug('Start driver=%s endpoint=%s component=%s',driver,opts.connect,opts.component)
-        driver.start(endpoint=opts.connect)
+        attemps = 0
+        while attemps < MAX_CONNECT_ATTEMPTS:
+            try:
+                driver.start(endpoint=opts.connect)
+                break
+            except FutureTimeoutError:
+                attemps += 1
+                LOGGER.debug('Start driver=%s endpoint=%s AGAIN=%s',driver,opts.connect,attemps)
 
     except KeyboardInterrupt:
         pass

@@ -21,8 +21,10 @@ import json
 from sawtooth_sdk.consensus.engine import Engine
 from sawtooth_sdk.consensus import exceptions
 from sawtooth_sdk.protobuf.validator_pb2 import Message
-
 from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
+#from bgx_pbft_common.protobuf.validator_pb2 import Message
+#from bgx_pbft_common.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
+
 
 from bgx_pbft_engine.oracle import PbftOracle, PbftBlock,_StateViewFactoryProxy
 from bgx_pbft_engine.pending import PendingForks
@@ -126,11 +128,7 @@ class BranchState(object):
         return self._engine.arbiters
     @property
     def num_arbiters(self):
-        num = 0
-        for val in self.arbiters.values():
-            if val[1] == ConsensusNotifyPeerConnected.OK:
-                num += 1
-        return num
+        return self._engine.num_arbiters
 
     @property
     def parent(self):
@@ -256,7 +254,7 @@ class BranchState(object):
             # send as leader
             # and wait messages from all rest arbiters which is active
             self._num_arbiters = self.num_arbiters
-            LOGGER.debug("_send_arbitration _num_arbiters=%s",self._num_arbiters)
+            LOGGER.debug("AS LEADER SEND ARBITRATION num_arbiters=%s",self._num_arbiters)
             message = self._make_message(block,PbftMessageInfo.ARBITRATION_MSG) 
             self._broadcast2arbiter(message,PbftMessageInfo.ARBITRATION_MSG,block.block_id)
             
@@ -630,6 +628,15 @@ class PbftEngine(Engine):
     @property
     def arbiters(self):
         return self._arbiters
+
+    @property
+    def num_arbiters(self):
+        num = 0
+        for val in self.arbiters.values():
+            if val[1] == ConsensusNotifyPeerConnected.OK:
+                num += 1
+        return num
+
     @property
     def arbiters_info(self):
         return [val[2]+'('+str(val[1])+'='+aid[:8]+')' for aid,val in self._arbiters.items()]
@@ -1279,8 +1286,9 @@ class PbftEngine(Engine):
                 # one of the arbiters - mark as ready 
                 val = self._arbiters[pid]
                 if val[1] != notif[1]:
-                    LOGGER.debug('Connected peer with ID=%s  status=%s IS ONE OF THE OUR ARBITER=%s\n', _short_id(pid),notif[1],val)
                     self._arbiters[pid] = (val[0],notif[1],val[2])
+                    LOGGER.debug('Connected peer with ID=%s  status=%s IS ONE OF THE OUR ARBITER=%s ready=%s\n', _short_id(pid),notif[1],val,self.num_arbiters)
+                    
             else:
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
         else:
