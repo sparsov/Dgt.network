@@ -141,6 +141,10 @@ class PbftOracle:
         return self._pbft_settings_view.send_batches
 
     @property
+    def block_timeout(self):
+        return self._pbft_settings_view.block_timeout
+
+    @property
     def cluster(self):
         return self._cluster
 

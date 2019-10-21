@@ -37,7 +37,7 @@ LOGGER = logging.getLogger(__name__)
 _CONSENSUS_ = b'pbft'
 PBFT_NAME = 'pbft' 
 PBFT_VER  = '0.1'
-TIMEOUT   = 0.1
+TIMEOUT   = 0.02
 PBFT_FULL = False  # full or short mode of PBFT
 
 CHAIN_LEN_FOR_BRANCH = 3 # after this len make a new branch 
@@ -86,6 +86,7 @@ class BranchState(object):
         self._engine = engine
         self._num_arbiters = 0
         self._nest_color = None
+        self._stime = None
         LOGGER.debug('BranchState: init branch=%s for %s',self,bid[:8])
 
     @property
@@ -145,6 +146,10 @@ class BranchState(object):
     @property
     def state(self):
         return self._state
+
+    @property
+    def stime(self):
+        return self._stime
 
     def reset_chain_len(self):
         self._chain_len = 0
@@ -354,6 +359,7 @@ class BranchState(object):
 
     def new_block(self,block,cluster=True):
         self._cluster = cluster 
+        self._stime = time.time()
         if cluster and len(self.peers) > 0 and self.is_sync:
             """
             start consensus for many active peers and in case it is block of own cluster
@@ -472,6 +478,14 @@ class BranchState(object):
                 LOGGER.info('UnknownBlock block=%s already was DELLED', _short_id(block.block_id.hex()))    
             return Consensus.fail
 
+    def ignore_by_timeout(self,block_id):
+        LOGGER.info('Fail block=%s by timeout for BRANCH=%s', _short_id(block_id),self._head_id[:8])
+        try:    
+            self.fail_block(bytes.fromhex(block_id))
+        except exceptions.UnknownBlock:
+            # block could be already rejected - it's not a problem in this case
+            LOGGER.info('UnknownBlock block=%s already was DELLED', _short_id(block_id))    
+        
     def check_commit(self,block):
         """
         check maybe it's time for commit
@@ -542,7 +556,8 @@ class BranchState(object):
             LOGGER.info('arbitration_done: for block=%s (%s) arbiters reply', self.block_num,self._num_arbiters)
 
     def reset_state(self):
-        LOGGER.info('reset_state: for BRANCH[%s]=%s\n', self._ind,self._head_id[:8])
+        ctime = time.time()
+        LOGGER.info('reset_state: for BRANCH[%s]=%s time=%s of processing=%s\n', self._ind, self._head_id[:8],self.stime, ctime - (self.stime if self.stime else ctime))
         self._building = False   
         self._published = False  
         self._committing = False
@@ -660,6 +675,10 @@ class PbftEngine(Engine):
     @property
     def genesis_id(self):
         return self._chain_head.block_id if self._chain_head else None
+
+    @property
+    def block_timeout(self):
+        return self._block_timeout
 
     def belonge_cluster(self,peer_id):
         return peer_id in self._cluster
@@ -841,6 +860,17 @@ class PbftEngine(Engine):
     def start_switch_branch(self):
         return not self._make_branch and len(self._branches) > 1
 
+    def _check_block_timeout(self):
+        
+        if self._make_branch:
+            return
+        ctime = time.time()
+        for bid,branch in list(self._peers_branches.items()):
+            if (ctime - branch.stime) > self.block_timeout :
+                LOGGER.debug('TIMEOUT FOR BLOCK=%s\n',bid[:8])
+                branch.ignore_by_timeout(bid)
+                #self._handle_invalid_block(bytes.fromhex(bid))
+
     def _real_mode(self):
         # real mode consensus
         if not self._published :
@@ -912,8 +942,9 @@ class PbftEngine(Engine):
         self._own_type = self._oracle.own_type
         self._arbiters = self._oracle.arbiters         # ring of arbiter     
         self._cluster = self._oracle.cluster           # own cluster's peers
-         
-        self._send_batches = self._oracle.send_batches
+
+        self._block_timeout = self._oracle.block_timeout 
+        self._send_batches = self._oracle.send_batches 
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
         service.set_cluster(self.peers) # use only active peers
@@ -938,7 +969,9 @@ class PbftEngine(Engine):
         LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
                      self.arbiters_info,self.is_ready_arbiter
                      )
-        LOGGER.debug('Start wait message in %s mode validator=%s dag_step=%s full=%s send_batches=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._send_batches)
+        LOGGER.debug('Start wait message in %s mode validator=%s dag_step=%s full=%s send_batches=%s timeout=%s.','REAL' if self.is_real_mode else 'TEST',
+                      self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._send_batches,self.block_timeout
+                    )
         #self._service.initialize_block() is None
         if self._cluster_name is None:
             LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
@@ -966,6 +999,7 @@ class PbftEngine(Engine):
                     continue
                 if self.is_real_mode:
                     self._real_mode()
+                    self._check_block_timeout()
                 else:
                     self._testing_mode()
 
@@ -1159,6 +1193,7 @@ class PbftEngine(Engine):
             else:
                 # pending start commiting
                 LOGGER.info('START COMMITING for BLOCK=%s(%s)',_short_id(block_id),signer_id[:8])
+
         LOGGER.info('_resolve_fork PREV=%s BLOCK=%s(%s)',bid[:8],block_id[:8],signer_id[:8])
         if signer_id == self._validator_id and self.is_sync:
             if bid in self._branches:
@@ -1250,7 +1285,14 @@ class PbftEngine(Engine):
                     block = self._get_block(bytes.fromhex(block_id))
                     prev = block
                     while not _update_head_branch(prev.block_num,block.block_num):
-                        prev = self._get_block(bytes.fromhex(prev.previous_block_id))
+                        try:
+                            prev = self._get_block(bytes.fromhex(prev.previous_block_id))
+                        except :
+                            LOGGER.info('Head updated cant get BLOCK=%s\n',prev.previous_block_id[:8])
+                            break
+                            #if prev.previous_block_id == NULL_BLOCK_IDENTIFIER:
+                            #    break
+
 
         
         LOGGER.info('=> BLOCK_COMMIT prepre=%s pre=%s branches=%s+%s',len(self._pre_prepare_msgs),len(self._prepare_msgs),[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])

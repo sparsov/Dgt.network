@@ -57,6 +57,7 @@ class PbftSettingsView:
         self._is_pbft_full = None
         self._max_branch = None
         self._send_batches = None
+        self._block_timeout = None
 
     def _get_config_setting(self,
                             name,
@@ -234,6 +235,18 @@ class PbftSettingsView:
             self._send_batches = bool(val)
 
         return self._send_batches
+    # bgx.consensus.block_timeout
+    @property
+    def block_timeout(self):
+        if self._block_timeout is None:
+            val = self._get_config_setting(
+                    name='bgx.consensus.block_timeout',
+                    value_type=float,
+                    default_value=0.5,
+                    validate_function=lambda value: value)
+            self._block_timeout = val
+
+        return self._block_timeout
 
     @property
     def signup_commit_maximum_delay(self):
