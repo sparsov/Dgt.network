@@ -137,6 +137,10 @@ class PbftOracle:
         return self._pbft_settings_view.is_pbft_full
 
     @property
+    def send_batches(self):
+        return self._pbft_settings_view.send_batches
+
+    @property
     def cluster(self):
         return self._cluster
 

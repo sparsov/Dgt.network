@@ -913,7 +913,7 @@ class PbftEngine(Engine):
         self._arbiters = self._oracle.arbiters         # ring of arbiter     
         self._cluster = self._oracle.cluster           # own cluster's peers
          
-        
+        self._send_batches = self._oracle.send_batches
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
         service.set_cluster(self.peers) # use only active peers
@@ -938,7 +938,7 @@ class PbftEngine(Engine):
         LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
                      self.arbiters_info,self.is_ready_arbiter
                      )
-        LOGGER.debug('PbftEngine: start wait message in %s mode validator=%s dag_step=%s full=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full)
+        LOGGER.debug('Start wait message in %s mode validator=%s dag_step=%s full=%s send_batches=%s.','REAL' if self.is_real_mode else 'TEST',self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._send_batches)
         #self._service.initialize_block() is None
         if self._cluster_name is None:
             LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
@@ -979,8 +979,9 @@ class PbftEngine(Engine):
         LOGGER.info('   NEW_HEAD=%s for BRANCh=%s AFTER FREEZE', block_id[:8],parent_id[:8])
 
     def check_consensus(self,blocks,block_num,summary,num_peers):
-        # check maybe all(really 2f+1 ) messages arrived  
-        if len(blocks) == (num_peers + 1):                                                                                                                                
+        # check maybe all(really 2f+1 ) messages arrived
+        LOGGER.debug("CHECK CONSENSUS BLOCKS=%s _send_batches=%s",len(blocks),self._send_batches)   
+        if len(blocks) == (num_peers + 1) or not self._send_batches:                                                                                                                                
             for key in blocks:
                 if key not in self._peers_branches:
                     LOGGER.debug("We have all prepares for block=%s but not ALL blocks(wait block=%s)",block_num,key[:8])
@@ -1364,6 +1365,9 @@ class PbftEngine(Engine):
                     else:
                         LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s",block_id[:8],summary[:8])
                         self._prepare_msgs[summary] = {block_id : True}
+                        if not self._send_batches:
+                            # only one peer make block
+                            self.check_consensus(self._prepare_msgs[summary],block_num,summary,len(self._peers))
             else:
                 """
                 there is no NEW_BLOCK message yet but save message

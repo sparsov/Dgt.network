@@ -595,6 +595,7 @@ class BlockPublisher(object):
         self._permission_verifier = permission_verifier
         self._batch_injector_factory = batch_injector_factory
         self._nest_building_mode = True
+        self._send_batches = None
 
         # For metric gathering
         if metrics_registry:
@@ -720,7 +721,8 @@ class BlockPublisher(object):
         bid = chain_head.identifier
         if self._topology is None:
             self.get_topology_info()
-
+            # publisher mode 
+            self._send_batches = int(self._settings_cache.get_setting('bgx.publisher.send_batches',main_head.state_root_hash,default_value=1))
         
         LOGGER.debug("BUILD CANDIDATE_BLOCK for BRANCH=%s:%s main=%s STATE=%s~%s",chain_head.block_num,bid[:8],main_head.block_num,main_head.state_root_hash[:10],chain_head.state_root_hash[:10])
 
@@ -1212,7 +1214,7 @@ class BlockPublisher(object):
                     if block:
                         blkw = BlockWrapper(block)
                         LOGGER.debug("Claimed Block: for branch=%s NEW BLOCK=%s.%s BATCHES=%s\n",bid[:8],blkw.block_num,blkw.identifier[:8],[batch.header_signature[:8] for batch in blkw.batches])
-                        if candidate.make_batch_broadcast : 
+                        if candidate.make_batch_broadcast and self._send_batches == 1: 
                             # send in case batch owner
                             # only to peers own cluster
                             self._batch_publisher.send_batches(blkw.batches,candidate.identifier,candidate.block_num)

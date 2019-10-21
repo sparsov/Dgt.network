@@ -56,6 +56,7 @@ class PbftSettingsView:
         self._dag_step = None
         self._is_pbft_full = None
         self._max_branch = None
+        self._send_batches = None
 
     def _get_config_setting(self,
                             name,
@@ -221,6 +222,19 @@ class PbftSettingsView:
             self._is_pbft_full = bool(val)
 
         return self._is_pbft_full
+
+    @property
+    def send_batches(self):
+        if self._send_batches is None:
+            val = self._get_config_setting(
+                    name='bgx.publisher.send_batches',
+                    value_type=int,
+                    default_value=1,
+                    validate_function=lambda value: value==0 or value==1)
+            self._send_batches = bool(val)
+
+        return self._send_batches
+
     @property
     def signup_commit_maximum_delay(self):
         return self._signup_commit_maximum_delay
