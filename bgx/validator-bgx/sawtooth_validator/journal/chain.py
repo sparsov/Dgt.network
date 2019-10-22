@@ -419,6 +419,7 @@ class BlockValidator(object):
         # for external consensus - say that this block will be mark as invalid
         LOGGER.debug('BlockValidator: on_fail_block say validator about reply\n')
         self._verifier.verify_block_complete(False)
+
     def validate_block(self, blkw):
         # pylint: disable=broad-except
         LOGGER.debug("BlockValidator:validate_block...")
@@ -455,7 +456,11 @@ class BlockValidator(object):
                     valid = self._validate_on_chain_rules(blkw)
 
                 if valid:
-                    valid = self._verify_block_batches(blkw)
+                    """
+                    MAYBE check only for external block - which was made by others peer 
+                    """
+                    #valid = self._verify_block_batches(blkw)
+                    pass
 
                 # since changes to the chain-head can change the state of the
                 # blocks in BlockStore we have to revalidate this block.
@@ -668,21 +673,24 @@ class BlockValidator(object):
 
             # fork_resolver - for proxy send message  
             commit_new_chain = self._test_commit_new_chain()
-
+            """
+            in case ignore from consenus we have commit_new_chain == False
+            in case commite commit_new_chain == True - only at this point we can change merkle state
+            """ 
             # 5) Consensus to compute batch sets (only if we are switching).
             if commit_new_chain:
-                (self._result["committed_batches"],
-                 self._result["uncommitted_batches"]) = \
-                    self._compute_batch_change(new_chain, cur_chain)
+                if self._verify_block_batches(self._result["new_block"]) :
+                    (self._result["committed_batches"],self._result["uncommitted_batches"]) = self._compute_batch_change(new_chain, cur_chain)
+                    if new_chain[0].previous_block_id != self._chain_head.identifier:
+                        self._moved_to_fork_count.inc()
+                else:
+                    commit_new_chain = False
 
-                if new_chain[0].previous_block_id != \
-                        self._chain_head.identifier:
-                    self._moved_to_fork_count.inc()
 
             # 6) Tell the journal we are done.
             LOGGER.info("_done_cb  commit_new_chain=%s block=%s\n",commit_new_chain,self._new_block.identifier[:8])
             #self._check_merkle(self._new_block.state_root_hash)
-            self._done_cb(commit_new_chain, self._result)
+            self._done_cb(commit_new_chain, self._result) # on_block_validated() 
 
             LOGGER.info("Finished new block=%s.%s validation STATE=%s\n",self._new_block.block_num,self._new_block.identifier[:8],self._new_block.state_root_hash[:10])
             #self._check_merkle(self._new_block.state_root_hash)
@@ -816,6 +824,9 @@ class ChainController(object):
         self._belong_cluster = belong_cluster
         self._squash_handler = squash_handler
         self._context_handlers=context_handlers
+        self._get_merkle_root = context_handlers['merkle_root']
+        self._update_state = context_handlers['update_state']
+        self._update_merkle_root = context_handlers['update_merkle_root'] 
         self._identity_signer = identity_signer
         self._validator_id = identity_signer.get_public_key().as_hex()
         self._data_dir = data_dir
@@ -1428,6 +1439,9 @@ class ChainController(object):
                 # The block is otherwise valid, but we have determined we
                 # don't want it as the chain head.
                 else:
+                    """
+                    it could be in case consensus say ignore
+                    """
                     LOGGER.info('Rejected new chain head: %s', new_block)
                     self._block_store.free_block_number(new_block.block_num,new_block.signer_id)
                     if self._consensus_notifier is not None:
@@ -1438,6 +1452,10 @@ class ChainController(object):
                     LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
                     LOGGER.info('Rejected descendant_blocks num=%s',len(descendant_blocks))
                     self._submit_blocks_for_verification(descendant_blocks)
+                    # update state
+                    #LOGGER.info('RESTORE STATE=%s->%s',self._get_merkle_root()[:8],new_block.state_root_hash[:8]) 
+                    #self._update_merkle_root(new_block.state_root_hash)   
+                    #self._update_state(self._get_merkle_root(),new_block.state_root_hash)
 
         # pylint: disable=broad-except
         except Exception:

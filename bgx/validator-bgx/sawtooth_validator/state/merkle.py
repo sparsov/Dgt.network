@@ -107,6 +107,11 @@ class MerkleDatabase(object):
     def real_merkle_root(self):
         return self._database[MERKLE_ROOT_KEY]
 
+    def update_merkle_root(database,key_hash):
+        update_batch = [(MERKLE_ROOT_KEY, key_hash)]
+        database.put_multi(update_batch)
+        LOGGER.debug('update_merkle_root: UPDATED MERKLE ROOT STATE=%s!!\n',key_hash[:8])
+
     def get_merkle_root(self):
         return self._root_hash
 

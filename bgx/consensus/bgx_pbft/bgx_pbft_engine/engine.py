@@ -31,7 +31,7 @@ from bgx_pbft_engine.pending import PendingForks
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 from bgx_pbft.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
 from bgx_pbft_common.utils import _short_id
-from enum import Enum
+from enum import IntEnum,Enum
 
 LOGGER = logging.getLogger(__name__)
 _CONSENSUS_ = b'pbft'
@@ -49,7 +49,7 @@ class Consensus(Enum):
     fail = 1
     pending = 2
 
-class State(Enum):
+class State(IntEnum):
     NotStarted   = 0
     PrePreparing = 1
     Preparing    = 2
@@ -58,6 +58,9 @@ class State(Enum):
     Commiting    = 5
     Arbitration  = 6
     Finished     = 7
+
+    
+
 
 class BranchState(object):
 
@@ -87,7 +90,8 @@ class BranchState(object):
         self._num_arbiters = 0
         self._nest_color = None
         self._stime = None
-        LOGGER.debug('BranchState: init branch=%s for %s',self,bid[:8])
+        self._can_cancel = True # possible to cancel
+        LOGGER.debug('BranchState: init BRANCH=%s for %s STATE=%s',self,bid[:8],self._state)
 
     @property
     def ind(self):
@@ -146,6 +150,10 @@ class BranchState(object):
     @property
     def state(self):
         return self._state
+
+    @property
+    def can_cancel(self):
+        return self._can_cancel and self._state >= State.Commiting
 
     @property
     def stime(self):
@@ -481,7 +489,8 @@ class BranchState(object):
     def ignore_by_timeout(self,block_id):
         LOGGER.info('Fail block=%s by timeout for BRANCH=%s', _short_id(block_id),self._head_id[:8])
         try:    
-            self.fail_block(bytes.fromhex(block_id))
+            self.ignore_block(bytes.fromhex(block_id))
+            self._can_cancel = False
         except exceptions.UnknownBlock:
             # block could be already rejected - it's not a problem in this case
             LOGGER.info('UnknownBlock block=%s already was DELLED', _short_id(block_id))    
@@ -490,8 +499,8 @@ class BranchState(object):
         """
         check maybe it's time for commit
         """
-        if self._state == State.Commiting:
-            
+        if self._state == State.Commiting and self._can_cancel:
+            # block was not interrupted
             total = len(self._commit_msgs)
             N =  len(self.peers) + 1
             F = round((N - 1)/3.)*2 + 1 
@@ -866,10 +875,11 @@ class PbftEngine(Engine):
             return
         ctime = time.time()
         for bid,branch in list(self._peers_branches.items()):
-            if (ctime - branch.stime) > self.block_timeout :
-                LOGGER.debug('TIMEOUT FOR BLOCK=%s\n',bid[:8])
+            if branch.can_cancel and (ctime - branch.stime) > self.block_timeout :
+                LOGGER.debug('TIMEOUT FOR BLOCK=%s state=%s\n',bid[:8],branch.state)
                 branch.ignore_by_timeout(bid)
                 #self._handle_invalid_block(bytes.fromhex(bid))
+                
 
     def _real_mode(self):
         # real mode consensus
@@ -998,8 +1008,9 @@ class PbftEngine(Engine):
                 if self._cluster_name is None:
                     continue
                 if self.is_real_mode:
-                    self._real_mode()
                     self._check_block_timeout()
+                    self._real_mode()
+                    #self._check_block_timeout()
                 else:
                     self._testing_mode()
 
@@ -1152,7 +1163,7 @@ class PbftEngine(Engine):
                     else:
                         # FIXME -may be we should do reset?
                         LOGGER.info('=> INVALID_BLOCK: DONT DO reset \n')
-                        if not self.is_sync:
+                        if not self.is_sync or not branch.can_cancel:
                             branch.reset_state()
             else:
                 LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],[key[:8] for key in self._peers_branches.keys()])
@@ -1308,7 +1319,7 @@ class PbftEngine(Engine):
             break
 
     def peer_status(self,peer_id):
-        return self._peers[peer_id] if peer_id in self._peers else self._arbiters[peer_id][1]
+        return self._peers[peer_id] if peer_id in self._peers else (self._arbiters[peer_id][1] if peer_id in self._arbiters else ConsensusNotifyPeerConnected.NOT_READY)
 
     def _handle_peer_disconnected(self, notif):
         LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
@@ -1355,6 +1366,11 @@ class PbftEngine(Engine):
         peer_id = info.signer_id.hex()
         peer_status = self._is_sync if self.validator_id == peer_id else self.peer_status(peer_id)
         block_num = block.block_num
+        
+        if peer_status == ConsensusNotifyPeerConnected.NOT_READY:
+            LOGGER.debug("=> IGNORE PEER_MESSAGE %s.'%s'  peer=%s(%s)\n",info.seq_num,CONSENSUS_MSG[msg_type],peer_id[:8],peer_status)
+            return
+
         LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s(%s)",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8],peer_status)
         if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
             # send reply 

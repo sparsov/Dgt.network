@@ -402,8 +402,7 @@ class TransactionExecutor:
         self._context_manager = context_manager
         self.processor_manager = ProcessorManager(RoundRobinProcessorIterator)
         self._settings_view_factory = settings_view_factory
-        self._executing_threadpool = \
-            InstrumentedThreadPoolExecutor(max_workers=5, name='Executing')
+        self._executing_threadpool = InstrumentedThreadPoolExecutor(max_workers=5, name='Executing')
         self._alive_threads = []
         self._lock = threading.Lock()
 

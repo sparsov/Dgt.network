@@ -388,6 +388,9 @@ class ContextManager(object):
         def get_merkle_root():
             return MerkleDatabase.get_real_merkle_root(self._database)
 
+        def update_merkle_root(key_hash):
+            return MerkleDatabase.update_merkle_root(self._database,key_hash)
+
         def _check_merkle(state_root,context=''):
             # for testing
             # check state for testing
@@ -402,7 +405,7 @@ class ContextManager(object):
             except :
                 LOGGER.debug('_CHECK: ADDRESS NO CHECK STATE=%s %s\n',state_root[:8],context)
         
-        return {'recompute_state':_recompute_state_hash,'update_state':_update_state,'merkle_root':get_merkle_root,'check_merkle':_check_merkle}
+        return {'recompute_state':_recompute_state_hash,'update_state':_update_state,'merkle_root':get_merkle_root,'update_merkle_root':update_merkle_root,'check_merkle':_check_merkle}
 
     def get_squash_handler(self):
         def _squash(state_root, context_ids, persist, clean_up):

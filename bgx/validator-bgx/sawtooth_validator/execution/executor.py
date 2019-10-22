@@ -409,6 +409,7 @@ class TransactionExecutor(object):
         self._scheduler_type = scheduler_type
         self._metrics_registry = metrics_registry
 
+    
     def create_scheduler(self,
                          squash_handler,
                          first_state_root,
