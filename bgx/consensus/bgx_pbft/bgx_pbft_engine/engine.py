@@ -365,9 +365,14 @@ class BranchState(object):
         # send in case of consensus was not reached
         self._service.fail_block(block_id)
 
-    def new_block(self,block,cluster=True):
+    def new_block(self,block,cluster=True,commits=None):
         self._cluster = cluster 
         self._stime = time.time()
+        if commits:
+            # add commit messages
+            for peer_id,block in commits.items():
+                self.add_commit_msg(peer_id,block)
+
         if cluster and len(self.peers) > 0 and self.is_sync:
             """
             start consensus for many active peers and in case it is block of own cluster
@@ -387,6 +392,7 @@ class BranchState(object):
                 else:
                     self.check_block(block.block_id)
             else:
+                # sync mode - check is prev block updated chain head  
                 self.check_block(block.block_id) # this message send chain controller message for continue block validation
                 # waiting block valid message
             return True
@@ -503,10 +509,10 @@ class BranchState(object):
             # block was not interrupted
             total = len(self._commit_msgs)
             N =  len(self.peers) + 1
-            F = round((N - 1)/3.)*2 + 1 
-            if N == 3:
-                F = 2
-            LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s', self.block_num,self._state,total,N,F)
+            F = round((N - 1)/3.)*2 + (0 if N%3. == 0 else 1) 
+            #if N == 3:
+            #    F = 2
+            LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s peers=%s', self.block_num,self._state,total,N,F,[pid[:8] for pid in self._commit_msgs.keys()])
             if total >= F or N == 1:
                 if not self.is_ready_arbiter:
                     # ignore not ready arbiters
@@ -592,6 +598,7 @@ class PbftEngine(Engine):
         self._peers_branches = {}
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
+        self._commit_msgs = {}
         self._arbitration_msgs = {} 
         self._pending_nest = {} # for waiting nest
         self._nest_color = []     # add color for nests
@@ -875,7 +882,7 @@ class PbftEngine(Engine):
             return
         ctime = time.time()
         for bid,branch in list(self._peers_branches.items()):
-            if branch.can_cancel and (ctime - branch.stime) > self.block_timeout :
+            if branch.can_cancel and (ctime - branch.stime) > self.block_timeout and False :
                 LOGGER.debug('TIMEOUT FOR BLOCK=%s state=%s\n',bid[:8],branch.state)
                 branch.ignore_by_timeout(bid)
                 #self._handle_invalid_block(bytes.fromhex(bid))
@@ -1079,12 +1086,13 @@ class PbftEngine(Engine):
                 blocks = self._prepare_msgs[summary]
                 self.check_consensus(blocks,block_num,summary,num_peers)
 
+        commits = self._commit_msgs.pop(block_id,None)
         if signer_id == self._validator_id:
             # find branch for this block 
             if block.previous_block_id in self._branches:
                 branch = self._branches[block.previous_block_id]
                 self._peers_branches[block_id] = branch # add ref on branch for own block 
-                result =  branch.new_block(block)
+                result = branch.new_block(block, True, commits)
                 if result == Consensus.done:
                     # refer for block on branch
                     self._new_heads[block_id] = block.previous_block_id
@@ -1114,7 +1122,7 @@ class PbftEngine(Engine):
                 branch = self.create_branch('','',block_num)
                 self._peers_branches[block_id] = branch
                 LOGGER.info('START CONSENSUS for BLOCK=%s(%s) branch=%s',_short_id(block_id),signer_id[:8],branch.ind)
-                branch.new_block(block,cluster)
+                branch.new_block(block,cluster,commits)
                 self._new_heads[block_id] = block.previous_block_id
                 LOGGER.info('   NEW_HEAD=%s for BRANCh=%s', block_id[:8],block.previous_block_id[:8])
                 if block_id in self._pre_prepare_msgs:
@@ -1134,7 +1142,14 @@ class PbftEngine(Engine):
         """
         this is answer on check_block
         """
-        LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(block_id.hex()))
+        bid = block_id.hex()
+        LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(bid))
+        if bid in self._peers_branches:
+            branch = self._peers_branches[bid]
+            if branch.state >= State.Commiting :
+                LOGGER.info('=> IGNORE VALID_BLOCK: ALREADY RECIEVED %s', _short_id(bid))
+                return
+
         block = self._get_block(block_id)
 
         self._pending_forks_to_resolve.push(block)
@@ -1258,6 +1273,7 @@ class PbftEngine(Engine):
                     branch._block_num = block_num
                     self._branches[block_id] = branch
                     return True
+            LOGGER.info('   Cant update chain head=%s on BLOCK=%s.%s\n',prev_num,block_num,block_id[:8])
             return False
 
         def check_arbitration(branch,block_id):
@@ -1317,6 +1333,17 @@ class PbftEngine(Engine):
         for branch in self._branches.values():
             branch._send_arbitration_done(block,peer_id)
             break
+
+    def keep_commit_msg(self,block_id,block,peer_id):
+        if block_id in self._commit_msgs:
+            commits = self._commit_msgs[block_id]
+        else:
+            commits = {}
+            self._commit_msgs[block_id] = commits
+        LOGGER.debug('TRY SAVE COMMIT MSG for BLOCK=%s peer=%s total=%s',block_id[:8],peer_id[:8],len(commits))
+        if peer_id not in commits and peer_id in self._peers:
+            commits[peer_id] = block
+            LOGGER.debug('SAVE COMMIT MSG for BLOCK=%s peer=%s total=%s',block_id[:8],peer_id[:8],len(commits))
 
     def peer_status(self,peer_id):
         return self._peers[peer_id] if peer_id in self._peers else (self._arbiters[peer_id][1] if peer_id in self._arbiters else ConsensusNotifyPeerConnected.NOT_READY)
@@ -1447,7 +1474,7 @@ class PbftEngine(Engine):
 
         elif msg_type == PbftMessageInfo.COMMIT_MSG:
             """
-            commiting state 
+            commiting state - COMMIT MSG can appeared before NEW_BLOCK
             """
             LOGGER.debug("=>COMMIT for block=%s peer=%s(%s) branches=%s+%s", block_id[:8], peer_id[:8], peer_status, [key[:8] for key in self._branches.keys()], [key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
@@ -1461,6 +1488,11 @@ class PbftEngine(Engine):
                     branch.shift_to_commiting(block,self._peers[peer_id],peer_id)
                     #branch.add_commit_msg(peer_id,self._peers,block)
                     LOGGER.debug("=>COMMIT for block=%s branch=%s",block_id[:8],branch)
+            else:
+                # COMMIT BEFORE NEW BLOCk
+                self.keep_commit_msg(block_id,block,peer_id)
+                 
+
         elif msg_type == PbftMessageInfo.ARBITRATION_MSG:
             """
             cluster Arbitration

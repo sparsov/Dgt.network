@@ -40,6 +40,7 @@ from sawtooth_validator.metrics.wrappers import GaugeWrapper
 from sawtooth_validator.state.merkle import INIT_ROOT_KEY
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch
+from sawtooth_validator.journal.block_store import Federation
 
 LOGGER = logging.getLogger(__name__)
 
@@ -208,7 +209,7 @@ class BlockValidator(object):
         txn_hdr.ParseFromString(txn.header)
         return txn_hdr
 
-    def _verify_batch_transactions(self, batch):
+    def _verify_batch_transactions(self, batch,persist=True):
         """Verify that all transactions in are unique and that all
         transactions dependencies in this batch have been satisfied, ie
         already committed by this block or prior block in the chain.
@@ -227,9 +228,10 @@ class BlockValidator(object):
                 if not self._chain_commit_state.has_transaction(dep):
                     LOGGER.debug("Block rejected due to missing transaction dependency, transaction %s depends on %s",txn.header_signature[:8],dep[:8])
                     raise InvalidBatch()
-            self._chain_commit_state.add_txn(txn.header_signature)
+            if persist:
+                self._chain_commit_state.add_txn(txn.header_signature)
 
-    def _verify_block_batches(self, blkw):
+    def _verify_block_batches(self, blkw,persist=True):
         if blkw.block.batches :
             
             """
@@ -242,28 +244,19 @@ class BlockValidator(object):
                 # Use root state from previous block for DAG use last state
                 # 
                 belong_cluster = self._belong_cluster(blkw.signer_id)
-                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s cluster=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8],belong_cluster)
+                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s cluster=%s persist=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8],belong_cluster,persist)
                 #scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
                 recompute_context = self._get_recompute_context(self._new_block.previous_block_id)
                 
                 if blkw.signer_id != self._validator_id:
                     LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:8],len(blkw.block.batches))
-                    if blkw.block_num == 0:
+                    if blkw.block_num == 0 :
                         # for external genesis block add mapping to own genesis state 
-                        # 
+                        # FIXME Also we should make transaction from this block
                         prev_state = self._block_store.chain_head.state_root_hash 
                         self._update_state_hash(blkw.state_root_hash,prev_state)
                         return True
-                    """
-                    else:
-                        # for NON genesis block we should use state corresponding to the same own block FIXME
-                        if recompute_context is not None:
-                            recomputed_state = scheduler.recompute_merkle_root(prev_state,recompute_context)
-                            scheduler.update_state_hash(blkw.state_root_hash,recomputed_state)
-                            LOGGER.debug("MAPPING STATE %s->%s for EXTERNAL BLOCK=%s",blkw.state_root_hash[:10],recomputed_state[:8],blkw.identifier[:8])
                     
-                    return True
-                    """
                 
                 scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
                 if recompute_context is not None:
@@ -296,8 +289,9 @@ class BlockValidator(object):
                             LOGGER.debug("Block(%s) rejected due to duplicate batch, batch: %s blk=%s", blkw,batch.header_signature[:8],blk)
                             raise InvalidBatch()
                 
-                        self._verify_batch_transactions(batch)
-                        self._chain_commit_state.add_batch(batch, add_transactions=False)
+                        self._verify_batch_transactions(batch,persist)
+                        if persist:
+                            self._chain_commit_state.add_batch(batch, add_transactions=False)
                         if has_more:
                             scheduler.add_batch(batch)
                         else:
@@ -307,7 +301,7 @@ class BlockValidator(object):
                             """  
                             LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8] if recomputed_state else None)
                             #FOR ARBITRATION force fixing new state 
-                            scheduler.add_batch(batch,recomputed_state if belong_cluster and self._is_sync else 'arbitration') # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
+                            scheduler.add_batch(batch,'verify' if not persist else (recomputed_state if belong_cluster and self._is_sync else 'arbitration')) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
 
                 except InvalidBatch:
                     #the same block was already commited
@@ -353,7 +347,7 @@ class BlockValidator(object):
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8] if recomputed_state else None,state_hash[:8] if state_hash else None)
                 return False
 
-            if (not belong_cluster or not self._is_sync) and state_hash != blkw.state_root_hash:
+            if (not belong_cluster or not self._is_sync) and state_hash != blkw.state_root_hash and persist:
                 """
                 for other's cluster blocks we excecute transactions only once and fix merkle root state without comparing this state with state from publisher   
                 """
@@ -455,12 +449,13 @@ class BlockValidator(object):
                 if valid:
                     valid = self._validate_on_chain_rules(blkw)
 
-                if valid:
+                if valid and blkw.signer_id != self._validator_id:
                     """
                     MAYBE check only for external block - which was made by others peer 
                     """
-                    #valid = self._verify_block_batches(blkw)
-                    pass
+                    #if self._is_sync:
+                    valid = self._verify_block_batches(blkw,False)
+                    #pass
 
                 # since changes to the chain-head can change the state of the
                 # blocks in BlockStore we have to revalidate this block.
@@ -1467,9 +1462,11 @@ class ChainController(object):
         it could be from completer or from publisher
         """
         def try_append_by_num(block):
+            prev_num = int(Federation.dec_feder_num(block.block_num))
             for pid,blocks in self._blocks_pending.items():
                 for blk in blocks:
-                    if blk.block_num+1 == block.block_num:
+                    # inc block num in federation mode
+                    if blk.block_num == prev_num:
                         # blk is predecessor of block by number
                         self._blocks_pending[blk.identifier] = [block]
                         LOGGER.debug('For block=%s pending=[%s] by num', blk.identifier[:8],block.identifier[:8])

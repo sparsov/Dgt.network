@@ -370,6 +370,7 @@ class ConsensusCheckBlocksNotifier(Handler):
         LOGGER.debug('ConsensusCheckBlocksNotifier: CHECK_BLOCKS_REQUEST get_block_statuses=%s',block_statuses)
         for (block_id, block_status) in block_statuses:
             if block_status == BlockStatus.Valid:
+                # at this point notify_block_valid message could be already sent
                 self._consensus_notifier.notify_block_valid(block_id)
             elif block_status == BlockStatus.Invalid:
                 self._consensus_notifier.notify_block_invalid(block_id)
