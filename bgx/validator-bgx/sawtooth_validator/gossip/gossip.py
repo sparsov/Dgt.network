@@ -341,6 +341,7 @@ class Gossip(object):
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
         self._nosync    = False                # need sync with other net 
+        self._malicious = False 
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -477,14 +478,16 @@ class Gossip(object):
 
             LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE\n")
 
-    def notify_peer_connected(self,public_key,assemble=False):
+    def notify_peer_connected(self,public_key,assemble=False,mode=False):
         """
         Use topology for restrict peer notification
         """
         if public_key in self._fbft.cluster or public_key in self._fbft.arbiters:
             # own cluster or arbiters
             LOGGER.debug("Inform engine ADD peer=%s assemble=%s",public_key[:8],assemble)
-            self._consensus_notifier.notify_peer_connected(public_key,assemble)
+            self._consensus_notifier.notify_peer_connected(public_key,assemble,mode)
+            if public_key == self.validator_id:
+                self._nosync = assemble
         else:
             # set into self._fbft activity of peer - for dashboard
             LOGGER.debug("Inform engine IGNORE peer=%s",public_key[:8])
@@ -538,9 +541,15 @@ class Gossip(object):
             LOGGER.debug("Could not add peer endpoints to topology. "
                          "ConnectionManager does not exist.")
 
-    def get_peers(self):
+    def get_peers(self,mode = False):
         """Returns a copy of the gossip peers.
         """
+        LOGGER.debug("GET PEERS MODE=%s->%s\n",self._malicious,mode)
+        if self._malicious != mode:
+            # say engine about new mode
+            self._malicious = mode
+            self.notify_peer_connected(self.validator_id,assemble=True,mode=mode)
+
         with self._lock:
             return copy.copy(self._peers)
 

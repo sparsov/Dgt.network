@@ -134,6 +134,9 @@ class BranchState(object):
     @property
     def num_arbiters(self):
         return self._engine.num_arbiters
+    @property
+    def num_peers(self):
+        return self._engine.num_peers
 
     @property
     def parent(self):
@@ -153,7 +156,7 @@ class BranchState(object):
 
     @property
     def can_cancel(self):
-        return self._can_cancel and self._state >= State.Commiting
+        return self._can_cancel and self._state >= State.PrePreparing #State.Commiting
 
     @property
     def stime(self):
@@ -217,11 +220,12 @@ class BranchState(object):
         self._service.send_to(bytes.fromhex(peer_id),mgs_type,payload.SerializeToString())
 
     def _make_message(self,block,msg_type):
+        signer_id = self.validator_id if not self._engine.is_malicious else ('f'+self.validator_id[1:])
         messageInfo = PbftMessageInfo(
                     msg_type = msg_type,
                     view     = 0,
                     seq_num  = self._sequence_number,
-                    signer_id = bytes.fromhex(self.validator_id)
+                    signer_id = bytes.fromhex(signer_id)
             ) 
         blockMessage = PbftBlockMessage(
                     block_id  = block.block_id,
@@ -373,7 +377,7 @@ class BranchState(object):
             for peer_id,block in commits.items():
                 self.add_commit_msg(peer_id,block)
 
-        if cluster and len(self.peers) > 0 and self.is_sync:
+        if cluster and self.num_peers > 0 and self.is_sync:
             """
             start consensus for many active peers and in case it is block of own cluster
             """
@@ -495,7 +499,10 @@ class BranchState(object):
     def ignore_by_timeout(self,block_id):
         LOGGER.info('Fail block=%s by timeout for BRANCH=%s', _short_id(block_id),self._head_id[:8])
         try:    
-            self.ignore_block(bytes.fromhex(block_id))
+            if self._state >= State.Commiting:
+                self.ignore_block(bytes.fromhex(block_id))
+            else:
+                self.fail_block(bytes.fromhex(block_id))
             self._can_cancel = False
         except exceptions.UnknownBlock:
             # block could be already rejected - it's not a problem in this case
@@ -505,10 +512,11 @@ class BranchState(object):
         """
         check maybe it's time for commit
         """
+        LOGGER.info('Check commit for block=%s state=%s _can_cancel=%s', self.block_num,self._state,self._can_cancel)
         if self._state == State.Commiting and self._can_cancel:
             # block was not interrupted
             total = len(self._commit_msgs)
-            N =  len(self.peers) + 1
+            N =  self.num_peers + 1
             F = round((N - 1)/3.)*2 + (0 if N%3. == 0 else 1) 
             #if N == 3:
             #    F = 2
@@ -579,6 +587,7 @@ class BranchState(object):
         self._state = State.NotStarted
         self._sequence_number = 0
         self._commit_msgs = {}
+        self._can_cancel = True
 
     def __str__(self):
         return "{} (block_num:{}, {})".format(
@@ -622,6 +631,7 @@ class PbftEngine(Engine):
         self._validator_id = None
         self._dag_step = CHAIN_LEN_FOR_BRANCH
         self._is_sync = True
+        self._mode = False 
         LOGGER.debug('PbftEngine: init done')
 
     def name(self):
@@ -656,6 +666,11 @@ class PbftEngine(Engine):
     @property
     def is_sync(self):
         return self._is_sync
+
+    @property
+    def is_malicious(self):
+        return self._mode
+
     @property
     def arbiters(self):
         return self._arbiters
@@ -665,6 +680,13 @@ class PbftEngine(Engine):
         num = 0
         for val in self.arbiters.values():
             if val[1] == ConsensusNotifyPeerConnected.OK:
+                num += 1
+        return num
+    @property
+    def num_peers(self):
+        num = 0
+        for val in self._peers.values():
+            if val == ConsensusNotifyPeerConnected.OK:
                 num += 1
         return num
 
@@ -882,7 +904,7 @@ class PbftEngine(Engine):
             return
         ctime = time.time()
         for bid,branch in list(self._peers_branches.items()):
-            if branch.can_cancel and (ctime - branch.stime) > self.block_timeout and False :
+            if branch.can_cancel and (ctime - branch.stime) > self.block_timeout  :
                 LOGGER.debug('TIMEOUT FOR BLOCK=%s state=%s\n',bid[:8],branch.state)
                 branch.ignore_by_timeout(bid)
                 #self._handle_invalid_block(bytes.fromhex(bid))
@@ -1079,7 +1101,7 @@ class PbftEngine(Engine):
         signer_id  = block.signer_id.hex()
         summary = block.summary.hex()
         block_num = block.block_num
-        num_peers = len(self._peers) 
+        num_peers = self.num_peers 
         LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summary=%s',block_num,_short_id(block_id),signer_id[:8],summary[:8])
         def check_consensus():
             if num_peers > 0 and summary in self._prepare_msgs:                                                                                                                   
@@ -1356,8 +1378,9 @@ class PbftEngine(Engine):
         pid = notif[0].peer_id.hex()
         if pid not in self._peers:
             if pid == self.validator_id:
-                LOGGER.debug('Change OWN SYNC STATUS=%s\n', notif[1])
+                LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])
                 self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
+                self._mode = notif[2] != ConsensusNotifyPeerConnected.NORMAL
             elif pid in self._cluster:
                 # take only peers from own cluster topology 
                 # save status of peer
@@ -1442,7 +1465,7 @@ class PbftEngine(Engine):
                             LOGGER.debug("=>IGNORE BLOCK=%s FOR SUMMARY=%s (already has).",block_id[:8],summary[:8])
                         else:
                             # add block into list and check number of blocks
-                            num_peers = len(self._peers)
+                            num_peers = self.num_peers
                             blocks[block_id] = True
                             LOGGER.debug("=>ADD BLOCK=%s INTO SUMMARY=%s total=%s peers=%s",block_id[:8],summary[:8],len(blocks),num_peers) 
                             self.check_consensus(blocks,block_num,summary,num_peers)
@@ -1452,7 +1475,7 @@ class PbftEngine(Engine):
                         self._prepare_msgs[summary] = {block_id : True}
                         if not self._send_batches:
                             # only one peer make block
-                            self.check_consensus(self._prepare_msgs[summary],block_num,summary,len(self._peers))
+                            self.check_consensus(self._prepare_msgs[summary],block_num,summary,self.num_peers)
             else:
                 """
                 there is no NEW_BLOCK message yet but save message

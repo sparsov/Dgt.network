@@ -1269,6 +1269,9 @@ class ChainController(object):
             # if not is_external:
             # we should keep number until commit - the same block 
             #self._block_store.free_block_number(new_block.block_num,new_block.signer_id)
+            if new_block.signer_id == self._validator_id:
+                # for block timeout cancel mode 
+                self._block_store.free_block_number(new_block.block_num,new_block.signer_id)
             while descendant_blocks:
                 pending_block = descendant_blocks.pop()
                 pending_block.status = BlockStatus.Invalid

@@ -20,6 +20,12 @@ option java_package = "sawtooth.sdk.protobuf";
 option go_package = "client_peer";
 
 message ClientPeersGetRequest{
+    enum Status {
+        STATUS_UNSET = 0;
+        OK           = 1;
+        MALICIOUS    = 2;
+    }
+    Status status = 1;
 }
 
 message ClientPeersGetResponse {

@@ -20,6 +20,7 @@ import logging
 from sawtooth_validator.concurrent.atomic import ConcurrentSet
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf import consensus_pb2
+from sawtooth_validator.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 from sawtooth_validator.protobuf import validator_pb2
 
 LOGGER = logging.getLogger(__name__)
@@ -59,16 +60,18 @@ class ConsensusNotifier:
         else:
             LOGGER.debug('ConsensusNotifier: CANT _notify - no registered engine ')
 
-    def notify_peer_connected(self, peer_id,assemble = True):
+    def notify_peer_connected(self, peer_id,assemble = True,mode=False):
         """
         A new peer was added
         """
         LOGGER.debug('ConsensusNotifier: notify_peer_connected peer_id=%s assemble=%s',peer_id[:10],assemble)
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,
-            consensus_pb2.ConsensusNotifyPeerConnected(
+            ConsensusNotifyPeerConnected(
                 peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),
-                status = consensus_pb2.ConsensusNotifyPeerConnected.OK if assemble else consensus_pb2.ConsensusNotifyPeerConnected.NOT_READY
+                status = ConsensusNotifyPeerConnected.OK if assemble else ConsensusNotifyPeerConnected.NOT_READY,
+                mode = ConsensusNotifyPeerConnected.NORMAL if mode == False else ConsensusNotifyPeerConnected.MALICIOUS,
+
                 )
             )
 

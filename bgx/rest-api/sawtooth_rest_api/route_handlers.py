@@ -56,7 +56,7 @@ from sawtooth_sdk.protobuf import client_state_pb2
 from sawtooth_sdk.protobuf import client_block_pb2
 from sawtooth_sdk.protobuf import client_batch_pb2
 from sawtooth_sdk.protobuf import client_receipt_pb2
-from sawtooth_sdk.protobuf import client_peers_pb2
+from sawtooth_sdk.protobuf.client_peers_pb2 import ClientPeersGetResponse,ClientPeersGetRequest
 from sawtooth_sdk.protobuf import client_status_pb2
 from sawtooth_sdk.protobuf import client_topology_pb2
 from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
@@ -592,11 +592,11 @@ class RouteHandler:
             data: JSON array of peer endpoints
             link: The link to this exact query
         """
-
+        mode = request.url.query.get('mode', None)
         response = await self._query_validator(
             Message.CLIENT_PEERS_GET_REQUEST,
-            client_peers_pb2.ClientPeersGetResponse,
-            client_peers_pb2.ClientPeersGetRequest())
+            ClientPeersGetResponse,
+            ClientPeersGetRequest(status=ClientPeersGetRequest.STATUS_UNSET if mode is None else (ClientPeersGetRequest.OK if mode == 'ok' else ClientPeersGetRequest.MALICIOUS)))
 
         return self._wrap_response(
             request,
@@ -614,8 +614,8 @@ class RouteHandler:
 
         response = await self._query_validator(
             Message.CLIENT_PEERS_GET_REQUEST,
-            client_peers_pb2.ClientPeersGetResponse,
-            client_peers_pb2.ClientPeersGetRequest())
+            ClientPeersGetResponse,
+            ClientPeersGetRequest())
 
         return self._wrap_response(
             request,

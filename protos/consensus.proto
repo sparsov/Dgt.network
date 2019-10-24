@@ -102,8 +102,13 @@ message ConsensusNotifyPeerConnected {
     NOT_READY = 1; // for peers connected after point of assemble
     STATUS_UNSET = 2;
   }
+  enum Modes {
+    NORMAL    = 0;
+    MALICIOUS = 1; 
+  }
   ConsensusPeerInfo peer_info = 1;
   Status            status = 2;
+  Modes             mode   = 3;
 }
 
 // An existing peer was dropped

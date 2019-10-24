@@ -40,7 +40,7 @@ from sawtooth_validator.protobuf import client_state_pb2
 from sawtooth_validator.protobuf import client_transaction_pb2
 from sawtooth_validator.protobuf import client_batch_submit_pb2
 from sawtooth_validator.protobuf import client_list_control_pb2
-from sawtooth_validator.protobuf import client_peers_pb2
+from sawtooth_validator.protobuf.client_peers_pb2 import  ClientPeersGetRequest,ClientPeersGetResponse
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.protobuf import client_heads_pb2,client_topology_pb2
@@ -1086,14 +1086,14 @@ class TransactionGetRequest(_ClientRequestHandler):
 class PeersGetRequest(_ClientRequestHandler):
     def __init__(self, gossip):
         super().__init__(
-            client_peers_pb2.ClientPeersGetRequest,
-            client_peers_pb2.ClientPeersGetResponse,
+            ClientPeersGetRequest,
+            ClientPeersGetResponse,
             validator_pb2.Message.CLIENT_PEERS_GET_RESPONSE
         )
         self._gossip = gossip
 
     def _respond(self, request):
-        peers = self._gossip.get_peers()
+        peers = self._gossip.get_peers(mode=request.status == ClientPeersGetRequest.MALICIOUS)
         endpoints = [peers[connection_id] for connection_id in peers]
         return self._wrap_response(peers=endpoints)
 
