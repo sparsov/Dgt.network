@@ -615,6 +615,10 @@ class BlockPublisher(object):
         LOGGER.debug("BlockPublisher: INIT chain_head=%s block_store=%s validator=%s\n",chain_head,type(self._block_store),self._validator_id[:8])
 
     @property
+    def malicious(self):
+        return self._block_sender.malicious
+
+    @property
     def queued_batch_recomm(self):
         return [str(recom[1])+'.'+recom[0][:8] for recom in self._queued_batch_recomm]
 
@@ -807,7 +811,8 @@ class BlockPublisher(object):
 
         # build the TransactionCommitCache
         committed_txn_cache = TransactionCommitCache(self._block_cache.block_store)
-        LOGGER.debug("_build_candidate_block:  self._transaction_executor.execute(scheduler) parent=%s",bid[:8]) 
+        LOGGER.debug("_build_candidate_block:  self._transaction_executor.execute(scheduler) malicious=%s parent=%s",self.malicious,bid[:8]) 
+        self._transaction_executor.set_malicious(self.malicious)
         self._transaction_executor.execute(scheduler)
         self._candidate_block = _CandidateBlock(
             self._block_cache.block_store,

@@ -60,7 +60,7 @@ class ConsensusNotifier:
         else:
             LOGGER.debug('ConsensusNotifier: CANT _notify - no registered engine ')
 
-    def notify_peer_connected(self, peer_id,assemble = True,mode=False):
+    def notify_peer_connected(self, peer_id,assemble = True,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
         A new peer was added
         """
@@ -70,7 +70,7 @@ class ConsensusNotifier:
             ConsensusNotifyPeerConnected(
                 peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),
                 status = ConsensusNotifyPeerConnected.OK if assemble else ConsensusNotifyPeerConnected.NOT_READY,
-                mode = ConsensusNotifyPeerConnected.NORMAL if mode == False else ConsensusNotifyPeerConnected.MALICIOUS,
+                mode = mode,
 
                 )
             )

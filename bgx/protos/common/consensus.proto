@@ -103,8 +103,10 @@ message ConsensusNotifyPeerConnected {
     STATUS_UNSET = 2;
   }
   enum Modes {
-    NORMAL    = 0;
-    MALICIOUS = 1; 
+    NORMAL     = 0;
+    MALICIOUS  = 1;
+    MALICIOUS1 = 2;
+    MALICIOUS2 = 3; 
   }
   ConsensusPeerInfo peer_info = 1;
   Status            status = 2;

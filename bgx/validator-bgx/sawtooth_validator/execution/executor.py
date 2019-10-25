@@ -54,7 +54,8 @@ class TransactionExecutorThread(object):
                  waiting_threadpool,
                  settings_view_factory,
                  invalid_observers,
-                 metrics_registry=None):
+                 metrics_registry=None,
+                 malicious=0):
         """
         Args:
             service (Interconnect): The zmq internal interface
@@ -86,6 +87,7 @@ class TransactionExecutorThread(object):
         self._invalid_observers = invalid_observers
         self._open_futures = {}
         self._metrics_registry = metrics_registry
+        self._malicious = malicious
 
         if metrics_registry:
             self._transaction_execution_count = CounterWrapper(
@@ -110,8 +112,7 @@ class TransactionExecutorThread(object):
         if response.status == processor_pb2.TpProcessResponse.OK:
             LOGGER.debug("_future_done_callback: processor Response.OK tnx=%s",req.signature[:8])
 
-            state_sets, state_deletes, events, data = \
-                self._context_manager.get_execution_results(req.context_id)
+            state_sets, state_deletes, events, data = self._context_manager.get_execution_results(req.context_id)
 
             state_changes = [
                 transaction_receipt_pb2.StateChange(
@@ -145,9 +146,35 @@ class TransactionExecutorThread(object):
                 processor_type, request, req.signature)
 
         else:
-            LOGGER.debug("_future_done_callback: processor Response.INVALID tnx=%s(%s)",req.signature[:8],response.message)
-            self._context_manager.delete_contexts(
-                context_id_list=[req.context_id])
+            if self._malicious == 2:
+                # say that it was correct
+                LOGGER.debug("_future_done_callback: processor Response.MALICIOUS tnx=%s(%s)",req.signature[:8],response.message)
+                state_sets, state_deletes, events, data = self._context_manager.get_execution_results(req.context_id)            
+                                                                                                                                 
+                state_changes = [                                                                                                
+                    transaction_receipt_pb2.StateChange(                                                                         
+                        address=addr,                                                                                            
+                        value=value,                                                                                             
+                        type=transaction_receipt_pb2.StateChange.SET)                                                            
+                    for addr, value in state_sets.items()                                                                        
+                ] + [                                                                                                            
+                    transaction_receipt_pb2.StateChange(                                                                         
+                        address=addr,                                                                                            
+                        type=transaction_receipt_pb2.StateChange.DELETE)                                                         
+                    for addr in state_deletes                                                                                    
+                ]                                                                                                                
+                self._scheduler.set_transaction_execution_result(      
+                    txn_signature=req.signature,                       
+                    is_valid=True,                                     
+                    context_id=req.context_id,                         
+                    state_changes=state_changes,                       
+                    events=events,                                     
+                    data=data
+                    )                                         
+                return
+
+            LOGGER.debug("_future_done_callback: processor mal=%s Response.INVALID tnx=%s(%s)",self._malicious,req.signature[:8],response.message)
+            self._context_manager.delete_contexts(context_id_list=[req.context_id])
 
             self._scheduler.set_transaction_execution_result(
                 txn_signature=req.signature,
@@ -408,8 +435,12 @@ class TransactionExecutor(object):
 
         self._scheduler_type = scheduler_type
         self._metrics_registry = metrics_registry
+        self._malicious = 0
 
-    
+    def set_malicious(self,mode=0):
+        self._malicious = mode
+        LOGGER.debug("set MALICIOUS=%s", mode)
+
     def create_scheduler(self,
                          squash_handler,
                          first_state_root,
@@ -484,7 +515,8 @@ class TransactionExecutor(object):
             waiting_threadpool=self._waiting_threadpool,
             settings_view_factory=self._settings_view_factory,
             invalid_observers=self._invalid_observers,
-            metrics_registry=self._metrics_registry)
+            metrics_registry=self._metrics_registry,
+            malicious=self._malicious)
         self._executing_threadpool.submit(t.execute_thread)
         with self._lock:
             LOGGER.debug('execute:append new thread num=%s\n',len(self._alive_threads))

@@ -63,6 +63,10 @@ class BroadcastBlockSender(BlockSender):
     def is_sync(self):
         return self._gossip.is_sync
 
+    @property
+    def malicious(self):
+        return self._gossip.malicious
+
     def send_arbiter(self, block,arbiter=True):
         """
         use from publisher for sending new block to peers or arbiter 

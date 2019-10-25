@@ -21,9 +21,10 @@ option go_package = "client_peer";
 
 message ClientPeersGetRequest{
     enum Status {
-        STATUS_UNSET = 0;
-        OK           = 1;
-        MALICIOUS    = 2;
+        OK           = 0;
+        MALICIOUS    = 1;
+	MALICIOUS1   = 2;
+	MALICIOUS2   = 3;
     }
     Status status = 1;
 }

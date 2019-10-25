@@ -40,6 +40,7 @@ from sawtooth_validator.protobuf.network_pb2 import PeerUnregisterRequest
 from sawtooth_validator.protobuf.network_pb2 import GetPeersRequest
 from sawtooth_validator.protobuf.network_pb2 import GetPeersResponse
 from sawtooth_validator.protobuf.network_pb2 import NetworkAcknowledgement
+from sawtooth_validator.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 from sawtooth_validator.exceptions import PeeringException
 from sawtooth_validator.networking.interconnect import get_enum_name
 LOGGER = logging.getLogger(__name__)
@@ -341,7 +342,7 @@ class Gossip(object):
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
         self._nosync    = False                # need sync with other net 
-        self._malicious = False 
+        self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -370,6 +371,11 @@ class Gossip(object):
     @property
     def is_sync(self):
         return not (self._nosync or self._fbft.genesis_node != self.validator_id)
+
+    @property
+    def malicious(self):
+        return self._malicious
+
     @property
     def validator_id(self):
         return self._network.validator_id
@@ -478,7 +484,7 @@ class Gossip(object):
 
             LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE\n")
 
-    def notify_peer_connected(self,public_key,assemble=False,mode=False):
+    def notify_peer_connected(self,public_key,assemble=False,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
         Use topology for restrict peer notification
         """
@@ -541,7 +547,7 @@ class Gossip(object):
             LOGGER.debug("Could not add peer endpoints to topology. "
                          "ConnectionManager does not exist.")
 
-    def get_peers(self,mode = False):
+    def get_peers(self,mode = ConsensusNotifyPeerConnected.NORMAL):
         """Returns a copy of the gossip peers.
         """
         LOGGER.debug("GET PEERS MODE=%s->%s\n",self._malicious,mode)

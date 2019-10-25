@@ -1093,7 +1093,7 @@ class PeersGetRequest(_ClientRequestHandler):
         self._gossip = gossip
 
     def _respond(self, request):
-        peers = self._gossip.get_peers(mode=request.status == ClientPeersGetRequest.MALICIOUS)
+        peers = self._gossip.get_peers(mode=request.status)
         endpoints = [peers[connection_id] for connection_id in peers]
         return self._wrap_response(peers=endpoints)
 

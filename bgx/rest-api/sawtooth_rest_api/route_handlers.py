@@ -68,7 +68,7 @@ from sawtooth_sdk.protobuf import client_heads_pb2,client_topology_pb2
 
 DEFAULT_TIMEOUT = 300
 LOGGER = logging.getLogger(__name__)
-
+MALICIOUS_LIST = {'ok' : ClientPeersGetRequest.OK,'ma' : ClientPeersGetRequest.MALICIOUS,'ma1' : ClientPeersGetRequest.MALICIOUS1,'ma2' : ClientPeersGetRequest.MALICIOUS2 }
 
 class CounterWrapper():
     def __init__(self, counter=None):
@@ -596,7 +596,8 @@ class RouteHandler:
         response = await self._query_validator(
             Message.CLIENT_PEERS_GET_REQUEST,
             ClientPeersGetResponse,
-            ClientPeersGetRequest(status=ClientPeersGetRequest.STATUS_UNSET if mode is None else (ClientPeersGetRequest.OK if mode == 'ok' else ClientPeersGetRequest.MALICIOUS)))
+            ClientPeersGetRequest(status=ClientPeersGetRequest.OK if mode is None or mode not in MALICIOUS_LIST else MALICIOUS_LIST[mode])
+            )
 
         return self._wrap_response(
             request,

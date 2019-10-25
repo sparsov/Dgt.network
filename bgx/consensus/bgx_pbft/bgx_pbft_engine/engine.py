@@ -220,7 +220,7 @@ class BranchState(object):
         self._service.send_to(bytes.fromhex(peer_id),mgs_type,payload.SerializeToString())
 
     def _make_message(self,block,msg_type):
-        signer_id = self.validator_id if not self._engine.is_malicious else ('f'+self.validator_id[1:])
+        signer_id = self.validator_id if self._engine.is_malicious != ConsensusNotifyPeerConnected.MALICIOUS else ('f'+self.validator_id[1:])
         messageInfo = PbftMessageInfo(
                     msg_type = msg_type,
                     view     = 0,
@@ -631,7 +631,7 @@ class PbftEngine(Engine):
         self._validator_id = None
         self._dag_step = CHAIN_LEN_FOR_BRANCH
         self._is_sync = True
-        self._mode = False 
+        self._mode = ConsensusNotifyPeerConnected.NORMAL 
         LOGGER.debug('PbftEngine: init done')
 
     def name(self):
@@ -1380,7 +1380,8 @@ class PbftEngine(Engine):
             if pid == self.validator_id:
                 LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])
                 self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
-                self._mode = notif[2] != ConsensusNotifyPeerConnected.NORMAL
+                if self._mode != notif[2] :
+                    self._mode = notif[2]
             elif pid in self._cluster:
                 # take only peers from own cluster topology 
                 # save status of peer
