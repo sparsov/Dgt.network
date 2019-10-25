@@ -71,6 +71,8 @@ export COMPOSE_PROJECT_NAME=7 N=7 API=8014 COMP=4011 NET=8806 CONS=5056;docker-c
 # 
 # ssh -i ~/.ssh/aws-bgx.pem ubuntu@bgx
 # scp -i ~/.ssh/aws-bgx.pem ubuntu@bgx:/home/ubuntu/log.tgz .
+# git checkout -b commands origin/dashboard/commands
+# git  pull origin dashboard/commands 
 # clusters mode 
 # 
 # cluster 1

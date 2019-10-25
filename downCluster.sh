@@ -69,6 +69,15 @@ function downCluster2 {
         3)
           export COMPOSE_PROJECT_NAME=23 C=c2 N=3 API=8210 COMP=4207 NET=8203 CONS=5253;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
+        4)
+          export COMPOSE_PROJECT_NAME=24 C=c2 N=4 API=8211 COMP=4208 NET=8204 CONS=5254;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        5)
+          export COMPOSE_PROJECT_NAME=25 C=c2 N=5 API=8212 COMP=4209 NET=8205 CONS=5255;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        6)
+          export COMPOSE_PROJECT_NAME=26 C=c2 N=6 API=8213 COMP=4210 NET=8206 CONS=5256;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
         *)
           echo "Undefined peer into cluster."
         ;;
