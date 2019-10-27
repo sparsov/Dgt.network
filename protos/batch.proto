@@ -44,8 +44,13 @@ message Batch {
     // A debugging flag which indicates this batch should be traced through the
     // system, resulting in a higher level of debugging output.
     bool trace = 4;
+    uint32 timestamp = 5; // time of creating 
 }
 
 message BatchList {
     repeated Batch batches = 1;
+
+    // metainfo for DAG version
+    bytes  candidate_id = 2; // used for DAG version say others peer branch for new batch
+    uint32 block_num    = 3; // used for DAG block candidate number
 }
