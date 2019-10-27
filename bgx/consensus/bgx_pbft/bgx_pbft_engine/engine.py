@@ -33,6 +33,8 @@ from bgx_pbft.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
 from bgx_pbft_common.utils import _short_id
 from enum import IntEnum,Enum
 
+from sawtooth_sdk.messaging.future import FutureTimeoutError
+
 LOGGER = logging.getLogger(__name__)
 _CONSENSUS_ = b'pbft'
 PBFT_NAME = 'pbft' 
@@ -841,7 +843,11 @@ class PbftEngine(Engine):
         in case DAG we should return parent for block which is ready  
         because we ask one of the initialized blocks
         """
-        summary,parent_id = self._summarize_block()
+        try:
+            summary,parent_id = self._summarize_block()
+        except FutureTimeoutError:
+            LOGGER.debug('_my_finalize_block:  FutureTimeoutError\n')
+            return None
 
         if summary is None:
             #LOGGER.debug('Block not ready to be summarized')

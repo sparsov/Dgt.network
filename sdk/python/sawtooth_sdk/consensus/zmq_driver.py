@@ -28,8 +28,8 @@ from sawtooth_sdk.protobuf.validator_pb2 import Message
 
 
 LOGGER = logging.getLogger(__name__)
-REGISTER_TIMEOUT = 600
-SERVICE_TIMEOUT = 600
+REGISTER_TIMEOUT = 800
+SERVICE_TIMEOUT = 800
 
 
 class ZmqDriver(Driver):
