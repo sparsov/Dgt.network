@@ -79,6 +79,7 @@ class Completer(object):
         self._has_block = None
         self._has_genesis_federation_block = None
         self._is_nests_ready = None
+        self._incomplete_loop = False
         self.lock = RLock()
 
     @property
@@ -159,7 +160,7 @@ class Completer(object):
                 """
                 block incompleted ask missing block
                 """
-                LOGGER.debug("Incomplete block=%s.%s incompletes=%s",block.block_num,block.header_signature[:8],self.incomplete_blocks)
+                LOGGER.debug("Incomplete block=%s.%s incompletes=%s",block.block_num,block.header_signature[:8],len(self.incomplete_blocks))
                 #previous_block_num = Federation.dec_feder_num(block.block_num)
                 if previous_block_num not in self._incomplete_blocks:
                     self._incomplete_blocks[previous_block_num] = [block]
@@ -346,6 +347,11 @@ class Completer(object):
         self._has_genesis_federation_block = set_has_genesis_federation_block
         self._is_nests_ready = set_is_nests_ready
 
+    @property
+    def is_pending_head(self):
+        mode = (len(self._pending_heads) > 0) or (not self._is_nests_ready()) or self._incomplete_loop
+        LOGGER.debug("IS_PENDING_HEAD nest_ready=%s incomp=%s heads=%s mode=%s\n",self._is_nests_ready(),self._incomplete_loop,len(self._pending_heads),mode)
+        return mode
 
     def add_block(self, block,check_pending=False):
         with self.lock:
@@ -364,14 +370,16 @@ class Completer(object):
                 if block is not None:
                     # completed block - in sync mode genesis block
                     self.block_cache[block.header_signature] = blkw
-                    LOGGER.debug("ADD BLOCK=%s.%s",block.block_num,block.header_signature[:8])
+                    LOGGER.debug("ADD BLOCK=%s.%s PROCESS INCOMPLETED",block.block_num,block.header_signature[:8])
                     """
                     PUT BLOCK into chain controller queue
                     """
                     self._on_block_received(blkw)
                     # take all rest blocks 
                     #self._process_incomplete_blocks(block.header_signature)
+                    self._incomplete_loop =True
                     self._process_incomplete_blocks(str(block.block_num),True)
+                    self._incomplete_loop = False
                     LOGGER.debug("ADD INCOMPLETED BLOCKS DONE  nest_ready=%s pending=%s\n",self._is_nests_ready(),[blk.block_num for blk in self._pending_heads])
                     if len(self._pending_heads) == 0 :
                         break

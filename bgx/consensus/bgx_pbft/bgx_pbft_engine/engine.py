@@ -93,6 +93,7 @@ class BranchState(object):
         self._nest_color = None
         self._stime = None
         self._can_cancel = True # possible to cancel
+        self._already_send_commit = False
         LOGGER.debug('BranchState: init BRANCH=%s for %s STATE=%s',self,bid[:8],self._state)
 
     @property
@@ -118,6 +119,9 @@ class BranchState(object):
     def validator_id(self):
         return self._engine.validator_id
 
+    @property
+    def already_send_commit(self):
+        return self._already_send_commit 
     @property
     def peers(self):
         return self._engine.peers
@@ -423,6 +427,7 @@ class BranchState(object):
     
     def commit_block(self, block_id):
         LOGGER.warning("commit_block: block_id=%s\n",_short_id(block_id.hex()))
+        self._already_send_commit =True
         self._service.commit_block(block_id)
 
     def ignore_block(self, block_id):
@@ -590,6 +595,7 @@ class BranchState(object):
         self._sequence_number = 0
         self._commit_msgs = {}
         self._can_cancel = True
+        self._already_send_commit = False
 
     def __str__(self):
         return "{} (block_num:{}, {})".format(
@@ -1174,7 +1180,8 @@ class PbftEngine(Engine):
         LOGGER.info('=> VALID_BLOCK:Received %s', _short_id(bid))
         if bid in self._peers_branches:
             branch = self._peers_branches[bid]
-            if branch.state >= State.Commiting :
+            LOGGER.info('=> VALID BLOCK=%s state=%s', _short_id(bid),branch.state)
+            if branch.state >= State.Commiting or branch.already_send_commit:
                 LOGGER.info('=> IGNORE VALID_BLOCK: ALREADY RECIEVED %s', _short_id(bid))
                 return
 

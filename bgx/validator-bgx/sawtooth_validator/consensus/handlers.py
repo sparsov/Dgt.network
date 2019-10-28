@@ -113,7 +113,8 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
             return
             
         chain_head = startup_info.chain_head
-        peers = [bytes.fromhex(peer_id) for peer_id in startup_info.peers]
+        # README when not enought resource some peers could not be connected 
+        peers = [bytes.fromhex(peer_id) for peer_id in startup_info.peers if peer_id is not None]
         local_peer_info = startup_info.local_peer_info
         LOGGER.debug('ConsensusRegisterHandler: peers=%s local=%s chain_head[%s]=%s header=%s block=%s',peers,local_peer_info,type(chain_head),chain_head,type(chain_head.header),type(chain_head.block))
         block_header = BlockHeader()

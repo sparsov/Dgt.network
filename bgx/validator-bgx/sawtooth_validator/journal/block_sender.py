@@ -59,6 +59,11 @@ class BroadcastBlockSender(BlockSender):
 
     def check_pending_head(self):
         self._completer.add_block(None,True)
+
+    @property
+    def is_pending_head(self):
+        return self._completer.is_pending_head
+
     @property
     def is_sync(self):
         return self._gossip.is_sync

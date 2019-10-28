@@ -342,6 +342,7 @@ class Gossip(object):
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
         self._nosync    = False                # need sync with other net 
+        self._incomplete = False
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         """
         initial_peer_endpoints - peers from own cluster
@@ -423,14 +424,16 @@ class Gossip(object):
                         and inform them after synchronization
                         """
                         peer_key = self._network.connection_id_to_public_key(connection_id)
-                        LOGGER.debug("SYNC request to %s(%s) was successful. Peer=%s SYNC=%s",connection_id[:8],endpoint,peer_key[:8],ack.sync)
+                        LOGGER.debug("SYNC request to %s(%s) was successful. Peer=%s SYNC=%s _incomplete=%s",connection_id[:8],endpoint,peer_key[:8],ack.sync,self._incomplete)
                         self.update_federation_topology(peer_key,endpoint,sync=ack.sync)
                         if ack.sync:
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
-                            if peer_key == self._fbft.genesis_node:
+                            if peer_key == self._fbft.genesis_node :
                                 # sync with genesis
-                                self.update_federation_topology(self.validator_id,None,sync=ack.sync)
-                                self.notify_peer_connected(self.validator_id,assemble=True) # OWN status
+                                LOGGER.debug("SYNC request SET OWN STATUS sync=%s incomplete=%s\n",ack.sync,self._incomplete)
+                                if not self._incomplete:
+                                    self.update_federation_topology(self.validator_id,None,sync=ack.sync)
+                                    self.notify_peer_connected(self.validator_id,assemble=True) # OWN status
                     except PeeringException as e:
                         # Remove unsuccessful peer
                         LOGGER.warning('Unable to successfully SYNC peer with endpoint: %s, due to %s',endpoint, str(e))
@@ -476,6 +479,7 @@ class Gossip(object):
         """
         if not self.is_sync:
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
+            self._incomplete = False
             for key,peer in self._fbft.get_topology_iter():
                 # send message to all unsync peers and peer[PeerAtr.node_state] == PeerSync.nosync
                 if key != self.validator_id and PeerAtr.node_state in peer  and PeerAtr.endpoint in peer:
@@ -625,13 +629,15 @@ class Gossip(object):
         """
         with self._lock:
             public_key = self._network.connection_id_to_public_key(connection_id)
-            LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME",endpoint,public_key[:8])
+            LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME incomplete=%s",endpoint,public_key[:8],self._incomplete)
             self.update_federation_topology(public_key,endpoint,sync = True)
             self.notify_peer_connected(public_key,assemble=True)
-            if self._fbft.get_peer_state(self.validator_id) != PeerSync.active:
-                # set own sync status
-                self.update_federation_topology(self.validator_id,None,sync = True)
-                self.notify_peer_connected(self.validator_id,assemble=True)
+            if self._fbft.get_peer_state(self.validator_id) != PeerSync.active :
+                # set own sync status but check maybe own DAG incompleted yet
+                LOGGER.debug("SYNC_PEER REQUEST SET OWN STATUS incomplete=%s\n",self._incomplete)
+                if not self._incomplete:
+                    self.update_federation_topology(self.validator_id,None,sync = True)
+                    self.notify_peer_connected(self.validator_id,assemble=True)
         return True
 
     def register_peer(self, connection_id, endpoint,sync=None,component=None):
@@ -714,7 +720,9 @@ class Gossip(object):
             if public_key:
                 cid = keys_cid[public_key]
                 LOGGER.debug("Switch on federations peer=%s send HEAD request cid=%s SYNC=%s",public_key[:8],cid[:8],not self._nosync)
+                
                 if self._fbft.genesis_node == public_key:
+                    self._incomplete = True # we should get current DAG
                     self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
                 
