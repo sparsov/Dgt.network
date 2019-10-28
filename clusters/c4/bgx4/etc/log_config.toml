@@ -25,14 +25,14 @@ datefmt = "%H:%M:%S"
 level = "DEBUG"
 formatter = "simple"
 class = "logging.FileHandler"
-filename = "/project/bgx/data-bgx6/logs/validator-debug.log"
+filename = "/project/bgx/clusters/c4/bgx4/logs/validator-debug.log"
 
 [handlers.interconnect]
 level = "DEBUG"
 formatter = "simple"
 class = "logging.handlers.RotatingFileHandler"
 #filename = "/var/log/sawtooth/interconnect.log"
-filename = "/project/bgx/data-bgx6/logs/interconnect.log"
+filename = "/project/bgx/clusters/c4/bgx4/logs/interconnect.log"
 maxBytes = 5000000
 backupCount=20
 
@@ -40,7 +40,7 @@ backupCount=20
 level = "ERROR"
 formatter = "simple"
 class = "logging.FileHandler"
-filename = "/project/bgx/data-bgx6/logs/validator-error.log"
+filename = "/project/bgx/clusters/c4/bgx4/logs/validator-error.log"
 
 [loggers."sawtooth_validator.networking.interconnect"]
 level = "DEBUG"
