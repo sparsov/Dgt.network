@@ -108,6 +108,9 @@ function upCluster3 {
         6)
           export COMPOSE_PROJECT_NAME=36 C=c3 N=6 API=8313 COMP=4310 NET=8306 CONS=5356;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
+        7)
+          export COMPOSE_PROJECT_NAME=37 C=c3 N=7 API=8314 COMP=4311 NET=8307 CONS=5357;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
         *)
           echo "Undefined peer into cluster."
         ;;
