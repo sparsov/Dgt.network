@@ -198,13 +198,9 @@ class ResponderBlockResponseHandler(Handler):
             return HandlerResult(status=HandlerStatus.PASS)
 
         for connection in open_request:
-            LOGGER.debug("Responding to block request: Send %s to %s",
-                         block.header_signature,
-                         connection)
+            LOGGER.debug("Responding to block request: Send %s to %s",block.header_signature,connection)
             try:
-                self._gossip.send(validator_pb2.Message.GOSSIP_BLOCK_RESPONSE,
-                                  message_content,
-                                  connection)
+                self._gossip.send(validator_pb2.Message.GOSSIP_BLOCK_RESPONSE,message_content,connection)
             except ValueError:
                 LOGGER.debug("Can't send block response %s to closed "
                              "connection %s",

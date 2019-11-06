@@ -269,7 +269,7 @@ class PbftOracle:
                     payload=serialized,
                     header_signature=signature)
 
-            LOGGER.debug('payload action=%s nonce=%s public_key_hash=%s',payload.action,nonce,public_key_hash)
+            #LOGGER.debug('payload action=%s nonce=%s public_key_hash=%s',payload.action,nonce,public_key_hash)
 
             self._batch_publisher.send([transaction])
         else:

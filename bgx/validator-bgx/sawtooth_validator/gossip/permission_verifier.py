@@ -384,11 +384,9 @@ class NetworkPermissionHandler(Handler):
         permitted = self._permission_verifier.check_network_role(public_key)
 
         if not permitted:
-            LOGGER.debug("Public key not permitted, %s is not permitted",
-                         connection_id)
+            LOGGER.debug("Public key not permitted, %s is not permitted",connection_id)
             self._gossip.unregister_peer(connection_id)
-            violation = AuthorizationViolation(
-                violation=RoleType.Value("NETWORK"))
+            violation = AuthorizationViolation(violation=RoleType.Value("NETWORK"))
             return HandlerResult(
                 HandlerStatus.RETURN_AND_CLOSE,
                 message_out=violation,

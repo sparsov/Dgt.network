@@ -617,7 +617,8 @@ class PbftEngine(Engine):
         self._prepare_msgs = {}
         self._commit_msgs = {}
         self._arbitration_msgs = {} 
-        self._pending_nest = {} # for waiting nest
+        self._pending_nest = {}   # for waiting nest
+        self._pending_branch = {} # for waiting branch
         self._nest_color = []     # add color for nests
         self._path_config = path_config
         self._component_endpoint = component_endpoint
@@ -739,17 +740,18 @@ class PbftEngine(Engine):
             self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
             i += 1
 
+    def check_waiting_nest(self,bid):
+        if bid in self._pending_nest:                                         
+            LOGGER.debug('PbftEngine: WE CAN HANDLE BLOCK WAITING NEST')      
+            block = self._pending_nest[bid]                                   
+            del self._pending_nest[bid]                                       
+            self._resolve_fork(block)       
+                                              
     def _initialize_block(self,branch=None,new_branch=None,is_new = False):
         LOGGER.debug('PbftEngine: _initialize_block branch[%s] is_new=%s',branch.hex()[:8] if branch is not None else None,is_new)
         """
         getting addition chain head for DAG in case call _get_chain_head(parent_head) where parent_head is point for making chain branch
         """
-        def check_waiting_nest(bid):
-            if bid in self._pending_nest:
-                LOGGER.debug('PbftEngine: WE CAN HANDLE BLOCK WAITING NEST')
-                block = self._pending_nest[bid]
-                del self._pending_nest[bid]
-                self._resolve_fork(block)
         try:
             """
             To paint first nest with Genesis color 
@@ -789,15 +791,22 @@ class PbftEngine(Engine):
                 branch._block_num = block_num
                 if new_branch is not None :
                     del self._branches[bid]
-                    self._branches[new_branch.hex()] = branch 
-                    check_waiting_nest(new_branch.hex())
+                    nbid = new_branch.hex()
+                    self._branches[nbid] = branch 
+                    self.check_waiting_nest(nbid)
+                    if nbid in self._pending_branch:
+                        LOGGER.debug('HANDLE BLOCK WAITING BRANCH')      
+                        block = self._pending_branch[nbid]                                   
+                        del self._pending_branch[nbid]                                       
+                        self._handle_new_block(block)
+
                 LOGGER.debug('PbftEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
                 LOGGER.debug('PbftEngine: _initialize_block NEW Branch[%s]=%s color=%s pending=%s',self._num_branches,bid[:8],color,[pid[:8] for pid in self._pending_nest.keys()])
                 self._branches[bid] = self.create_branch(bid,parent,block_num)
                 self._branches[bid]._try_branch = self._make_branch
                 self._branches[bid].nest_color = color
-                check_waiting_nest(bid)
+                self.check_waiting_nest(bid)
                 
                 
             
@@ -943,7 +952,10 @@ class PbftEngine(Engine):
                         LOGGER.debug('PbftEngine: TRY SWITCH BRANCH[%s] (%s->%s)\n',branch.ind,bid[:8],branch._parent_id[:8]) 
                         if self._initialize_block(branch=bytes.fromhex(bid),new_branch=bytes.fromhex(branch._parent_id)):
                             branch.reset_chain_len()
-                            LOGGER.debug('PbftEngine: SWITCHED BRANCH[%s]\n',branch.ind) 
+                            LOGGER.debug('PbftEngine: SWITCHED BRANCH[%s]=%s\n',branch.ind,branch._parent_id[:8]) 
+                            # check maybe there are blocks waiting that head
+                            
+
                     else:
                         # try to do new branch 
                         if self._make_branch and branch.is_time_to_make_branch :
@@ -1147,6 +1159,10 @@ class PbftEngine(Engine):
                     check_consensus()
                     # Don't reset now - wait message INVALID_BLOCK
                     #self.reset_state()
+            else:
+                # new block can appeared before we have branch
+                LOGGER.info('NEW OWN BLOCK=%s.%s no branch=%s pend=%s!\n',block_num,_short_id(block_id),block.previous_block_id[:8],len(self._pending_branch))
+                self._pending_branch[block.previous_block_id] = block
         else:
             # external block from another node or maybe another cluster
             

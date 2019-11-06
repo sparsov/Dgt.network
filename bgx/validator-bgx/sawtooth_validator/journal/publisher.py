@@ -627,6 +627,10 @@ class BlockPublisher(object):
         return [recom[:8] for recom in self._pending_batch_cid]
 
     @property
+    def pending_batches(self):
+        return [b.header_signature[:8] for b in self._pending_batches]
+
+    @property
     def nest_colour(self):
         # own validator color
         return self._topology.nest_colour
@@ -863,7 +867,7 @@ class BlockPublisher(object):
             # there are no recomended batch for this candidate- take batch without recomendation
             # because candidate for batch with recomendation could not be ready
             if nest_colour == self.nest_colour:
-                LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> cid=%s",nest_colour,self._candidate_block.block_num,bid[:8],self.pending_batch_recomm)
+                LOGGER.debug("Try add batch to NEW candidate=<%s:%s:%s> pend=%s cid=%s",nest_colour,self._candidate_block.block_num,bid[:8],self.pending_batches,self.pending_batch_recomm)
                 for (ind,batch) in enumerate(self._pending_batches):
                     if self._pending_batch_cid[ind] != '':
                         continue # skip recomended batch
