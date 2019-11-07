@@ -73,7 +73,7 @@ class Completer(object):
         self._incomplete_batches = TimedCache(cache_keep_time,cache_purge_frequency)
         self._incomplete_blocks = TimedCache(cache_keep_time,cache_purge_frequency)
         self._requested = TimedCache(requested_keep_time,cache_purge_frequency)
-        self._pending_heads = []
+        self._pending_heads = {}
         self._on_block_received = None
         self._on_batch_received = None
         self._has_block = None
@@ -150,8 +150,8 @@ class Completer(object):
         """
         if not self._has_genesis_federation(block.block_num):
             LOGGER.debug("Keep until get federation nest for block: %s", block)
-            if block not in self._pending_heads:
-                self._pending_heads.append(block)
+            if block.block_num not in self._pending_heads:
+                self._pending_heads[block.block_num] = block
             return None
         #LOGGER.debug("complete block=%s",block)
         previous_block_num = Federation.dec_feder_num(block.block_num)
@@ -359,7 +359,7 @@ class Completer(object):
                 if len(self._pending_heads) == 0:
                     return
                 #take from pending queue
-                blkw = self._pending_heads.pop()
+                _,blkw = self._pending_heads.popitem()
             else:
                 blkw = BlockWrapper(block)
             # new block from net
@@ -380,12 +380,12 @@ class Completer(object):
                     self._incomplete_loop =True
                     self._process_incomplete_blocks(str(block.block_num),True)
                     self._incomplete_loop = False
-                    LOGGER.debug("ADD INCOMPLETED BLOCKS DONE  nest_ready=%s pending=%s\n",self._is_nests_ready(),[blk.block_num for blk in self._pending_heads])
+                    LOGGER.debug("ADD INCOMPLETED BLOCKS DONE  nest_ready=%s pending=%s\n",self._is_nests_ready(),[bnum for bnum in self._pending_heads.keys()])
                     if len(self._pending_heads) == 0 :
                         break
                     if not self._is_nests_ready():
                         break
-                    blkw = self._pending_heads.pop()
+                    _,blkw = self._pending_heads.popitem()
                     
                 else:
                     break

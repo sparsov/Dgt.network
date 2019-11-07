@@ -463,7 +463,7 @@ class BlockValidator(object):
                 if (self._chain_head is not None
                     and self._chain_head.identifier != self._block_store.chain_head.identifier
                     and self._chain_head.identifier not in self._block_store.chain_heads):
-                    LOGGER.debug("BlockValidator:validate_block raise ChainHeadUpdated HEAD=%s block=%s.%s!!\n",self._chain_head.identifier[:8],blkw.block_num,blkw.identifier[:8])
+                    LOGGER.debug("Validate block raise ChainHeadUpdated HEAD=%s block=%s.%s heads=%s\n",self._chain_head.identifier[:8],blkw.block_num,blkw.identifier[:8],self._block_store.get_chain_heads())
                     raise ChainHeadUpdated()
 
                 blkw.status = BlockStatus.Valid if valid else BlockStatus.Invalid

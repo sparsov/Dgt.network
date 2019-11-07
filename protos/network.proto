@@ -1,4 +1,4 @@
-// Copyright 2016, 2017 Intel Corporation
+// Copyright 2019 NTRLab
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,10 +24,16 @@ message DisconnectMessage {
 
 // The registration request from a peer to the validator
 message PeerRegisterRequest {
+     enum RegisterMode{
+        REGISTER = 0;
+        SYNC     = 1;  // ask sync 
+    }
     string endpoint = 1;
     // The current version of the network protocol that is being used by the
     // sender.  This version is an increasing value.
     uint32 protocol_version = 2;
+    RegisterMode mode  = 3;
+    string component   = 4; // for dashboard  
 }
 
 // The unregistration request from a peer to the validator
@@ -52,10 +58,13 @@ message GossipMessage {
         CONTENT_TYPE_UNSET = 0;
         BLOCK = 1;
         BATCH = 2;
+	BATCHES = 3; // for DAG send all batches for new block - it will keep order of batches
     }
     bytes content = 1;
     ContentType content_type = 2;
     uint32 time_to_live = 3;
+    //bytes  candidate_id = 4; // used for DAG version say others peer branch for new batch
+    //uint32 block_num    = 5; // used for DAG block candidate number
 }
 
 // A response sent from the validator to the peer acknowledging message
@@ -68,6 +77,7 @@ message NetworkAcknowledgement {
     }
 
     Status status = 1;
+    bool   sync   = 2; // True if answered peer already make net sync
 }
 
 message GossipBlockRequest {

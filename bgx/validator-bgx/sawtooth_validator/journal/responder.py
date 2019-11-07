@@ -67,6 +67,7 @@ class Responder(object):
             return False
 
     def add_request(self, requested_id, connection_id):
+        LOGGER.debug("add_request [%s]=%s",requested_id[:8],connection_id[:8])
         with self._lock:
             if requested_id in self.pending_requests:
                 if connection_id not in self.pending_requests[requested_id]:
