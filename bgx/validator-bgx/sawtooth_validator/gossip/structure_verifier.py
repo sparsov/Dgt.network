@@ -120,8 +120,7 @@ class GossipBlockResponseStructureVerifier(Handler):
         block = Block()
         block.ParseFromString(block_response_message.content)
         if not is_valid_block(block):
-            LOGGER.debug("requested block's batches structure is invalid: %s",
-                         block.header_signature)
+            LOGGER.debug("requested block's batches structure is invalid: %s",block.header_signature)
             return HandlerResult(status=HandlerStatus.DROP)
 
         return HandlerResult(status=HandlerStatus.PASS)

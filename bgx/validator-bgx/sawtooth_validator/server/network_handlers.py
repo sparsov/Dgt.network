@@ -17,50 +17,37 @@ import logging
 from sawtooth_validator.protobuf import validator_pb2
 
 from sawtooth_validator.journal.completer import CompleterGossipHandler
-from sawtooth_validator.journal.completer import \
-    CompleterGossipBlockResponseHandler
-from sawtooth_validator.journal.completer import \
-    CompleterGossipBatchResponseHandler
+from sawtooth_validator.journal.completer import CompleterGossipBlockResponseHandler
+from sawtooth_validator.journal.completer import CompleterGossipBatchResponseHandler
 from sawtooth_validator.gossip import structure_verifier
 
 from sawtooth_validator.journal.responder import BlockResponderHandler
 from sawtooth_validator.journal.responder import ResponderBlockResponseHandler
 from sawtooth_validator.journal.responder import BatchByBatchIdResponderHandler
 from sawtooth_validator.journal.responder import ResponderBatchResponseHandler
-from sawtooth_validator.journal.responder import \
-    BatchByTransactionIdResponderHandler
+from sawtooth_validator.journal.responder import BatchByTransactionIdResponderHandler
 
 from sawtooth_validator.gossip import signature_verifier
 
-from sawtooth_validator.gossip.permission_verifier import \
-    NetworkPermissionHandler
-from sawtooth_validator.gossip.permission_verifier import \
-    NetworkConsensusPermissionHandler
+from sawtooth_validator.gossip.permission_verifier import NetworkPermissionHandler
+from sawtooth_validator.gossip.permission_verifier import NetworkConsensusPermissionHandler
 
 from sawtooth_validator.gossip.gossip_handlers import GossipBroadcastHandler
-from sawtooth_validator.gossip.gossip_handlers import \
-    GossipMessageDuplicateHandler
-from sawtooth_validator.gossip.gossip_handlers import \
-    GossipBlockResponseHandler
-from sawtooth_validator.gossip.gossip_handlers import \
-    GossipBatchResponseHandler
+from sawtooth_validator.gossip.gossip_handlers import GossipMessageDuplicateHandler
+from sawtooth_validator.gossip.gossip_handlers import GossipBlockResponseHandler
+from sawtooth_validator.gossip.gossip_handlers import GossipBatchResponseHandler
 from sawtooth_validator.gossip.gossip_handlers import PeerRegisterHandler
 from sawtooth_validator.gossip.gossip_handlers import PeerUnregisterHandler
 from sawtooth_validator.gossip.gossip_handlers import GetPeersRequestHandler
 from sawtooth_validator.gossip.gossip_handlers import GetPeersResponseHandler
-from sawtooth_validator.gossip.gossip_handlers import \
-    GossipConsensusMessageHandler
+from sawtooth_validator.gossip.gossip_handlers import GossipConsensusMessageHandler
 from sawtooth_validator.networking.handlers import PingHandler
 from sawtooth_validator.networking.handlers import ConnectHandler
 from sawtooth_validator.networking.handlers import DisconnectHandler
-from sawtooth_validator.networking.handlers import \
-    AuthorizationTrustRequestHandler
-from sawtooth_validator.networking.handlers import \
-    AuthorizationChallengeRequestHandler
-from sawtooth_validator.networking.handlers import \
-    AuthorizationChallengeSubmitHandler
-from sawtooth_validator.networking.handlers import \
-    AuthorizationViolationHandler
+from sawtooth_validator.networking.handlers import AuthorizationTrustRequestHandler
+from sawtooth_validator.networking.handlers import AuthorizationChallengeRequestHandler
+from sawtooth_validator.networking.handlers import AuthorizationChallengeSubmitHandler
+from sawtooth_validator.networking.handlers import AuthorizationViolationHandler
 
 LOGGER = logging.getLogger(__name__)
 

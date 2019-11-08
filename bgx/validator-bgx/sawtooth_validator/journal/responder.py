@@ -142,6 +142,7 @@ class BlockResponderHandler(Handler):
             """ 
             if block_id != "HEAD":
                 blocks = []
+                nest = False
                 gap = Federation.gap_feder_num(block_num,block.block_num) if block_num else 0  
                 LOGGER.debug("Responding to block requests: BLOCK=%s GAP=%s",block.get_block().header_signature[:8],gap)
                 if gap > 1 :
@@ -174,10 +175,11 @@ class BlockResponderHandler(Handler):
                         break
             else:
                 blocks = block # list of heads
+                nest = True
             
             for block in blocks:
-                LOGGER.debug("Responding SEND BLOCK=%s",block)
-                block_response = network_pb2.GossipBlockResponse(content=block.get_block().SerializeToString())
+                LOGGER.debug("Responding nest=%s SEND BLOCK=%s",nest,block)
+                block_response = network_pb2.GossipBlockResponse(content=block.get_block().SerializeToString(),nest=nest)
                 self._gossip.send(validator_pb2.Message.GOSSIP_BLOCK_RESPONSE,block_response.SerializeToString(),connection_id)
 
         return HandlerResult(HandlerStatus.PASS)

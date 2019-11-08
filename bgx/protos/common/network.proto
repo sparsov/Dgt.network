@@ -94,6 +94,7 @@ message GossipBlockRequest {
 message GossipBlockResponse {
     // The block
     bytes content = 1;
+    bool  nest    = 2; // nest or not 
 }
 
 message GossipBatchResponse {

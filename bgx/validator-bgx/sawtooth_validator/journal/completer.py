@@ -89,7 +89,7 @@ class Completer(object):
     def requested(self):
         return ["{}".format(bid[:8]) for bid in self._requested.keys()]
 
-    def _complete_block(self, block):
+    def _complete_block(self, block,nest=False):
         """ Check the block to see if it is complete and if it can be passed to
             the journal. If the block's predecessor is not in the block_cache
             the predecessor is requested and the current block is added to the
@@ -148,7 +148,7 @@ class Completer(object):
         in case nest is absent keep this block until nest appeared
 
         """
-        if not self._has_genesis_federation(block.block_num):
+        if nest and not self._has_genesis_federation(block.block_num):
             LOGGER.debug("Keep until get federation nest for block: %s", block)
             if block.block_num not in self._pending_heads:
                 self._pending_heads[block.block_num] = block
@@ -353,7 +353,7 @@ class Completer(object):
         LOGGER.debug("IS_PENDING_HEAD nest_ready=%s incomp=%s heads=%s mode=%s\n",self._is_nests_ready(),self._incomplete_loop,len(self._pending_heads),mode)
         return mode
 
-    def add_block(self, block,check_pending=False):
+    def add_block(self, block,check_pending=False,nest=False):
         with self.lock:
             if check_pending:
                 if len(self._pending_heads) == 0:
@@ -365,7 +365,7 @@ class Completer(object):
             # new block from net
             
             while True:
-                block = self._complete_block(blkw)
+                block = self._complete_block(blkw,nest)
                  
                 if block is not None:
                     # completed block - in sync mode genesis block
@@ -549,8 +549,8 @@ class CompleterGossipBlockResponseHandler(Handler):
 
         block = Block()
         block.ParseFromString(block_response_message.content)
-        LOGGER.debug("CompleterGossipBlockResponseHandler: BLOCK=%s",block.header_signature[:8])
-        self._completer.add_block(block)
+        LOGGER.debug("CompleterGossipBlockResponseHandler: BLOCK=%s nest=%s",block.header_signature[:8],block_response_message.nest)
+        self._completer.add_block(block,nest=block_response_message.nest)
 
         return HandlerResult(status=HandlerStatus.PASS)
 
