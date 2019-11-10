@@ -1397,6 +1397,8 @@ class PbftEngine(Engine):
             LOGGER.debug('SAVE COMMIT MSG for BLOCK=%s peer=%s total=%s',block_id[:8],peer_id[:8],len(commits))
 
     def peer_status(self,peer_id):
+        # take in advance only message from own cluster or from arbiters
+        # message from others peers will be ignored
         return self._peers[peer_id] if peer_id in self._peers else (self._arbiters[peer_id][1] if peer_id in self._arbiters else ConsensusNotifyPeerConnected.NOT_READY)
 
     def _handle_peer_disconnected(self, notif):
@@ -1448,6 +1450,7 @@ class PbftEngine(Engine):
         block_num = block.block_num
         
         if peer_status == ConsensusNotifyPeerConnected.NOT_READY:
+            # take message from sync peer and peer from cluster or arbiter ring
             LOGGER.debug("=> IGNORE PEER_MESSAGE %s.'%s'  peer=%s(%s)\n",info.seq_num,CONSENSUS_MSG[msg_type],peer_id[:8],peer_status)
             return
 
