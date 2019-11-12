@@ -21,7 +21,7 @@ To run a full validator node from the local source.
 $ docker-compose -f bgx/docker/docker-compose-net-bgx.yaml up
 
 For running shell-bgx run next bash cmd .
-$ docker exec -it shell-bgx-1 bash
+$ docker exec -it shell-bgx-c1-1 bash
 For list created tokens run into shell-bgx. 
 $ smart-bgt list  --url http://rest-api:8009
 # not in sawtooth shell
@@ -47,10 +47,10 @@ docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 # docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml 
 
 # for console
-#bgx dag show val --url http://bgx-api-2:8009;echo ---;bgx dag show nest --url http://bgx-api-2:8009 -Fjson
-#bgx dag show integrity --url http://bgx-api-1:8008;bgx dag show integrity --url http://bgx-api-2:8009
-#bgx block list --url http://bgx-api-1:8008;bgx block list --url http://bgx-api-2:8009
-#bgt workload --rate 11 -d 5 --url http://bgx-api-1:8008
+#bgx dag show val --url http://bgx-api-2:8009;echo ---;bgx dag show nest --url http://bgx-api-c1-2:8009 -Fjson
+#bgx dag show integrity --url http://bgx-api-c1-1:8008;bgx dag show integrity --url http://bgx-api-c1-2:8009
+#bgx block list --url http://bgx-api-c1-1:8008;bgx block list --url http://bgx-api-c1-2:8009
+#bgt workload --rate 11 -d 5 --url http://bgx-api-c1-1:8008
 
 # dash
 docker-compose -f bgx/docker/docker-compose-dashboard-bgx.yaml up

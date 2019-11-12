@@ -70,14 +70,14 @@ maximum_peer_connectivity = 10
 # DAG branches 
 max_dag_branch=6
 # The host and port for Open TSDB database used for metrics
-# opentsdb_url = ""
+opentsdb_url = "http://localhost:8086"
 
 # The name of the database used for storing metrics
-# opentsdb_db = ""
+opentsdb_db = "metrics"
 
-# opentsdb_username = ""
+opentsdb_username = "lrdata"
 
-# opentsdb_password = ""
+opentsdb_password = "pwlrdata"
 
 # The type of authorization that must be performed for the different type of
 # roles on the network. The different supported authorization types are "trust"
