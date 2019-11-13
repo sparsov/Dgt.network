@@ -75,6 +75,10 @@ def parse_args(args):
                         used for metrics')
     parser.add_argument('--opentsdb-db',
                         help='specify name of database for storing metrics')
+    parser.add_argument('--opentsdb-username',
+                        help='specify user name of database for storing metrics')
+    parser.add_argument('--opentsdb-password',
+                        help='specify user password of database for storing metrics')
 
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
@@ -194,6 +198,8 @@ def main():
             timeout=opts.timeout,
             opentsdb_url=opts.opentsdb_url,
             opentsdb_db=opts.opentsdb_db,
+            opentsdb_username=opts.opentsdb_username,
+            opentsdb_password=opts.opentsdb_password,
             client_max_size=opts.client_max_size)
         rest_api_config = load_rest_api_config(opts_config)
         url = None
@@ -227,9 +233,7 @@ def main():
 
         wrapped_registry = None
         if rest_api_config.opentsdb_url:
-            LOGGER.info("Adding metrics reporter: url=%s, db=%s",
-                        rest_api_config.opentsdb_url,
-                        rest_api_config.opentsdb_db)
+            LOGGER.info("Adding metrics reporter: url=%s, db=%s",rest_api_config.opentsdb_url,rest_api_config.opentsdb_db)
 
             url = urlparse(rest_api_config.opentsdb_url)
             proto, db_server, db_port, = url.scheme, url.hostname, url.port
@@ -241,7 +245,7 @@ def main():
                 registry=registry,
                 reporting_interval=10,
                 database=rest_api_config.opentsdb_db,
-                prefix="sawtooth_rest_api",
+                prefix="bgx_rest_api",
                 port=db_port,
                 protocol=proto,
                 server=db_server,

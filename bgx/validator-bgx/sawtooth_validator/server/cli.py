@@ -327,19 +327,17 @@ def main(args=None):
     wrapped_registry = None
     metrics_reporter = None
     if validator_config.opentsdb_url:
-        LOGGER.info("Adding metrics reporter: url=%s, db=%s",
-                    validator_config.opentsdb_url,
-                    validator_config.opentsdb_db)
+        LOGGER.info("Adding METRICS reporter: url=%s, db=%s",validator_config.opentsdb_url,validator_config.opentsdb_db)
 
         url = urlparse(validator_config.opentsdb_url)
         proto, db_server, db_port, = url.scheme, url.hostname, url.port
 
         registry = MetricsRegistry()
         wrapped_registry = MetricsRegistryWrapper(registry)
-
+        
         metrics_reporter = InfluxReporter(
             registry=registry,
-            reporting_interval=10,
+            reporting_interval=5, # 10
             database=validator_config.opentsdb_db,
             prefix="bgx_validator",
             port=db_port,
@@ -372,7 +370,10 @@ def main(args=None):
 
     # pylint: disable=broad-except
     try:
+        if wrapped_registry :
+            LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
         validator.start()
+        
     except KeyboardInterrupt:
         LOGGER.info("Initiating graceful shutdown (press Ctrl+C again to force)")
     except LocalConfigurationError as local_config_err:
@@ -385,6 +386,10 @@ def main(args=None):
         LOGGER.exception(e)
         sys.exit(1)
     finally:
+        
         if metrics_reporter:
+            if wrapped_registry :
+                LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
+            LOGGER.info("STOP METRICS")    
             metrics_reporter.stop()
         validator.stop()

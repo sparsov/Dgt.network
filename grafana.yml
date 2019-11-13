@@ -32,5 +32,5 @@ services:
 
 networks:
   network1:
-     name: bgx-stats-network
+     name: bgx1-network
 

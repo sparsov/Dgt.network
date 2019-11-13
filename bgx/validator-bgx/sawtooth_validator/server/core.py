@@ -115,8 +115,7 @@ class Validator(object):
         # -- Setup Global State Database and Factory -- #
         global_state_db_filename = os.path.join(
             data_dir, 'merkle-{}.lmdb'.format(bind_network[-2:]))
-        LOGGER.debug(
-            'global state database file is %s', global_state_db_filename)
+        LOGGER.debug('global state database file is %s', global_state_db_filename)
         global_state_db = LMDBNoLockDatabase(global_state_db_filename, 'c')
         state_view_factory = StateViewFactory(global_state_db)
 
@@ -158,6 +157,7 @@ class Validator(object):
             max_workers=3, name='Signature')
 
         # -- Setup Dispatchers -- #
+        self._metrics_registry = metrics_registry
         component_dispatcher = Dispatcher(metrics_registry=metrics_registry)
         network_dispatcher = Dispatcher(metrics_registry=metrics_registry)
 
@@ -426,8 +426,12 @@ class Validator(object):
                       lambda sig, fr: signal_event.set())
         # This is where the main thread will be during the bulk of the
         # validator's life.
+        if self._metrics_registry:
+            LOGGER.debug("->DUMP METRICS=%s",self._metrics_registry.dump_metrics)
         while not signal_event.is_set():
             signal_event.wait(timeout=20)
+        if self._metrics_registry:
+            LOGGER.debug("<-DUMP METRICS=%s",self._metrics_registry.dump_metrics)
 
     def stop(self):
         self._gossip.stop()
@@ -471,6 +475,7 @@ class Validator(object):
                     time.sleep(1)
 
         LOGGER.info("All threads have been stopped and joined")
+        
 
     def get_chain_head_state_root_hash(self):
         return self._chain_controller.chain_head.state_root_hash

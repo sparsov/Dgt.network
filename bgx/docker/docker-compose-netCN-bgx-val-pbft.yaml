@@ -233,7 +233,7 @@ services:
         cd bgx/rest-api
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api -vv --connect tcp://validator-bgx-${C}-${N}:${COMP} --bind bgx-api-${C}-${N}:${API}
+        bgx-rest-api -vv --connect tcp://validator-bgx-${C}-${N}:${COMP} --bind bgx-api-${C}-${N}:${API} --opentsdb-url http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGKILL
 

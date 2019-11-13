@@ -20,6 +20,13 @@ class MetricsRegistryWrapper():
     def __init__(self, registry):
         self._registry = registry
 
+    @property
+    def dump_metrics(self):
+        return self._registry.dump_metrics()
+
+    def get_metrics(self,key):
+        return self._registry.get_metrics(','.join([key, 'host={}'.format(platform.node())]))
+
     def gauge(self, name, default=0):
         return self._registry.gauge(
             ''.join([name, ',host=', platform.node()]),

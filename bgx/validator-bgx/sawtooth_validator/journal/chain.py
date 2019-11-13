@@ -642,6 +642,7 @@ class BlockValidator(object):
                         LOGGER.info("Block validation failed: %s", block)
                         valid = False
                     self._result["num_transactions"] += block.num_transactions
+                    LOGGER.info("Block marked valid : %s",block)
                 else:
                     LOGGER.info("Block marked invalid (invalid predecessor): %s",block)
                     block.status = BlockStatus.Invalid
@@ -845,17 +846,25 @@ class ChainController(object):
         self._max_dag_branch = max_dag_branch if max_dag_branch is not None else MAX_DAG_BRANCH
         LOGGER.info("Chain controller initialized with max_dag_branch=%s max_workers=%s validator=%s",self._max_dag_branch,self._max_dag_branch*PEERS_NUM,self._validator_id[:8])
         if metrics_registry:
-            self._chain_head_gauge = GaugeWrapper(
-                metrics_registry.gauge('chain_head', default='no chain head'))
-            self._committed_transactions_count = CounterWrapper(
-                metrics_registry.counter('committed_transactions_count'))
-            self._block_num_gauge = GaugeWrapper(
-                metrics_registry.gauge('block_num'))
-            self._blocks_considered_count = CounterWrapper(
-                metrics_registry.counter('blocks_considered_count'))
+            self._chain_head_gauge = GaugeWrapper(metrics_registry.gauge('chain_head', default='no chain head'))
+            self._committed_transactions_count = CounterWrapper(metrics_registry.counter('committed_transactions_count'))
+            self._block_num_gauge = GaugeWrapper(metrics_registry.gauge('block_num'))
+            self._committed_transactions_gauge = GaugeWrapper(metrics_registry.gauge('committed_transactions_gauge'))
+            self._blocks_considered_count = CounterWrapper(metrics_registry.counter('blocks_considered_count'))
+            mlist = self._metrics_registry.dump_metrics
+            self._metric_key = None
+            for mkey in mlist.keys():
+                LOGGER.info("Chain controller _metric_key=%s fnd=%s",mkey,mkey.find('chain_head'))
+                if mkey.find('chain_head') >= 0:
+                    self._metric_key = mkey
+                    break
+            LOGGER.info("Chain controller _metric_key=%s",self._metric_key)
+            self._metric_key = 'chain_head'
+
         else:
             self._chain_head_gauge = GaugeWrapper()
             self._committed_transactions_count = CounterWrapper()
+            self._committed_transactions_gauge = GaugeWrapper()
             self._block_num_gauge = GaugeWrapper()
             self._blocks_considered_count = CounterWrapper()
 
@@ -887,7 +896,7 @@ class ChainController(object):
                 # add main BRANCH for DAG chain
                 self._chain_heads[hid] = self._chain_head
                 self._block_store.update_chain_heads(hid,hid,self._chain_head)
-                self._chain_head_gauge.set_value(hid[:8])
+                self._chain_head_gauge.set_value(hid)
         except Exception:
             LOGGER.exception("Invalid block store. Head of the block chain cannot be determined")
             raise
@@ -1330,17 +1339,17 @@ class ChainController(object):
                     """
                     LOGGER.debug("COMMIT NEW EXTERNAL BLOCK=%s",nid[:8])
 
-                LOGGER.info("Chain head branch=%s UPDATED HEADS=%s",bid[:8],self._heads_list)
+                LOGGER.info("Chain head branch=%s UPDATED HEADS=%s num-tx=%s",bid[:8],self._heads_list,new_block.num_transactions)
                 # update the the block store to have the new chain
                 self._block_store.update_chain(result["new_chain"],result["cur_chain"])
 
                 # make sure old chain is in the block_caches
                 self._block_cache.add_chain(result["cur_chain"])
 
-                self._chain_head_gauge.set_value(self._chain_head.identifier[:8]) # FIXME for external block
+                self._chain_head_gauge.set_value(self._chain_head.identifier) # FIXME for external block
 
-                self._committed_transactions_count.inc(result["num_transactions"])
-
+                self._committed_transactions_count.inc(new_block.num_transactions) #result["num_transactions"])
+                self._committed_transactions_gauge.set_value(self._metrics_registry.get_metrics('committed_transactions_count')['count'])
                 self._block_num_gauge.set_value(self._chain_head.block_num)
 
                 # tell the BlockPublisher else the chain for branch is updated
@@ -1368,7 +1377,9 @@ class ChainController(object):
                 for observer in self._chain_observers:
                     observer.chain_update(block, receipts)
 
-
+        if self._metrics_registry:
+            #LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.dump_metrics)
+            LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.get_metrics('committed_transactions_count'))
         # new block was validated
         try:
             with self._lock:
