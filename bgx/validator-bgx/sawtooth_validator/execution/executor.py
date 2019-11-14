@@ -88,13 +88,24 @@ class TransactionExecutorThread(object):
         self._open_futures = {}
         self._metrics_registry = metrics_registry
         self._malicious = malicious
-
+        self._tp_process_response_counters = {}
         if metrics_registry:
-            self._transaction_execution_count = CounterWrapper(
-                metrics_registry.counter('transaction_execution_count'))
+            self._transaction_execution_count = CounterWrapper(metrics_registry.counter('executor.TransactionExecutorThread.transaction_execution_count'))
+            self._in_process_transactions_count = CounterWrapper(metrics_registry.counter('executor.TransactionExecutorThread.in_process_transactions_count'))
+            
         else:
             self._transaction_execution_count = CounterWrapper()
+            self._in_process_transactions_count = CounterWrapper()
+            
 
+    def _get_tp_process_response_counter(self, tag):                                
+        if tag not in self._tp_process_response_counters:    
+            if self._metrics_registry:
+                self._tp_process_response_counters[tag] = CounterWrapper(self._metrics_registry.counter('executor.TransactionExecutorThread.tp_process_response_count', tags=['response_type={}'.format(tag)])) 
+            else:
+                self._tp_process_response_counters[tag] = CounterWrapper()
+        return self._tp_process_response_counters[tag]  
+                                
     def _future_done_callback(self, request, result):
         """
         :param request (bytes):the serialized request
@@ -105,6 +116,8 @@ class TransactionExecutorThread(object):
         response = processor_pb2.TpProcessResponse()
         response.ParseFromString(result.content)
 
+        self._get_tp_process_response_counter(response.Status.Name(response.status)).inc()
+            
         if result.connection_id in self._open_futures and \
                 req.signature in self._open_futures[result.connection_id]:
             del self._open_futures[result.connection_id][req.signature]
@@ -426,8 +439,8 @@ class TransactionExecutor(object):
         self.processors = processor_iterator.ProcessorIteratorCollection(
             processor_iterator.RoundRobinProcessorIterator)
         self._settings_view_factory = settings_view_factory
-        self._waiting_threadpool = InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_WAIT, name='Waiting')
-        self._executing_threadpool = InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_EXEC, name='Executing')
+        self._waiting_threadpool = InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_WAIT, name='Waiting',metrics_registry=metrics_registry)
+        self._executing_threadpool = InstrumentedThreadPoolExecutor(max_workers=MAX_WORKERS_EXEC, name='Executing',metrics_registry=metrics_registry)
         self._alive_threads = []
         self._lock = threading.Lock()
 

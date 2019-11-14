@@ -297,8 +297,7 @@ class _SendReceive:
             try:
                 zmq_identity, msg_bytes = \
                     yield from self._dispatcher_queue.get()
-                self._get_queue_size_gauge(self.connection).set_value(
-                    self._dispatcher_queue.qsize())
+                self._get_queue_size_gauge(self.connection).set_value(self._dispatcher_queue.qsize())
                 message = validator_pb2.Message()
                 message.ParseFromString(msg_bytes)
 

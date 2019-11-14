@@ -20,20 +20,16 @@ import queue
 from threading import RLock
 
 from sawtooth_validator.concurrent.thread import InstrumentedThread
-from sawtooth_validator.concurrent.threadpool import \
-    InstrumentedThreadPoolExecutor
+from sawtooth_validator.concurrent.threadpool import InstrumentedThreadPoolExecutor
 from sawtooth_validator.journal.block_wrapper import BlockStatus
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
-from sawtooth_validator.journal.consensus.consensus_factory import \
-    ConsensusFactory
+from sawtooth_validator.journal.consensus.consensus_factory import ConsensusFactory
 from sawtooth_validator.journal.chain_commit_state import ChainCommitState
-from sawtooth_validator.journal.validation_rule_enforcer import \
-    ValidationRuleEnforcer
+from sawtooth_validator.journal.validation_rule_enforcer import ValidationRuleEnforcer
 from sawtooth_validator.state.settings_view import SettingsViewFactory
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader
-from sawtooth_validator.protobuf.transaction_receipt_pb2 import \
-    TransactionReceipt
+from sawtooth_validator.protobuf.transaction_receipt_pb2 import TransactionReceipt
 from sawtooth_validator.metrics.wrappers import CounterWrapper
 from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
@@ -179,7 +175,7 @@ class BlockValidator(object):
         self._validation_rule_enforcer = ValidationRuleEnforcer(SettingsViewFactory(state_view_factory))
 
         if metrics_registry:
-            self._moved_to_fork_count = CounterWrapper(metrics_registry.counter('chain_head_moved_to_fork_count'))
+            self._moved_to_fork_count = CounterWrapper(metrics_registry.counter('chain.BlockValidator.chain_head_moved_to_fork_count'))
         else:
             self._moved_to_fork_count = CounterWrapper()
 
@@ -846,11 +842,13 @@ class ChainController(object):
         self._max_dag_branch = max_dag_branch if max_dag_branch is not None else MAX_DAG_BRANCH
         LOGGER.info("Chain controller initialized with max_dag_branch=%s max_workers=%s validator=%s",self._max_dag_branch,self._max_dag_branch*PEERS_NUM,self._validator_id[:8])
         if metrics_registry:
-            self._chain_head_gauge = GaugeWrapper(metrics_registry.gauge('chain_head', default='no chain head'))
-            self._committed_transactions_count = CounterWrapper(metrics_registry.counter('committed_transactions_count'))
-            self._block_num_gauge = GaugeWrapper(metrics_registry.gauge('block_num'))
-            self._committed_transactions_gauge = GaugeWrapper(metrics_registry.gauge('committed_transactions_gauge'))
-            self._blocks_considered_count = CounterWrapper(metrics_registry.counter('blocks_considered_count'))
+            self._chain_head_gauge = GaugeWrapper(metrics_registry.gauge('chain.ChainController.chain_head', default='no chain head'))
+            self._committed_transactions_count = CounterWrapper(metrics_registry.counter('chain.ChainController.committed_transactions_count'))
+            self._block_num_gauge = GaugeWrapper(metrics_registry.gauge('chain.ChainController.block_num'))
+            self._committed_transactions_gauge = GaugeWrapper(metrics_registry.gauge('chain.ChainController.committed_transactions_gauge'))
+            self._blocks_considered_count = CounterWrapper(metrics_registry.counter('chain.ChainController.blocks_considered_count'))
+            LOGGER.info("Chain controller set METRICS DONE")
+            """
             mlist = self._metrics_registry.dump_metrics
             self._metric_key = None
             for mkey in mlist.keys():
@@ -860,6 +858,7 @@ class ChainController(object):
                     break
             LOGGER.info("Chain controller _metric_key=%s",self._metric_key)
             self._metric_key = 'chain_head'
+            """
 
         else:
             self._chain_head_gauge = GaugeWrapper()
@@ -878,7 +877,7 @@ class ChainController(object):
         """
         # we use thread for each peer and for each head
         self._thread_pool = (
-            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch*PEERS_NUM, name='Validating')
+            InstrumentedThreadPoolExecutor(max_workers=self._max_dag_branch*PEERS_NUM, name='Validating',metrics_registry=metrics_registry)
             if thread_pool is None else thread_pool
         )
         self._chain_thread = None
@@ -1349,7 +1348,7 @@ class ChainController(object):
                 self._chain_head_gauge.set_value(self._chain_head.identifier) # FIXME for external block
 
                 self._committed_transactions_count.inc(new_block.num_transactions) #result["num_transactions"])
-                self._committed_transactions_gauge.set_value(self._metrics_registry.get_metrics('committed_transactions_count')['count'])
+                self._committed_transactions_gauge.set_value(self._metrics_registry.get_metrics('chain.ChainController.committed_transactions_count')['count'])
                 self._block_num_gauge.set_value(self._chain_head.block_num)
 
                 # tell the BlockPublisher else the chain for branch is updated
@@ -1379,7 +1378,7 @@ class ChainController(object):
 
         if self._metrics_registry:
             #LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.dump_metrics)
-            LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.get_metrics('committed_transactions_count'))
+            LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.get_metrics('chain.ChainController.committed_transactions_count'))
         # new block was validated
         try:
             with self._lock:

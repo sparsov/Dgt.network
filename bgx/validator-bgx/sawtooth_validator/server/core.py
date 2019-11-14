@@ -20,8 +20,7 @@ import signal
 import time
 import threading
 
-from sawtooth_validator.concurrent.threadpool import \
-    InstrumentedThreadPoolExecutor
+from sawtooth_validator.concurrent.threadpool import InstrumentedThreadPoolExecutor
 from sawtooth_validator.execution.context_manager import ContextManager
 from sawtooth_validator.consensus.notifier import ConsensusNotifier
 from sawtooth_validator.consensus.proxy import ConsensusProxy
@@ -149,12 +148,9 @@ class Validator(object):
 
 
         # -- Setup Thread Pools -- #
-        component_thread_pool = InstrumentedThreadPoolExecutor(
-            max_workers=10, name='Component')
-        network_thread_pool = InstrumentedThreadPoolExecutor(
-            max_workers=10, name='Network')
-        sig_pool = InstrumentedThreadPoolExecutor(
-            max_workers=3, name='Signature')
+        component_thread_pool = InstrumentedThreadPoolExecutor(max_workers=10, name='Component',metrics_registry=metrics_registry)
+        network_thread_pool = InstrumentedThreadPoolExecutor(max_workers=10, name='Network',metrics_registry=metrics_registry)
+        sig_pool = InstrumentedThreadPoolExecutor(max_workers=3, name='Signature',metrics_registry=metrics_registry)
 
         # -- Setup Dispatchers -- #
         self._metrics_registry = metrics_registry
@@ -219,9 +215,7 @@ class Validator(object):
             component_service, block_store, receipt_store)
 
         # -- Consensus Engine -- #
-        consensus_thread_pool = InstrumentedThreadPoolExecutor(
-            max_workers=3,
-            name='Consensus')
+        consensus_thread_pool = InstrumentedThreadPoolExecutor(max_workers=3,name='Consensus',metrics_registry=metrics_registry)
         consensus_dispatcher = Dispatcher()
         consensus_service = Interconnect(
             bind_consensus,

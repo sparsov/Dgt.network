@@ -15,12 +15,18 @@ services:
       - INFLUXDB_ADMIN_USER=admin
       - INFLUXDB_ADMIN_PASSWORD=pwadmin
   grafana:
+    build:
+      context: ./
+      dockerfile: bgx/docker/grafana/bgx-stats-grafana
     image: bgx-stats-grafana
     container_name: bgx-stats-grafana
     networks:
     - network1
     ports:
       - 3000:3000
+    volumes:
+      - ./bgx/grafana:/var/lib/grafana
+      - ./bgx/etc/grafana:/etc/grafana
     depends_on:
       - influxdb
     command: |

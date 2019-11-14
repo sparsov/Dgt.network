@@ -27,10 +27,10 @@ class MetricsRegistryWrapper():
     def get_metrics(self,key):
         return self._registry.get_metrics(','.join([key, 'host={}'.format(platform.node())]))
 
-    def gauge(self, name, default=0):
-        return self._registry.gauge(
-            ''.join([name, ',host=', platform.node()]),
-            default=default)
+    def gauge(self, name,tags=None, default=0):
+        if tags:
+            return self._registry.gauge(self._join(''.join([name, ',host=', platform.node()]),tags=tags),default=default)
+        return self._registry.gauge(''.join([name, ',host=', platform.node()]),default=default)
 
     def counter(self, name, tags=None):
         if not tags:
@@ -43,6 +43,22 @@ class MetricsRegistryWrapper():
             tags = []
         return self._registry.timer(
             ','.join([name, 'host={}'.format(platform.node())] + tags))
+
+    def _join(self, identifier, tags=None):                                               
+        """                                                                                              
+        Join the identifier tuple with periods ".", combine the arbitrary tags                           
+        with the base tags and the identifier tag, convert tags to "tag=value"                           
+        format, and then join everything with ",".                                                       
+        """                                                                                              
+        tag_list = []                                                                                    
+        if tags is not None:                                                                             
+            tag_list.extend(tags.items())                                                                
+        #tag_list.extend(self._base_tags)                                                                 
+        return identifier + "," + ",".join("{}={}".format(k, v) for k, v in tag_list)                                                                                                
+                                                                                                         
+
+
+
 
 
 class CounterWrapper():

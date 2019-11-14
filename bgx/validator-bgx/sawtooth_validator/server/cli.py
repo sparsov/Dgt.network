@@ -103,6 +103,11 @@ def parse_args(args):
                         help='specify name of database used for storing \
                         metrics',
                         type=str)
+    parser.add_argument('--opentsdb-username',
+                        help='specify user name of database for storing metrics')
+    parser.add_argument('--opentsdb-password',
+                        help='specify user password of database for storing metrics')
+
     parser.add_argument('--minimum-peer-connectivity',
                         help='set the minimum number of peers required before \
                         stopping peer search',
@@ -210,6 +215,8 @@ def create_validator_config(opts):
         roles=opts.network_auth,
         opentsdb_url=opts.opentsdb_url,
         opentsdb_db=opts.opentsdb_db,
+        opentsdb_username=opts.opentsdb_username,
+        opentsdb_password=opts.opentsdb_password,
         minimum_peer_connectivity=opts.minimum_peer_connectivity,
         maximum_peer_connectivity=opts.maximum_peer_connectivity,
         max_dag_branch=opts.max_dag_branch
@@ -337,7 +344,7 @@ def main(args=None):
         
         metrics_reporter = InfluxReporter(
             registry=registry,
-            reporting_interval=5, # 10
+            reporting_interval=10,
             database=validator_config.opentsdb_db,
             prefix="bgx_validator",
             port=db_port,

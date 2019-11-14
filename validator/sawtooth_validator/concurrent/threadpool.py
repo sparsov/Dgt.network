@@ -56,6 +56,7 @@ class InstrumentedThreadPoolExecutor(ThreadPoolExecutor):
             tags={"name": self._name})
 
     def submit(self, fn, *args, **kwargs):
+
         time_in_queue_ctx = self._task_time_in_queue_timer.time()
 
         try:

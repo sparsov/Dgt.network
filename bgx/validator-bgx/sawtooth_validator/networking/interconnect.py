@@ -31,25 +31,21 @@ import zmq.auth
 from zmq.auth.asyncio import AsyncioAuthenticator
 import zmq.asyncio
 
-from sawtooth_validator.concurrent.threadpool import \
-    InstrumentedThreadPoolExecutor
+from sawtooth_validator.concurrent.threadpool import InstrumentedThreadPoolExecutor
 from sawtooth_validator.concurrent.thread import InstrumentedThread
 from sawtooth_validator.exceptions import LocalConfigurationError
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.networking import future
 from sawtooth_validator.protobuf.authorization_pb2 import ConnectionRequest
 from sawtooth_validator.protobuf.authorization_pb2 import ConnectionResponse
-from sawtooth_validator.protobuf.authorization_pb2 import \
-    AuthorizationTrustRequest
-from sawtooth_validator.protobuf.authorization_pb2 import \
-    AuthorizationChallengeRequest
-from sawtooth_validator.protobuf.authorization_pb2 import \
-    AuthorizationChallengeResponse
-from sawtooth_validator.protobuf.authorization_pb2 import \
-    AuthorizationChallengeSubmit
+from sawtooth_validator.protobuf.authorization_pb2 import AuthorizationTrustRequest
+from sawtooth_validator.protobuf.authorization_pb2 import AuthorizationChallengeRequest
+from sawtooth_validator.protobuf.authorization_pb2 import AuthorizationChallengeResponse
+from sawtooth_validator.protobuf.authorization_pb2 import AuthorizationChallengeSubmit
 from sawtooth_validator.protobuf.authorization_pb2 import RoleType
 from sawtooth_validator.metrics.wrappers import TimerWrapper
 from sawtooth_validator.metrics.wrappers import CounterWrapper
+from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
 LOGGER = logging.getLogger(__name__)
 
@@ -159,6 +155,7 @@ class _SendReceive(object):
         self._monitor_sock = None
 
         self._metrics_registry = metrics_registry
+        self._queue_size_gauges = {}
         self._received_message_counters = {}
         self._dispatcher_queue = None
 
@@ -177,13 +174,19 @@ class _SendReceive(object):
 
         return self._identities_to_connection_ids[zmq_identity]
 
+    def _get_queue_size_gauge(self, tag):                          
+        if tag not in self._queue_size_gauges: 
+            if self._metrics_registry:                    
+                self._queue_size_gauges[tag] = GaugeWrapper(self._metrics_registry.gauge('interconnect._SendReceive.dispatcher_queue_size',tags={'connection': tag}))   
+            else:
+                self._queue_size_gauges[tag] = GaugeWrapper()
+
+        return self._queue_size_gauges[tag]                        
+
     def _get_received_message_counter(self, tag):
         if tag not in self._received_message_counters:
             if self._metrics_registry:
-                self._received_message_counters[tag] = CounterWrapper(
-                    self._metrics_registry.counter(
-                        'interconnect_received_message_count', tags=[
-                            'message_type={}'.format(tag)]))
+                self._received_message_counters[tag] = CounterWrapper(self._metrics_registry.counter('interconnect._SendReceive.received_message_count', tags=['message_type={}'.format(tag)]))
             else:
                 self._received_message_counters[tag] = CounterWrapper()
         return self._received_message_counters[tag]
@@ -279,6 +282,7 @@ class _SendReceive(object):
 
                 zmq_identity, msg_bytes = \
                     yield from self._dispatcher_queue.get()
+                self._get_queue_size_gauge(self.connection).set_value(queue_size)
                 message = validator_pb2.Message()
                 message.ParseFromString(msg_bytes)
 
@@ -647,10 +651,7 @@ class Interconnect(object):
         self._endpoint = endpoint
         #LOGGER.debug("Interconnect endpoint=%s", endpoint)
         self._public_endpoint = public_endpoint
-        self._future_callback_threadpool = InstrumentedThreadPoolExecutor(
-            max_workers=max_future_callback_workers,
-            name='FutureCallback'
-            )
+        self._future_callback_threadpool = InstrumentedThreadPoolExecutor(max_workers=max_future_callback_workers,name='FutureCallback',metrics_registry=metrics_registry)
         self._futures = future.FutureCollection(resolving_threadpool=self._future_callback_threadpool)
         self._dispatcher = dispatcher
         self._zmq_identity = zmq_identity
@@ -723,10 +724,7 @@ class Interconnect(object):
     def _get_send_response_timer(self, tag):
         if tag not in self._send_response_timers:
             if self._metrics_registry:
-                self._send_response_timers[tag] = TimerWrapper(
-                    self._metrics_registry.timer(
-                        'interconnect_send_response_time', tags=[
-                            'message_type={}'.format(tag)]))
+                self._send_response_timers[tag] = TimerWrapper(self._metrics_registry.timer('interconnect.Interconnect.send_response_time', tags=['message_type={}'.format(tag)]))
             else:
                 self._send_response_timers[tag] = TimerWrapper()
         return self._send_response_timers[tag]

@@ -61,10 +61,7 @@ class Dispatcher(InstrumentedThread):
     def _get_dispatch_timer(self, tag):
         if tag not in self._dispatch_timers:
             if self._metrics_registry:
-                self._dispatch_timers[tag] = TimerWrapper(
-                    self._metrics_registry.timer(
-                        'dispatch_execution_time', tags=[
-                            'handler={}'.format(tag)]))
+                self._dispatch_timers[tag] = TimerWrapper(self._metrics_registry.timer('Dispatcher.dispatch_execution_time', tags=['handler={}'.format(tag)]))
             else:
                 self._dispatch_timers[tag] = TimerWrapper()
         return self._dispatch_timers[tag]

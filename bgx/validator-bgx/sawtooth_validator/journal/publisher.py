@@ -599,8 +599,8 @@ class BlockPublisher(object):
 
         # For metric gathering
         if metrics_registry:
-            self._pending_batch_gauge = GaugeWrapper(metrics_registry.gauge('pending_batch_gauge'))
-            self._blocks_published_count = CounterWrapper(metrics_registry.counter('blocks_published_count'))
+            self._pending_batch_gauge = GaugeWrapper(metrics_registry.gauge('publisher.BlockPublisher.pending_batch_gauge'))
+            self._blocks_published_count = CounterWrapper(metrics_registry.counter('publisher.BlockPublisher.blocks_published_count'))
         else:
             self._blocks_published_count = CounterWrapper()
             self._pending_batch_gauge = GaugeWrapper()
