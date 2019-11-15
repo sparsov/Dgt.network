@@ -40,12 +40,8 @@ class ClientBatchSubmitBackpressureHandler(Handler):
         self._applying_backpressure = False
 
         if metrics_registry:
-            self._batches_rejected_count = CounterWrapper(
-                metrics_registry.counter(
-                    'backpressure_batches_rejected_count'))
-            self._batches_rejected_gauge = GaugeWrapper(
-                metrics_registry.gauge(
-                    'backpressure_batches_rejected_gauge', default=0))
+            self._batches_rejected_count = CounterWrapper(metrics_registry.counter('back_pressure_handlers.ClientBatchSubmitBackpressureHandler.backpressure_batches_rejected_count'))
+            self._batches_rejected_gauge = GaugeWrapper(metrics_registry.gauge('back_pressure_handlers.ClientBatchSubmitBackpressureHandler.backpressure_batches_rejected_gauge', default=0))
         else:
             self._batches_rejected_count = CounterWrapper()
             self._batches_rejected_gauge = GaugeWrapper()
