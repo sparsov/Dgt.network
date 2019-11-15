@@ -27,6 +27,7 @@ services:
     - network1
     ports:
       - 3000:3000
+    user : "1001"
     volumes:
       - ./bgx/grafana:/var/lib/grafana
       - ./bgx/etc/grafana:/etc/grafana

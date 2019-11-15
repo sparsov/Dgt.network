@@ -13,10 +13,8 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 
-FROM influxdb/influxdb
-#RUN apt-get update && \
-#    apt-get install -y \
-#        curl && \
+FROM influxdb
+#RUN apt-get update &&  apt-get install -y   bash 
 #    rm -rf /var/lib/apt/lists/*
 
 #COPY bgx/docker/grafana/dashboards /etc/grafana/dashboards
