@@ -53,9 +53,9 @@ docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 #bgt workload --rate 11 -d 5 --url http://bgx-api-c1-1:8008
 
 # for METRICS
-# cat <<EOF | sudo tee /etc/apt/sources.list.d/influxdata.list
-#deb https://repos.influxdata.com/ubuntu bionic stable
-#EOF		
+cat <<EOF | sudo tee /etc/apt/sources.list.d/influxdata.list
+deb https://repos.influxdata.com/ubuntu bionic stable
+EOF		
 # sudo curl -sL https://repos.influxdata.com/influxdb.key | sudo apt-key add -
 # sudo apt-get update
 # sudo apt-get -y install telegraf
