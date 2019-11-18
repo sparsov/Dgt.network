@@ -378,7 +378,8 @@ def main(args=None):
     # pylint: disable=broad-except
     try:
         if wrapped_registry :
-            LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
+            pass
+            #LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
         validator.start()
         
     except KeyboardInterrupt:
@@ -396,7 +397,8 @@ def main(args=None):
         
         if metrics_reporter:
             if wrapped_registry :
-                LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
+                pass
+                #LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
             LOGGER.info("STOP METRICS")    
             metrics_reporter.stop()
         validator.stop()

@@ -1378,7 +1378,8 @@ class ChainController(object):
 
         if self._metrics_registry:
             #LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.dump_metrics)
-            LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.get_metrics('chain.ChainController.committed_transactions_count'))
+            pass
+            #LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.get_metrics('chain.ChainController.committed_transactions_count'))
         # new block was validated
         try:
             with self._lock:

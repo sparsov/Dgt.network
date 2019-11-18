@@ -1029,15 +1029,16 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
-                     self.arbiters_info,self.is_ready_arbiter
-                     )
         LOGGER.debug('Start wait message in %s mode validator=%s dag_step=%s full=%s send_batches=%s timeout=%s.','REAL' if self.is_real_mode else 'TEST',
                       self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._send_batches,self.block_timeout
                     )
         #self._service.initialize_block() is None
         if self._cluster_name is None:
             LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
+        else:
+            LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
+                     self.arbiters_info,self.is_ready_arbiter
+                     )
         while True:
             try:
                 try:

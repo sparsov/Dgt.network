@@ -400,6 +400,7 @@ class Validator(object):
         self._component_dispatcher.start()
         self._component_service.start()
         if self._genesis_controller.requires_genesis():
+            # START in genesis mode
             self._genesis_controller.start(self._start)
         else:
             self._start()
@@ -416,16 +417,19 @@ class Validator(object):
 
         signal_event = threading.Event()
 
-        signal.signal(signal.SIGTERM,
-                      lambda sig, fr: signal_event.set())
+        signal.signal(signal.SIGTERM,lambda sig, fr: signal_event.set())
         # This is where the main thread will be during the bulk of the
         # validator's life.
         if self._metrics_registry:
-            LOGGER.debug("->DUMP METRICS=%s",self._metrics_registry.dump_metrics)
+            pass
+            #LOGGER.debug("->DUMP METRICS=%s",self._metrics_registry.dump_metrics)
+
         while not signal_event.is_set():
             signal_event.wait(timeout=20)
+
         if self._metrics_registry:
-            LOGGER.debug("<-DUMP METRICS=%s",self._metrics_registry.dump_metrics)
+            pass
+            #LOGGER.debug("<-DUMP METRICS=%s",self._metrics_registry.dump_metrics)
 
     def stop(self):
         self._gossip.stop()

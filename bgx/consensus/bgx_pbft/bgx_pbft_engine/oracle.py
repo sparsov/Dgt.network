@@ -110,13 +110,15 @@ class PbftOracle:
         and for node of cluster we should know : parent and name of cluster,list of nodes which belonge our cluster,this node type
         """
         self._node = None
+        self._genesis = 'UNDEF'
+        self._genesis_node = 'UNDEF'
         self._cluster_name = None
         self._cluster = {}
         self._arbiters = {} # ring of arbiters
-        self._genesis  = self._nodes['name'] # genesis cluster
-        self._genesis_node = None
-        self.get_cluster_info(None,None,self._nodes['name'],self._nodes['children'])
-        self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
+        if 'name' in self._nodes:
+            self._genesis  = self._nodes['name'] # genesis cluster
+            self.get_cluster_info(None,None,self._nodes['name'],self._nodes['children'])
+            self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
         #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['role'],self._node['cluster'])
         
@@ -1276,10 +1278,13 @@ class _StateViewProxy:
         self._block_id = block_id
 
     def get(self, address):
-        result = self._service.get_state(
-            block_id=self._block_id,
-            addresses=[address])
-
+        try:
+            result = self._service.get_state(
+                block_id=self._block_id,
+                addresses=[address])
+        except UnknownBlock:
+            LOGGER.debug('_StateViewProxy: UnknownBlock %s\n',self._block_id)
+            return None
         return result[address]
 
     def leaves(self, prefix):
