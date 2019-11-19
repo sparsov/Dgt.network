@@ -28,6 +28,7 @@ from sawtooth_validator.state.merkle import MerkleDatabase,INIT_ROOT_KEY
 LOGGER = logging.getLogger(__name__)
 
 FEDERATION_NUM = 0
+FEDERATION_MAX = 100
 def static_vars(**kwargs):
     def decorate(func):
         for k in kwargs:
@@ -204,7 +205,10 @@ class BlockStore(MutableMapping):
 
         #self._block_nums  = {} # for DAG - list of reserved block candidate number and signers for it  
         #self._free_block_nums  = [] # for DAG - list of free block number's 
-        
+        chead = self.chain_head
+        if chead is not None :
+            LOGGER.debug("BlockStore: check DAG database (head=%s)\n",chead)
+            self.make_federation_nests()
 
     def __setitem__(self, key, value):
         if key != value.identifier:
@@ -234,6 +238,53 @@ class BlockStore(MutableMapping):
             value = self._block_store[key]
             out.append(str(value))
         return ','.join(out)
+
+    def make_federation_nests(self):
+        """
+        check DAG intergity and make federation
+        """
+        bad_block = []
+        block_nums = [-1 for i in range(FEDERATION_MAX)]
+        feder_nums = {}
+        num = 0
+        start = timeit.default_timer()
+        
+        for blk in self:
+            #LOGGER.debug("check_integrity blk=%s prev=%s",blk.block_num,blk.previous_block_id[:8])
+            num += 1
+            err = ''
+            if blk.block_num != 0 and blk.previous_block_id not in self:
+                err = 'prev,'
+            #feder,fnum = self.get_feder_num(blk.block_num)
+            fnum,bnum = Federation.feder_num_to_num(blk.block_num)
+            if fnum in feder_nums:
+                if bnum > feder_nums[fnum]:
+                    feder_nums[fnum] = bnum
+            else:
+                feder_nums[fnum] = bnum
+
+            # skip genesis block
+            block_num = block_nums[fnum] # previous block num into this federation 
+            if block_num != -1 and block_num != bnum+1:
+                # gap between block number
+                # check block from blk.block_num+1 < block_num
+                gap = range(bnum+1,block_num-1)
+                LOGGER.debug("check_integrity GAP=%s",gap)
+                skip = 0
+                if skip > 0:
+                    err += "num({}),".format(skip)
+
+            block_nums[fnum] = bnum
+
+            if err != '':
+                bad_block.append("{}.{}:{}".format(blk.block_num,blk.identifier[:8],err))
+        spent = timeit.default_timer()-start
+        if len(bad_block) == 0:
+            bad_block.append( "correct:checked={} blks spent={}s".format(num,spent))
+        else:
+            bad_block.append( "bad:checked={} blks spent={}s".format(num,spent))
+        LOGGER.debug("make_federation_nests num=%s feder=%s spent=%s DONE\n",num,feder_nums,spent)
+
 
     @staticmethod
     def create_index_configuration():
@@ -509,9 +560,12 @@ class BlockStore(MutableMapping):
     def get_feder_num(self,block_num):
         # get federation and block num into it
         # now only one position for federation so only 9 maximum 
+        fnum,num = Federation.feder_num_to_num(block_num)
+        """
         snum = str(block_num)
         num = int(snum[1:]) if snum[1:] != '' else -1 # genesis num
         fnum = int(snum[0:1])
+        """
         if fnum in self._num2federations:
             return self._num2federations[fnum],num 
         
