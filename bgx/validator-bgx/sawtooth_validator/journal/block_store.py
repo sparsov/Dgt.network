@@ -250,7 +250,7 @@ class BlockStore(MutableMapping):
         start = timeit.default_timer()
         
         for blk in self:
-            #LOGGER.debug("check_integrity blk=%s prev=%s",blk.block_num,blk.previous_block_id[:8])
+            LOGGER.debug("check BLK=%s",blk.block_num)
             num += 1
             err = ''
             if blk.block_num != 0 and blk.previous_block_id not in self:
