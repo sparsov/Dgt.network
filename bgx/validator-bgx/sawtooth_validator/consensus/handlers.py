@@ -111,7 +111,11 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
         if startup_info is None:
             response.status = consensus_pb2.ConsensusRegisterResponse.NOT_READY
             return
-            
+
+        #if self._proxy.is_recovery :
+            # recovery mode
+        #    response.status = consensus_pb2.ConsensusRegisterResponse.RECOVERY
+
         chain_head = startup_info.chain_head
         # README when not enought resource some peers could not be connected 
         peers = [bytes.fromhex(peer_id) for peer_id in startup_info.peers if peer_id is not None]
@@ -123,13 +127,9 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
         """
         block_header.ParseFromString(chain_head.block.header)  
 
-        response.chain_head.block_id = bytes.fromhex(
-            chain_head.header_signature)
-
-        response.chain_head.previous_id =\
-            bytes.fromhex(block_header.previous_block_id)
-        response.chain_head.signer_id =\
-            bytes.fromhex(block_header.signer_public_key)
+        response.chain_head.block_id = bytes.fromhex(chain_head.header_signature)
+        response.chain_head.previous_id = bytes.fromhex(block_header.previous_block_id)
+        response.chain_head.signer_id = bytes.fromhex(block_header.signer_public_key)
         response.chain_head.block_num = block_header.block_num
         response.chain_head.payload = block_header.consensus
 

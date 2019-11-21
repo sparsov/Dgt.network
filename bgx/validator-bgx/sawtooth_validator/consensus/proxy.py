@@ -55,7 +55,11 @@ class ConsensusProxy:
         self._state_view_factory = state_view_factory
 
     def register(self):
-        chain_head = self._chain_controller.chain_head
+        """
+        for restore without making Genesis block
+        take real head from store 
+        """
+        chain_head = self._chain_controller.store_chain_head
         if chain_head is None:
             return None
 
@@ -66,6 +70,10 @@ class ConsensusProxy:
                 for peer in self._gossip.get_peers()
             ],
             local_peer_info=self._public_key)
+
+    @property
+    def is_recovery(self):
+        return self._chain_controller.is_recovery
 
     # Using network service
     def send_to(self, peer_id, message):

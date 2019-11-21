@@ -832,6 +832,7 @@ class ChainController(object):
         self._chain_id_manager = chain_id_manager
         self._is_genesis_federation_block = False
         self._is_nests_ready = False
+        self._store_chain_head = None # is not None only for restore mode
         self._chain_head = None # main branch
         self._chain_heads = {} # for DAG only
         self._permission_verifier = permission_verifier
@@ -887,10 +888,21 @@ class ChainController(object):
 
     def _set_chain_head_from_block_store(self):
         try:
-            # main chain head
+            # main chain head self._block_manager.put([new_head.get_block()])
             self._chain_head = self._block_store.chain_head
             if self._chain_head is not None:
                 LOGGER.info("Chain controller initialized with main chain head: %s",self._chain_head)
+                if self._chain_head.block_num != 0:
+                    """
+                    Use DAG which was already builded
+                    set genesis block as head
+                    """ 
+                    self._store_chain_head = self._chain_head # keep real head for consensus engine
+                    self._chain_head = self._block_store.get_block_by_number(0)
+                    blk = self._chain_head.get_block()
+                    self._block_manager.put([blk])
+                    self._block_manager.ref_block(blk.header_signature)
+
                 hid = self._chain_head.identifier
                 # add main BRANCH for DAG chain
                 self._chain_heads[hid] = self._chain_head
@@ -1031,6 +1043,17 @@ class ChainController(object):
     def chain_head(self):
         # FIXME - investigate what we should return for DAG here
         return self._chain_head
+
+    @property
+    def store_chain_head(self):
+        return self._store_chain_head if self._store_chain_head is not None else self._chain_head
+
+    @property
+    def is_recovery(self):
+        """
+        restore after restart node
+        """
+        return self._block_store.is_recovery
 
     def _submit_blocks_for_verification(self, blocks):
         """
@@ -1547,7 +1570,10 @@ class ChainController(object):
     def has_block(self, block_id,block_num=None):
         with self._lock:
             if block_id in self._block_cache:
-                LOGGER.debug("ChainController: has_block in CACHE block_num=%s",block_num)
+                """
+                check MAYBE this is recovery mode
+                """
+                LOGGER.debug("ChainController: has_block in CACHE block_num=%s recovery=%s",block_num,self.is_recovery)
                 #if block_num is not None:
                 #    blk = self._block_cache[block_id]
                 #    if :

@@ -78,6 +78,7 @@ message ConsensusRegisterResponse {
     BAD_REQUEST = 2;
     SERVICE_ERROR = 3;
     NOT_READY = 4;
+    RECOVERY  = 5;
   }
 
   Status status = 1;

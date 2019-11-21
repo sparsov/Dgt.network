@@ -202,7 +202,7 @@ class BlockStore(MutableMapping):
         self._federations = {}
         self._num2federations = {}
         self._chain_heads = {} # for DAG
-
+        self._is_recovery = False
         #self._block_nums  = {} # for DAG - list of reserved block candidate number and signers for it  
         #self._free_block_nums  = [] # for DAG - list of free block number's 
         chead = self.chain_head
@@ -239,10 +239,21 @@ class BlockStore(MutableMapping):
             out.append(str(value))
         return ','.join(out)
 
+    @property
+    def is_recovery(self):
+        return self._is_recovery
+
+    def get_recovery_block(self,nest):
+        LOGGER.debug("get_recovery_block for NEST=%s",nest)
+        if nest == 'Genesis' :
+            return self.get_block_by_number(10)
+        return None
+
     def make_federation_nests(self):
         """
         check DAG intergity and make federation
         """
+        self._is_recovery = True
         bad_block = []
         block_nums = [-1 for i in range(FEDERATION_MAX)]
         feder_nums = {}

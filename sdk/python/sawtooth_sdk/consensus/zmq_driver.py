@@ -115,7 +115,7 @@ class ZmqDriver(Driver):
                 #LOGGER.debug('ZmqDriver:register NOT_READY: url=%s',self._stream._url)
                 continue
 
-            if response.status == consensus_pb2.ConsensusRegisterResponse.OK:
+            if response.status == consensus_pb2.ConsensusRegisterResponse.OK :
                 LOGGER.debug('ZmqDriver:register DONE: url=%s',self._stream._url)
                 return StartupState(
                     response.chain_head,

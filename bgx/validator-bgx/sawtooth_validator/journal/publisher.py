@@ -615,6 +615,10 @@ class BlockPublisher(object):
         LOGGER.debug("BlockPublisher: INIT chain_head=%s block_store=%s validator=%s\n",chain_head,type(self._block_store),self._validator_id[:8])
 
     @property
+    def is_recovery(self):
+        return self._block_store.is_recovery
+
+    @property
     def malicious(self):
         return self._block_sender.malicious
 
@@ -887,6 +891,14 @@ class BlockPublisher(object):
             
 
         LOGGER.debug("NEW candidate=<%s:%s:%s> DONE batches total=%s pending=%s",nest_colour,self._candidate_block.block_num,bid[:8],num,len(self._pending_batches))
+        if self.is_recovery:
+            """
+            recovery from DAG store - ask next block for nest_colour
+            """
+            blk = self._block_store.get_recovery_block(nest_colour)
+            if blk is not None:
+                self._block_sender.recover_block(blk)
+            LOGGER.debug("RECOVERY next BLOCK=%s for nest=%s",blk,nest_colour)
        
     def correct_candidate_num(self,recomm_cand,recomm_num):
         # for DAG - correct candidate block number

@@ -641,6 +641,7 @@ class PbftEngine(Engine):
         self._dag_step = CHAIN_LEN_FOR_BRANCH
         self._is_sync = True
         self._mode = ConsensusNotifyPeerConnected.NORMAL 
+        self._genesis_mode = True
         LOGGER.debug('PbftEngine: init done')
 
     def name(self):
@@ -939,7 +940,7 @@ class PbftEngine(Engine):
             """
             if not self._skip and self._initialize_block(branch=self.genesis_id,is_new=(self._chain_head is not None)) :  
                 # at this point we can ask settings via chain using initial chain_head state_hash 
-                if self._genesis_node == self.validator_id:
+                if self._genesis_node == self.validator_id and self._genesis_mode:
                     self.init_dag_nests()
                 self._published = True
                 #if len(self._branches) == 5:
@@ -986,7 +987,14 @@ class PbftEngine(Engine):
 
 
     def start(self, updates, service, startup_state):
-        LOGGER.debug('PbftEngine: start service=%s startup_state=%s.',service,startup_state)
+        LOGGER.debug('PbftEngine: start service=%s startup_state=%s head=%s.',service,startup_state,startup_state.chain_head)
+        if startup_state.chain_head.previous_id.hex() != NULL_BLOCK_IDENTIFIER:
+            self._is_sync = False
+            LOGGER.debug('PbftEngine: Not Genisis start SYNC=%s!\n',self._is_sync)
+            self._genesis_mode = False
+        
+
+
         self._service = service
         self._state_view_factory = _StateViewFactoryProxy(service)
         self._oracle = PbftOracle(
