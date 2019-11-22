@@ -62,6 +62,10 @@ class Federation(object):
         return self._block_nums
 
     @staticmethod
+    def coloured_num(fnum,bnum):
+        return int(str(fnum)+str(bnum)) 
+
+    @staticmethod
     def feder_num_to_num(block_num):
         snum = str(block_num)
         num = int(snum[1:]) if snum[1:] != '' else -1 # genesis num
@@ -74,6 +78,12 @@ class Federation(object):
         if num <= 0:
             return str(0)
         return str(fnum)+str(num-1)
+
+    @staticmethod
+    def inc_feder_num(block_num):
+        fnum,num = Federation.feder_num_to_num(block_num)
+        return str(fnum)+str(num+1)
+
     @staticmethod
     def is_diff_feder(fnum,fnum1):
         fn,_ = Federation.feder_num_to_num(fnum)
@@ -203,6 +213,10 @@ class BlockStore(MutableMapping):
         self._num2federations = {}
         self._chain_heads = {} # for DAG
         self._is_recovery = False
+        self._is_nest_ready = True
+        self._recover_feder_nums = {}
+        self._max_feder_nums = {}
+
         #self._block_nums  = {} # for DAG - list of reserved block candidate number and signers for it  
         #self._free_block_nums  = [] # for DAG - list of free block number's 
         chead = self.chain_head
@@ -242,11 +256,24 @@ class BlockStore(MutableMapping):
     @property
     def is_recovery(self):
         return self._is_recovery
+    def set_nests_ready(self):
+        self._is_nest_ready = True
 
     def get_recovery_block(self,nest):
-        LOGGER.debug("get_recovery_block for NEST=%s",nest)
-        if nest == 'Genesis' :
-            return self.get_block_by_number(10)
+        feder = self._federations[nest]
+        if feder.feder_num in self._recover_feder_nums:
+            if feder.feder_num > 1 and not self._is_nest_ready:
+                return None
+            block_num = self._recover_feder_nums[feder.feder_num]
+            if block_num != self._max_feder_nums[feder.feder_num]:
+                next_num = Federation.inc_feder_num(block_num)
+                self._recover_feder_nums[feder.feder_num] = int(next_num)
+            else:
+                # stop for this federation
+                del self._recover_feder_nums[feder.feder_num]
+                next_num = None
+            LOGGER.debug("get_recovery_block for NEST[%s]=%s BLOCK=%s->%s",feder.feder_num,nest,block_num,next_num)
+            return self.get_block_by_number(block_num)
         return None
 
     def make_federation_nests(self):
@@ -254,9 +281,10 @@ class BlockStore(MutableMapping):
         check DAG intergity and make federation
         """
         self._is_recovery = True
+        self._is_nest_ready = False
         bad_block = []
         block_nums = [-1 for i in range(FEDERATION_MAX)]
-        feder_nums = {}
+        self._max_feder_nums = {}
         num = 0
         start = timeit.default_timer()
         
@@ -268,11 +296,11 @@ class BlockStore(MutableMapping):
                 err = 'prev,'
             #feder,fnum = self.get_feder_num(blk.block_num)
             fnum,bnum = Federation.feder_num_to_num(blk.block_num)
-            if fnum in feder_nums:
-                if bnum > feder_nums[fnum]:
-                    feder_nums[fnum] = bnum
+            if fnum in self._max_feder_nums:
+                if bnum > self._max_feder_nums[fnum]:
+                    self._max_feder_nums[fnum] = bnum
             else:
-                feder_nums[fnum] = bnum
+                self._max_feder_nums[fnum] = bnum
 
             # skip genesis block
             block_num = block_nums[fnum] # previous block num into this federation 
@@ -290,11 +318,12 @@ class BlockStore(MutableMapping):
             if err != '':
                 bad_block.append("{}.{}:{}".format(blk.block_num,blk.identifier[:8],err))
         spent = timeit.default_timer()-start
+        self._recover_feder_nums  = { key : Federation.coloured_num(key,0) for key in self._max_feder_nums }
         if len(bad_block) == 0:
             bad_block.append( "correct:checked={} blks spent={}s".format(num,spent))
         else:
             bad_block.append( "bad:checked={} blks spent={}s".format(num,spent))
-        LOGGER.debug("make_federation_nests num=%s feder=%s spent=%s DONE\n",num,feder_nums,spent)
+        LOGGER.debug("make_federation_nests num=%s feder=%s recover=%s spent=%s DONE\n",num,self._max_feder_nums,self._recover_feder_nums,spent)
 
 
     @staticmethod

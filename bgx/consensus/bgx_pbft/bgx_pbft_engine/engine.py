@@ -1309,6 +1309,15 @@ class PbftEngine(Engine):
                     # we can pending this block until nest ready 
                     LOGGER.info('EXTERNAL BLOCK=%s.%s NO DAG HEAD=%s waiting NEST\n\n',block.block_num,_short_id(block_id),head_id if head_id is None else bid[:8])
                     self._pending_nest[bid] = block
+            else:
+                # RECOVERY MODE
+                if not self.is_sync:
+                    LOGGER.info('EXTERNAL BLOCK=%s.%s RECOVERY pbid=%s\n',block.block_num,_short_id(block_id),bid[:8])
+                    branch = self.create_branch('','',block.block_num)
+                    self._peers_branches[block_id] = branch
+                    self._new_heads[block_id] = bid
+                    branch.commit_block(block.block_id)
+                    self._committing = True
                     
                 
 

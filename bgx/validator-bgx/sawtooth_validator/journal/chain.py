@@ -235,6 +235,10 @@ class BlockValidator(object):
             check again using proc of transactions
             FOR DAG prev_state could be different from merkle state which was used into publisher FIXME 
             """
+            if self._block_store.is_recovery:
+                LOGGER.debug("Recovery for BLOCK=%s.%s(%s)",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8])
+                return True
+
             with self._merkle_lock:
                 prev_state = self._get_previous_block_root_state_hash(blkw)
                 # Use root state from previous block for DAG use last state
@@ -412,7 +416,7 @@ class BlockValidator(object):
 
     def validate_block(self, blkw):
         # pylint: disable=broad-except
-        LOGGER.debug("BlockValidator:validate_block...")
+        LOGGER.debug("BlockValidator:validate_block status=%s",blkw.status)
         try:
             if blkw.status == BlockStatus.Valid:
                 return True
@@ -1006,6 +1010,7 @@ class ChainController(object):
             if len(self._chain_heads) >= self._max_dag_branch :
                 LOGGER.debug("ChainController: TOO MANY NEW BRANCH heads=%s",self._heads_list)
                 self._is_nests_ready = True
+                self._block_store.set_nests_ready()
                 # after nests were builded we can start with head of others federations
                 self._block_sender.check_pending_head()
                 raise TooManyBranch
@@ -1577,7 +1582,7 @@ class ChainController(object):
                 #if block_num is not None:
                 #    blk = self._block_cache[block_id]
                 #    if :
-                return True
+                return  not self.is_recovery
 
             if block_id in self._blocks_processing:
                 LOGGER.debug("ChainController: has_block in PROCESSING block_num=%s",block_num)
