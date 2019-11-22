@@ -265,7 +265,8 @@ class BlockStore(MutableMapping):
             if feder.feder_num > 1 and not self._is_nest_ready:
                 return None
             block_num = self._recover_feder_nums[feder.feder_num]
-            if block_num != self._max_feder_nums[feder.feder_num]:
+            _,bnum = Federation.feder_num_to_num(block_num)
+            if bnum != self._max_feder_nums[feder.feder_num]:
                 next_num = Federation.inc_feder_num(block_num)
                 self._recover_feder_nums[feder.feder_num] = int(next_num)
             else:
