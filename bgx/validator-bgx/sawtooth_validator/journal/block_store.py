@@ -270,11 +270,15 @@ class BlockStore(MutableMapping):
                 next_num = Federation.inc_feder_num(block_num)
                 self._recover_feder_nums[feder.feder_num] = int(next_num)
             else:
-                # stop for this federation
+                # stop for this federation and start for next
                 del self._recover_feder_nums[feder.feder_num]
                 next_num = None
+                
             LOGGER.debug("get_recovery_block for NEST[%s]=%s BLOCK=%s->%s",feder.feder_num,nest,block_num,next_num)
             return self.get_block_by_number(block_num)
+        else:
+            if feder.feder_num == 1:
+                self._is_recovery = False
         return None
 
     def make_federation_nests(self):
