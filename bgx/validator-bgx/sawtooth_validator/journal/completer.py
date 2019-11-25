@@ -353,10 +353,11 @@ class Completer(object):
         LOGGER.debug("IS_PENDING_HEAD nest_ready=%s incomp=%s heads=%s mode=%s\n",self._is_nests_ready(),self._incomplete_loop,len(self._pending_heads),mode)
         return mode
 
-    def recover_block(self,blkw):
-        LOGGER.debug("RECOVER BLOCK=%s",blkw)
+    def recover_block(self,blkws):
+        LOGGER.debug("RECOVER BLOCKS=%s",len(blkws))
         with self.lock:
-            self._on_block_received(blkw)
+            for blkw in blkws :
+                self._on_block_received(blkw)
 
     def add_block(self, block,check_pending=False,nest=False):
         with self.lock:

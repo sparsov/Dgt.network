@@ -260,25 +260,38 @@ class BlockStore(MutableMapping):
         self._is_nest_ready = True
 
     def get_recovery_block(self,nest):
+        def inc_bnum(fnum,block_num):
+            _,bnum = Federation.feder_num_to_num(block_num)                                 
+            if bnum != self._max_feder_nums[fnum]:                               
+                next_num = Federation.inc_feder_num(block_num)                              
+                self._recover_feder_nums[fnum] = int(next_num)                   
+            else:                                                                           
+                # stop for this federation and start for next                               
+                del self._recover_feder_nums[fnum]
+                next_num = None  
+                                             
         feder = self._federations[nest]
         if feder.feder_num in self._recover_feder_nums:
             if feder.feder_num > 1 and not self._is_nest_ready:
                 return None
             block_num = self._recover_feder_nums[feder.feder_num]
-            _,bnum = Federation.feder_num_to_num(block_num)
-            if bnum != self._max_feder_nums[feder.feder_num]:
-                next_num = Federation.inc_feder_num(block_num)
-                self._recover_feder_nums[feder.feder_num] = int(next_num)
-            else:
-                # stop for this federation and start for next
-                del self._recover_feder_nums[feder.feder_num]
-                next_num = None
-                
+            next_num  = inc_bnum(feder.feder_num,block_num)
             LOGGER.debug("get_recovery_block for NEST[%s]=%s BLOCK=%s->%s",feder.feder_num,nest,block_num,next_num)
-            return self.get_block_by_number(block_num)
+            return [self.get_block_by_number(block_num)]
         else:
-            if feder.feder_num == 1:
-                self._is_recovery = False
+            if self._is_recovery :
+                LOGGER.debug("get_recovery_block STOP nest_ready=%s recover=%s",self._is_nest_ready,len(self._recover_feder_nums))
+                if len(self._recover_feder_nums) == 0:
+                    self._is_recovery = False
+                    return None
+                
+                if feder.feder_num == 1:
+                    blks = []
+                    for fnum,block_num in list(self._recover_feder_nums.items()):
+                        inc_bnum(fnum,block_num)
+                        blks.append(self.get_block_by_number(block_num))
+                    return blks if len(blks) > 0 else None
+                #
         return None
 
     def make_federation_nests(self):

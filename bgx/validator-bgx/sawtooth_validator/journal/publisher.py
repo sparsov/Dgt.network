@@ -895,10 +895,11 @@ class BlockPublisher(object):
             """
             recovery from DAG store - ask next block for nest_colour
             """
-            blk = self._block_store.get_recovery_block(nest_colour)
-            if blk is not None:
-                self._block_sender.recover_block(blk)
-            LOGGER.debug("RECOVERY next BLOCK=%s for nest=%s",blk,nest_colour)
+            blks = self._block_store.get_recovery_block(nest_colour)
+            if blks is not None:
+                LOGGER.debug("RECOVERY next BLOCK=%s for nest=%s",[blk.identifier[:8] for blk in blks],nest_colour)
+                self._block_sender.recover_block(blks)
+                
        
     def correct_candidate_num(self,recomm_cand,recomm_num):
         # for DAG - correct candidate block number

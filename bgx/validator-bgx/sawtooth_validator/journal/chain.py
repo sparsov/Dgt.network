@@ -1101,7 +1101,10 @@ class ChainController(object):
                     self.chain_head.header_signature,
                     state_view)
             """
-            consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_head.header_signature,state_view)
+            chain_header_signature =  chain_head.header_signature if chain_head else None # for recovery mode
+            if chain_head is None:
+                LOGGER.debug("ChainController: _submit_blocks_for_verification HEAD=%s BLOCK=%s.%s\n",chain_head,blkw.block_num,blkw.identifier[:8])
+            consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_header_signature,state_view)
             
             if not consensus_module:
                 # there is no internal consensus 
