@@ -1102,8 +1102,8 @@ class ChainController(object):
                     state_view)
             """
             chain_header_signature =  chain_head.header_signature if chain_head else None # for recovery mode
-            if chain_head is None:
-                LOGGER.debug("ChainController: _submit_blocks_for_verification HEAD=%s BLOCK=%s.%s\n",chain_head,blkw.block_num,blkw.identifier[:8])
+            #if chain_head is None:
+            #    LOGGER.debug("ChainController: _submit_blocks_for_verification HEAD=%s BLOCK=%s.%s\n",chain_head,blkw.block_num,blkw.identifier[:8])
             consensus_module,consensus_name = ConsensusFactory.try_configured_consensus_module(chain_header_signature,state_view)
             
             if not consensus_module:
@@ -1395,7 +1395,7 @@ class ChainController(object):
 
             # Submit any immediate descendant blocks for verification
             LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
-            if len(descendant_blocks) == 0 and len(self._blocks_pending) == 0 and self._block_sender.is_pending_head == False:
+            if len(descendant_blocks) == 0 and len(self._blocks_pending) == 0 and self._block_sender.is_pending_head == False and not self.is_recovery:
                 LOGGER.debug('There are no descendant blocks - TRY TO SYNC WITH OTHER PEERS\n')
                 self._block_sender.try_to_sync_with_net()
 

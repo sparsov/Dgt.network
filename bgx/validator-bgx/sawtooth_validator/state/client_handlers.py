@@ -1133,6 +1133,10 @@ class HeadsGetRequest(_ClientRequestHandler):
             heads = self._block_store.get_graph()
         elif head_id == 'val':
             heads = self._block_store.get_chain_heads()
+        elif head_id == 'hid':
+            heads = self._block_store.get_chain_heads(summary=True)
+        elif head_id == 'heads':
+            heads = self._block_store.get_chain_heads()
         else:
             heads = self._block_store.get_chain_heads()
         

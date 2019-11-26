@@ -34,6 +34,7 @@ message PeerRegisterRequest {
     uint32 protocol_version = 2;
     RegisterMode mode  = 3;
     string component   = 4; // for dashboard  
+    string hid         = 5; // heads summary
 }
 
 // The unregistration request from a peer to the validator
@@ -94,7 +95,7 @@ message GossipBlockRequest {
 message GossipBlockResponse {
     // The block
     bytes content = 1;
-    bool  nest    = 2; // nest or not 
+    bool  nest    = 2; // nest or not set into responder
 }
 
 message GossipBatchResponse {

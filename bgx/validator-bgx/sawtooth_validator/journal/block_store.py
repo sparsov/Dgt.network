@@ -16,6 +16,7 @@
 # pylint: disable=no-name-in-module
 import logging
 import timeit
+import hashlib
 # for save graph of DAG
 #from graphviz import Digraph
 
@@ -286,6 +287,7 @@ class BlockStore(MutableMapping):
                     return None
                 
                 if feder.feder_num == 1:
+                    # add first blocks from other federation into chain controller
                     blks = []
                     for fnum,block_num in list(self._recover_feder_nums.items()):
                         inc_bnum(fnum,block_num)
@@ -456,9 +458,16 @@ class BlockStore(MutableMapping):
         # take from store 
          
 
-    def get_chain_heads(self):
+    def get_chain_heads(self,summary=False):
         # for external block there is no chain head
-        return [str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()]
+        heads = sorted([str(head.block_num)+':'+key[:8] for key,head in self._chain_heads.items()])
+        if summary:
+            summary = hashlib.sha256()            
+            for head in heads:                    
+                summary.update(head.encode())     
+            return summary.digest().hex() 
+        else:
+            return heads
 
     def check_integrity(self):
         """

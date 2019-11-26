@@ -19,6 +19,7 @@ import random
 import os
 import binascii
 import json
+
 from urllib.parse import urlparse
 
 from threading import Lock
@@ -273,6 +274,8 @@ class Gossip(object):
     def __init__(self, network,
                  settings_cache,
                  current_root_func,
+                 is_recovery_func,
+                 get_heads_func,
                  consensus_notifier,
                  endpoint=None,
                  component=None,
@@ -331,6 +334,8 @@ class Gossip(object):
         self._topology_check_frequency = topology_check_frequency
         self._settings_cache = settings_cache
         self._current_root_func = current_root_func # block_store.chain_head_state_root
+        self._is_recovery_func = is_recovery_func   # check recovery mode
+        self._get_heads_func = get_heads_func
         self._consensus_notifier = consensus_notifier
 
         self._topology = None
@@ -353,7 +358,7 @@ class Gossip(object):
         url = urlparse(endpoint)
         end_host = url.hostname
         self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
-        LOGGER.debug("Gossip endpoint=%s component=%s peers=%s \n",endpoint,self._component,initial_peer_endpoints)
+        LOGGER.debug("Gossip endpoint=%s component=%s peers=%s is_recovery=%s\n",endpoint,self._component,initial_peer_endpoints,type(self._is_recovery_func))
 
     @property
     def component(self):
@@ -380,6 +385,12 @@ class Gossip(object):
     @property
     def validator_id(self):
         return self._network.validator_id
+
+    @property
+    def heads_summary(self):
+        return self._get_heads_func(summary=True)
+                                      
+
     def set_cluster(self,topology):
         self._fbft = topology
         LOGGER.debug("set cluster=%s arbiters=%s",self._fbft.cluster,self._fbft.arbiters)
@@ -434,6 +445,9 @@ class Gossip(object):
                                 if not self._incomplete:
                                     self.update_federation_topology(self.validator_id,None,sync=ack.sync)
                                     self.notify_peer_connected(self.validator_id,assemble=True) # OWN status
+                        else:
+                            LOGGER.debug("SYNC request to=%s WAS WRONG(check heads)",endpoint)
+
                     except PeeringException as e:
                         # Remove unsuccessful peer
                         LOGGER.warning('Unable to successfully SYNC peer with endpoint: %s, due to %s',endpoint, str(e))
@@ -448,14 +462,14 @@ class Gossip(object):
         <-- make sync request to peer with endpoint 
         <-- DO IT after DAG sync - we should make sync with own cluster and with arbiters for leader
         """
-        LOGGER.debug("Attempting to sync peer with endpoint=%s", endpoint)
+        LOGGER.debug("Attempting to sync peer with endpoint=%s heads_sum=%s", endpoint,self.heads_summary)
 
         # check if the connection exists, if it does - send,
         # otherwise create it
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.SYNC)
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.SYNC,hid=self.heads_summary)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -627,18 +641,19 @@ class Gossip(object):
         ->> peer with endpoint ask sync him with this validator
         FIXME - we should compare own nests with that peer nests
         """
+        is_not_diff = (nests == self.heads_summary) if nests is not None else True
         with self._lock:
             public_key = self._network.connection_id_to_public_key(connection_id)
-            LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME incomplete=%s",endpoint,public_key[:8],self._incomplete)
+            LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME incomplete=%s hid=%s~%s",endpoint,public_key[:8],self._incomplete,nests,self.heads_summary)
             self.update_federation_topology(public_key,endpoint,sync = True)
             self.notify_peer_connected(public_key,assemble=True)
-            if self._fbft.get_peer_state(self.validator_id) != PeerSync.active :
+            if self._fbft.get_peer_state(self.validator_id) != PeerSync.active and is_not_diff:
                 # set own sync status but check maybe own DAG incompleted yet
                 LOGGER.debug("SYNC_PEER REQUEST SET OWN STATUS incomplete=%s\n",self._incomplete)
                 if not self._incomplete:
                     self.update_federation_topology(self.validator_id,None,sync = True)
                     self.notify_peer_connected(self.validator_id,assemble=True)
-        return True
+        return is_not_diff
 
     def register_peer(self, connection_id, endpoint,sync=None,component=None):
         """Registers a connected connection_id.
@@ -719,11 +734,12 @@ class Gossip(object):
         for public_key in set(peer_keys):
             if public_key:
                 cid = keys_cid[public_key]
-                LOGGER.debug("Switch on federations peer=%s send HEAD request cid=%s SYNC=%s",public_key[:8],cid[:8],not self._nosync)
+                LOGGER.debug("Switch on federations peer=%s send HEAD request cid=%s SYNC=%s recovery=%s",public_key[:8],cid[:8],not self._nosync,self._is_recovery_func)
                 
-                if self._fbft.genesis_node == public_key:
+                if self._fbft.genesis_node == public_key :
                     self._incomplete = True # we should get current DAG
-                    self.send_block_request("HEAD", cid)
+                    if not self._is_recovery_func:
+                        self.send_block_request("HEAD", cid)
                 self.notify_peer_connected(public_key,assemble=True)
                 
         if self._fbft.genesis_node == self.validator_id :
