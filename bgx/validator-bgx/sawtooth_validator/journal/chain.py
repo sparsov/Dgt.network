@@ -169,7 +169,7 @@ class BlockValidator(object):
             'uncommitted_batches': [],
             'num_transactions': 0
         }
-        LOGGER.debug('BlockValidator: init new block=%s.%s signer=%s parent=%s',new_block.block_num,new_block.identifier[:8],self._validator_id[:8],self.previous_block_id[:8])
+        LOGGER.debug('BlockValidator: init new block=%s.%s signer=%s parent=%s IS_SYNC=%s',new_block.block_num,new_block.identifier[:8],self._validator_id[:8],self.previous_block_id[:8],self._is_sync)
         self._permission_verifier = permission_verifier
 
         self._validation_rule_enforcer = ValidationRuleEnforcer(SettingsViewFactory(state_view_factory))
@@ -354,7 +354,7 @@ class BlockValidator(object):
                 LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ARBITRATED BLOCK=%s.%s",state_hash[:8],blkw.block_num,blkw.identifier[:8])
                 scheduler.update_state_hash(blkw.state_root_hash,state_hash)
 
-            LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s new state=%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,recomputed_state[:8] if recomputed_state else None)
+            LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s state=%s~%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,state_hash[:8],recomputed_state[:8] if recomputed_state else None)
 
         return True
 

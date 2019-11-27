@@ -233,7 +233,7 @@ class Validator(object):
             network_service,
             settings_cache,
             block_store.chain_head_state_root,
-            block_store.is_recovery,
+            block_store.get_recovery_mode,
             block_store.get_chain_heads,
             consensus_notifier,
             endpoint=endpoint,

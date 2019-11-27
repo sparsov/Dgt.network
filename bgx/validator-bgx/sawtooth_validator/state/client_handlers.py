@@ -1134,7 +1134,7 @@ class HeadsGetRequest(_ClientRequestHandler):
         elif head_id == 'val':
             heads = self._block_store.get_chain_heads()
         elif head_id == 'hid':
-            heads = self._block_store.get_chain_heads(summary=True)
+            heads = [self._block_store.get_chain_heads(summary=True)]
         elif head_id == 'heads':
             heads = self._block_store.get_chain_heads()
         else:

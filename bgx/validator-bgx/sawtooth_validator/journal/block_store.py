@@ -257,6 +257,8 @@ class BlockStore(MutableMapping):
     @property
     def is_recovery(self):
         return self._is_recovery
+    def get_recovery_mode(self):
+        return self._is_recovery
     def set_nests_ready(self):
         self._is_nest_ready = True
 
@@ -281,8 +283,10 @@ class BlockStore(MutableMapping):
             return [self.get_block_by_number(block_num)]
         else:
             if self._is_recovery :
-                LOGGER.debug("get_recovery_block STOP nest_ready=%s recover=%s",self._is_nest_ready,len(self._recover_feder_nums))
-                if len(self._recover_feder_nums) == 0:
+                LOGGER.debug("get_recovery_block STOP nest_ready=%s recover=%s",self._is_nest_ready,self._recover_feder_nums)
+                if len(self._recover_feder_nums) == 1:
+                    # remain only genesis block - recovery completed 
+                    # 
                     self._is_recovery = False
                     return None
                 
@@ -464,7 +468,8 @@ class BlockStore(MutableMapping):
         if summary:
             summary = hashlib.sha256()            
             for head in heads:                    
-                summary.update(head.encode())     
+                summary.update(head.encode())
+            LOGGER.debug("BlockStore: heads=%s",heads)         
             return summary.digest().hex() 
         else:
             return heads

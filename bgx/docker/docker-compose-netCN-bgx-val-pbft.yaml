@@ -189,7 +189,7 @@ services:
     command: |
       bash -c "
         bgx/bin/protogen
-        echo rm -f clusters/${C}/bgx${N}/data/*;rm -f clusters/${C}/bgx${N}/logs/*.log*;
+        if [ ${G} == 'Y' ]; then rm -f clusters/${C}/bgx${N}/data/*; else echo 'RESTART MODE'; fi; rm -f clusters/${C}/bgx${N}/logs/*.log*;
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
@@ -197,7 +197,7 @@ services:
         sawtooth keygen my_key
         sawset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch $$(cat ../../bgx/etc/bgx_val.conf)
         sawset genesis -k /root/.sawtooth/keys/my_key.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub)
-        echo sawadm genesis config-genesis.batch  sawset.batch
+        if [ ${G} == 'Y' ]; then sawadm genesis config-genesis.batch  sawset.batch; else echo 'RESTART MODE'; fi
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \
