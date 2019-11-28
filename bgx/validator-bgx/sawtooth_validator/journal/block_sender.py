@@ -44,9 +44,11 @@ class BroadcastBlockSender(BlockSender):
         self._topology = self._gossip.f_topology
         #self._gossip.set_cluster(topology)
         return  self._topology
+
     def try_to_sync_with_net(self):
         self._gossip.try_to_sync_with_net()
 
+    
     def send(self, block):
         """
         use from publisher for sending new block to peers 
@@ -58,9 +60,11 @@ class BroadcastBlockSender(BlockSender):
         self._completer.add_block(block)
 
     def check_pending_head(self):
+        # NESTS ALREADY DONE
+        self._gossip.set_nests_ready()
         self._completer.add_block(None,True)
 
-    def recover_block(self,block):
+    def recover_block(self,blocks):
         # send next block into recovery mode
         self._completer.recover_block(block)
 

@@ -244,11 +244,13 @@ class BlockValidator(object):
                 # Use root state from previous block for DAG use last state
                 # 
                 belong_cluster = self._belong_cluster(blkw.signer_id)
-                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s cluster=%s persist=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8],belong_cluster,persist)
+                is_my = (blkw.signer_id == self._validator_id)
+                is_sync = self._is_sync and is_my
+                LOGGER.debug("Have processed transactions again for BLOCK=%s.%s(%s) STATE=%s cluster=%s persist=%s sync=%s",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],prev_state[:8],belong_cluster,persist,self._is_sync)
                 #scheduler = self._executor.create_scheduler(self._squash_handler,prev_state,self._context_handlers)
                 recompute_context = self._get_recompute_context(self._new_block.previous_block_id)
                 
-                if blkw.signer_id != self._validator_id:
+                if not is_my:
                     LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:8],len(blkw.block.batches))
                     if blkw.block_num == 0 :
                         # for external genesis block add mapping to own genesis state 
@@ -301,7 +303,7 @@ class BlockValidator(object):
                             """  
                             LOGGER.debug("LAST BATCH: for block=%s UPDATE STATE=%s-->%s",blkw,prev_state[:8],recomputed_state[:8] if recomputed_state else None)
                             #FOR ARBITRATION force fixing new state 
-                            scheduler.add_batch(batch,'verify' if not persist else (recomputed_state if belong_cluster and self._is_sync else 'arbitration')) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
+                            scheduler.add_batch(batch,'verify' if not persist else (recomputed_state if belong_cluster and is_sync else 'arbitration')) # prev_state if blkw.state_root_hash != recomputed_state else blkw.state_root_hash
 
                 except InvalidBatch:
                     #the same block was already commited
@@ -322,7 +324,7 @@ class BlockValidator(object):
                 FOR SERIAL SCHEDULER AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
                 and we can unlock merkle state 
                 """
-                LOGGER.debug("CURRENT NEW STATE=%s\n",self._get_merkle_root()[:8])
+                LOGGER.debug("CURRENT NEW STATE=%s SYNC=%s\n",self._get_merkle_root()[:8],is_sync)
                 # testing
                 #self._check_merkle(prev_state,'_verify_block_batches OLD root')
                 #self._check_merkle(recomputed_state,'_verify_block_batches NEW root') #blkw.state_root_hash
@@ -341,17 +343,17 @@ class BlockValidator(object):
             FOR PARALLEL SCHEDULER AT THIS POINT NEW BLOCK STATE APPEARED INTO STATE DATABASE !!!
             and we can unlock merkle state 
             """
-            if (belong_cluster and self._is_sync and recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
+            if (belong_cluster and is_sync and recomputed_state != state_hash): # or (not recomputed_state and blkw.state_root_hash != state_hash): # blkw.state_root_hash != state_hash
                 # for DAG this states could be different
                 # ignore for other cluster block
                 LOGGER.debug("Block(%s) rejected due to state root hash mismatch: %s != %s\n", blkw, recomputed_state[:8] if recomputed_state else None,state_hash[:8] if state_hash else None)
                 return False
 
-            if (not belong_cluster or not self._is_sync) and state_hash != blkw.state_root_hash and persist:
+            if (not belong_cluster or not is_sync) and state_hash != blkw.state_root_hash and persist:
                 """
                 for other's cluster blocks we excecute transactions only once and fix merkle root state without comparing this state with state from publisher   
                 """
-                LOGGER.debug("UPDATE TO STATE=%s for EXTERNAL ARBITRATED BLOCK=%s.%s",state_hash[:8],blkw.block_num,blkw.identifier[:8])
+                LOGGER.debug("UPDATE TO STATE=%s->%s for EXTERNAL ARBITRATED BLOCK=%s.%s",state_hash[:8],self._get_merkle_root()[:8],blkw.block_num,blkw.identifier[:8])
                 scheduler.update_state_hash(blkw.state_root_hash,state_hash)
 
             LOGGER.debug("Was verified BLOCK=%s.%s(%s) num tnx=%s state=%s~%s\n",blkw.block_num,blkw.identifier[:8],blkw.signer_id[:8],blkw.num_transactions,state_hash[:8],recomputed_state[:8] if recomputed_state else None)
@@ -454,7 +456,7 @@ class BlockValidator(object):
                     MAYBE check only for external block - which was made by others peer 
                     """
                     #if self._is_sync:
-                    valid = self._verify_block_batches(blkw,False)
+                    valid = self._verify_block_batches(blkw,persist=False)
                     #pass
 
                 # since changes to the chain-head can change the state of the
@@ -1131,7 +1133,7 @@ class ChainController(object):
                     #blocks = [b for b in block_iter]
                     #blocks = next(self._block_manager.get([blk.header_signature]))
                     #LOGGER.debug("BlockValidator:validate_block blocks=%s",blocks)
-
+            
             validator = BlockValidator(
                 consensus_module=consensus_module,
                 new_block=blkw,
@@ -1160,7 +1162,7 @@ class ChainController(object):
                 self._block_store.ref_block_number(blkw.block_num,blkw.signer_id)
             # start validation
             self._thread_pool.submit(validator.run)
-            LOGGER.debug("ChainController:_submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s BRANCH=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8],branch_id[:8])
+            LOGGER.debug("Submit_blocks_for_verification DONE BLOCK=%s.%s signer=%s BRANCH=%s SYNC=%s",blkw.block_num,blkw.block.header_signature[:8],blkw.signer_id[:8],branch_id[:8],self._block_sender.is_sync)
 
     """
     for external consensus
@@ -1395,7 +1397,7 @@ class ChainController(object):
 
             # Submit any immediate descendant blocks for verification
             LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
-            if len(descendant_blocks) == 0 and len(self._blocks_pending) == 0 and self._block_sender.is_pending_head == False and not self.is_recovery:
+            if not self.is_recovery and len(descendant_blocks) == 0 and len(self._blocks_pending) == 0 and self._block_sender.is_pending_head == False and not self._block_sender.is_sync:
                 LOGGER.debug('There are no descendant blocks - TRY TO SYNC WITH OTHER PEERS\n')
                 self._block_sender.try_to_sync_with_net()
 

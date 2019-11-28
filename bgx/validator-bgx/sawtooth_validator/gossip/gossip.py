@@ -349,6 +349,7 @@ class Gossip(object):
         self._nosync    = False                # need sync with other net 
         self._genesis_sync = False             # sync with genesis peer or with cluster leader
         self._incomplete = False               # status of own nests 
+        self._is_nests_ready = False           # 
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         """
         initial_peer_endpoints - peers from own cluster
@@ -371,10 +372,16 @@ class Gossip(object):
     @property
     def is_registered_engines(self):
         return self._consensus_notifier._registered_engines
+    @property
+    def is_genesis_peer(self):
+        return self._fbft.genesis_node == self.validator_id
+    @property
+    def is_ready_for_assemble(self):
+        return self.is_registered_engines and not self._is_recovery_func() and (self._is_nests_ready or not self.is_genesis_peer)
 
     @property
     def is_federations_assembled(self):
-        return self._is_federations_assembled
+        return self._is_federations_assembled  
     @property
     def is_sync(self):
         return not (self._nosync or (self._fbft.genesis_node != self.validator_id and not self._genesis_sync)) # or not genesis peer
@@ -391,6 +398,8 @@ class Gossip(object):
     def heads_summary(self):
         return self._get_heads_func(summary=True)
                                       
+    def set_nests_ready(self):
+        self._is_nests_ready = True
 
     def set_cluster(self,topology):
         self._fbft = topology
@@ -653,8 +662,10 @@ class Gossip(object):
         with self._lock:
             public_key = self._network.connection_id_to_public_key(connection_id)
             LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME incomplete=%s hid=%s~%s",endpoint,public_key[:8],self._incomplete,nests,self.heads_summary)
-            self.update_federation_topology(public_key,endpoint,sync = True)
-            self.notify_peer_connected(public_key,assemble=True)
+            if is_not_diff:
+                # set peer with endpoint into sync mode
+                self.update_federation_topology(public_key,endpoint,sync = True)
+                self.notify_peer_connected(public_key,assemble=True)
             if self._fbft.get_peer_state(self.validator_id) != PeerSync.active and is_not_diff:
                 # set own sync status but check maybe own DAG incompleted yet
                 LOGGER.debug("SYNC_PEER REQUEST SET OWN STATUS incomplete=%s\n",self._incomplete)
@@ -753,7 +764,7 @@ class Gossip(object):
                 
         if self._fbft.genesis_node == self.validator_id :
             # this is genesis peer - make nests 
-            LOGGER.debug("switch_on_federations make NESTS for genesis=%s",self.validator_id[:8])
+            LOGGER.debug("switch_on_federations make NESTS for genesis=%s SYNC=%s",self.validator_id[:8],self.is_sync)
 
     def get_time_to_live(self):
         time_to_live = \
@@ -1135,8 +1146,8 @@ class ConnectionManager(InstrumentedThread):
         """
         with self._lock:
             if not self.is_federations_assembled :
-                if self._gossip.is_registered_engines and (self._peer_timeout > self._federations_timeout or self._gossip.is_peers()):
-                    # not checked and there is some registered peers
+                if self._gossip.is_ready_for_assemble and (self._peer_timeout > self._federations_timeout or self._gossip.is_peers()):
+                    # not checked and there is some registered peers and nests were made
                     if self._peer_timeout < self._federations_timeout :
                         self._peer_timeout = self._federations_timeout + 1 # don't check is_peers() 
                     else:
