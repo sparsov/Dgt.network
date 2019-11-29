@@ -91,14 +91,14 @@ class PeerRegisterHandler(Handler):
                 # say asked peer about point of assemble
                 ack.status = ack.OK
                 ack.sync   = sync
-                LOGGER.debug("register peer sync=%s(%s)",sync,request.endpoint)
+                LOGGER.debug("register peer sync=%s(%s) DONE",sync,request.endpoint)
             else:
                 """
                 Peer ask sync after his nests were builded  
                 """
                 ack.status = ack.OK
                 ack.sync   = self._gossip.sync_peer(connection_id, request.endpoint,nests=request.hid)
-                LOGGER.debug("SYNC request from peer=%s hid=%s\n",request.endpoint,request.hid)
+                LOGGER.debug("SYNC request from peer=%s sync=%s hid=%s DONE\n",request.endpoint,ack.sync,request.hid)
 
         except PeeringException:
             ack.status = ack.ERROR
