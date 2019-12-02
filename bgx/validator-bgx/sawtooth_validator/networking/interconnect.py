@@ -318,8 +318,7 @@ class _SendReceive(object):
                 # The raise is required to stop this component.
                 raise
             except Exception as e:  # pylint: disable=broad-except
-                LOGGER.exception("Received a message on address %s that "
-                                 "caused an error: %s", self._address, e)
+                LOGGER.exception("Received a message on address %s that caused an error: %s", self._address, e)
 
     @asyncio.coroutine
     def _receive_message(self):

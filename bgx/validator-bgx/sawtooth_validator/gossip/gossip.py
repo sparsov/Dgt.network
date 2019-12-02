@@ -86,7 +86,8 @@ StaticPeerInfo = namedtuple('StaticPeerInfo',
 
 INITIAL_RETRY_FREQUENCY = 10
 MAXIMUM_RETRY_FREQUENCY = 300
-
+SYNC_CHECK_TOUT         = 10
+   
 MAXIMUM_STATIC_RETRY_FREQUENCY = 3600
 MAXIMUM_STATIC_RETRIES = 24
 
@@ -352,6 +353,7 @@ class Gossip(object):
         self._incomplete = False               # status of own nests 
         self._is_nests_ready = False           # 
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
+        self._unsync_peers = {}                # list unsync  peers
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -385,7 +387,7 @@ class Gossip(object):
         return self._is_federations_assembled  
     @property
     def is_sync(self):
-        return not (self._nosync or (self._fbft.genesis_node != self.validator_id and not self._genesis_sync)) # or not genesis peer
+        return not (self._nosync or (not self.is_genesis_peer and not self._genesis_sync)) # or not genesis peer
 
     @property
     def malicious(self):
@@ -454,6 +456,9 @@ class Gossip(object):
                         self.update_federation_topology(peer_key,endpoint,sync=ack.sync)
                         if ack.sync:
                             self._num_nosync_peer -= 1
+                            if endpoint in self._unsync_peers:
+                                self._unsync_peers.pop(endpoint)
+
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
                             if peer_key == self._fbft.genesis_node :
                                 # sync with genesis peer
@@ -465,6 +470,7 @@ class Gossip(object):
                                     self.notify_peer_connected(self.validator_id,assemble=True) # OWN status
                         else:
                             LOGGER.debug("SYNC request to=%s WAS WRONG(check heads)",endpoint)
+                            self._unsync_peers[endpoint] = time.time()
 
                     except PeeringException as e:
                         # Remove unsuccessful peer
@@ -521,6 +527,17 @@ class Gossip(object):
                     self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
 
             LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE non SYNC peers=%s\n",self._num_nosync_peer)
+
+    def check_unsync_peer(self):
+        with self._lock:
+            if len(self._unsync_peers) > 0:
+                #LOGGER.debug("Check unsync peers\n")
+                ctime = time.time()
+
+                for endpoint,stime in self._unsync_peers.items():
+                    if (ctime - stime) > SYNC_CHECK_TOUT:
+                        LOGGER.debug("TRY_TO_SYNC WITH peer=%s\n",endpoint)
+                        self.sync_to_peer_with_endpoint(endpoint)
 
     def notify_peer_connected(self,public_key,assemble=False,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
@@ -1169,6 +1186,9 @@ class ConnectionManager(InstrumentedThread):
                         self.check_federations_status()
                     self._check_time += 1
                 self._peer_timeout += 1
+            else :
+                self._gossip.check_unsync_peer()
+
             
                 
             # Endpoints that have reached their retry count and should be

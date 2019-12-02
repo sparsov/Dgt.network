@@ -196,7 +196,10 @@ class PingHandler(Handler):
 
             if connection_id in self._last_message:
                 del self._last_message[connection_id]
-
+            """
+            Here we can ask SYNC with this peer -in case we have no sync yet
+            """
+            #LOGGER.debug("PingRequest from CONNECTED %s(%s)",connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
             return HandlerResult(
                 HandlerStatus.RETURN,
                 message_out=ack,
@@ -276,8 +279,7 @@ class AuthorizationTrustRequestHandler(Handler):
             # Need to send ConnectionRequest to authorize ourself with the
             # connection if they initialized the connection
             try:
-                is_outbound_connection = self._network.is_outbound_connection(
-                    connection_id)
+                is_outbound_connection = self._network.is_outbound_connection(connection_id)
             except KeyError:
                 # Connection has gone away, drop message
                 return HandlerResult(HandlerStatus.DROP)
@@ -416,8 +418,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
 
         roles = self._network.roles
         for role in auth_challenge_submit.roles:
-            if role == RoleType.Value("NETWORK") or role == \
-                    RoleType.Value("ALL"):
+            if role == RoleType.Value("NETWORK") or role == RoleType.Value("ALL"):
                 permitted = False
                 if "network" in roles:
                     permitted = self._permission_verifier.check_network_role(
@@ -434,8 +435,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
             # Need to send ConnectionRequest to authorize ourself with the
             # connection if they initialized the connection
             try:
-                is_outbound_connection = self._network.is_outbound_connection(
-                    connection_id)
+                is_outbound_connection = self._network.is_outbound_connection(connection_id)
             except KeyError:
                 # Connection has gone away, drop message
                 return HandlerResult(HandlerStatus.DROP)
