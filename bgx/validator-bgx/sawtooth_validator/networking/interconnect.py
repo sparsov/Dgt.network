@@ -786,7 +786,7 @@ class Interconnect(object):
             uri (str): The zmq-style (e.g. tcp://hostname:port) uri
                 to attempt to connect to.
         """
-        LOGGER.debug("Adding outbound connection to %s", uri)
+        #LOGGER.debug("Adding outbound connection to %s", uri)
         conn = OutboundConnection(
             connections=self._connections,
             endpoint=uri,

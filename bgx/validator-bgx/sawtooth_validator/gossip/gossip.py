@@ -347,7 +347,7 @@ class Gossip(object):
         self._fbft = FbftTopology()            # F-BFT topology
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
-        self._nosync    = False                # need sync with other net 
+        self._nosync    = True #False                # need sync with other net 
         self._genesis_sync = False             # sync with genesis peer or with cluster leader
         self._num_nosync_peer = 0              # number of non sync peer 
         self._incomplete = False               # status of own nests 
@@ -458,6 +458,9 @@ class Gossip(object):
                             self._num_nosync_peer -= 1
                             if endpoint in self._unsync_peers:
                                 self._unsync_peers.pop(endpoint)
+                            if self._num_nosync_peer == 0 and not self.is_sync:
+                                # set OWN SYNC 
+                                self._nosync = False
 
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
                             if peer_key == self._fbft.genesis_node :
@@ -525,8 +528,9 @@ class Gossip(object):
                     self._num_nosync_peer += 1
                     LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer[PeerAtr.endpoint],peer[PeerAtr.node_state])
                     self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
-
-            LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE non SYNC peers=%s\n",self._num_nosync_peer)
+            if self._num_nosync_peer == 0:
+                self._nosync = False
+            LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE SYNC=%s unsync peers=%s\n",self.is_sync,self._num_nosync_peer)
 
     def check_unsync_peer(self):
         with self._lock:
@@ -645,6 +649,7 @@ class Gossip(object):
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
         self._fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode)
+        LOGGER.debug("LOAD topology DONE SYNC=%s",self.is_sync)
         
 
     def get_topology(self):
@@ -731,7 +736,8 @@ class Gossip(object):
             """
             if sync is not None and self._fbft.get_peer_state(public_key) != PeerSync.active :
                 # it could appeared after sync from this peer 
-                self.update_federation_topology(public_key,endpoint,sync = False) #(not self.is_federations_assembled and not sync))
+                # this is reply on my own register request
+                self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)
             if self.is_federations_assembled:
@@ -1218,7 +1224,7 @@ class ConnectionManager(InstrumentedThread):
                             continue
                 #LOGGER.debug("retry_static_peering:KeyError for %s threshold=%s",str(time.time() - static_peer_info.time),static_peer_info.retry_threshold)
                 if (time.time() - static_peer_info.time) > static_peer_info.retry_threshold:
-                    LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s(%s)",static_peer_info.retry_threshold,endpoint,connection_id)
+                    #LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s(%s)",static_peer_info.retry_threshold,endpoint,connection_id)
                     if connection_id is not None:
                         # If the connection exists remove it before retrying to
                         # authorize.
@@ -1256,7 +1262,7 @@ class ConnectionManager(InstrumentedThread):
                                     MAXIMUM_STATIC_RETRY_FREQUENCY),
                                 count=0)
 
-                    LOGGER.debug("retry_static_peering:attempting to peer with %s", endpoint)
+                    #LOGGER.debug("retry_static_peering:attempting to peer with %s", endpoint)
                     self._network.add_outbound_connection(endpoint)
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.PEERING,
@@ -1435,7 +1441,7 @@ class ConnectionManager(InstrumentedThread):
 
     def _peer_callback(self, request, result, connection_id, endpoint=None):
         """
-        reply on register request
+        Reply on register request
         """
         LOGGER.debug("_peer_callback %s",endpoint)
         with self._lock:
@@ -1446,16 +1452,17 @@ class ConnectionManager(InstrumentedThread):
                 LOGGER.debug("Peering request to %s was NOT successful",connection_id)
                 self._remove_temporary_connection(connection_id)
             elif ack.status == ack.OK:
-                LOGGER.debug("Peering request to %s(%s) was successful. Peer already SYNC=%s",connection_id[:8],endpoint,ack.sync)
+                
                 if endpoint:
                     try:
                         """
                         in case (ack.sync == TRUE) peer already make point of assemble and we should make sync with them 
                         and inform them after synchronization
                         """
+                        LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
                         self._gossip.register_peer(connection_id, endpoint,ack.sync)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
-                        LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s", endpoint,self._gossip.peer_to_public_key(connection_id) )
+                        LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,self._gossip.peer_to_public_key(connection_id),self._gossip.is_sync)
                         """
                         for federation topology try to wait sometime until peers connected
                         and only after this timeout send HEAD block request

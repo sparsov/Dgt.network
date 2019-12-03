@@ -82,20 +82,23 @@ class PeerRegisterHandler(Handler):
         request = PeerRegisterRequest()
         request.ParseFromString(message_content)
 
-        LOGGER.debug("Got peer register message MODE=%s from %s(%s)",request.mode,request.endpoint,connection_id[:10])
+        #LOGGER.debug("Got peer register message MODE=%s from %s(%s)",request.mode,request.endpoint,connection_id[:10])
 
         ack = NetworkAcknowledgement()
         try:
             if request.mode == PeerRegisterRequest.REGISTER:
+                # peer ask register
+                LOGGER.debug("Peer=%s(%s) ask REGISTER component=%s",request.endpoint,connection_id[:10],request.component)
                 sync = self._gossip.register_peer(connection_id, request.endpoint,component=request.component)
                 # say asked peer about point of assemble
                 ack.status = ack.OK
                 ack.sync   = sync
-                LOGGER.debug("register peer sync=%s(%s) DONE",sync,request.endpoint)
+                LOGGER.debug("register peer sync=%s(%s) SYNC=%s DONE",sync,request.endpoint,self._gossip.is_sync)
             else:
                 """
                 Peer ask sync after his nests were builded  
                 """
+                LOGGER.debug("Peer=%s(%s) ask SYNC",request.endpoint,connection_id[:10])
                 ack.status = ack.OK
                 ack.sync   = self._gossip.sync_peer(connection_id, request.endpoint,nests=request.hid)
                 LOGGER.debug("SYNC request from peer=%s sync=%s hid=%s DONE\n",request.endpoint,ack.sync,request.hid)

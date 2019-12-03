@@ -66,7 +66,7 @@ class BroadcastBlockSender(BlockSender):
 
     def recover_block(self,blocks):
         # send next block into recovery mode
-        self._completer.recover_block(block)
+        self._completer.recover_block(blocks)
 
     @property
     def is_pending_head(self):

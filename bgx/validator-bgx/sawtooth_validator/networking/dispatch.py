@@ -78,8 +78,7 @@ class Dispatcher(InstrumentedThread):
                 arrive via connection.
         """
         self._send_message[connection] = send_message
-        LOGGER.debug("Added send_message function "
-                     "for connection %s", connection)
+        #LOGGER.debug("Added send_message function for connection %s", connection)
 
     def add_send_last_message(self, connection, send_last_message):
         """Adds a send_last_message function to the Dispatcher's
@@ -94,8 +93,7 @@ class Dispatcher(InstrumentedThread):
                 after the message has been sent.
         """
         self._send_last_message[connection] = send_last_message
-        LOGGER.debug("Added send_last_message function "
-                     "for connection %s", connection)
+        #LOGGER.debug("Added send_last_message function for connection %s", connection)
 
     def remove_send_message(self, connection):
         """Removes a send_message function previously registered
@@ -107,7 +105,7 @@ class Dispatcher(InstrumentedThread):
         """
         if connection in self._send_message:
             del self._send_message[connection]
-            LOGGER.debug("Removed send_message function for connection %s", connection)
+            #LOGGER.debug("Removed send_message function for connection %s", connection)
         else:
             LOGGER.debug("Attempted to remove send_message function for connection %s, but no send_message function was registered",connection)
 
@@ -121,7 +119,7 @@ class Dispatcher(InstrumentedThread):
         """
         if connection in self._send_last_message:
             del self._send_last_message[connection]
-            LOGGER.debug("Removed send_last_message function for connection %s", connection)
+            #LOGGER.debug("Removed send_last_message function for connection %s", connection)
         else:
             LOGGER.debug("Attempted to remove send_last_message function for connection %s, but no send_last_message function was registered",connection)
 
