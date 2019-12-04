@@ -206,8 +206,7 @@ class _SendReceive(object):
                 # The raise is required to stop this component.
                 raise
             except Exception as e:  # pylint: disable=broad-except
-                LOGGER.exception(
-                    "An error occurred while sending heartbeat: %s", e)
+                LOGGER.exception("An error occurred while sending heartbeat: %s", e)
 
     @asyncio.coroutine
     def _do_router_heartbeat(self):
@@ -835,14 +834,11 @@ class Interconnect(object):
         connection_response.ParseFromString(result.content)
 
         if connection_response.status == connection_response.ERROR:
-            LOGGER.debug("Received an error response to the NETWORK_CONNECT "
-                         "we sent. Removing connection: %s",
-                         connection.connection_id)
+            LOGGER.debug("Received an error response to the NETWORK_CONNECT we sent. Removing connection: %s",connection.connection_id)
             self.remove_connection(connection.connection_id)
         elif connection_response.status == connection_response.OK:
 
-            LOGGER.debug("Connection to %s was acknowledged",
-                         connection.connection_id)
+            LOGGER.debug("Connection to %s was acknowledged",connection.connection_id)
             if self._authorize:
                 # Send correct Authorization Request for network role
                 auth_type = {"trust": [], "challenge": []}
@@ -878,9 +874,7 @@ class Interconnect(object):
         connection_response = ConnectionResponse()
         connection_response.ParseFromString(result.content)
         if connection_response.status == connection_response.ERROR:
-            LOGGER.debug("Received an error response to the NETWORK_CONNECT "
-                         "we sent. Removing connection: %s",
-                         connection_id)
+            LOGGER.debug("Received an error response to the NETWORK_CONNECT we sent. Removing connection: %s",connection_id)
             self.remove_connection(connection_id)
 
         # Send correct Authorization Request for network role
@@ -1090,10 +1084,7 @@ class Interconnect(object):
                                connection_info.public_key)
 
         else:
-            LOGGER.debug("Could not update the endpoint %s for connection_id %s. The connection does not "
-                         "exist.",
-                         endpoint,
-                         connection_id)
+            LOGGER.debug("Could not update the endpoint %s for connection_id %s. The connection does not exist.",endpoint,connection_id)
 
     def update_connection_public_key(self, connection_id, public_key):
         """Adds the public_key to the connection definition.

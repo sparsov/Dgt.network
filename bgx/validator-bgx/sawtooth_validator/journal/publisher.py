@@ -899,9 +899,10 @@ class BlockPublisher(object):
             if blks is not None:
                 LOGGER.debug("RECOVERY next BLOCK=%s for nest=%s",[blk.identifier[:8] for blk in blks],nest_colour)
                 self._block_sender.recover_block(blks)
-            else:   
-                LOGGER.debug("RECOVERY WAS DONE !\n")
-                self._block_sender.try_to_sync_with_net()
+            else:  
+                if not self.is_recovery:
+                    LOGGER.debug("RECOVERY WAS DONE !\n")
+                    self._block_sender.try_to_sync_with_net()
 
                 
        

@@ -734,7 +734,7 @@ class Gossip(object):
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
-            if sync is not None and self._fbft.get_peer_state(public_key) != PeerSync.active :
+            if self._fbft.get_peer_state(public_key) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
                 self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
@@ -1460,7 +1460,7 @@ class ConnectionManager(InstrumentedThread):
                         and inform them after synchronization
                         """
                         LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
-                        self._gossip.register_peer(connection_id, endpoint,ack.sync)
+                        self._gossip.register_peer(connection_id, endpoint,sync=None)#ack.sync)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
                         LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,self._gossip.peer_to_public_key(connection_id),self._gossip.is_sync)
                         """

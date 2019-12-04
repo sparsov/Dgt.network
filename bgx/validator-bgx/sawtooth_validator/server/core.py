@@ -462,8 +462,7 @@ class Validator(object):
 
         while threads:
             if len(threads) < 4:
-                LOGGER.info(
-                    "remaining threads: %s",
+                LOGGER.info("remaining threads: %s",
                     ", ".join(
                         ["{} ({})".format(x.name, x.__class__.__name__)
                          for x in threads]))
