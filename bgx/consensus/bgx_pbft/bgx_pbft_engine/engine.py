@@ -25,7 +25,6 @@ from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 #from bgx_pbft_common.protobuf.validator_pb2 import Message
 #from bgx_pbft_common.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 
-
 from bgx_pbft_engine.oracle import PbftOracle, PbftBlock,_StateViewFactoryProxy
 from bgx_pbft_engine.pending import PendingForks
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
@@ -1209,9 +1208,11 @@ class PbftEngine(Engine):
             if branch.state >= State.Commiting or branch.already_send_commit:
                 LOGGER.info('=> IGNORE VALID_BLOCK: ALREADY RECIEVED %s', _short_id(bid))
                 return
-
-        block = self._get_block(block_id)
-
+        try:
+            block = self._get_block(block_id)
+        except exceptions.UnknownBlock:
+            LOGGER.info('=> VALID_BLOCK:CANT GET BLOCK=%s', _short_id(bid))
+            return
         self._pending_forks_to_resolve.push(block)
         self._committing = False
         self._process_pending_forks()

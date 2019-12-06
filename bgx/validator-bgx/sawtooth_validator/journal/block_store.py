@@ -294,8 +294,9 @@ class BlockStore(MutableMapping):
                     # add first blocks from other federation into chain controller
                     blks = []
                     for fnum,block_num in list(self._recover_feder_nums.items()):
-                        inc_bnum(fnum,block_num)
-                        blks.append(self.get_block_by_number(block_num))
+                        if fnum > 0:
+                            inc_bnum(fnum,block_num)
+                            blks.append(self.get_block_by_number(block_num))
                     return blks if len(blks) > 0 else None
                 #
         return None

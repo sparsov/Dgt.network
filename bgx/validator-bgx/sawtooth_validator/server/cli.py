@@ -99,6 +99,9 @@ def parse_args(args):
                         help='specify host and port for Open TSDB database \
                         used for metrics',
                         type=str)
+    parser.add_argument('--opentsdb-url-off',
+                        help='Switch off using metrics',
+                        type=str)
     parser.add_argument('--opentsdb-db',
                         help='specify name of database used for storing \
                         metrics',
@@ -128,7 +131,7 @@ def parse_args(args):
     parser.add_argument(
         '-V', '--version',
         action='version',
-        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth) version {}')
+        version=(DISTRIBUTION_NAME + ' (Hyperledger Bgx Sawtooth) version {}')
         .format(version),
         help='display version information')
 
