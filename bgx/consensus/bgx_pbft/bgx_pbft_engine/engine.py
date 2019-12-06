@@ -1470,7 +1470,7 @@ class PbftEngine(Engine):
         
         if peer_status == ConsensusNotifyPeerConnected.NOT_READY:
             # take message from sync peer and peer from cluster or arbiter ring
-            LOGGER.debug("=> IGNORE PEER_MESSAGE %s.'%s'  peer=%s(%s)\n",info.seq_num,CONSENSUS_MSG[msg_type],peer_id[:8],peer_status)
+            LOGGER.debug("=> IGNORE PEER_MESSAGE %s.'%s'  peer=%s(%s) NOT READY\n",info.seq_num,CONSENSUS_MSG[msg_type],peer_id[:8],peer_status)
             return
 
         LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s(%s)",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8],peer_status)
