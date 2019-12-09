@@ -1381,7 +1381,7 @@ class ChainController(object):
                 self._chain_head_gauge.set_value(self._chain_head.identifier) # FIXME for external block
 
                 self._committed_transactions_count.inc(new_block.num_transactions) #result["num_transactions"])
-                self._committed_transactions_gauge.set_value(self._metrics_registry.get_metrics('chain.ChainController.committed_transactions_count')['count'])
+                self._committed_transactions_gauge.set_value(self._metrics_registry.get_metrics('chain.ChainController.committed_transactions_count')['count'] if self._metrics_registry else 0)
                 self._block_num_gauge.set_value(self._chain_head.block_num)
 
                 # tell the BlockPublisher else the chain for branch is updated

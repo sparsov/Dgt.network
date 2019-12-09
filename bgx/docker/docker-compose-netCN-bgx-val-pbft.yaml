@@ -204,7 +204,7 @@ services:
             --bind network:tcp://eth0:${NET} \
             --bind consensus:tcp://eth0:${CONS} \
             --max_dag_branch 6 --scheduler parallel --maximum-peer-connectivity 70 \
-            --opentsdb-url http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
+            --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGKILL
 
