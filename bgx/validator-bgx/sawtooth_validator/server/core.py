@@ -422,17 +422,18 @@ class Validator(object):
         signal.signal(signal.SIGTERM,lambda sig, fr: signal_event.set())
         # This is where the main thread will be during the bulk of the
         # validator's life.
+        """
         if self._metrics_registry:
             pass
-            #LOGGER.debug("->DUMP METRICS=%s",self._metrics_registry.dump_metrics)
-
+            LOGGER.debug("->DUMP METRICS=%s",self._metrics_registry.dump_metrics)
+        """
         while not signal_event.is_set():
             signal_event.wait(timeout=20)
-
+        """
         if self._metrics_registry:
             pass
-            #LOGGER.debug("<-DUMP METRICS=%s",self._metrics_registry.dump_metrics)
-
+            LOGGER.debug("<-DUMP METRICS=%s",self._metrics_registry.dump_metrics)
+        """
     def stop(self):
         self._gossip.stop()
         self._component_dispatcher.stop()

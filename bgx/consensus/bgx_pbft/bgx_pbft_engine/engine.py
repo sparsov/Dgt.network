@@ -1134,7 +1134,7 @@ class PbftEngine(Engine):
         summary = block.summary.hex()
         block_num = block.block_num
         num_peers = self.num_peers 
-        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summary=%s num_peers=%s',block_num,_short_id(block_id),signer_id[:8],summary[:8],num_peers)
+        LOGGER.info('=> NEW_BLOCK:Received block=%s.%s signer=%s summary=%s num_peers=%s SYNC=%s',block_num,_short_id(block_id),signer_id[:8],summary[:8],num_peers,self.is_sync)
         def check_consensus():
             if num_peers > 0 and summary in self._prepare_msgs:                                                                                                                   
                 blocks = self._prepare_msgs[summary]
