@@ -537,7 +537,7 @@ class BranchState(object):
                     self._state = State.Finished
                     self.commit_block(block.block_id)
                 else:
-                    LOGGER.info('Ready to do commit for block=%s ask ARBITER=%s -> Arbitration', self.block_num,[key[:8] for key in self.arbiters.keys()])
+                    LOGGER.info('Ready to do commit for block=%s ask ARBITER=%s -> Arbitration', self.block_num,[key[:8] for key,val in self.arbiters.items() if val[1] == ConsensusNotifyPeerConnected.OK])
                     self._state = State.Arbitration
                     self._send_arbitration(block)
 
@@ -701,7 +701,8 @@ class PbftEngine(Engine):
 
     @property
     def arbiters_info(self):
-        return [val[2]+'('+str(val[1])+'='+aid[:8]+')' for aid,val in self._arbiters.items()]
+        # only arbiters which are ready
+        return [val[2]+'('+str(val[1])+'='+aid[:8]+')' for aid,val in self._arbiters.items() if val[1] == ConsensusNotifyPeerConnected.OK]
 
     @property
     def nest_color(self):
