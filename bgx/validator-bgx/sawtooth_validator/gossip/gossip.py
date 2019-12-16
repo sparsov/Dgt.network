@@ -738,6 +738,13 @@ class Gossip(object):
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
                 self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
+            else :
+                # was active - set unsync 
+                # in case peer restart
+                if sync is None and component is not None:
+                    self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True)
+                
+
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)
             if self.is_federations_assembled:
