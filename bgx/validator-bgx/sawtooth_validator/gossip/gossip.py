@@ -737,7 +737,8 @@ class Gossip(object):
             if self._fbft.get_peer_state(public_key) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
-                self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
+                self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True)
+                #self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
             else :
                 # was active - set unsync 
                 # in case peer restart
