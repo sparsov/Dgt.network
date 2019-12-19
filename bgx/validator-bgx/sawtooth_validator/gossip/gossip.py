@@ -471,6 +471,7 @@ class Gossip(object):
                                     self._genesis_sync = True # mark as synced with genesis
                                     self.update_federation_topology(self.validator_id,None,sync=ack.sync)
                                     self.notify_peer_connected(self.validator_id,assemble=True) # OWN status
+                                    LOGGER.debug("REPLY ON MY REQ -  SWITCH MYSELF TO SYNC\n")
                         else:
                             LOGGER.debug("SYNC request to=%s WAS WRONG(check heads)",endpoint)
                             self._unsync_peers[endpoint] = time.time()
@@ -540,7 +541,7 @@ class Gossip(object):
 
                 for endpoint,stime in self._unsync_peers.items():
                     if (ctime - stime) > SYNC_CHECK_TOUT:
-                        LOGGER.debug("TRY_TO_SYNC WITH peer=%s\n",endpoint)
+                        LOGGER.debug("TRY SYNC WITH peer=%s\n",endpoint)
                         self.sync_to_peer_with_endpoint(endpoint)
 
     def notify_peer_connected(self,public_key,assemble=False,mode=ConsensusNotifyPeerConnected.NORMAL):
@@ -701,6 +702,7 @@ class Gossip(object):
                     if not self._incomplete:
                         self.update_federation_topology(self.validator_id,None,sync = True)
                         self.notify_peer_connected(self.validator_id,assemble=True)
+                        LOGGER.debug("PEER ASK SYNC - SWITCH MYSELF TO SYNC\n")
             else:
                 # if peer was in sync mode we should reset him into unsync
                 pass
@@ -792,6 +794,7 @@ class Gossip(object):
             self._fbft.update_peer_activity(self.validator_id,None,True,False,force=True)
             self._fbft.update_peer_activity(self._fbft.genesis_node,None,True,False,force=True)
             self.notify_peer_connected(self.validator_id,assemble=False)
+            LOGGER.debug("switch_on_federations SWITCH MYSELF TO UNSYNC\n")
         for public_key in set(peer_keys):
             if public_key:
                 cid = keys_cid[public_key]

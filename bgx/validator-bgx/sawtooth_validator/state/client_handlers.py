@@ -282,7 +282,7 @@ class _ClientRequestHandler(Handler, metaclass=abc.ABCMeta):
             we will return only one branch 
             when we ask all tree this new version works good - but when we ask branch this version can return more then one branch FIXME    
             """
-            LOGGER.debug('_list_store_resources: head_id=%s',head_id[:8])
+            #LOGGER.debug('_list_store_resources: head_id=%s',head_id[:8])
             if head_id in self._block_store:
                 head = self._block_store[head_id]
                 #LOGGER.debug('_list_store_resources: head=%s',type(head))
@@ -963,7 +963,7 @@ class BatchListRequest(_ClientRequestHandler):
             request.batch_ids,
             self._block_store.get_batch,
             lambda block: [a for a in block.batches])
-        LOGGER.debug('BatchListRequest: batches=%s',len(batches))
+        #LOGGER.debug('BatchListRequest: batches=%s',len(batches))
         if self.is_reverse(request.sorting, self._status.INVALID_SORT):
             batches.reverse()
 
@@ -1032,7 +1032,7 @@ class TransactionListRequest(_ClientRequestHandler):
             request.transaction_ids,
             self._block_store.get_transaction,
             lambda block: [t for a in block.batches for t in a.transactions])
-        LOGGER.debug('TransactionListRequest: head_id=%s num=%s', head_id[:8],len(transactions))
+        #LOGGER.debug('TransactionListRequest: head_id=%s num=%s', head_id[:8],len(transactions))
         if self.is_reverse(request.sorting, self._status.INVALID_SORT):
             transactions.reverse()
 
@@ -1107,7 +1107,7 @@ class TopologyGetRequest(_ClientRequestHandler):
         self._gossip = gossip
 
     def _respond(self, request):
-        LOGGER.debug('TopologyGetRequest: ...')
+        #LOGGER.debug('TopologyGetRequest: ...')
         topology = self._gossip.get_topology()
         return self._wrap_response(topology=topology)
 
@@ -1124,7 +1124,7 @@ class HeadsGetRequest(_ClientRequestHandler):
 
     def _respond(self, request):
         head_id = request.head_id
-        LOGGER.debug('HeadsGetRequest: head_id=%s',head_id)
+        #LOGGER.debug('HeadsGetRequest: head_id=%s',head_id)
         if head_id in ['','nest']:
             heads = self._publisher.get_candidates()
         elif head_id == 'integrity':
@@ -1153,7 +1153,7 @@ class CandidatesGetRequest(_ClientRequestHandler):
 
     def _respond(self, request):
         head_id = request.head_id
-        LOGGER.debug('CandidatesGetRequest: head_id=%s',head_id)
+        #LOGGER.debug('CandidatesGetRequest: head_id=%s',head_id)
         candidates = self._publisher.get_candidates()
         #endpoints = [peers[connection_id] for connection_id in heads]
         return self._wrap_response(heads=candidates)
