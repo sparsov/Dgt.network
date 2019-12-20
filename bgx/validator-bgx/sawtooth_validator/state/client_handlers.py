@@ -223,7 +223,7 @@ class _ClientRequestHandler(Handler, metaclass=abc.ABCMeta):
             head = self._get_chain_head()
             froot = head.state_root_hash
             root = self._tree.real_merkle_root
-            LOGGER.debug('_set_root: root=%s real root=%s\n',froot[:10],root[:10])    
+            #LOGGER.debug('_set_root: root=%s real root=%s\n',froot[:10],root[:10])    
         try:
             self._tree.set_merkle_root(root)
         except KeyError as e:

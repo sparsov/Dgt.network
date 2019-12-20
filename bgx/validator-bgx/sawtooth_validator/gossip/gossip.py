@@ -725,7 +725,10 @@ class Gossip(object):
             if len(self._peers) < self._maximum_peer_connectivity:
                 LOGGER.debug("Register endpoint=%s component=%s assembled=%s sync=%s SYNC=%s peers=%s",endpoint,component,self.is_federations_assembled,sync,self.is_sync,[cid[:8] for cid in self._peers])
                 self._peers[connection_id] = endpoint
-                self._topology.set_connection_status(connection_id,PeerStatus.PEER)
+                if self._topology:
+                    self._topology.set_connection_status(connection_id,PeerStatus.PEER)
+                else:
+                     LOGGER.debug("Can't set connection status for  endpoint=%s(TOO EARLY)\n",endpoint)
                 LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id, endpoint, self._peers)
             else:
                 raise PeeringException("At maximum configured number of peers: {} Rejecting peering request from {}.".format(self._maximum_peer_connectivity,endpoint))
@@ -789,7 +792,7 @@ class Gossip(object):
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
             keys_cid  = {self._network.connection_id_to_public_key(cid) : cid for cid in self._peers} 
         LOGGER.debug("switch_on_federations peers=%s SYNC=%s (ns:gs=%s,%s) non SYNC=%s",peer_keys,self.is_sync,self._nosync,self._genesis_sync,self._num_nosync_peer)
-        if not self.is_sync:
+        if not self.is_sync and not self._genesis_sync:
             # in case not genesis peer should first make nests
             self._fbft.update_peer_activity(self.validator_id,None,True,False,force=True)
             self._fbft.update_peer_activity(self._fbft.genesis_node,None,True,False,force=True)

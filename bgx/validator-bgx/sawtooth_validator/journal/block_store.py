@@ -723,7 +723,7 @@ class BlockStore(MutableMapping):
             ValueError: If start_block or start_block_num do not specify a
                 valid block
         """
-        LOGGER.debug("BlockStore: get_block_iter...")
+        #LOGGER.debug("BlockStore: get_block_iter...")
         with self._block_store.cursor(index='block_num') as curs:
             if start_block:
                 start_block_num = BlockStore.block_num_to_hex(start_block.block_num)
