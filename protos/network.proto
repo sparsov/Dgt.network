@@ -33,7 +33,9 @@ message PeerRegisterRequest {
     // sender.  This version is an increasing value.
     uint32 protocol_version = 2;
     RegisterMode mode  = 3;
-    string component   = 4; // for dashboard  
+    uint32       pid   = 4;  // peer instance ID
+    string component   = 5; // for dashboard  
+    string hid         = 6; // heads summary
 }
 
 // The unregistration request from a peer to the validator
@@ -77,7 +79,9 @@ message NetworkAcknowledgement {
     }
 
     Status status = 1;
-    bool   sync   = 2; // True if answered peer already make net sync
+    uint32 pid    = 2; // peer instance ID
+    bool   sync   = 3; // True if answered peer already make net sync
+    
 }
 
 message GossipBlockRequest {
@@ -94,7 +98,7 @@ message GossipBlockRequest {
 message GossipBlockResponse {
     // The block
     bytes content = 1;
-    bool  nest    = 2; // nest or not 
+    bool  nest    = 2; // nest or not set into responder
 }
 
 message GossipBatchResponse {

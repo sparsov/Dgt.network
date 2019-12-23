@@ -86,10 +86,11 @@ class PeerRegisterHandler(Handler):
 
         ack = NetworkAcknowledgement()
         try:
+            ack.pid = self._gossip.peer_id
             if request.mode == PeerRegisterRequest.REGISTER:
                 # peer ask register
                 LOGGER.debug("Peer=%s(%s) ask REGISTER component=%s",request.endpoint,connection_id[:10],request.component)
-                sync = self._gossip.register_peer(connection_id, request.endpoint,component=request.component)
+                sync = self._gossip.register_peer(connection_id,request.pid, request.endpoint,component=request.component)
                 # say asked peer about point of assemble
                 ack.status = ack.OK
                 ack.sync   = sync
@@ -100,7 +101,7 @@ class PeerRegisterHandler(Handler):
                 """
                 LOGGER.debug("Peer=%s(%s) ask SYNC",request.endpoint,connection_id[:10])
                 ack.status = ack.OK
-                ack.sync   = self._gossip.sync_peer(connection_id, request.endpoint,nests=request.hid)
+                ack.sync   = self._gossip.sync_peer(connection_id,request.pid, request.endpoint,nests=request.hid)
                 LOGGER.debug("SYNC request from peer=%s sync=%s hid=%s DONE\n",request.endpoint,ack.sync,request.hid)
 
         except PeeringException:

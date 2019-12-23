@@ -63,6 +63,7 @@ class PeerSync():
     inactive = 'inactive'
     active   = 'active'
     nosync   = 'nosync'
+
 class PeerRole():
     leader = 'leader'
 
@@ -76,7 +77,8 @@ class PeerAtr():
     role       = 'role'
     delegate   = 'delegate'
     genesis    = 'genesis'
-    ptype       = 'type'
+    ptype      = 'type'
+    pid        = 'pid'   
 
 EndpointInfo = namedtuple('EndpointInfo',
                           ['status', 'time', "retry_threshold"])
@@ -150,12 +152,14 @@ class FbftTopology(object):
     def __iter__(self):
         return self.get_topology_iter()
 
-    def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False):
+    def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):
         
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
                 if endpoint is not None:
                     peer[PeerAtr.endpoint] = endpoint
+                if pid is not None:
+                    peer[PeerAtr.pid] = pid
                 #if sync or (not sync and (peer[PeerAtr.node_state] != PeerSync.active or force)) :
                 peer[PeerAtr.node_state] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
                 """
@@ -184,6 +188,11 @@ class FbftTopology(object):
         if peer is not None and PeerAtr.node_state in peer:
             return peer[PeerAtr.node_state]
         return  PeerSync.inactive
+    def get_peer_id(self,peer_key):
+        peer = self.get_peer(peer_key)
+        if peer is not None and PeerAtr.pid in peer:
+            return peer[PeerAtr.pid]
+        return  None
          
     def update_peer_component(self,peer_key,component=None):
         for key,peer in self.get_topology_iter():
@@ -341,7 +350,7 @@ class Gossip(object):
 
         self._topology = None
         self._peers = {}
-        
+        self._peer_id = int(time.time())
         # feder topology
         self._is_federations_assembled = False # point of assemble
         self._fbft = FbftTopology()            # F-BFT topology
@@ -388,7 +397,9 @@ class Gossip(object):
     @property
     def is_sync(self):
         return not (self._nosync or (not self.is_genesis_peer and not self._genesis_sync)) # or not genesis peer
-
+    @property
+    def peer_id(self):
+        return self._peer_id
     @property
     def malicious(self):
         return self._malicious
@@ -422,16 +433,16 @@ class Gossip(object):
         #LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
-    def update_federation_topology(self,key,endpoint,mode=True,sync=False,force=False):
-        LOGGER.debug("update_federation_topology peer=%s %s mode=%s sync=%s ns:gs=%s:%s SYNC=%s",key[:8],endpoint,mode,sync,self._nosync,self._genesis_sync,self.is_sync)
+    def update_federation_topology(self,key,endpoint,mode=True,sync=False,force=False,pid=None):
+        LOGGER.debug("update federation_topology peer=%s %s mode=%s sync=%s ns:gs=%s:%s SYNC=%s",key[:8],endpoint,mode,sync,self._nosync,self._genesis_sync,self.is_sync)
         if not sync:
             # in case only one unsync peer mark this peer as unsync
             self._nosync = True
         elif self._genesis_sync :
             self._nosync = False
-        LOGGER.debug("update_federation_topology peer=%s %s unsync=%s SYNC=%s DONE",key[:8],endpoint,self._nosync,self.is_sync)
-        self._fbft.update_peer_activity(key,endpoint,mode,sync,force)
-        LOGGER.debug("update_federation_topology peer=%s %s nosync=%s DONE",key[:8],endpoint,self._nosync)
+        LOGGER.debug("update federation_topology peer=%s %s unsync=%s SYNC=%s DONE",key[:8],endpoint,self._nosync,self.is_sync)
+        self._fbft.update_peer_activity(key,endpoint,mode,sync,force,pid)
+        LOGGER.debug("update federation_topology peer=%s %s nosync=%s DONE",key[:8],endpoint,self._nosync)
 
     def _peer_sync_callback(self, request, result, connection_id, endpoint=None):
         """
@@ -452,8 +463,8 @@ class Gossip(object):
                         and inform them after synchronization
                         """
                         peer_key = self._network.connection_id_to_public_key(connection_id)
-                        LOGGER.debug("SYNC request to %s(%s) was successful. Peer=%s SYNC=%s _incomplete=%s",connection_id[:8],endpoint,peer_key[:8],ack.sync,self._incomplete)
-                        self.update_federation_topology(peer_key,endpoint,sync=ack.sync)
+                        LOGGER.debug("SYNC request to %s(%s) was successful. Peer=%s(%s) SYNC=%s _incomplete=%s",connection_id[:8],endpoint,peer_key[:8],ack.pid,ack.sync,self._incomplete)
+                        self.update_federation_topology(peer_key,endpoint,sync=ack.sync,pid=ack.pid)
                         if ack.sync:
                             self._num_nosync_peer -= 1
                             if endpoint in self._unsync_peers:
@@ -497,7 +508,7 @@ class Gossip(object):
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.SYNC,hid=self.heads_summary)
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -680,7 +691,7 @@ class Gossip(object):
         with self._lock:
             return self._network.connection_id_to_public_key(peer)
 
-    def sync_peer(self, connection_id, endpoint,nests=None):
+    def sync_peer(self, connection_id,pid, endpoint,nests=None):
         """
         ->> peer with endpoint ask sync him with this validator
         FIXME - we should compare own nests with that peer nests
@@ -694,7 +705,7 @@ class Gossip(object):
                 # FIXME - check maybe peer already sync
                 if self._fbft.get_peer_state(public_key) != PeerSync.active:
                     LOGGER.debug("SYNC REQUEST FROM PEER=%s SET PEER STATUS SYNC=%s\n",endpoint,self.is_sync)
-                    self.update_federation_topology(public_key,endpoint,sync = True)
+                    self.update_federation_topology(public_key,endpoint,sync = True,pid=pid)
                     self.notify_peer_connected(public_key,assemble=True)
                 if self._fbft.get_peer_state(self.validator_id) != PeerSync.active :
                     # set own sync status but check maybe own DAG incompleted yet
@@ -709,7 +720,7 @@ class Gossip(object):
         # answer for endpoint peer 
         return is_not_diff
 
-    def register_peer(self, connection_id, endpoint,sync=None,component=None):
+    def register_peer(self, connection_id,pid, endpoint,sync=None,component=None):
         """Registers a connected connection_id.
 
         Args:
@@ -742,13 +753,13 @@ class Gossip(object):
             if self._fbft.get_peer_state(public_key) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
-                self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True)
+                self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
                 #self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
             else :
                 # was active - set unsync 
                 # in case peer restart
-                if sync is None and component is not None:
-                    self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True)
+                if sync is None and self._fbft.get_peer_id(public_key) != pid: # sync is None and component is not None
+                    self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
                 
 
             if component is not None:
@@ -1420,7 +1431,7 @@ class ConnectionManager(InstrumentedThread):
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER)
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self.peer_id)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -1474,7 +1485,7 @@ class ConnectionManager(InstrumentedThread):
                         and inform them after synchronization
                         """
                         LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
-                        self._gossip.register_peer(connection_id, endpoint,sync=None)#ack.sync)
+                        self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=None)#ack.sync)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
                         LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,self._gossip.peer_to_public_key(connection_id),self._gossip.is_sync)
                         """
@@ -1534,10 +1545,10 @@ class ConnectionManager(InstrumentedThread):
                 del self._temp_endpoints[endpoint]
 
     def _connect_success_peering(self, connection_id, endpoint):
-        LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s", connection_id,endpoint,self._gossip.component)
+        LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s pid=%s", connection_id,endpoint,self._gossip.component,self._gossip.peer_id)
 
         register_request = PeerRegisterRequest(
-            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,component=self._gossip.component)
+            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id,component=self._gossip.component)
         self._connection_statuses[connection_id] = PeerStatus.TEMP
         try:
             """
