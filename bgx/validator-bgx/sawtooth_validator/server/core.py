@@ -408,6 +408,10 @@ class Validator(object):
             self._start()
 
     def _start(self):
+        """
+        load topology before peer's attempts to connect
+        """
+        self._gossip.load_topology()
         self._consensus_dispatcher.start()
         self._consensus_service.start()
         self._network_dispatcher.start()

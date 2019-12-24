@@ -652,6 +652,9 @@ class Gossip(object):
             self.notify_peer_connected(public_key,assemble=False)
 
     def load_topology(self):
+        if self._stopology is not None :
+            LOGGER.debug("LOAD topology - already loaded\n")
+            return
         LOGGER.debug("LOAD topology ...\n")
         self._stopology = self._settings_cache.get_setting(
                 "bgx.consensus.pbft.nodes",
