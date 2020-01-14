@@ -815,13 +815,16 @@ class Gossip(object):
         for public_key in set(peer_keys):
             if public_key:
                 cid = keys_cid[public_key]
-                is_recovery = self._is_recovery_func()
+                is_recovery = self._is_recovery_func() #FIXME may be better do it before cicle
                 LOGGER.debug("Switch on federations peer=%s send HEAD request cid=%s SYNC=%s recovery=%s",public_key[:8],cid[:8],not self.is_sync,is_recovery)
                 
                 if self._fbft.genesis_node == public_key :
-                    self._incomplete = True # we should get current DAG
+                    #self._incomplete = True # we should get current DAG
                     if not is_recovery :
+                        # if recovery from local database complited - send request to other cluster
                         self.send_block_request("HEAD", cid)
+                    else:
+                        self._incomplete = True # we should get current DAG
                 self.notify_peer_connected(public_key,assemble=True)
                 
         if self._fbft.genesis_node == self.validator_id :
