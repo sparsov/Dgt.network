@@ -1406,6 +1406,7 @@ class ChainController(object):
             for block in reversed(result["new_chain"]):
                 receipts = self._make_receipts(block.execution_results)
                 # Update all chain observers
+                LOGGER.debug('Update all chain OBSERVERS: num=%s',len(self._chain_observers))
                 for observer in self._chain_observers:
                     observer.chain_update(block, receipts)
 
@@ -1664,5 +1665,6 @@ class ChainController(object):
             receipt.events.extend(result.events)
             receipt.transaction_id = result.signature
             receipts.append(receipt)
-            #LOGGER.warning("_MAKE_RECEIPTS  tn_id=%s",result.signature)
+            LOGGER.warning("_MAKE_RECEIPTS  tn_id=%s events=%s",result.signature,result.events)
+        #LOGGER.warning("RECEIPTS  events=%s",receipts.signature)
         return receipts

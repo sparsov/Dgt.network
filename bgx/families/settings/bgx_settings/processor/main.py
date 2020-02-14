@@ -29,12 +29,9 @@ from sawtooth_sdk.processor.config import get_log_dir
 from sawtooth_sdk.processor.config import get_config_dir
 from bgx_settings.processor.handler import SettingsTransactionHandler
 from bgx_settings.processor.config.settings import SettingsConfig
-from bgx_settings.processor.config.settings import \
-    load_default_settings_config
-from bgx_settings.processor.config.settings import \
-    load_toml_settings_config
-from bgx_settings.processor.config.settings import \
-    merge_settings_config
+from bgx_settings.processor.config.settings import load_default_settings_config
+from bgx_settings.processor.config.settings import load_toml_settings_config
+from bgx_settings.processor.config.settings import merge_settings_config
 
 
 DISTRIBUTION_NAME = 'bgx-settings'

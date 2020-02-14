@@ -11,7 +11,7 @@ shared state between untrusted parties coordinated by consensus algorithms.
 .
 To build the requirements to run a validator network, run this command
 $ docker-compose -f bgx/docker/docker-compose-bgx.yaml build
-
+# export COMPOSE_PROJECT_NAME=1 C=c1 N=1 API=8008 COMP=4104 NET=8101 CONS=5051;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml build
 Also provided is a docker-compose file which builds a full set of images
 with Sawtooth-BGX installed, and only the run-time dependencies installed.
 

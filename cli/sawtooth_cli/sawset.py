@@ -351,7 +351,7 @@ def _create_vote_txn(signer, proposal_id, setting_key, vote_value):
 
 
 def _make_txn(signer, setting_key, payload):
-    """Creates and signs a sawtooth_settings transaction with with a payload.
+    """Creates and signs a bgx_settings transaction with with a payload.
     """
     serialized_payload = payload.SerializeToString()
     header = TransactionHeader(

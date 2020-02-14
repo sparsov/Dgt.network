@@ -1,4 +1,4 @@
-# Copyright 2017 Intel Corporation
+# Copyright 2019 NTRLab
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ from bgx_settings.protobuf.settings_pb2 import SettingCandidates
 from bgx_settings.protobuf.setting_pb2 import Setting
 
 LOGGER = logging.getLogger(__name__)
-
+# allow to set 'bgx.dag.nests' without restriction - for doing nests
 NO_RESTRICTIONS_PARAMS = ['bgx.dag.nests']
 # The config namespace is special: it is not derived from a hash.
 SETTINGS_NAMESPACE = '000000'
@@ -80,8 +80,7 @@ class SettingsTransactionHandler(TransactionHandler):
 
         raise InvalidTransaction("'action' must be one of {PROPOSE, VOTE} in 'Ballot' mode")
 
-    def _apply_proposal(self, auth_keys, public_key,
-                        setting_proposal_data, context):
+    def _apply_proposal(self, auth_keys, public_key,setting_proposal_data, context):
         setting_proposal = SettingProposal()
         setting_proposal.ParseFromString(setting_proposal_data)
 
@@ -101,9 +100,7 @@ class SettingsTransactionHandler(TransactionHandler):
                 lambda candidate: candidate.proposal_id == proposal_id)
 
             if existing_candidate is not None:
-                raise InvalidTransaction(
-                    'Duplicate proposal for {}'.format(
-                        setting_proposal.setting))
+                raise InvalidTransaction('Duplicate proposal for {}'.format(setting_proposal.setting))
 
             record = SettingCandidate.VoteRecord(
                 public_key=public_key,
@@ -114,14 +111,11 @@ class SettingsTransactionHandler(TransactionHandler):
                 votes=[record]
             )
 
-            LOGGER.debug('Proposal made to set %s to %s',
-                         setting_proposal.setting,
-                         setting_proposal.value)
+            LOGGER.debug('Proposal made to set %s to %s',setting_proposal.setting,setting_proposal.value)
             _save_setting_candidates(context, setting_candidates)
         else:
-            _set_setting_value(context,
-                               setting_proposal.setting,
-                               setting_proposal.value)
+            LOGGER.debug('Proposal set %s to %s',setting_proposal.setting,setting_proposal.value)
+            _set_setting_value(context,setting_proposal.setting,setting_proposal.value)
 
     def _apply_vote(self, public_key,
                     settings_vote_data, authorized_keys, context):
@@ -253,6 +247,7 @@ def _set_setting_value(context, key, value):
     old_value = None
     old_entry_index = None
     for i, entry in enumerate(setting.entries):
+        LOGGER.debug('SET_SETTING_VALUE: [%s]=%s context=%s', i,entry.key,type(context))
         if key == entry.key:
             old_value = entry.value
             old_entry_index = i
@@ -267,18 +262,14 @@ def _set_setting_value(context, key, value):
             {address: setting.SerializeToString()},
             timeout=STATE_TIMEOUT_SEC))
     except FutureTimeoutError:
-        LOGGER.warning(
-            'Timeout occured on context.set_state([%s, <value>])', address)
+        LOGGER.warning('Timeout occured on context.set_state([%s, <value>])', address)
         raise InternalError('Unable to set {}'.format(key))
 
     if len(addresses) != 1:
-        LOGGER.warning(
-            'Failed to save value on address %s', address)
-        raise InternalError(
-            'Unable to save config value {}'.format(key))
+        LOGGER.warning('Failed to save value on address %s', address)
+        raise InternalError('Unable to save config value {}'.format(key))
     if setting != 'sawtooth.settings.vote.proposals':
-        LOGGER.info('Setting setting %s changed from %s to %s',
-                    key, old_value, value)
+        LOGGER.info('Setting setting %s changed from %s to %s',key, old_value, value)
     context.add_event(
         event_type="settings/update",
         attributes=[("updated", key)])

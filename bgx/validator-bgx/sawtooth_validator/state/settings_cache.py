@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
+import logging
 
 from sawtooth_validator.journal.chain import ChainObserver
 from sawtooth_validator.journal.event_extractors import \
@@ -19,8 +20,9 @@ from sawtooth_validator.journal.event_extractors import \
 from sawtooth_validator.journal.event_extractors import \
     ReceiptEventExtractor
 from sawtooth_validator.server.events.subscription import EventSubscription
+LOGGER = logging.getLogger(__name__)
 
-
+# check settings
 class SettingsObserver(ChainObserver):
     """
     The Settings Observer is used to update the local setting
@@ -37,28 +39,27 @@ class SettingsObserver(ChainObserver):
 
     def chain_update(self, block, receipts):
         """
-        Handles both "sawtooth/block-commit" Events and "setting/update"
+        Handles both "sawtooth/block-commit" Events and "settings/update"
         Events. For "sawtooth/block-commit", the last_block_num is updated or a
-        fork is detected. For "setting/update", the corresponding cache entry
+        fork is detected. For "settings/update", the corresponding cache entry
         will be updated.
         """
-
-        block_events = BlockEventExtractor(block).extract([
-            EventSubscription(event_type="sawtooth/block-commit")])
-        receipt_events = ReceiptEventExtractor(receipts).extract([
-            EventSubscription(event_type="setting/update")])
-
+        
+        block_events = BlockEventExtractor(block).extract([EventSubscription(event_type="sawtooth/block-commit")])
+        receipt_events = ReceiptEventExtractor(receipts).extract([EventSubscription(event_type="settings/update")])
+        LOGGER.debug('SettingsObserver: chain_update receipt_events=%s',receipt_events)
         for event in block_events:
             forked = self._handle_block_commit(event)
             if forked:
                 return
 
         for event in receipt_events:
-            if event.event_type == "setting/update":
+            if event.event_type == "settings/update":
                 self._handle_txn_commit(event)
 
     def _handle_txn_commit(self, event):
         updated = event.attributes[0].value
+        LOGGER.debug('SettingsObserver: _handle_txn_commit %s',updated)
         self.to_update(updated)
 
     def _handle_block_commit(self, event):
@@ -113,6 +114,7 @@ class SettingsCache():
         self._cache = {}
 
     def invalidate(self, item):
+        LOGGER.debug('SETTING: invalidate!!\n')
         if item in self._cache:
             del self._cache[item]
 
