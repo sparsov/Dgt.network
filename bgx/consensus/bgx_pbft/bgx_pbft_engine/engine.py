@@ -22,9 +22,6 @@ from sawtooth_sdk.consensus.engine import Engine
 from sawtooth_sdk.consensus import exceptions
 from sawtooth_sdk.protobuf.validator_pb2 import Message
 from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
-#from bgx_pbft_common.protobuf.validator_pb2 import Message
-#from bgx_pbft_common.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
-
 from bgx_pbft_engine.oracle import PbftOracle, PbftBlock,_StateViewFactoryProxy
 from bgx_pbft_engine.pending import PendingForks
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
