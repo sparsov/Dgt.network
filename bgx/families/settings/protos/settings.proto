@@ -1,4 +1,4 @@
-// Copyright 2017 Intel Corporation
+// Copyright 2020 NTRLab
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ message SettingsPayload {
 
         // A vote action - data will be a SettingVote
         VOTE = 2;
+	// Topology actions
+	TOPOLOGY = 3;
     }
     // The action of this payload
     Action action = 1;
@@ -97,4 +99,19 @@ message SettingCandidate {
 // Contains all the setting candiates up for vote.
 message SettingCandidates {
     repeated SettingCandidate candidates = 1;
+}
+
+// Topology Setting 
+//
+// This message proposes a change in a topology setting value.
+message SettingTopology {
+    // The setting key.  E.g. bgx.config.authorization_type
+    string setting = 1;
+
+    // The setting value. E.g. 'ballot'
+    string value = 2;
+
+    // allow duplicate proposals with different hashes
+    // randomly created by the client
+    string nonce = 3;
 }

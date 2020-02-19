@@ -88,6 +88,7 @@
             <F N="bgx/validator-bgx/sawtooth_validator/execution/execution_context.py"/>
             <F N="bgx/validator-bgx/sawtooth_validator/execution/executor.py"/>
             <F N="bgx/validator-bgx/sawtooth_validator/server/events/extractor.py"/>
+            <F N="bgx/validator-bgx/sawtooth_validator/gossip/fbft_topology.py"/>
             <F N="bgx/validator-bgx/sawtooth_validator/networking/future.py"/>
             <F N="bgx/validator-bgx/sawtooth_validator/journal/genesis.py"/>
             <F N="bgx/validator-bgx/sawtooth_validator/journal/consensus/genesis/genesis_consensus.py"/>

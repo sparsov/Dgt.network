@@ -16,6 +16,7 @@
 import logging
 import hashlib
 import base64
+import json
 from functools import lru_cache
 
 
@@ -29,6 +30,7 @@ from bgx_settings.protobuf.settings_pb2 import SettingProposal
 from bgx_settings.protobuf.settings_pb2 import SettingVote
 from bgx_settings.protobuf.settings_pb2 import SettingCandidate
 from bgx_settings.protobuf.settings_pb2 import SettingCandidates
+from bgx_settings.protobuf.settings_pb2 import SettingTopology
 from bgx_settings.protobuf.setting_pb2 import Setting
 
 LOGGER = logging.getLogger(__name__)
@@ -74,6 +76,9 @@ class SettingsTransactionHandler(TransactionHandler):
 
         if settings_payload.action == SettingsPayload.PROPOSE:
             return self._apply_proposal(auth_keys, public_key, settings_payload.data, context)
+        if settings_payload.action == SettingsPayload.TOPOLOGY:
+            return self._apply_topology(auth_keys, public_key, settings_payload.data, context)
+
         if settings_payload.action == SettingsPayload.VOTE:
             return self._apply_vote(public_key, settings_payload.data,
                                     auth_keys, context)
@@ -116,6 +121,22 @@ class SettingsTransactionHandler(TransactionHandler):
         else:
             LOGGER.debug('Proposal set %s to %s',setting_proposal.setting,setting_proposal.value)
             _set_setting_value(context,setting_proposal.setting,setting_proposal.value)
+
+
+    def _apply_topology(self, auth_keys, public_key,setting_topology_data, context):
+        """
+        update topology 
+        """
+        setting_topology = SettingTopology()
+        setting_topology.ParseFromString(setting_topology_data)
+        value = _get_setting_value(context, setting_topology.setting, '')
+        topology = json.loads(value.replace("'",'"'))
+        update = json.loads(setting_topology.value)
+        LOGGER.debug('TOPOLOGY value=%s set %s to %s',topology,setting_topology.setting,update)
+        _validate_setting(auth_keys,setting_topology.setting,setting_topology.value)
+
+        LOGGER.debug('TOPOLOGY set %s to %s',setting_topology.setting,value)
+        _set_setting_value(context,setting_topology.setting,value) #setting_topology.value)
 
     def _apply_vote(self, public_key,
                     settings_vote_data, authorized_keys, context):
