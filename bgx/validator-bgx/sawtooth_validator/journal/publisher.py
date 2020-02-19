@@ -659,6 +659,7 @@ class BlockPublisher(object):
         #self._topology.get_topology(stopology)
         self._topology = self._block_sender.get_topology()
         self._batch_sender.set_cluster(self._topology)
+        
 
 
     def start(self):

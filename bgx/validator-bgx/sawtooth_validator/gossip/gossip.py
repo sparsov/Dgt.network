@@ -45,7 +45,7 @@ from sawtooth_validator.protobuf.consensus_pb2 import ConsensusNotifyPeerConnect
 from sawtooth_validator.exceptions import PeeringException
 from sawtooth_validator.networking.interconnect import get_enum_name
 # FBFT topology
-from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM
 
 LOGGER = logging.getLogger(__name__)
 
@@ -449,16 +449,35 @@ class Gossip(object):
             # inactive now
             self.notify_peer_connected(public_key,assemble=False)
 
+    def update_topology(self,attributes=None):
+        """
+        topology was update
+        """
+        #stopology = self.get_topology_cache()
+        LOGGER.debug("UPDATE topology attributes=%s!!!\n",attributes)
+        if attributes[0].key == 'oper':
+            if attributes[0].value == 'lead':
+                LOGGER.debug("UPDATE topology NEW LEADER!!!\n")
+        else:
+            LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
+
+    def get_topology_cache(self):
+        topology = self._settings_cache.get_setting(
+                TOPOLOGY_SET_NM,
+                self._current_root_func(),
+                default_value='{}'
+            ).replace("'",'"')
+        return topology 
+
     def load_topology(self):
         if self._stopology is not None :
             LOGGER.debug("LOAD topology - already loaded\n")
             return
         LOGGER.debug("LOAD topology ...\n")
-        self._stopology = self._settings_cache.get_setting(
-                "bgx.consensus.pbft.nodes",
-                self._current_root_func(),
-                default_value='{}'
-            ).replace("'",'"')
+        self._stopology = self.get_topology_cache()
+        
+        self._settings_cache.add_handler(TOPOLOGY_SET_NM,self.update_topology)
+
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
         self._fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode)
@@ -471,11 +490,7 @@ class Gossip(object):
         FIXME - we should extend base version with information about status peers
         """
         if self._fbft is None:
-            stopology = self._settings_cache.get_setting(
-                "bgx.consensus.pbft.nodes",
-                self._current_root_func(),
-                default_value='{}'
-            ).replace("'",'"')
+            stopology = self.get_topology_cache()
             return stopology.encode("utf-8")
         # 
         stopology = json.dumps(

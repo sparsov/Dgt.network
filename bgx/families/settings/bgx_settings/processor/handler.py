@@ -32,6 +32,7 @@ from bgx_settings.protobuf.settings_pb2 import SettingCandidate
 from bgx_settings.protobuf.settings_pb2 import SettingCandidates
 from bgx_settings.protobuf.settings_pb2 import SettingTopology
 from bgx_settings.protobuf.setting_pb2 import Setting
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology
 
 LOGGER = logging.getLogger(__name__)
 # allow to set 'bgx.dag.nests' without restriction - for doing nests
@@ -125,18 +126,44 @@ class SettingsTransactionHandler(TransactionHandler):
 
     def _apply_topology(self, auth_keys, public_key,setting_topology_data, context):
         """
-        update topology 
+        update topology : do update['oper']
         """
         setting_topology = SettingTopology()
         setting_topology.ParseFromString(setting_topology_data)
         value = _get_setting_value(context, setting_topology.setting, '')
         topology = json.loads(value.replace("'",'"'))
         update = json.loads(setting_topology.value)
-        LOGGER.debug('TOPOLOGY value=%s set %s to %s',topology,setting_topology.setting,update)
+        extra = []
+        if 'oper' in update:
+            oper = update['oper']
+            extra.append(('oper',oper))
+            fbft = FbftTopology()
+            fbft.get_topology(topology,'','','static')
+            if oper == 'lead':
+                # change current leader
+                if 'cluster' in update and 'peer' in update:
+                    cluster,npeer = update['cluster'],update['peer']
+                    extra.append(('cluster',cluster))
+                    extra.append(('peer',npeer))
+                    for _,peer in fbft.get_cluster_iter(cluster):
+                        if peer[PeerAtr.name] == update['peer']:
+                            LOGGER.debug('TOPOLOGY set NEW LEADER %s.%s=%s',cluster,npeer,peer)
+                            peer[PeerAtr.role] = PeerRole.leader
+                        elif peer[PeerAtr.role] == PeerRole.leader :
+                            LOGGER.debug('TOPOLOGY old LEADER=%s',peer)
+                            peer[PeerAtr.role] = PeerRole.plink
+
+                else:
+                    raise InvalidTransaction('Undefine cluster or peer for new leader operation')
+        else:
+            raise InvalidTransaction('Undefined SET operation')
+
+        nvalue = json.dumps(topology)
+        #LOGGER.debug('TOPOLOGY value=%s set %s to %s',nvalue,setting_topology.setting,update)
         _validate_setting(auth_keys,setting_topology.setting,setting_topology.value)
 
-        LOGGER.debug('TOPOLOGY set %s to %s',setting_topology.setting,value)
-        _set_setting_value(context,setting_topology.setting,value) #setting_topology.value)
+        LOGGER.debug('TOPOLOGY SET %s TO %s',setting_topology.setting,nvalue)
+        _set_setting_value(context,setting_topology.setting,nvalue,extra=extra) #setting_topology.value)
 
     def _apply_vote(self, public_key,
                     settings_vote_data, authorized_keys, context):
@@ -261,7 +288,7 @@ def _get_setting_value(context, key, default_value=None):
     return default_value
 
 
-def _set_setting_value(context, key, value):
+def _set_setting_value(context, key, value,extra=[],data=None):
     address = _make_settings_key(key)
     setting = _get_setting_entry(context, address)
 
@@ -291,9 +318,12 @@ def _set_setting_value(context, key, value):
         raise InternalError('Unable to save config value {}'.format(key))
     if setting != 'sawtooth.settings.vote.proposals':
         LOGGER.info('Setting setting %s changed from %s to %s',key, old_value, value)
+    # add events into context
     context.add_event(
         event_type="settings/update",
-        attributes=[("updated", key)])
+        attributes=[("updated", key)]+extra,
+        data=data
+        )
 
 
 def _get_setting_entry(context, address):

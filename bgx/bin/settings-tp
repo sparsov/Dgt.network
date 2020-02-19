@@ -26,6 +26,7 @@ build_str = "lib.{}-{}.{}".format(
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx', 'families', 'settings'))
 sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','validator-bgx'))
 from bgx_settings.processor.main import main
 
 if __name__ == '__main__':

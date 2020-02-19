@@ -59,8 +59,8 @@ class SettingsObserver(ChainObserver):
 
     def _handle_txn_commit(self, event):
         updated = event.attributes[0].value
-        LOGGER.debug('SettingsObserver: _handle_txn_commit %s',updated)
-        self.to_update(updated)
+        LOGGER.debug("SettingsObserver: _handle_txn_commit item='%s'",updated)
+        self.to_update(updated,event.attributes[1:])
 
     def _handle_block_commit(self, event):
         # if the new block's previous block id does not match the previous
@@ -81,6 +81,7 @@ class SettingsCache():
         self._settings_view_factory = settings_view_factory
         self._settings_view = None
         self._cache = {}
+        self._handlers = {}
 
     def __len__(self):
         return len(self._cache)
@@ -113,11 +114,26 @@ class SettingsCache():
     def forked(self):
         self._cache = {}
 
-    def invalidate(self, item):
-        LOGGER.debug('SETTING: invalidate!!\n')
+    def add_handler(self,item,handler):
+        """
+        register handler for event
+        """
+        if item not in self._handlers:
+            LOGGER.debug("ADD HANDLER: '%s'\n",item)
+            self._handlers[item] = handler
+             
+    def invalidate(self, item,attributes):
+        """
+        cache invalidate or call registered handler 
+        """
+        #LOGGER.debug("SETTING: invalidate set='%s'!!\ncache=%s\n",item,self._cache)
         if item in self._cache:
             del self._cache[item]
+            LOGGER.debug("SETTING: invalidate set='%s'!!\ncache=%s\n",item,self._cache)
+        if item in self._handlers:
+            LOGGER.debug("SETTING: call handler for='%s' attributes='%s'\n",item,attributes)
+            self._handlers[item](attributes)
+        
 
     def update_view(self, state_root):
-        self._settings_view = \
-            self._settings_view_factory.create_settings_view(state_root)
+        self._settings_view = self._settings_view_factory.create_settings_view(state_root)

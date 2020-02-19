@@ -48,7 +48,7 @@ from sawtooth_signing import create_context
 from sawtooth_signing import CryptoFactory
 from sawtooth_signing import ParseError
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
-from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM
 
 DISTRIBUTION_NAME = 'bgxset'
 
@@ -299,7 +299,7 @@ def _get_topology(rest_client,args):
     """
     load topology
     """
-    state_leaf = rest_client.get_leaf(_key_to_address('bgx.consensus.pbft.nodes'))
+    state_leaf = rest_client.get_leaf(_key_to_address(TOPOLOGY_SET_NM))
 
     #config_candidates = SettingCandidates()
     topology = None
@@ -308,7 +308,7 @@ def _get_topology(rest_client,args):
         setting = Setting()
         setting.ParseFromString(setting_bytes)
         for entry in setting.entries:
-            if entry.key == 'bgx.consensus.pbft.nodes':
+            if entry.key == TOPOLOGY_SET_NM:
                 topology = json.loads(entry.value.replace("'",'"'))
                 if args.cls is not None:
                     print('topology cluster',args.cls)
@@ -316,6 +316,11 @@ def _get_topology(rest_client,args):
                     fbft.get_topology(topology,'','','static')
                     if args.peer is None:
                         topology = fbft.get_cluster_by_name(args.cls)
+                        #print('cluster',topology)
+                        """
+                        for key,peer in fbft.get_cluster_iter(args.cls):
+                            print('cluster',args.cls,'peer',peer)
+                        """
                     else:
                         topology = fbft.get_peer_by_name(args.cls,args.peer)
                     #print('CLUSTER',args.cls,args.peer,'>>>',cls)
@@ -360,9 +365,16 @@ def _set_topology(rest_client,signer,args):
     """
     set topology
     """
-    val = json.dumps({'cluster': args.cls if args.cls else '', 'peer': args.peer if args.peer else '','role' :args.attr if args.attr else ''}, sort_keys=True, indent=4)
+    param = {}
+    if args.cls:
+        param['cluster'] = args.cls
+    if args.peer:
+        param['peer'] = args.peer
+    if args.oper:
+        param['oper'] = args.oper
+    val = json.dumps(param, sort_keys=True, indent=4)
     print('topology val',val,'>>>')
-    txns = [_create_topology_txn(signer, ("bgx.consensus.pbft.nodes",val))]
+    txns = [_create_topology_txn(signer, (TOPOLOGY_SET_NM,val))]
 
     batch = _create_batch(signer, txns)
 
@@ -770,7 +782,7 @@ def create_parser(prog_name):
         type=str,
         help='specify peer name')
     topology_set_parser.add_argument(
-        '-a', '--attr',
+        '-o', '--oper',
         type=str,
         help='specify peer attribute')
     topology_set_parser.add_argument(

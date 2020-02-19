@@ -23,7 +23,7 @@ import json
 from enum import Enum
 
 LOGGER = logging.getLogger(__name__)
-
+TOPOLOGY_SET_NM = 'bgx.consensus.pbft.nodes'
 class PeerSync():
     inactive = 'inactive'
     active   = 'active'
@@ -31,6 +31,7 @@ class PeerSync():
 
 class PeerRole():
     leader = 'leader'
+    plink  = 'plink'
 
 class PeerAtr():
     endpoint   = 'endpoint'
@@ -103,6 +104,14 @@ class FbftTopology(object):
     def __iter__(self):
         return self.get_topology_iter()
 
+    def get_cluster_iter(self, cname):
+        def iter_cluster(children):
+            for key,peer in children.items():
+                print("iter_cluster key ",key)
+                yield key,peer
+        cluster = self.get_cluster_by_name(cname)
+        return iter_cluster(cluster[PeerAtr.children]) if cluster else []
+
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):
         
         for key,peer in self.get_topology_iter():
@@ -154,6 +163,17 @@ class FbftTopology(object):
                 #print('CLA ',cluster[PeerAtr.name])
                 if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == name:
                     return cluster
+        return None
+
+    def get_peer_by_name(self,cname,name):
+        for key,peer in self.get_topology_iter():
+            if PeerAtr.cluster in peer:
+                cluster = peer[PeerAtr.cluster]
+                if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == cname:
+                    for skey,speer in cluster[PeerAtr.children].items():
+                        #print('SPEER',speer,speer[PeerAtr.name] == cname)
+                        if PeerAtr.name in speer and speer[PeerAtr.ptype] == 'peer' and speer[PeerAtr.name] == name:
+                            return speer
         return None
 
     def get_peer_by_name(self,cname,name):
