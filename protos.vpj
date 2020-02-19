@@ -83,6 +83,7 @@
             <F N="bgx/protos/pbft/pbft_consensus.proto"/>
             <F N="protos/processor.proto"/>
             <F N="protos/setting.proto"/>
+            <F N="bgx/families/settings/protos/settings.proto"/>
             <F N="bgx/protos/families/smart_bgt/smart_bgt_token.proto"/>
             <F N="protos/state_context.proto"/>
             <F N="bgx/protos/common/transaction.proto"/>

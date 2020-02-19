@@ -36,6 +36,7 @@ from bgx_cli.protobuf.settings_pb2 import SettingsPayload
 from bgx_cli.protobuf.settings_pb2 import SettingProposal
 from bgx_cli.protobuf.settings_pb2 import SettingVote
 from bgx_cli.protobuf.settings_pb2 import SettingCandidates
+from bgx_cli.protobuf.settings_pb2 import SettingTopology
 from bgx_cli.protobuf.setting_pb2 import Setting
 from bgx_cli.protobuf.transaction_pb2 import TransactionHeader
 from bgx_cli.protobuf.transaction_pb2 import Transaction
@@ -355,6 +356,38 @@ def _do_list_topology(args):
     rest_client.send_batches(batch_list)
     """
 
+def _set_topology(rest_client,signer,args):
+    """
+    set topology
+    """
+    val = json.dumps({'cluster': args.cls if args.cls else '', 'peer': args.peer if args.peer else '','role' :args.attr if args.attr else ''}, sort_keys=True, indent=4)
+    print('topology val',val,'>>>')
+    txns = [_create_topology_txn(signer, ("bgx.consensus.pbft.nodes",val))]
+
+    batch = _create_batch(signer, txns)
+
+    batch_list = BatchList(batches=[batch])
+
+    if args.url is not None:
+        rest_client = RestClient(args.url)
+        rest_client.send_batches(batch_list)
+    else:
+        raise AssertionError('No target for create set.')
+
+    
+
+
+def _do_set_topology(args):
+    """
+     Executes the 'topology set' subcommand.  
+    """
+    signer = _read_signer(args.key)
+    rest_client = RestClient(args.url)
+
+    _set_topology(rest_client,signer,args)
+
+    print('topology SET',args.cls,args.peer,'>>>')
+
 def _create_batch(signer, transactions):
     """Creates a batch from a list of transactions and a public key, and signs
     the resulting batch with the given signing key.
@@ -391,6 +424,21 @@ def _create_propose_txn(signer, setting_key_value):
         nonce=nonce)
     payload = SettingsPayload(data=proposal.SerializeToString(),
                               action=SettingsPayload.PROPOSE)
+
+    return _make_txn(signer, setting_key, payload)
+
+
+def _create_topology_txn(signer, setting_key_value):
+    """Creates an individual topology bgx_settings transaction for the given
+    key and value.
+    """
+    setting_key, setting_value = setting_key_value
+    nonce = hex(random.randint(0, 2**64))
+    topology = SettingTopology(
+        setting=setting_key,
+        value=setting_value,
+        nonce=nonce)
+    payload = SettingsPayload(data=topology.SerializeToString(),action=SettingsPayload.TOPOLOGY)
 
     return _make_txn(signer, setting_key, payload)
 
@@ -707,6 +755,35 @@ def create_parser(prog_name):
         type=str,
         help="identify the URL of a validator's REST API",
         default='http://localhost:8008')
+    # SET 
+    topology_set_parser = topology_parsers.add_parser(
+        'set',
+        help='change current topology',
+        description='change the current topology  settings. '
+                    )
+    topology_set_parser.add_argument(
+        '-c', '--cls',
+        type=str,
+        help='specify cluster name')
+    topology_set_parser.add_argument(
+        '-p', '--peer',
+        type=str,
+        help='specify peer name')
+    topology_set_parser.add_argument(
+        '-a', '--attr',
+        type=str,
+        help='specify peer attribute')
+    topology_set_parser.add_argument(
+        '-k', '--key',
+        type=str,
+        help='specify signing key for resulting batches and initial authorized key',
+        default='clusters/c1/bgx1/keys/validator.priv'
+        )
+    topology_set_parser.add_argument(
+        '--url',
+        type=str,
+        help="identify the URL of a validator's REST API",
+        default='http://localhost:8008')
 
 
     return parser
@@ -738,7 +815,7 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None,
         if args.topology_cmd == 'list':
             _do_list_topology(args)
         elif args.topology_cmd == 'set':
-            pass
+            _do_set_topology(args)
         else:
             raise CliException('"{}" is not a valid subcommand of "topology"'.format(args.subcommand))
 
