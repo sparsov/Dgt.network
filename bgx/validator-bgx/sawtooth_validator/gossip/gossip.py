@@ -457,7 +457,10 @@ class Gossip(object):
         LOGGER.debug("UPDATE topology attributes=%s!!!\n",attributes)
         if attributes[0].key == 'oper':
             if attributes[0].value == 'lead':
-                LOGGER.debug("UPDATE topology NEW LEADER!!!\n")
+                if attributes[1].key == 'cluster' and attributes[2].key == 'peer': 
+                    cluster,npeer =  attributes[1].value,attributes[2].value 
+                    if self._fbft.change_cluster_leader(cluster,npeer) :
+                        LOGGER.debug("UPDATE topology NEW LEADER %s.%s!!!\n",cluster,npeer)
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
 

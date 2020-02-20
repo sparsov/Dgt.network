@@ -24,6 +24,8 @@ from enum import Enum
 
 LOGGER = logging.getLogger(__name__)
 TOPOLOGY_SET_NM = 'bgx.consensus.pbft.nodes'
+BGX_NESTS_NAME  = 'bgx.dag.nests'
+
 class PeerSync():
     inactive = 'inactive'
     active   = 'active'
@@ -54,18 +56,25 @@ class FbftTopology(object):
     """
     def __init__(self):
         self._validator_id = None
-        self._nest_colour = None
-        self._genesis_node = None
+        self._own_role = PeerRole.plink
+        self._nest_colour = None # own cluster name
+        self._genesis_node = None # genesis key
+        self._genesis = 'UNDEF'  # genesis cluster
         self._parent = None
         self._leader = None
         self._endpoint = None
-        self._arbiters = {}
-        self._cluster = None
+        self._arbiters = {}    # my arbiters 
+        self._cluster = None   # own cluster
         self._topology  = None
         self._nosync = False
+
     @property
     def nest_colour(self):
         return self._nest_colour
+
+    @property
+    def own_role(self):
+        return self._own_role
 
     @property
     def cluster(self):
@@ -76,12 +85,19 @@ class FbftTopology(object):
         return self._arbiters
 
     @property
+    def genesis(self):
+        return self._genesis
+
+    @property
     def genesis_node(self):
         return self._genesis_node if self._genesis_node else ''
 
     @property
     def topology(self):
         return self._topology
+
+    def cluster_peer_role_by_key(self,key):
+        return self._cluster[key][PeerAtr.role] if key in self._cluster else 'UNDEF'
 
     def get_topology_iter_from(self,root):
         return self.get_topology_iter(root)
@@ -111,6 +127,23 @@ class FbftTopology(object):
                 yield key,peer
         cluster = self.get_cluster_by_name(cname)
         return iter_cluster(cluster[PeerAtr.children]) if cluster else []
+
+    def change_cluster_leader(self,cluster,npeer):
+        n = 0
+        for _,peer in self.get_cluster_iter(cluster): 
+            if n == 2:
+                return True
+            if peer[PeerAtr.name] == npeer:                                     
+                LOGGER.debug('TOPOLOGY set NEW LEADER %s.%s=%s',cluster,npeer,peer)      
+                peer[PeerAtr.role] = PeerRole.leader
+                n += 1                                     
+            elif peer[PeerAtr.role] == PeerRole.leader :                                 
+                LOGGER.debug('TOPOLOGY old LEADER=%s to plink',peer)                              
+                peer[PeerAtr.role] = PeerRole.plink
+                n += 1 
+        return False
+                                                     
+
 
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):
         
@@ -208,6 +241,8 @@ class FbftTopology(object):
                     self._nest_colour = name
                     self._cluster    = children
                     self._parent     = arbiter_id
+                    if PeerAtr.role in peer:
+                        self._own_role = peer[PeerAtr.role]
                     #  yourself 
                     peer[PeerAtr.endpoint] = endpoint
                     peer[PeerAtr.node_state] = PeerSync.active
@@ -247,6 +282,7 @@ class FbftTopology(object):
         topology['topology'] = peering_mode
         topology['sync'] = not self._nosync
         if PeerAtr.name in topology and PeerAtr.children in topology:
+            self._genesis  = topology['name'] # genesis cluster
             get_cluster_info(None,None,topology[PeerAtr.name],topology[PeerAtr.children])
         if self._nest_colour is None:
             self._nest_colour = 'Genesis'

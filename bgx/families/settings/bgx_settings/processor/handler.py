@@ -32,11 +32,11 @@ from bgx_settings.protobuf.settings_pb2 import SettingCandidate
 from bgx_settings.protobuf.settings_pb2 import SettingCandidates
 from bgx_settings.protobuf.settings_pb2 import SettingTopology
 from bgx_settings.protobuf.setting_pb2 import Setting
-from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME
 
 LOGGER = logging.getLogger(__name__)
-# allow to set 'bgx.dag.nests' without restriction - for doing nests
-NO_RESTRICTIONS_PARAMS = ['bgx.dag.nests']
+# allow to set BGX_NESTS_NAME without restriction - for doing nests
+NO_RESTRICTIONS_PARAMS = [BGX_NESTS_NAME]
 # The config namespace is special: it is not derived from a hash.
 SETTINGS_NAMESPACE = '000000'
 
@@ -145,14 +145,9 @@ class SettingsTransactionHandler(TransactionHandler):
                     cluster,npeer = update['cluster'],update['peer']
                     extra.append(('cluster',cluster))
                     extra.append(('peer',npeer))
-                    for _,peer in fbft.get_cluster_iter(cluster):
-                        if peer[PeerAtr.name] == update['peer']:
-                            LOGGER.debug('TOPOLOGY set NEW LEADER %s.%s=%s',cluster,npeer,peer)
-                            peer[PeerAtr.role] = PeerRole.leader
-                        elif peer[PeerAtr.role] == PeerRole.leader :
-                            LOGGER.debug('TOPOLOGY old LEADER=%s',peer)
-                            peer[PeerAtr.role] = PeerRole.plink
-
+                    if not fbft.change_cluster_leader(cluster,npeer):
+                        raise InvalidTransaction("Can't set new leader into cluster='{}'".format(cluster))
+                    
                 else:
                     raise InvalidTransaction('Undefine cluster or peer for new leader operation')
         else:

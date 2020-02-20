@@ -56,6 +56,9 @@ try:
     import sawtooth_sdk.protobuf.transaction_pb2 as txn_pb
 except TypeError:
     import sawtooth_validator.protobuf.transaction_pb2 as txn_pb
+
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME
+
 import hashlib
 import random
 
@@ -102,12 +105,14 @@ class PbftOracle:
         self._authorized_keys = self._pbft_settings_view.authorized_keys
         LOGGER.debug("authorized_keys=%s\n",self._authorized_keys)
         #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
-        
+        self._fbft = FbftTopology()
         self._nodes = json.loads(nodes)
+        self._fbft.get_topology(self._nodes,self._validator_id,'','static')
         LOGGER.debug('nodes=%s',nodes)
         """
         because we have some clusters we should search itself into nodes tree
         and for node of cluster we should know : parent and name of cluster,list of nodes which belonge our cluster,this node type
+        """
         """
         self._node = None
         self._genesis_node = None
@@ -123,7 +128,7 @@ class PbftOracle:
             self._genesis_node = 'UNDEF' 
         #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
         #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['role'],self._node['cluster'])
-        
+        """
         self._canceled = False
         #sid = self.get_validator_id().encode()
         #sidd = sid.decode()
@@ -150,27 +155,31 @@ class PbftOracle:
 
     @property
     def cluster(self):
-        return self._cluster
+        #LOGGER.debug('CLUSTER: %s ~ %s\n', self._fbft.cluster, self._cluster)
+        return self._fbft.cluster
 
     @property
     def genesis(self):
-        return self._genesis
+        return self._fbft.genesis
 
     @property
     def genesis_node(self):
-        return self._genesis_node
+        return self._fbft.genesis_node
 
     @property
     def own_type(self):
-        return self._node if self._node is not None else 'UNDEF' 
+        return self._fbft.own_role #self._node if self._node is not None else 'UNDEF'
 
     @property
     def cluster_name(self):
-        return self._cluster_name
+        #LOGGER.debug('CLUSTER NAME: %s ~ %s\n', self._fbft.nest_colour, self._cluster_name)
+        return self._fbft.nest_colour 
 
     @property
     def arbiters(self):
-        return self._arbiters
+        arbs = {key : (vals[0],ConsensusNotifyPeerConnected.STATUS_UNSET,vals[1]) for key,vals in self._fbft.arbiters.items()}
+        #LOGGER.debug('ARBITERS: %s ~ %s\n', arbs, self._arbiters)
+        return arbs
 
     @property
     def validator_id(self):
@@ -233,7 +242,9 @@ class PbftOracle:
         return self._validator_id 
 
     def get_node_type_by_id(self,vid):
-        return self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF'
+        #tp = self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF' 
+        #LOGGER.debug('GET_NODE_TYPE_BY_ID=%s ~ %s',tp,self._fbft.cluster_peer_role_by_key(vid))
+        return self._fbft.cluster_peer_role_by_key(vid)
 
     def make_nest_step(self,num,authorized_keys=None):
         """
@@ -241,7 +252,7 @@ class PbftOracle:
         """
         #public_key_hash1 = hashlib.sha256(authorized_keys.encode() if authorized_keys is not None else self.authorized_keys.encode()).hexdigest()
         public_key_hash = authorized_keys if authorized_keys else self._validator_id #self.authorized_keys #self._signer.get_public_key().as_hex() # hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
-        setting = 'bgx.dag.nests'
+        setting = BGX_NESTS_NAME
         nonce=hex(random.randint(0, 2**64))
         if True:
             # try to set pbft params
@@ -294,7 +305,7 @@ class PbftOracle:
             data_dir=self._data_dir,
             config_dir=self._config_dir,
             validator_id=self._validator_id,
-            node = self._node
+            node = self.own_type
             )
 
         return self._publisher.initialize_block(block_header)
@@ -332,7 +343,7 @@ class PbftOracle:
         if new_fork_head.block_num > cur_fork_head.block_num or (new_fork_head.block_num == cur_fork_head.block_num and new_fork_head.block_id > cur_fork_head.block_id) :
             
             """
-            if new_fork_head.block_num == 0 and self._node == 'plink':
+            if new_fork_head.block_num == 0 and self.own_type == 'plink':
                 LOGGER.debug('PbftOracle:switch_forks TRUE for LEADER')
                 return False
             """
@@ -380,7 +391,7 @@ class PbftOracle:
                 block_cache=self._block_cache,
                 state_view_factory=self._state_view_factory,
                 consensus_state_store=self._consensus_state_store,
-                node=self._node,
+                node=self.own_type,
                 force = force
                 )
         return consensus_state
