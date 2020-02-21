@@ -193,11 +193,11 @@ services:
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
-        sawadm keygen
-        sawtooth keygen my_key
+        bgxadm keygen
+        bgx keygen my_key
         bgxset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch $$(cat ../../bgx/etc/bgx_val.conf)
         bgxset genesis -k /root/.sawtooth/keys/my_key.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub) -A $$(cat ../../clusters/c1/bgx1/keys/validator.pub)
-        if [ ${G} == 'Y' ]; then sawadm genesis config-genesis.batch  sawset.batch; else echo 'RESTART MODE'; fi
+        if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  sawset.batch; else echo 'RESTART MODE'; fi
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \

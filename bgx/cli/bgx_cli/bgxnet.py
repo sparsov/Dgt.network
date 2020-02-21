@@ -31,7 +31,7 @@ from bgx_cli.network_command.peers import add_peers_parser
 from bgx_cli.network_command.peers import do_peers
 
 
-DISTRIBUTION_NAME = 'sawnet'
+DISTRIBUTION_NAME = 'bgxnet'
 
 
 def create_parser(prog_name):

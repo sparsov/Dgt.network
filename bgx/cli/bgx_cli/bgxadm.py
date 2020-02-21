@@ -29,7 +29,7 @@ from bgx_cli.admin_command.keygen import add_keygen_parser
 from bgx_cli.admin_command.keygen import do_keygen
 
 
-DISTRIBUTION_NAME = 'sawadm'
+DISTRIBUTION_NAME = 'bgxadm'
 
 
 def create_parser(prog_name):

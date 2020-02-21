@@ -38,7 +38,7 @@ from bgx_cli.protobuf.transaction_pb2 import Transaction
 from bgx_cli.protobuf.batch_pb2 import BatchHeader
 from bgx_cli.protobuf.batch_pb2 import Batch
 from bgx_cli.protobuf.batch_pb2 import BatchList
-from bgx_cli.sawset import setting_key_to_address
+from bgx_cli.bgxset import setting_key_to_address
 
 from sawtooth_signing import create_context
 from sawtooth_signing import CryptoFactory
