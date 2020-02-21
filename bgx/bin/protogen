@@ -43,13 +43,22 @@ def main(args=None):
     # Generate and distribute top-level protos
     proto_dir = JOIN(TOP_DIR, "protos")
     print('protogen TOP_DIR=',TOP_DIR)
-    protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
+    #protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
     protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
-    protoc(proto_dir, "bgx/cli", "bgx_cli/protobuf")
     protoc(proto_dir, "validator", "sawtooth_validator/protobuf")
-    protoc(proto_dir, "bgx/validator", "sawtooth_validator/protobuf")
-    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
     protoc(proto_dir, "rest_api", "sawtooth_rest_api/protobuf")
+    # BGX version
+    # Generate common protos for new validator - can change some proto from /protos
+    proto_dir = JOIN(TOP_DIR, "bgx/protos/common")
+    protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
+    #protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf")
+    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
+    protoc(proto_dir, "bgx/validator", "sawtooth_validator/protobuf")
+    protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
+    protoc(proto_dir, "bgx/cli", "bgx_cli/protobuf")
+    protoc(proto_dir, "bgx/rest-api", "sawtooth_rest_api/protobuf")
+    protoc(proto_dir, "bgx/dashboard", "sawtooth_rest_api/protobuf")
+
     # for rest-api-stub
     protoc(proto_dir, "bgx/rest-api-stub", "sawtooth_rest_api/protobuf")
     # for bgx-rest-api

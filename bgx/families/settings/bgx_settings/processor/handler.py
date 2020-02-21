@@ -145,7 +145,8 @@ class SettingsTransactionHandler(TransactionHandler):
                     cluster,npeer = update['cluster'],update['peer']
                     extra.append(('cluster',cluster))
                     extra.append(('peer',npeer))
-                    if not fbft.change_cluster_leader(cluster,npeer):
+                    changed,_ = fbft.change_cluster_leader(cluster,npeer)
+                    if not changed:
                         raise InvalidTransaction("Can't set new leader into cluster='{}'".format(cluster))
                     
                 else:

@@ -106,8 +106,8 @@ class PbftOracle:
         LOGGER.debug("authorized_keys=%s\n",self._authorized_keys)
         #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
         self._fbft = FbftTopology()
-        self._nodes = json.loads(nodes)
-        self._fbft.get_topology(self._nodes,self._validator_id,'','static')
+        #self._nodes = json.loads(nodes)
+        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static')
         LOGGER.debug('nodes=%s',nodes)
         """
         because we have some clusters we should search itself into nodes tree

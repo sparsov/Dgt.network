@@ -130,18 +130,20 @@ class FbftTopology(object):
 
     def change_cluster_leader(self,cluster,npeer):
         n = 0
-        for _,peer in self.get_cluster_iter(cluster): 
+        nkey = None
+        for key,peer in self.get_cluster_iter(cluster): 
             if n == 2:
-                return True
+                return True,nkey
             if peer[PeerAtr.name] == npeer:                                     
                 LOGGER.debug('TOPOLOGY set NEW LEADER %s.%s=%s',cluster,npeer,peer)      
                 peer[PeerAtr.role] = PeerRole.leader
+                nkey = key
                 n += 1                                     
             elif peer[PeerAtr.role] == PeerRole.leader :                                 
                 LOGGER.debug('TOPOLOGY old LEADER=%s to plink',peer)                              
                 peer[PeerAtr.role] = PeerRole.plink
                 n += 1 
-        return False
+        return False,nkey
                                                      
 
 
@@ -189,6 +191,9 @@ class FbftTopology(object):
         return  None
 
     def get_cluster_by_name(self,name):
+        if name == 'Genesis':
+            return self._topology #[PeerAtr.children]
+
         for key,peer in self.get_topology_iter(): #self._topology): # [PeerAtr.children]
             if isinstance(peer,dict) and PeerAtr.cluster in peer :
                 #print('PEE',key,type(peer),peer,type(self._topology))
