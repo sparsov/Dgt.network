@@ -1427,24 +1427,21 @@ class PbftEngine(Engine):
         """
         #LOGGER.debug('Connected peer status=%s',notif[1])
         pid = notif[0].peer_id.hex()
+        if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
+            LOGGER.debug('Change PEER=%s ROLE -> %s\n',pid[:8],notif[3])
+            return
+            
         if pid not in self._peers:
             if pid == self.validator_id:
-                if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
-                    # role change
-                    LOGGER.debug('Change OWN ROLE -> %s\n',notif[3])
-                else:
-                    LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])
-                    self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
-                    if self._mode != notif[2] :
-                        self._mode = notif[2]
+                LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])
+                self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
+                if self._mode != notif[2] :
+                    self._mode = notif[2]
             elif pid in self._cluster:
                 # take only peers from own cluster topology 
                 # save status of peer
-                if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
-                    LOGGER.debug('Change PEER=%s ROLE -> %s\n',pid[:8],notif[3])
-                else:
-                    self._peers[pid] = notif[1]
-                    LOGGER.info('Connected peer with ID=%s status=%s own cluster total=%s\n', _short_id(pid),notif[1],len(self._peers))
+                self._peers[pid] = notif[1]
+                LOGGER.info('Connected peer with ID=%s status=%s own cluster total=%s\n', _short_id(pid),notif[1],len(self._peers))
             elif pid in self._arbiters:
                 # one of the arbiters - mark as ready 
                 val = self._arbiters[pid]
@@ -1455,12 +1452,9 @@ class PbftEngine(Engine):
             else:
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
         else:
-            if pid in self._cluster :
-                if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
-                    LOGGER.debug('Change PEER=%s ROLE -> %s\n',pid[:8],notif[3])
-                elif self._peers[pid] != notif[1]:
-                    LOGGER.debug('Change status peer=%s status=%s->%s',pid[:8],self._peers[pid],notif[1])
-                    self._peers[pid] = notif[1]
+            if pid in self._cluster and self._peers[pid] != notif[1]:
+                LOGGER.debug('Change status peer=%s status=%s->%s',pid[:8],self._peers[pid],notif[1])
+                self._peers[pid] = notif[1]
 
     def _handle_peer_message(self, msg):
         """
