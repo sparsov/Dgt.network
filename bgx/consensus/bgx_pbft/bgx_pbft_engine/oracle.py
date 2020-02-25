@@ -188,7 +188,7 @@ class PbftOracle:
     @property
     def authorized_keys(self):
         return self._authorized_keys
-
+    """
     def get_arbiters(self,arbiter_id,name,children):
         # make ring of arbiter - add only arbiter from other cluster
         LOGGER.debug('get arbiters: cluster=%s children=%s self=%s',name,len(children),self._cluster_name)
@@ -207,21 +207,21 @@ class PbftOracle:
                 if 'name' in cluster and 'children' in cluster:
                     self.get_arbiters(key,cluster['name'],cluster['children'])
                     
-
+    
     def get_cluster_info(self,arbiter_id,parent_name,name,children):
         LOGGER.debug('cluster_info=%s children=%s',name,len(children))
         for key,val in children.items():
             LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
             if self._node is None and key == self._validator_id:
-                """
-                this is me - stop searching
-                set own node type and cluster info
-                """
+                #
+                #this is me - stop searching
+                #set own node type and cluster info
+                #
                 self._node = val['role'] if 'role' in val else 'plink'
-                """
-                if arbiter_id is not None:
-                    self._arbiters[arbiter_id] = ('arbiter',False,parent_name)  # type of arbiter and status(not ready)
-                """
+                #
+                #if arbiter_id is not None:
+                #    self._arbiters[arbiter_id] = ('arbiter',False,parent_name)  # type of arbiter and status(not ready)
+                #
                 self._cluster = children
                 self._cluster_name = name 
                 LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))
@@ -235,9 +235,10 @@ class PbftOracle:
                         return
                 else:
                     LOGGER.debug('IGNORE bad cluster_info for node=%s:%s',name,key[:8])
+    
+    """
 
-
-
+    
     def get_validator_id(self):
         return self._validator_id 
 
@@ -245,6 +246,9 @@ class PbftOracle:
         #tp = self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF' 
         #LOGGER.debug('GET_NODE_TYPE_BY_ID=%s ~ %s',tp,self._fbft.cluster_peer_role_by_key(vid))
         return self._fbft.cluster_peer_role_by_key(vid)
+
+    def change_current_leader(self,npid):
+        self._fbft.change_current_leader(npid)
 
     def make_nest_step(self,num,authorized_keys=None):
         """

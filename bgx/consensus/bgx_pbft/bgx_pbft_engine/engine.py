@@ -104,7 +104,8 @@ class BranchState(object):
         self._nest_color = color
     @property
     def own_type(self):
-        return self._engine.own_type
+        # set for new block 
+        return self._own_type
     @property
     def is_sync(self):
         return  self._engine.is_sync
@@ -118,6 +119,7 @@ class BranchState(object):
     @property
     def already_send_commit(self):
         return self._already_send_commit 
+
     @property
     def peers(self):
         return self._engine.peers
@@ -374,6 +376,8 @@ class BranchState(object):
     def new_block(self,block,cluster=True,commits=None):
         self._cluster = cluster 
         self._stime = time.time()
+        # save own role - because it could be changed before commit this block
+        self._own_type = self._engine.own_type
         if commits:
             # add commit messages
             for peer_id,block in commits.items():
@@ -523,7 +527,7 @@ class BranchState(object):
             F = round((N - 1)/3.)*2 + (0 if N%3. == 0 else 1) 
             #if N == 3:
             #    F = 2
-            LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s peers=%s', self.block_num,self._state,total,N,F,[pid[:8] for pid in self._commit_msgs.keys()])
+            LOGGER.info('Check commit for block=%s state=%s total=%s N=%s F=%s LEADER=%s peers=%s', self.block_num,self._state,total,N,F,self.is_leader,[pid[:8] for pid in self._commit_msgs.keys()])
             if total >= F or N == 1:
                 if not self.is_ready_arbiter:
                     # ignore not ready arbiters
@@ -1359,6 +1363,9 @@ class PbftEngine(Engine):
             LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s+%s',hid[:8],block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if hid in self._branches:
                 branch = self._branches.pop(hid)
+                if block_id in self._peers_branches :
+                    # inherit role 
+                    branch._own_type= self._peers_branches[block_id].own_type
                 check_arbitration(branch,block_id)
                 branch.cancel_block(block_id) # change parent_id too 
                 branch.reset_state()    
@@ -1429,6 +1436,7 @@ class PbftEngine(Engine):
         pid = notif[0].peer_id.hex()
         if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
             LOGGER.debug('Change PEER=%s ROLE -> %s\n',pid[:8],notif[3])
+            self._oracle.change_current_leader(pid)
             return
             
         if pid not in self._peers:

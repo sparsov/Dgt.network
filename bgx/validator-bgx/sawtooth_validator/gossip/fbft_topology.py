@@ -145,7 +145,25 @@ class FbftTopology(object):
                 n += 1 
         return False,nkey
                                                      
+    def change_current_leader(self,npid):
+        """
+        new leader key - npid
+        """
+        if npid not in self._cluster:
+            return
 
+        for key,peer in self._cluster.items():
+            if peer[PeerAtr.role] == PeerRole.leader :
+                LOGGER.debug('TOPOLOGY old LEADER=%s to plink',peer)                              
+                peer[PeerAtr.role] = PeerRole.plink
+                if key == self._validator_id:
+                    self._own_role = PeerRole.plink
+                break
+        peer = self._cluster[npid]
+        peer[PeerAtr.role] = PeerRole.leader
+        if npid == self._validator_id:
+            self._own_role = PeerRole.leader
+        LOGGER.debug('TOPOLOGY set NEW LEADER %s',peer)
 
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):
         
@@ -184,6 +202,7 @@ class FbftTopology(object):
         if peer is not None and PeerAtr.node_state in peer:
             return peer[PeerAtr.node_state]
         return  PeerSync.inactive
+
     def get_peer_id(self,peer_key):
         peer = self.get_peer(peer_key)
         if peer is not None and PeerAtr.pid in peer:

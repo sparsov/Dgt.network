@@ -49,7 +49,7 @@ endpoint = "tcp://validator-bgx-c1-2:8102"
 
 # A list of peers to attempt to connect to in the format tcp://hostname:port.
 # It defaults to None. Replace host1 with the peer's hostname or IP address.
-peers = ["tcp://validator-bgx-c1-1:8101","tcp://validator-bgx-c1-3:8103","tcp://validator-bgx-c1-4:8104","tcp://validator-bgx-c1-5:8105","tcp://validator-bgx-c1-6:8106"]
+peers = ["tcp://validator-bgx-c1-1:8101","tcp://validator-bgx-c1-3:8103","tcp://validator-bgx-c1-4:8104","tcp://validator-bgx-c1-5:8105","tcp://validator-bgx-c1-6:8106","tcp://validator-bgx-c2-1:8201","tcp://validator-bgx-c3-1:8301","tcp://validator-bgx-c4-1:8401","tcp://validator-bgx-c5-1:8501","tcp://validator-bgx-c6-1:8601"]
 
 # The type of scheduler to use. The choices are 'serial' or 'parallel'.
 scheduler = 'parallel'
