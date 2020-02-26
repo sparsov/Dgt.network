@@ -247,8 +247,8 @@ class PbftOracle:
         #LOGGER.debug('GET_NODE_TYPE_BY_ID=%s ~ %s',tp,self._fbft.cluster_peer_role_by_key(vid))
         return self._fbft.cluster_peer_role_by_key(vid)
 
-    def change_current_leader(self,npid):
-        self._fbft.change_current_leader(npid)
+    def change_current_leader(self,npid,cluster):
+        self._fbft.change_current_leader(npid,cluster)
 
     def make_nest_step(self,num,authorized_keys=None):
         """

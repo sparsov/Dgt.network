@@ -462,7 +462,7 @@ class Gossip(object):
                     changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)
                     if changed :
                         LOGGER.debug("UPDATE topology NEW LEADER %s.%s id=%s!!!\n",cluster,npeer,nkey)
-                        self._consensus_notifier.notify_peer_change_role(nkey,PeerRole.leader)
+                        self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
 
