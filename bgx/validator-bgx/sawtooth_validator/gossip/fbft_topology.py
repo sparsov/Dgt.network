@@ -147,9 +147,10 @@ class FbftTopology(object):
                                                      
     def change_current_leader(self,npid,cname):
         """
-        new leader key - npid
+        new leader key(npid) into cluster(cname)
         """
         if npid not in self._cluster:
+            # other cluster
             cluster = self.get_cluster_by_name(cname)
             if cluster is None or PeerAtr.children not in cluster:
                 return False
@@ -189,7 +190,7 @@ class FbftTopology(object):
                 if not sync and not self._nosync:
                     self._nosync = True
                     self._topology['sync'] = not self._nosync 
-                LOGGER.debug("UPDATE peer_activity: nosync=%s peer=%s",self._nosync,peer)
+                LOGGER.debug("UPDATE peer_activity: nosync=%s peer=%s endpoint=%s",self._nosync,peer,endpoint)
                 return key
         return None
 
@@ -227,6 +228,9 @@ class FbftTopology(object):
                 if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == name:
                     return cluster
         return None
+
+    def get_cluster_arbiter(self,cname):
+        cluster = self.get_cluster_by_name(cname)
 
     def get_peer_by_name(self,cname,name):
         for key,peer in self.get_topology_iter():
@@ -292,7 +296,7 @@ class FbftTopology(object):
                 if self._nest_colour != name:
                     # check only other cluster and add delegate
                     if PeerAtr.delegate in peer:
-                        self._arbiters[key] = (PeerAtr.delegate,name)
+                        self._arbiters[key] = (PeerAtr.delegate,name,children)
                         #if arbiter_id == self._parent:
                         #    self._leader = key
 

@@ -32,9 +32,9 @@ from sawtooth_validator.protobuf.network_pb2 import DisconnectMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipConsensusMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipBatchByBatchIdRequest
-from sawtooth_validator.protobuf.network_pb2 import \
-    GossipBatchByTransactionIdRequest
+from sawtooth_validator.protobuf.network_pb2 import GossipBatchByTransactionIdRequest
 from sawtooth_validator.protobuf.network_pb2 import GossipBlockRequest
+from sawtooth_validator.protobuf.network_pb2 import EndpointItem,EndpointList
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.protobuf.network_pb2 import PeerRegisterRequest
 from sawtooth_validator.protobuf.network_pb2 import PeerUnregisterRequest
@@ -461,8 +461,25 @@ class Gossip(object):
                     cluster,npeer =  attributes[1].value,attributes[2].value 
                     changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)
                     if changed :
+                        """
+                        we should inform new leader about arbiter's endpoint
+                        """
+                        endpoints = []
+                        for key,peer in self._fbft.arbiters.items():
+                            #LOGGER.debug("ARBITER=%s %s delegate=%s",key[:8],peer[1],peer[2][key])
+                            if key in peer[2] :
+                                arbiter = peer[2][key]
+                                if PeerAtr.endpoint in arbiter:
+                                    LOGGER.debug("say ARBITER'S=%s endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.endpoint],nkey[:8])
+                                    endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])
+                                    endpoints.append(endpoint)
+                        if len(endpoints) > 0:
+                            # make message
+                            self.send_endpoint_message(endpoints,nkey)
+
                         LOGGER.debug("UPDATE topology NEW LEADER %s.%s id=%s!!!\n",cluster,npeer,nkey)
                         self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)
+
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
 
@@ -739,6 +756,28 @@ class Gossip(object):
         self.broadcast(
             batch_request,
             validator_pb2.Message.GOSSIP_BATCH_BY_BATCH_ID_REQUEST)
+
+    def send_endpoint_message(self,endpoints,peer_id):
+        """
+        send list of endpoints
+        """
+        connection_id = self._network.public_key_to_connection_id(peer_id)
+        time_to_live = self.get_time_to_live()
+        endpoint_list = EndpointList()
+        endpoint_list.endpoints.extend(endpoints)
+        gossip_message = GossipMessage(
+            content_type=GossipMessage.ENDPOINTS,
+            content=endpoint_list.SerializeToString(),
+            time_to_live=time_to_live
+            )
+        self.send(validator_pb2.Message.GOSSIP_MESSAGE,
+                  gossip_message.SerializeToString(),
+                  connection_id,
+                  one_way=True)
+        LOGGER.debug("Gossip::send_endpoint_message...")
+
+    def endpoint_list(self,endpoints):
+        LOGGER.debug("Gossip::GET endpoint_list...")
 
     def send_consensus_message(self, peer_id, message, public_key):
         """

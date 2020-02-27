@@ -61,12 +61,12 @@ message GossipMessage {
         BLOCK = 1;
         BATCH = 2;
 	BATCHES = 3; // for DAG send all batches for new block - it will keep order of batches
+	ENDPOINTS = 4; // list of arbiters endpoint
     }
     bytes content = 1;
     ContentType content_type = 2;
     uint32 time_to_live = 3;
-    //bytes  candidate_id = 4; // used for DAG version say others peer branch for new batch
-    //uint32 block_num    = 5; // used for DAG block candidate number
+    
 }
 
 // A response sent from the validator to the peer acknowledging message
@@ -133,3 +133,12 @@ message GossipConsensusMessage {
     bytes sender_id = 2;
     uint32 time_to_live = 3;
 }
+
+message EndpointItem {
+  bytes  peer_id = 1; // The unique id for this peer.
+  string endpoint = 2;
+}
+message EndpointList {
+  repeated   EndpointItem endpoints = 1; // list of endpoint
+}
+

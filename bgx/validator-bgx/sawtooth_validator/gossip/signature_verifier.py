@@ -153,6 +153,11 @@ class GossipMessageSignatureVerifier(Handler):
             # check batches signature
             LOGGER.debug("Check BATCHES signature!!!")
             return HandlerResult(status=HandlerStatus.PASS)
+        elif gossip_message.content_type == GossipMessage.ENDPOINTS:
+            # check endpoints
+            LOGGER.debug("Check ENDPOINTS signature!!!")
+            return HandlerResult(status=HandlerStatus.PASS)
+
         # should drop the message if it does not have a valid content_type
         return HandlerResult(status=HandlerStatus.DROP)
 

@@ -30,6 +30,7 @@ from sawtooth_validator.protobuf.network_pb2 import GetPeersResponse
 from sawtooth_validator.protobuf.network_pb2 import PeerRegisterRequest
 from sawtooth_validator.protobuf.network_pb2 import PeerUnregisterRequest
 from sawtooth_validator.protobuf.network_pb2 import NetworkAcknowledgement
+from sawtooth_validator.protobuf.network_pb2 import EndpointItem,EndpointList
 from sawtooth_validator.exceptions import PeeringException
 
 LOGGER = logging.getLogger(__name__)
@@ -190,7 +191,7 @@ class GossipMessageDuplicateHandler(Handler):
                 LOGGER.debug("GossipMessageDuplicateHandler: BATCHES dublicate batch=%s for branch=%s.%s IGNORE",batch_sign[:8],block_num,candidate_id[:8])
                 return HandlerResult(HandlerStatus.DROP)
                 
-
+            
 
         return HandlerResult(HandlerStatus.PASS)
 
@@ -281,6 +282,7 @@ class GossipBroadcastHandler(Handler):
         gossip_message.ParseFromString(message_content)
         if gossip_message.time_to_live == 0:
             # Do not forward message if it has reached its time to live limit
+            LOGGER.debug("GossipBroadcastHandler: Do not forward message if it has reached its time to live!\n")
             return HandlerResult(status=HandlerStatus.PASS)
 
         else:
@@ -319,7 +321,12 @@ class GossipBroadcastHandler(Handler):
                     cluster_exclude = [connection_id]
                 LOGGER.debug("broadcast block=%s exclude=%s !!!",block.header_signature[:8],[self._gossip._peers[cid] for cid in cluster_exclude])
                 self._gossip.broadcast_block(block, cluster_exclude)
-       
+        elif gossip_message.content_type == GossipMessage.ENDPOINTS:
+            endpoints = EndpointList()
+            endpoints.ParseFromString(gossip_message.content)
+            for endpoint in endpoints.endpoints:
+                LOGGER.debug("GossipBroadcastHandler: ENDPOINT=%s",endpoint)
+            self._gossip.endpoint_list(endpoints)
         else:
             LOGGER.info("received %s, not BATCH or BLOCK",gossip_message.content_type)
 
