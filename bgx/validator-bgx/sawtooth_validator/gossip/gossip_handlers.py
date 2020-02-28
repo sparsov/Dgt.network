@@ -324,8 +324,6 @@ class GossipBroadcastHandler(Handler):
         elif gossip_message.content_type == GossipMessage.ENDPOINTS:
             endpoints = EndpointList()
             endpoints.ParseFromString(gossip_message.content)
-            for endpoint in endpoints.endpoints:
-                LOGGER.debug("GossipBroadcastHandler: ENDPOINT=%s",endpoint)
             self._gossip.endpoint_list(endpoints)
         else:
             LOGGER.info("received %s, not BATCH or BLOCK",gossip_message.content_type)

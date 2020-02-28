@@ -707,7 +707,8 @@ class PbftEngine(Engine):
 
     @property
     def is_ready_arbiter(self):
-        return max(self._arbiters.values(), key = lambda x: 1 if x[1] == ConsensusNotifyPeerConnected.OK else 0)[1] == ConsensusNotifyPeerConnected.OK
+        return max(self.arbiters.values(), key = lambda x: 1 if x[1] == ConsensusNotifyPeerConnected.OK else 0)[1] == ConsensusNotifyPeerConnected.OK
+
     @property
     def own_type(self):
         return self._oracle.own_type #self._own_type
@@ -741,7 +742,7 @@ class PbftEngine(Engine):
     @property
     def arbiters_info(self):
         # only arbiters which are ready
-        return [val[2]+'('+str(val[1])+'='+aid[:8]+')' for aid,val in self._arbiters.items() if val[1] == ConsensusNotifyPeerConnected.OK]
+        return [val[2]+'('+str(val[1])+'='+aid[:8]+')' for aid,val in self.arbiters.items() if val[1] == ConsensusNotifyPeerConnected.OK]
 
     @property
     def nest_color(self):
@@ -779,6 +780,9 @@ class PbftEngine(Engine):
         while i < num:
             self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
             i += 1
+
+    def arbiters_update(self):
+        self._arbiters = self._oracle.arbiters
 
     def check_waiting_nest(self,bid):
         if bid in self._pending_nest:                                         
@@ -1050,7 +1054,7 @@ class PbftEngine(Engine):
         self._genesis      = self._oracle.genesis      # genesis cluster name
         self._cluster_name = self._oracle.cluster_name # own clusters name
         #self._own_type = self._oracle.own_type
-        self._arbiters = self._oracle.arbiters         # ring of arbiter     
+        self.arbiters_update()         # ring of arbiter     
         self._cluster = self._oracle.cluster           # own cluster's peers
 
         self._block_timeout = self._oracle.block_timeout 
@@ -1454,7 +1458,7 @@ class PbftEngine(Engine):
     def peer_status(self,peer_id):
         # take in advance only message from own cluster or from arbiters
         # message from others peers will be ignored
-        return self._peers[peer_id] if peer_id in self._peers else (self._arbiters[peer_id][1] if peer_id in self._arbiters else ConsensusNotifyPeerConnected.NOT_READY)
+        return self._peers[peer_id] if peer_id in self._peers else (self.arbiters[peer_id][1] if peer_id in self.arbiters else ConsensusNotifyPeerConnected.NOT_READY)
 
     def _handle_peer_disconnected(self, notif):
         LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
@@ -1468,6 +1472,7 @@ class PbftEngine(Engine):
         if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
             LOGGER.debug('Change PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
             self._oracle.change_current_leader(pid,notif[3])
+            self.arbiters_update()
             return
             
         if pid not in self._peers:
@@ -1481,11 +1486,11 @@ class PbftEngine(Engine):
                 # save status of peer
                 self._peers[pid] = notif[1]
                 LOGGER.info('Connected peer with ID=%s status=%s own cluster total=%s\n', _short_id(pid),notif[1],len(self._peers))
-            elif pid in self._arbiters:
+            elif pid in self.arbiters:
                 # one of the arbiters - mark as ready 
-                val = self._arbiters[pid]
+                val = self.arbiters[pid]
                 if val[1] != notif[1]:
-                    self._arbiters[pid] = (val[0],notif[1],val[2])
+                    self.arbiters[pid] = (val[0],notif[1],val[2])
                     LOGGER.debug('Connected peer with ID=%s  status=%s IS ONE OF THE OUR ARBITER=%s ready=%s\n', _short_id(pid),notif[1],val,self.num_arbiters)
                     
             else:

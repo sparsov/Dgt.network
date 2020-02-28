@@ -133,10 +133,8 @@ class Gossip(object):
         self._lock = Lock()
         self._network = network
         self._endpoint = endpoint
-        self._initial_seed_endpoints = initial_seed_endpoints \
-            if initial_seed_endpoints else []
-        self._initial_peer_endpoints = initial_peer_endpoints \
-            if initial_peer_endpoints else []
+        self._initial_seed_endpoints = initial_seed_endpoints if initial_seed_endpoints else []
+        self._initial_peer_endpoints = initial_peer_endpoints if initial_peer_endpoints else []
         self._minimum_peer_connectivity = minimum_peer_connectivity
         self._maximum_peer_connectivity = maximum_peer_connectivity
         self._topology_check_frequency = topology_check_frequency
@@ -357,13 +355,19 @@ class Gossip(object):
         """
         Use topology for restrict peer notification
         """
-        if public_key in self._fbft.cluster or public_key in self._fbft.arbiters:
+        is_arbiter = public_key in self._fbft.arbiters
+        if public_key in self._fbft.cluster or is_arbiter:
             # own cluster or arbiters
+            #if is_arbiter:
+            #    arbiter = self._fbft.arbiters[public_key]
+            #if not is_arbiter or PeerAtr.endpoint in arbiter[2]:
             LOGGER.debug("Inform engine ADD peer=%s assemble=%s",public_key[:8],assemble)
             self._consensus_notifier.notify_peer_connected(public_key,assemble,mode)
             if public_key == self.validator_id and not self._genesis_sync:
                 # FIXME - why we do it ?
                 self._nosync = assemble
+            #else:
+            #    LOGGER.debug("Arbiter=%s for %s not connected",arbiter[2],arbiter[1])
         else:
             # set into self._fbft activity of peer - for dashboard
             LOGGER.debug("Inform engine IGNORE peer=%s",public_key[:8])
@@ -458,27 +462,41 @@ class Gossip(object):
         if attributes[0].key == 'oper':
             if attributes[0].value == 'lead':
                 if attributes[1].key == 'cluster' and attributes[2].key == 'peer': 
-                    cluster,npeer =  attributes[1].value,attributes[2].value 
+                    cluster,npeer =  attributes[1].value,attributes[2].value
+                    own_role = self._fbft.own_role # my current role  
                     changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)
                     if changed :
-                        """
-                        we should inform new leader about arbiter's endpoint
-                        """
-                        endpoints = []
-                        for key,peer in self._fbft.arbiters.items():
-                            #LOGGER.debug("ARBITER=%s %s delegate=%s",key[:8],peer[1],peer[2][key])
-                            if key in peer[2] :
-                                arbiter = peer[2][key]
-                                if PeerAtr.endpoint in arbiter:
-                                    LOGGER.debug("say ARBITER'S=%s endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.endpoint],nkey[:8])
-                                    endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])
-                                    endpoints.append(endpoint)
-                        if len(endpoints) > 0:
-                            # make message
-                            self.send_endpoint_message(endpoints,nkey)
-
                         LOGGER.debug("UPDATE topology NEW LEADER %s.%s id=%s!!!\n",cluster,npeer,nkey)
                         self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)
+                        if cluster == self._fbft.nest_colour:
+                            """
+                            in case of own cluster - we should inform new leader about arbiter's endpoint
+                            """
+                            if own_role == PeerRole.leader:
+                                endpoints = []
+                                for key,peer in self._fbft.arbiters.items():
+                                    #LOGGER.debug("ARBITER=%s %s delegate=%s",key[:8],peer[1],peer[2][key])
+                                    if key in peer[2] :
+                                        arbiter = peer[2][key]
+                                        if PeerAtr.endpoint in arbiter:
+                                            LOGGER.debug("say ARBITER'S=%s endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.endpoint],nkey[:8])
+                                            endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])
+                                            endpoints.append(endpoint)
+                                if len(endpoints) > 0:
+                                    # make message
+                                    self.send_endpoint_message(endpoints,nkey)
+                            
+                        else:
+                            # other cluster change leader 
+                            if own_role == PeerRole.leader:
+                                # check maybe new leader already connected - so we should say consensus about it 
+                                if nkey in self._fbft.arbiters:
+                                    arbiter = self._fbft.arbiters[nkey]
+                                    if PeerAtr.endpoint in arbiter[2]:
+                                        self.notify_peer_connected(nkey,assemble=True)
+                                
+                                    
+
 
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
@@ -759,7 +777,7 @@ class Gossip(object):
 
     def send_endpoint_message(self,endpoints,peer_id):
         """
-        send list of endpoints
+        send list of endpoints for new leader
         """
         connection_id = self._network.public_key_to_connection_id(peer_id)
         time_to_live = self.get_time_to_live()
@@ -777,7 +795,14 @@ class Gossip(object):
         LOGGER.debug("Gossip::send_endpoint_message...")
 
     def endpoint_list(self,endpoints):
+        """
+        Info from old leader about endpoints
+        """
         LOGGER.debug("Gossip::GET endpoint_list...")
+        for endpoint in endpoints.endpoints:
+            LOGGER.debug("GossipBroadcastHandler: ADD ENDPOINT=%s->%s",endpoint.peer_id.hex(),endpoint.endpoint)
+            if self._topology:
+                self._topology._attempt_to_peer_with_endpoint(endpoint.endpoint)
 
     def send_consensus_message(self, peer_id, message, public_key):
         """
@@ -1294,7 +1319,7 @@ class ConnectionManager(InstrumentedThread):
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self.peer_id)
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -1314,6 +1339,7 @@ class ConnectionManager(InstrumentedThread):
                     time.time(),
                     INITIAL_RETRY_FREQUENCY)
             self._network.add_outbound_connection(endpoint)
+
 
     def _reset_candidate_peer_endpoints(self):
         with self._lock:

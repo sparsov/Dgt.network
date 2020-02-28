@@ -131,14 +131,23 @@ class FbftTopology(object):
     def change_cluster_leader(self,cluster,npeer):
         n = 0
         nkey = None
+        
         for key,peer in self.get_cluster_iter(cluster): 
             if n == 2:
                 return True,nkey
             if peer[PeerAtr.name] == npeer:                                     
                 LOGGER.debug('TOPOLOGY set NEW LEADER %s.%s=%s',cluster,npeer,peer)      
                 peer[PeerAtr.role] = PeerRole.leader
+                if key == self._validator_id:
+                    self._own_role = PeerRole.leader
                 nkey = key
-                n += 1                                     
+                n += 1
+                if self.own_role == PeerRole.leader:
+                    # others cluster leader was changed - update arbiters
+                    self._arbiters[key] = (PeerAtr.delegate,cluster,peer)
+                    LOGGER.debug('TOPOLOGY ADD ARBITER for=%s',cluster)
+                    # new leader already connected - inform consensus
+
             elif peer[PeerAtr.role] == PeerRole.leader :                                 
                 LOGGER.debug('TOPOLOGY old LEADER=%s to plink',peer)                              
                 peer[PeerAtr.role] = PeerRole.plink
@@ -169,6 +178,11 @@ class FbftTopology(object):
         peer[PeerAtr.role] = PeerRole.leader
         if npid == self._validator_id:
             self._own_role = PeerRole.leader
+        if self.own_role == PeerRole.leader and npid not in self._arbiters:
+            # I am leader
+            self._arbiters[npid] = (PeerAtr.delegate,cname,peer)
+            LOGGER.debug('TOPOLOGY ADD ARBITER for=%s',cname)
+
         LOGGER.debug('TOPOLOGY set NEW LEADER %s',peer)
         return True
 
@@ -328,7 +342,7 @@ class FbftTopology(object):
                     self._leader = key
                     break
             # add Identity
-            topology['Network'] = 'BGX TEST network'
+            topology['Network'] = 'DGT TEST network'
             topology['Identity'] = {'PubKey': self._validator_id,
                                     'IP' : self._endpoint,
                                     'Cluster' : self._nest_colour,

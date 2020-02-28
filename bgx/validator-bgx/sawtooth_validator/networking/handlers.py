@@ -123,8 +123,7 @@ class ConnectHandler(Handler):
                 AUTHORIZATION_CONNECTION_RESPONSE)
 
         try:
-            is_outbound_connection = self._network.is_outbound_connection(
-                connection_id)
+            is_outbound_connection = self._network.is_outbound_connection(connection_id)
         except KeyError:
             # Connection has gone away, drop message
             return HandlerResult(HandlerStatus.DROP)
@@ -134,6 +133,7 @@ class ConnectHandler(Handler):
                 LOGGER.debug("Allowing incoming connection: %s(%s)", connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
                 connection_response.status = connection_response.OK
             else:
+                LOGGER.debug("Incoming connection: %s(%s) ERROR", connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
                 connection_response.status = connection_response.ERROR
                 return HandlerResult(
                     HandlerStatus.RETURN_AND_CLOSE,
@@ -149,7 +149,7 @@ class ConnectHandler(Handler):
                 message_out=connection_response,
                 message_type=validator_pb2.Message.
                 AUTHORIZATION_CONNECTION_RESPONSE)
-
+        LOGGER.debug("Update connection: %s status", connection_id[:8])
         self._network.update_connection_status(
             connection_id,
             ConnectionStatus.CONNECTION_REQUEST)
