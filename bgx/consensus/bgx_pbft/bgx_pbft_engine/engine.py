@@ -1492,6 +1492,8 @@ class PbftEngine(Engine):
                 if val[1] != notif[1]:
                     self.arbiters[pid] = (val[0],notif[1],val[2])
                     LOGGER.debug('Connected peer with ID=%s  status=%s IS ONE OF THE OUR ARBITER=%s ready=%s\n', _short_id(pid),notif[1],val,self.num_arbiters)
+                else:
+                    LOGGER.debug('Connected peer with ID=%s IS ARBITER status the same\n', _short_id(pid))
                     
             else:
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))

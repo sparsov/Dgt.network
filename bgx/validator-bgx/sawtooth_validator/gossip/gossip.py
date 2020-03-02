@@ -361,7 +361,7 @@ class Gossip(object):
             #if is_arbiter:
             #    arbiter = self._fbft.arbiters[public_key]
             #if not is_arbiter or PeerAtr.endpoint in arbiter[2]:
-            LOGGER.debug("Inform engine ADD peer=%s assemble=%s",public_key[:8],assemble)
+            LOGGER.debug("Inform engine ADD peer=%s assemble=%s mode=%s is_arbiter=%s",public_key[:8],assemble,mode,is_arbiter)
             self._consensus_notifier.notify_peer_connected(public_key,assemble,mode)
             if public_key == self.validator_id and not self._genesis_sync:
                 # FIXME - why we do it ?
@@ -493,6 +493,7 @@ class Gossip(object):
                                 if nkey in self._fbft.arbiters:
                                     arbiter = self._fbft.arbiters[nkey]
                                     if PeerAtr.endpoint in arbiter[2]:
+                                        self.check_leader_outbound(arbiter[2][PeerAtr.endpoint])
                                         self.notify_peer_connected(nkey,assemble=True)
                                 
                                     
@@ -606,7 +607,12 @@ class Gossip(object):
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
-            if self._fbft.get_peer_state(public_key) != PeerSync.active : #and sync is not None  :
+            peer = self._fbft.get_peer(public_key)
+            #if self._fbft.own_role == PeerRole.leader and peer and peer[PeerAtr.role] == PeerRole.leader:
+            #    # check maybe this is new leader
+            #    self.check_leader_outbound(endpoint)
+
+            if self._fbft.get_peer_state(public_key,peer) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
                 self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
@@ -621,7 +627,7 @@ class Gossip(object):
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)
             if self.is_federations_assembled:
-                self.notify_peer_connected(public_key)
+                self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
 
         return self.is_federations_assembled
             
@@ -647,6 +653,20 @@ class Gossip(object):
             else:
                 LOGGER.debug("Connection unregister failed as connection was not registered: %s",connection_id)
 
+    def check_leader_outbound(self,endpoint):
+        
+        n = 0
+        with self._lock:
+            for uri in self._peers.values():
+                if endpoint == uri:
+                    n += 1
+        LOGGER.debug("CHECK maybe this endpoint=%s is new leader n=%s",endpoint,n)
+        if n == 1:
+            LOGGER.debug("TRY ADD OUTBOUND for endpoint=%s\n",endpoint)
+            self._topology._attempt_to_peer_with_endpoint(endpoint)
+
+        
+        
     def switch_on_federations(self):
         """
         inform consensus engine about peers and 
@@ -1333,6 +1353,7 @@ class ConnectionManager(InstrumentedThread):
             # if the connection uri wasn't found in the network's
             # connections, it raises a KeyError and we need to add
             # a new outbound connection
+            LOGGER.debug("ADD NEW outbound connection with %s\n", endpoint)
             with self._lock:
                 self._temp_endpoints[endpoint] = EndpointInfo(
                     EndpointStatus.PEERING,
@@ -1374,7 +1395,7 @@ class ConnectionManager(InstrumentedThread):
                         and inform them after synchronization
                         """
                         LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
-                        self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=None)#ack.sync)
+                        self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=ack.sync if self._gossip.is_sync else None) #None)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
                         LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,self._gossip.peer_to_public_key(connection_id),self._gossip.is_sync)
                         """

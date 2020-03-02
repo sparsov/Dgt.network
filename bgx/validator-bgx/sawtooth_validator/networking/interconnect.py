@@ -778,6 +778,12 @@ class Interconnect(object):
                      self._max_incoming_connections)
         return self._max_incoming_connections >= len(self._connections)
 
+    def check_outbound_connection(self, uri):
+        """
+        check for leader change case own outbound to new leader
+        """
+        return uri in self.outbound_connections
+
     def add_outbound_connection(self, uri):
         """Adds an outbound connection to the network.
 

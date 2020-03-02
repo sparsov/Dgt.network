@@ -218,8 +218,9 @@ class FbftTopology(object):
                     return peer
         return  None
 
-    def get_peer_state(self,peer_key):
-        peer = self.get_peer(peer_key)
+    def get_peer_state(self,peer_key,peer=None):
+        if peer is None:
+            peer = self.get_peer(peer_key)
         if peer is not None and PeerAtr.node_state in peer:
             return peer[PeerAtr.node_state]
         return  PeerSync.inactive
