@@ -466,22 +466,27 @@ class Gossip(object):
                     own_role = self._fbft.own_role # my current role  
                     changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)
                     if changed :
-                        LOGGER.debug("UPDATE topology NEW LEADER %s.%s id=%s!!!\n",cluster,npeer,nkey)
+                        LOGGER.debug("UPDATE topology NEW LEADER %s.%s key=%s LEADER=%s!!!\n",cluster,npeer,nkey[:8],(own_role == PeerRole.leader))
                         self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)
                         if cluster == self._fbft.nest_colour:
                             """
                             in case of own cluster - we should inform new leader about arbiter's endpoint
                             """
                             if own_role == PeerRole.leader:
+                                # I was leader before change role
                                 endpoints = []
                                 for key,peer in self._fbft.arbiters.items():
-                                    #LOGGER.debug("ARBITER=%s %s delegate=%s",key[:8],peer[1],peer[2][key])
+                                    LOGGER.debug("CHECK ARBITER=%s %s",key[:8],peer[1])
                                     if key in peer[2] :
                                         arbiter = peer[2][key]
-                                        if PeerAtr.endpoint in arbiter:
-                                            LOGGER.debug("say ARBITER'S=%s endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.endpoint],nkey[:8])
+                                        if PeerAtr.endpoint in arbiter and arbiter[PeerAtr.role] == PeerRole.leader:
+                                            LOGGER.debug("SAY ARBITER'S=%s endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.endpoint],nkey[:8])
                                             endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])
                                             endpoints.append(endpoint)
+                                        else:
+                                            LOGGER.debug("SKIP ARBITER'S=%s %s NO endpoint or old",key[:8],peer[1])
+                                    else:
+                                        LOGGER.debug("NO ARBITER=%s IN CLUSTER %s",key[:8],peer[1])
                                 if len(endpoints) > 0:
                                     # make message
                                     self.send_endpoint_message(endpoints,nkey)
@@ -492,9 +497,11 @@ class Gossip(object):
                                 # check maybe new leader already connected - so we should say consensus about it 
                                 if nkey in self._fbft.arbiters:
                                     arbiter = self._fbft.arbiters[nkey]
+                                    LOGGER.debug("NEW ARBITER=%s in other cluster %s",nkey[:8],cluster)
                                     if PeerAtr.endpoint in arbiter[2]:
                                         self.check_leader_outbound(arbiter[2][PeerAtr.endpoint])
                                         self.notify_peer_connected(nkey,assemble=True)
+
                                 
                                     
 
@@ -611,22 +618,24 @@ class Gossip(object):
             #if self._fbft.own_role == PeerRole.leader and peer and peer[PeerAtr.role] == PeerRole.leader:
             #    # check maybe this is new leader
             #    self.check_leader_outbound(endpoint)
-
+            status_updated = False
             if self._fbft.get_peer_state(public_key,peer) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
                 self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
+                status_updated = True
                 #self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
             else :
                 # was active - set unsync 
                 # in case peer restart
                 if sync is None and self._fbft.get_peer_id(public_key) != pid: # sync is None and component is not None
                     self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
+                    status_updated = True
                 
 
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)
-            if self.is_federations_assembled:
+            if self.is_federations_assembled and status_updated:
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
 
         return self.is_federations_assembled
@@ -820,8 +829,9 @@ class Gossip(object):
         """
         LOGGER.debug("Gossip::GET endpoint_list...")
         for endpoint in endpoints.endpoints:
-            LOGGER.debug("GossipBroadcastHandler: ADD ENDPOINT=%s->%s",endpoint.peer_id.hex(),endpoint.endpoint)
-            if self._topology:
+            pid = endpoint.peer_id.hex()
+            if pid != self.validator_id and self._topology:
+                LOGGER.debug("GossipBroadcastHandler: ADD ENDPOINT=%s->%s",pid,endpoint.endpoint)
                 self._topology._attempt_to_peer_with_endpoint(endpoint.endpoint)
 
     def send_consensus_message(self, peer_id, message, public_key):

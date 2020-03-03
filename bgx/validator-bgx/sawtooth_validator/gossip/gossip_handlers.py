@@ -89,7 +89,7 @@ class PeerRegisterHandler(Handler):
         try:
             ack.pid = self._gossip.peer_id
             if request.mode == PeerRegisterRequest.REGISTER:
-                # peer ask register
+                # Other peer ask register
                 LOGGER.debug("Peer=%s(%s) ask REGISTER component=%s",request.endpoint,connection_id[:10],request.component)
                 sync = self._gossip.register_peer(connection_id,request.pid, request.endpoint,sync=(True if self._gossip.is_sync else None),component=request.component)
                 # say asked peer about point of assemble
