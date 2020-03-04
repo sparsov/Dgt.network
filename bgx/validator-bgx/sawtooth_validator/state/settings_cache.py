@@ -48,14 +48,15 @@ class SettingsObserver(ChainObserver):
         block_events = BlockEventExtractor(block).extract([EventSubscription(event_type="sawtooth/block-commit")])
         receipt_events = ReceiptEventExtractor(receipts).extract([EventSubscription(event_type="settings/update")])
         LOGGER.debug('SettingsObserver: chain_update receipt_events=%s',receipt_events)
+        for event in receipt_events:
+            if event.event_type == "settings/update":
+                self._handle_txn_commit(event)
+
         for event in block_events:
             forked = self._handle_block_commit(event)
             if forked:
                 return
-
-        for event in receipt_events:
-            if event.event_type == "settings/update":
-                self._handle_txn_commit(event)
+        
 
     def _handle_txn_commit(self, event):
         updated = event.attributes[0].value

@@ -171,6 +171,10 @@ class PbftOracle:
         return self._fbft.own_role #self._node if self._node is not None else 'UNDEF'
 
     @property
+    def is_arbiter(self):
+        return self._fbft.is_arbiter
+
+    @property
     def cluster_name(self):
         #LOGGER.debug('CLUSTER NAME: %s ~ %s\n', self._fbft.nest_colour, self._cluster_name)
         return self._fbft.nest_colour 
@@ -242,13 +246,16 @@ class PbftOracle:
     def get_validator_id(self):
         return self._validator_id 
 
+    def peer_is_leader(self,pid):
+        return self._fbft.peer_is_leader(pid)
+
     def get_node_type_by_id(self,vid):
         #tp = self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF' 
         #LOGGER.debug('GET_NODE_TYPE_BY_ID=%s ~ %s',tp,self._fbft.cluster_peer_role_by_key(vid))
         return self._fbft.cluster_peer_role_by_key(vid)
 
     def change_current_leader(self,npid,cluster):
-        self._fbft.change_current_leader(npid,cluster)
+        return self._fbft.change_current_leader(npid,cluster)
 
     def make_nest_step(self,num,authorized_keys=None):
         """

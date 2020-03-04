@@ -356,7 +356,8 @@ class Gossip(object):
         Use topology for restrict peer notification
         """
         is_arbiter = public_key in self._fbft.arbiters
-        if public_key in self._fbft.cluster or is_arbiter:
+        
+        if public_key in self._fbft.cluster or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key)):
             # own cluster or arbiters
             #if is_arbiter:
             #    arbiter = self._fbft.arbiters[public_key]
@@ -463,14 +464,14 @@ class Gossip(object):
             if attributes[0].value == 'lead':
                 if attributes[1].key == 'cluster' and attributes[2].key == 'peer': 
                     cluster,npeer =  attributes[1].value,attributes[2].value
-                    own_role = self._fbft.own_role # my current role  
+                    own_role = self._fbft.own_role # my current role
                     changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)
                     if changed :
                         LOGGER.debug("UPDATE topology NEW LEADER %s.%s key=%s LEADER=%s!!!\n",cluster,npeer,nkey[:8],(own_role == PeerRole.leader))
                         self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)
                         if cluster == self._fbft.nest_colour:
                             """
-                            in case of own cluster - we should inform new leader about arbiter's endpoint
+                            in case of own cluster we should inform new leader about arbiter's endpoint
                             """
                             if own_role == PeerRole.leader:
                                 # I was leader before change role
@@ -488,19 +489,26 @@ class Gossip(object):
                                     else:
                                         LOGGER.debug("NO ARBITER=%s IN CLUSTER %s",key[:8],peer[1])
                                 if len(endpoints) > 0:
-                                    # make message
+                                    # make message for new leader
                                     self.send_endpoint_message(endpoints,nkey)
                             
                         else:
-                            # other cluster change leader 
+                            # other cluster change leader - but arbiters stay the same  
                             if own_role == PeerRole.leader:
                                 # check maybe new leader already connected - so we should say consensus about it 
+                                LOGGER.debug("OTHER CLUSTER=%s change LEADER",cluster)
+                                """
                                 if nkey in self._fbft.arbiters:
                                     arbiter = self._fbft.arbiters[nkey]
                                     LOGGER.debug("NEW ARBITER=%s in other cluster %s",nkey[:8],cluster)
                                     if PeerAtr.endpoint in arbiter[2]:
                                         self.check_leader_outbound(arbiter[2][PeerAtr.endpoint])
                                         self.notify_peer_connected(nkey,assemble=True)
+                                """
+                            if self._fbft.is_arbiter:
+                                # inform consensus engine
+                                LOGGER.debug("I AM ARBITER - OTHER CLUSTER=%s change LEADER\n",cluster)
+
 
                                 
                                     

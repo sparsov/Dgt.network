@@ -113,6 +113,10 @@ class BranchState(object):
     def is_leader(self):
         return self.own_type == 'leader'
     @property
+    def is_arbiter(self):
+        return self._is_arbiter
+
+    @property
     def validator_id(self):
         return self._engine.validator_id
 
@@ -271,11 +275,12 @@ class BranchState(object):
         wait ARBITRATION_DONE message :
          leader wait from cluster which asked arbitration
          plink wait from leader
+         arbiter wait from leader which asked arbitration
         """
-        LOGGER.debug("WAIT ARBITRATION LEADER=%s...",self.is_leader)
+        LOGGER.debug("WAIT ARBITRATION LEADER=%s ARBITER=%s...",self.is_leader,self.is_arbiter)
         self._state = State.Arbitration
         self._num_arbiters = 1
-        if self.is_leader:
+        if self.is_leader or self.is_arbiter:
             self.check_arbitration(block_id,broadcast=False)
 
 
@@ -311,7 +316,7 @@ class BranchState(object):
         message = self._make_message(block,PbftMessageInfo.ARBITRATION_DONE_MSG)
         self._broadcast2cluster(message, PbftMessageInfo.ARBITRATION_DONE_MSG, block.block_id)
         if self._own_cluster:
-            # FOR RING OF ARBITERS
+            # FOR RING OF ARBITERS IN CASE FINISHING OWN BLOCK 
             self._broadcast2arbiter(message,PbftMessageInfo.ARBITRATION_DONE_MSG,block.block_id)
                     
     def _send_checkpoint(self,block):
@@ -395,6 +400,7 @@ class BranchState(object):
         self._stime = time.time()
         # save own role - because it could be changed before commit this block
         self._own_type = self._engine.own_type
+        self._is_arbiter = self._engine.is_arbiter
         if commits:
             # add commit messages
             for peer_id,block in commits.items():
@@ -541,7 +547,7 @@ class BranchState(object):
             self._can_cancel = False
         except exceptions.UnknownBlock:
             # block could be already rejected - it's not a problem in this case
-            LOGGER.info('UnknownBlock block=%s already was DELLED', _short_id(block_id))    
+            LOGGER.info('UnknownBlock block=%s already was DELETED', _short_id(block_id))    
         
     def check_commit(self,block):
         """
@@ -566,7 +572,7 @@ class BranchState(object):
                     self._state = State.Finished
                     self.commit_block(block.block_id)
                 else:
-                    # ask arbiter
+                    # As leader ask arbiter's ring
                     LOGGER.info('Ready to do commit for block=%s ask ARBITER=%s -> Arbitration', self.block_num,[key[:8] for key,val in self.arbiters.items() if val[1] == ConsensusNotifyPeerConnected.OK])
                     self._state = State.Arbitration
                     self._send_arbitration(block)
@@ -594,10 +600,10 @@ class BranchState(object):
         """
         ask arbitration
         """
-        self._send_arbitration_done(block,peer_id)
-        if self.is_leader and broadcast:
-            LOGGER.info('arbitration: broadcast ARBITRATION DONE for own cluster block=%s ???', self.block_num)
-            self.broadcast_arbitration_done(block)
+        self._send_arbitration_done(block,peer_id) # to other cluster's leader 
+        if (self.is_leader or self.is_arbiter) and broadcast:
+            LOGGER.info('SKIP broadcast ARBITRATION DONE for own cluster block=%s LEADER=%s ARBITER=%s\n', self.block_num, self.is_leader, self.is_arbiter)
+            #self.broadcast_arbitration_done(block)
 
     def arbitration_done(self,block):
         """
@@ -605,10 +611,14 @@ class BranchState(object):
         """
         self._num_arbiters -= 1
         if self._num_arbiters == 0:
-            #we have answer from all arbiter and can make commit for this block 
-            if self.is_leader:
+            """
+             for own block we have answer from all arbiter and can make commit for this block 
+             in case of external cluster block - we have message from cluster which is owner of block and arbiter inform other cluster
+            """
+            if (self._own_cluster and self.is_leader) or (self.is_arbiter and not self._own_cluster) :
                 LOGGER.info('arbitration_done: broadcast ARBITRATION DONE for own cluster block=%s', self.block_num)
                 self.broadcast_arbitration_done(block)
+
             LOGGER.info('arbitration_done: for block=%s', self.block_num)
             self.commit_block(block.block_id)
         else:
@@ -617,7 +627,7 @@ class BranchState(object):
     def check_arbitration(self,block_id,broadcast=True):
         # 
         if block_id in self._engine._arbitration_msgs:                     
-            # reply on arbitration msg                             
+            # reply on arbitration msg from other cluster's leader                            
             (block,peer_id) = self._engine._arbitration_msgs[block_id]     
             self.arbitration(block,peer_id,broadcast)                      
             del self._engine._arbitration_msgs[block_id]                   
@@ -650,6 +660,7 @@ class PbftEngine(Engine):
         self._branches = {} # for DAG 
         self._new_heads = {}
         self._peers = {}
+        self._leaders = {} # other cluster leader's - only for arbiter
         self._peers_branches = {}
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
@@ -712,6 +723,11 @@ class PbftEngine(Engine):
     @property
     def own_type(self):
         return self._oracle.own_type #self._own_type
+
+    @property
+    def is_arbiter(self):
+        return self._oracle.is_arbiter 
+
     @property
     def is_sync(self):
         return self._is_sync
@@ -1437,6 +1453,9 @@ class PbftEngine(Engine):
         self.reset_state()
 
     def arbitration_sync(self,block,block_id,peer_id):
+        """
+        Arbitration into SYNC mode
+        """
         LOGGER.debug("peer=%s ASK ARBITRATION for block=%s SYNC mode",peer_id[:8],block_id[:8])
         blk = self._get_block(bytes.fromhex(block_id))
         LOGGER.debug("GET block=%s SYNC mode",blk)
@@ -1458,7 +1477,7 @@ class PbftEngine(Engine):
     def peer_status(self,peer_id):
         # take in advance only message from own cluster or from arbiters
         # message from others peers will be ignored
-        return self._peers[peer_id] if peer_id in self._peers else (self.arbiters[peer_id][1] if peer_id in self.arbiters else ConsensusNotifyPeerConnected.NOT_READY)
+        return self._peers[peer_id] if peer_id in self._peers else (self.arbiters[peer_id][1] if peer_id in self.arbiters else (self._leaders[peer_id] if peer_id in self._leaders else ConsensusNotifyPeerConnected.NOT_READY))
 
     def _handle_peer_disconnected(self, notif):
         LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
@@ -1471,8 +1490,9 @@ class PbftEngine(Engine):
         pid = notif[0].peer_id.hex()
         if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
             LOGGER.debug('Change PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
-            self._oracle.change_current_leader(pid,notif[3])
-            self.arbiters_update()
+            changed,i_am_new = self._oracle.change_current_leader(pid,notif[3])
+            if changed and i_am_new:
+                self.arbiters_update()
             return
             
         if pid not in self._peers:
@@ -1481,7 +1501,7 @@ class PbftEngine(Engine):
                 self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
                 if self._mode != notif[2] :
                     self._mode = notif[2]
-            elif pid in self._cluster:
+            elif pid in self._cluster :
                 # take only peers from own cluster topology 
                 # save status of peer
                 self._peers[pid] = notif[1]
@@ -1494,7 +1514,10 @@ class PbftEngine(Engine):
                     LOGGER.debug('Connected peer with ID=%s  status=%s IS ONE OF THE OUR ARBITER=%s ready=%s\n', _short_id(pid),notif[1],val,self.num_arbiters)
                 else:
                     LOGGER.debug('Connected peer with ID=%s IS ARBITER status the same\n', _short_id(pid))
-                    
+            elif self.is_arbiter and self._oracle.peer_is_leader(pid) :
+                # this is other leaders
+                self._leaders[pid] = notif[1]
+                LOGGER.info('Connected peer with ID=%s status=%s is other leader=%s\n', _short_id(pid),notif[1],len(self._leaders))
             else:
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
         else:
@@ -1621,7 +1644,7 @@ class PbftEngine(Engine):
 
         elif msg_type == PbftMessageInfo.ARBITRATION_MSG:
             """
-            cluster Arbitration
+            cluster Arbitration message
             """
             LOGGER.debug("=>ARBITRATION for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])  
             if block_id in self._branches:
