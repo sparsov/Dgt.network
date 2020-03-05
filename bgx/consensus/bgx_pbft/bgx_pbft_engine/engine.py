@@ -660,6 +660,7 @@ class PbftEngine(Engine):
         self._branches = {} # for DAG 
         self._new_heads = {}
         self._peers = {}
+        self._arbiters = {}
         self._leaders = {} # other cluster leader's - only for arbiter
         self._peers_branches = {}
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
@@ -798,7 +799,11 @@ class PbftEngine(Engine):
             i += 1
 
     def arbiters_update(self):
-        self._arbiters = self._oracle.arbiters
+        narbiters = self._oracle.arbiters
+        for key,arbiter in narbiters.items():
+            if key not in self._arbiters:
+                self._arbiters[key] = arbiter
+        LOGGER.debug('UPDATE ARBITERS: %s\n', self._arbiters)
 
     def check_waiting_nest(self,bid):
         if bid in self._pending_nest:                                         

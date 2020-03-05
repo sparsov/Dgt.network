@@ -1665,6 +1665,6 @@ class ChainController(object):
             receipt.events.extend(result.events)
             receipt.transaction_id = result.signature
             receipts.append(receipt)
-            LOGGER.warning("_MAKE_RECEIPTS  tn_id=%s events=%s",result.signature,result.events)
+            #LOGGER.warning("_MAKE_RECEIPTS  tn_id=%s events=%s",result.signature,result.events)
         #LOGGER.warning("RECEIPTS  events=%s",receipts.signature)
         return receipts

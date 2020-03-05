@@ -358,10 +358,14 @@ class Gossip(object):
         is_arbiter = public_key in self._fbft.arbiters
         
         if public_key in self._fbft.cluster or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key)):
-            # own cluster or arbiters
-            #if is_arbiter:
-            #    arbiter = self._fbft.arbiters[public_key]
-            #if not is_arbiter or PeerAtr.endpoint in arbiter[2]:
+            """
+            own cluster or arbiters
+            if is_arbiter:
+                arbiter = self._fbft.arbiters[public_key]
+            if not is_arbiter or PeerAtr.endpoint in arbiter[2]:
+            In case of leader change this request could be appeared before new leader will be set into topology 
+            so we should inform consensus later 
+            """
             LOGGER.debug("Inform engine ADD peer=%s assemble=%s mode=%s is_arbiter=%s",public_key[:8],assemble,mode,is_arbiter)
             self._consensus_notifier.notify_peer_connected(public_key,assemble,mode)
             if public_key == self.validator_id and not self._genesis_sync:
@@ -480,12 +484,12 @@ class Gossip(object):
                                     LOGGER.debug("CHECK ARBITER=%s %s",key[:8],peer[1])
                                     if key in peer[2] :
                                         arbiter = peer[2][key]
-                                        if PeerAtr.endpoint in arbiter and arbiter[PeerAtr.role] == PeerRole.leader:
-                                            LOGGER.debug("SAY ARBITER'S=%s endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.endpoint],nkey[:8])
+                                        if PeerAtr.endpoint in arbiter and PeerAtr.delegate in arbiter and arbiter[PeerAtr.delegate]:
+                                            LOGGER.debug("SAY ARBITER'S=%s(%s) endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.name],arbiter[PeerAtr.endpoint],nkey[:8])
                                             endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])
                                             endpoints.append(endpoint)
                                         else:
-                                            LOGGER.debug("SKIP ARBITER'S=%s %s NO endpoint or old",key[:8],peer[1])
+                                            LOGGER.debug("SKIP ARBITER'S=%s(%s) %s NO endpoint or old",key[:8],arbiter[PeerAtr.name],peer[1])
                                     else:
                                         LOGGER.debug("NO ARBITER=%s IN CLUSTER %s",key[:8],peer[1])
                                 if len(endpoints) > 0:
@@ -506,8 +510,12 @@ class Gossip(object):
                                         self.notify_peer_connected(nkey,assemble=True)
                                 """
                             if self._fbft.is_arbiter:
-                                # inform consensus engine
-                                LOGGER.debug("I AM ARBITER - OTHER CLUSTER=%s change LEADER\n",cluster)
+                                # inform consensus engine about new leader into other cluster
+                                peer = self._fbft.get_peer(nkey)
+                                LOGGER.debug("I AM ARBITER - OTHER CLUSTER=%s change LEADER=%s\n",cluster,nkey[:8])
+                                if peer and PeerAtr.endpoint in peer:
+                                    self.notify_peer_connected(nkey,assemble=True)
+
 
 
                                 

@@ -182,7 +182,7 @@ class PbftOracle:
     @property
     def arbiters(self):
         arbs = {key : (vals[0],ConsensusNotifyPeerConnected.STATUS_UNSET,vals[1]) for key,vals in self._fbft.arbiters.items()}
-        LOGGER.debug('ASK ARBITERS: %s\n', arbs)
+        #LOGGER.debug('ASK ARBITERS: %s\n', arbs)
         return arbs
 
     @property

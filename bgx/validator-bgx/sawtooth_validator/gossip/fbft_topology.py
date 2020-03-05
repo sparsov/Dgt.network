@@ -202,6 +202,7 @@ class FbftTopology(object):
         for key,peer in self.get_topology_iter():
             if (key == peer_key) and (PeerAtr.role in peer) and peer[PeerAtr.role] == PeerRole.leader :
                 return True
+        LOGGER.debug('peer_is_leader: is not leader=%s',peer_key[:8])
         return False
 
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):

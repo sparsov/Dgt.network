@@ -60,7 +60,7 @@ class SettingsObserver(ChainObserver):
 
     def _handle_txn_commit(self, event):
         updated = event.attributes[0].value
-        LOGGER.debug("SettingsObserver: _handle_txn_commit item='%s'",updated)
+        #LOGGER.debug("SettingsObserver: _handle_txn_commit item='%s'",updated)
         self.to_update(updated,event.attributes[1:])
 
     def _handle_block_commit(self, event):
@@ -132,7 +132,7 @@ class SettingsCache():
             del self._cache[item]
             LOGGER.debug("SETTING: invalidate set='%s'!!\ncache=%s\n",item,self._cache)
         if item in self._handlers:
-            LOGGER.debug("SETTING: call handler for='%s' attributes='%s'\n",item,attributes)
+            #LOGGER.debug("SETTING: call handler for='%s' attributes='%s'\n",item,attributes)
             self._handlers[item](attributes)
         
 
