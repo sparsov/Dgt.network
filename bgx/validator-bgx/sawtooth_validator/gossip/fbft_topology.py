@@ -198,6 +198,71 @@ class FbftTopology(object):
         LOGGER.debug('TOPOLOGY set NEW LEADER %s',peer)
         return True,i_am_new_leader
 
+    def _switch_off_arbiter(self,peer,key):
+        LOGGER.debug('TOPOLOGY old ARBITER=%s',peer)     
+        peer[PeerAtr.delegate] = False                   
+        if key == self._validator_id:                    
+            self._is_arbiter = False  
+
+    def _switch_on_arbiter(self,cname,cluster,peer,key):
+                                            
+        peer[PeerAtr.delegate] = True                                                                         
+        if key == self._validator_id:                                                                         
+            # I am new arbiter - I should communicate with arbiters and leaders                               
+            self._is_arbiter = True                                                                                     
+            LOGGER.debug('I AM NEW ARBITER=%s',len(self._arbiters))                                           
+        elif self.own_role == PeerRole.leader or (PeerAtr.delegate in peer and peer[PeerAtr.delegate]):  
+            if key not in self._arbiters:
+                self._arbiters[key] = (PeerAtr.delegate,cname,cluster)                          
+            LOGGER.debug('TOPOLOGY ADD ARBITER for=%s total=%s',cname,len(self._arbiters))                                                 
+                               
+    def change_cluster_arbiter(self,cname,npeer):
+        """
+        New arbiter into cluster
+        """
+        n = 0
+        nkey = None
+        cluster = self.get_cluster_by_name(cname)
+        for key,peer in self.get_cluster_iter(cname,cluster): 
+            if n == 2:
+                return True,nkey
+            if peer[PeerAtr.name] == npeer:                                     
+                LOGGER.debug('TOPOLOGY set NEW ARBITER %s.%s=%s',cname,npeer,peer)  
+                self._switch_on_arbiter(cname,cluster,peer,key)    
+                nkey = key
+                n += 1
+                
+            elif PeerAtr.delegate in peer and peer[PeerAtr.delegate] :
+                """
+                drop old arbiter from arbiter list
+                """     
+                self._switch_off_arbiter(peer,key)                            
+                n += 1 
+        return False,nkey
+
+    def change_current_arbiter(self,npid,cname):                                       
+        """                                                                           
+        new arbiter key(npid) into cluster(cname)                                      
+        """                                                                           
+        if npid not in self._cluster:                                                 
+            # other cluster                                                           
+            cluster = self.get_cluster_by_name(cname)                                 
+            if cluster is None or PeerAtr.children not in cluster:                    
+                return False,False                                          
+            cluster = cluster[PeerAtr.children]                                       
+        else:                                                                         
+            cluster = self._cluster                                                   
+                                                                                      
+        for key,peer in cluster.items():                                              
+            if PeerAtr.delegate in peer and peer[PeerAtr.delegate]: 
+                self._switch_off_arbiter(peer,key)
+                break
+        # set new arbiter                                                                      
+        peer = cluster[npid]
+        self._switch_on_arbiter(cname,cluster,peer,npid) 
+        return True,(npid == self._validator_id)                                                   
+
+    
     def peer_is_leader(self,peer_key):
         for key,peer in self.get_topology_iter():
             if (key == peer_key) and (PeerAtr.role in peer) and peer[PeerAtr.role] == PeerRole.leader :

@@ -139,15 +139,18 @@ class SettingsTransactionHandler(TransactionHandler):
             extra.append(('oper',oper))
             fbft = FbftTopology()
             fbft.get_topology(topology,'','','static')
-            if oper == 'lead':
-                # change current leader
+            if oper == 'lead' or oper == 'arbiter':
+                # change current leader or arbiter
                 if 'cluster' in update and 'peer' in update:
                     cluster,npeer = update['cluster'],update['peer']
                     extra.append(('cluster',cluster))
                     extra.append(('peer',npeer))
-                    changed,_ = fbft.change_cluster_leader(cluster,npeer)
+                    if oper == 'lead':
+                        changed,_ = fbft.change_cluster_leader(cluster,npeer)
+                    else:
+                        changed,_ = fbft.change_cluster_arbiter(cluster,npeer)
                     if not changed:
-                        raise InvalidTransaction("Can't set new leader into cluster='{}'".format(cluster))
+                        raise InvalidTransaction("Can't set new {} into cluster='{}'".format(oper,cluster))
                     
                 else:
                     raise InvalidTransaction('Undefine cluster or peer for new leader operation')

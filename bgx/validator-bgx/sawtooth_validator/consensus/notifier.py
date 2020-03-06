@@ -60,18 +60,18 @@ class ConsensusNotifier:
         else:
             LOGGER.debug('ConsensusNotifier: CANT _notify - no registered engine ')
 
-    def notify_peer_change_role(self, peer_id,nrole):
+    def notify_peer_change_role(self, peer_id,cname,is_arbiter=False):
         """
-        A new peer was added
+        peer change role or became arbiter
         """
-        LOGGER.debug('ConsensusNotifier: notify_peer_change_role peer_id=%s ROLE=%s',peer_id[:10],nrole)
+        LOGGER.debug('ConsensusNotifier: notify_peer_change_role peer_id=%s CLUSTER=%s ARBITER=%s',peer_id[:10],cname,is_arbiter)
         self._notify(
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,
             ConsensusNotifyPeerConnected(
                 peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),
-                status = ConsensusNotifyPeerConnected.ROLE_CHANGE,
+                status = ConsensusNotifyPeerConnected.ARBITER_CHANGE if is_arbiter else ConsensusNotifyPeerConnected.ROLE_CHANGE,
                 mode = ConsensusNotifyPeerConnected.NORMAL,
-                role = nrole
+                role = cname
                 )
             )
 

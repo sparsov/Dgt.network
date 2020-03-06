@@ -90,6 +90,7 @@ class BranchState(object):
         self._stime = None
         self._can_cancel = True # possible to cancel
         self._already_send_commit = False
+        self._is_arbiter = None
         LOGGER.debug('BranchState: init BRANCH=%s for %s STATE=%s',self,bid[:8],self._state)
 
     @property
@@ -114,7 +115,9 @@ class BranchState(object):
         return self.own_type == 'leader'
     @property
     def is_arbiter(self):
-        return self._is_arbiter
+        if self._is_arbiter is None:
+            self._is_arbiter = self._engine.is_arbiter
+        return self._is_arbiter 
 
     @property
     def validator_id(self):
@@ -1494,12 +1497,17 @@ class PbftEngine(Engine):
         #LOGGER.debug('Connected peer status=%s',notif[1])
         pid = notif[0].peer_id.hex()
         if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
-            LOGGER.debug('Change PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
+            LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
             changed,i_am_new = self._oracle.change_current_leader(pid,notif[3])
             if changed and i_am_new:
                 self.arbiters_update()
             return
-            
+        elif notif[1] == ConsensusNotifyPeerConnected.ARBITER_CHANGE:
+            changed,i_am_new = self._oracle.change_current_arbiter(pid,notif[3])
+            LOGGER.debug('NEW ARBITER PEER=%s CLUSTER -> %s ITS ME=%s ARBITER=%s\n', pid[:8], notif[3], i_am_new, self.is_arbiter)
+            #if changed and i_am_new:
+
+
         if pid not in self._peers:
             if pid == self.validator_id:
                 LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])

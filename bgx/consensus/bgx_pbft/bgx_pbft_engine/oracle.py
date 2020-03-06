@@ -257,6 +257,9 @@ class PbftOracle:
     def change_current_leader(self,npid,cluster):
         return self._fbft.change_current_leader(npid,cluster)
 
+    def change_current_arbiter(self,npid,cluster):
+        return self._fbft.change_current_arbiter(npid,cluster)
+
     def make_nest_step(self,num,authorized_keys=None):
         """
         proposal request

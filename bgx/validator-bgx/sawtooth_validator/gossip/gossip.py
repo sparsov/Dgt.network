@@ -458,69 +458,87 @@ class Gossip(object):
             # inactive now
             self.notify_peer_connected(public_key,assemble=False)
 
+    def update_cluster_leader(self,cluster,npeer):
+        """
+        new cluster leader
+        """
+        own_role = self._fbft.own_role # my current role                                                                                                                               
+        changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)                                                                                                                 
+        if not changed : 
+            return
+        # was changed                                                                                                                                                                  
+        LOGGER.debug("UPDATE topology NEW LEADER %s.%s key=%s LEADER=%s!!!\n",cluster,npeer,nkey[:8],(own_role == PeerRole.leader))                                                
+        self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)                                                                                           
+        if cluster == self._fbft.nest_colour:                                                                                                                                      
+            """                                                                                                                                                                    
+            in case of own cluster we should inform new leader about arbiter's endpoint                                                                                            
+            """                                                                                                                                                                    
+            if own_role == PeerRole.leader:                                                                                                                                        
+                # I was leader before change role                                                                                                                                  
+                endpoints = []                                                                                                                                                     
+                for key,peer in self._fbft.arbiters.items():                                                                                                                       
+                    LOGGER.debug("CHECK ARBITER=%s %s",key[:8],peer[1])                                                                                                            
+                    if key in peer[2] :                                                                                                                                            
+                        arbiter = peer[2][key]                                                                                                                                     
+                        if PeerAtr.endpoint in arbiter and PeerAtr.delegate in arbiter and arbiter[PeerAtr.delegate]:                                                              
+                            LOGGER.debug("SAY ARBITER'S=%s(%s) endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.name],arbiter[PeerAtr.endpoint],nkey[:8])                     
+                            endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])                                                                 
+                            endpoints.append(endpoint)                                                                                                                             
+                        else:                                                                                                                                                      
+                            LOGGER.debug("SKIP ARBITER'S=%s(%s) %s NO endpoint or old",key[:8],arbiter[PeerAtr.name],peer[1])                                                      
+                    else:                                                                                                                                                          
+                        LOGGER.debug("NO ARBITER=%s IN CLUSTER %s",key[:8],peer[1])                                                                                                
+                if len(endpoints) > 0:                                                                                                                                             
+                    # make message for new leader                                                                                                                                  
+                    self.send_endpoint_message(endpoints,nkey)                                                                                                                     
+                                                                                                                                                                                   
+        else:                                                                                                                                                                      
+            # other cluster change leader - but arbiters stay the same                                                                                                             
+            if own_role == PeerRole.leader:                                                                                                                                        
+                # check maybe new leader already connected - so we should say consensus about it                                                                                   
+                LOGGER.debug("OTHER CLUSTER=%s change LEADER",cluster)                                                                                                             
+                """                                                                                                                                                                
+                if nkey in self._fbft.arbiters:                                                                                                                                    
+                    arbiter = self._fbft.arbiters[nkey]                                                                                                                            
+                    LOGGER.debug("NEW ARBITER=%s in other cluster %s",nkey[:8],cluster)                                                                                            
+                    if PeerAtr.endpoint in arbiter[2]:                                                                                                                             
+                        self.check_leader_outbound(arbiter[2][PeerAtr.endpoint])                                                                                                   
+                        self.notify_peer_connected(nkey,assemble=True)                                                                                                             
+                """                                                                                                                                                                
+            if self._fbft.is_arbiter:                                                                                                                                              
+                # inform consensus engine about new leader into other cluster                                                                                                      
+                peer = self._fbft.get_peer(nkey)                                                                                                                                   
+                LOGGER.debug("I AM ARBITER - OTHER CLUSTER=%s change LEADER=%s\n",cluster,nkey[:8])                                                                                
+                if peer and PeerAtr.endpoint in peer:                                                                                                                              
+                    self.notify_peer_connected(nkey,assemble=True)                                                                                                                 
+
+
+
+    def update_cluster_arbiter(self,cluster,npeer):
+        """
+        new cluster arbiter
+        """
+        LOGGER.debug("NEW ARBITER INTO CLUSTER=%s.%s",cluster,npeer)
+        changed,nkey = self._fbft.change_cluster_arbiter(cluster,npeer)                                                                                                                 
+        if not changed :
+            return
+        # arbiter was changed                                                                                                                                                                   
+        LOGGER.debug("UPDATED topology - NEW ARBITER %s.%s key=%s!!!\n",cluster,npeer,nkey[:8])
+        self._consensus_notifier.notify_peer_change_role(nkey,cluster,is_arbiter=True) 
+
     def update_topology(self,attributes=None):
         """
         topology was update
         """
-        #stopology = self.get_topology_cache()
         LOGGER.debug("UPDATE topology attributes=%s!!!\n",attributes)
         if attributes[0].key == 'oper':
-            if attributes[0].value == 'lead':
+            if attributes[0].value == 'lead' or attributes[0].value == 'arbiter':
                 if attributes[1].key == 'cluster' and attributes[2].key == 'peer': 
                     cluster,npeer =  attributes[1].value,attributes[2].value
-                    own_role = self._fbft.own_role # my current role
-                    changed,nkey = self._fbft.change_cluster_leader(cluster,npeer)
-                    if changed :
-                        LOGGER.debug("UPDATE topology NEW LEADER %s.%s key=%s LEADER=%s!!!\n",cluster,npeer,nkey[:8],(own_role == PeerRole.leader))
-                        self._consensus_notifier.notify_peer_change_role(nkey,cluster) #PeerRole.leader)
-                        if cluster == self._fbft.nest_colour:
-                            """
-                            in case of own cluster we should inform new leader about arbiter's endpoint
-                            """
-                            if own_role == PeerRole.leader:
-                                # I was leader before change role
-                                endpoints = []
-                                for key,peer in self._fbft.arbiters.items():
-                                    LOGGER.debug("CHECK ARBITER=%s %s",key[:8],peer[1])
-                                    if key in peer[2] :
-                                        arbiter = peer[2][key]
-                                        if PeerAtr.endpoint in arbiter and PeerAtr.delegate in arbiter and arbiter[PeerAtr.delegate]:
-                                            LOGGER.debug("SAY ARBITER'S=%s(%s) endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.name],arbiter[PeerAtr.endpoint],nkey[:8])
-                                            endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])
-                                            endpoints.append(endpoint)
-                                        else:
-                                            LOGGER.debug("SKIP ARBITER'S=%s(%s) %s NO endpoint or old",key[:8],arbiter[PeerAtr.name],peer[1])
-                                    else:
-                                        LOGGER.debug("NO ARBITER=%s IN CLUSTER %s",key[:8],peer[1])
-                                if len(endpoints) > 0:
-                                    # make message for new leader
-                                    self.send_endpoint_message(endpoints,nkey)
-                            
-                        else:
-                            # other cluster change leader - but arbiters stay the same  
-                            if own_role == PeerRole.leader:
-                                # check maybe new leader already connected - so we should say consensus about it 
-                                LOGGER.debug("OTHER CLUSTER=%s change LEADER",cluster)
-                                """
-                                if nkey in self._fbft.arbiters:
-                                    arbiter = self._fbft.arbiters[nkey]
-                                    LOGGER.debug("NEW ARBITER=%s in other cluster %s",nkey[:8],cluster)
-                                    if PeerAtr.endpoint in arbiter[2]:
-                                        self.check_leader_outbound(arbiter[2][PeerAtr.endpoint])
-                                        self.notify_peer_connected(nkey,assemble=True)
-                                """
-                            if self._fbft.is_arbiter:
-                                # inform consensus engine about new leader into other cluster
-                                peer = self._fbft.get_peer(nkey)
-                                LOGGER.debug("I AM ARBITER - OTHER CLUSTER=%s change LEADER=%s\n",cluster,nkey[:8])
-                                if peer and PeerAtr.endpoint in peer:
-                                    self.notify_peer_connected(nkey,assemble=True)
-
-
-
-                                
-                                    
-
+                    if attributes[0].value == 'lead':
+                        self.update_cluster_leader(cluster,npeer)
+                    else:
+                        self.update_cluster_arbiter(cluster,npeer)
 
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
