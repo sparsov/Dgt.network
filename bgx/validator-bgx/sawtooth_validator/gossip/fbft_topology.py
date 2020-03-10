@@ -200,7 +200,11 @@ class FbftTopology(object):
 
     def _switch_off_arbiter(self,peer,key):
         LOGGER.debug('TOPOLOGY old ARBITER=%s',peer)     
-        peer[PeerAtr.delegate] = False                   
+        peer[PeerAtr.delegate] = False
+        try:
+            del self._arbiters[key]
+        except KeyError:
+            pass
         if key == self._validator_id:                    
             self._is_arbiter = False  
 

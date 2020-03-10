@@ -803,10 +803,20 @@ class PbftEngine(Engine):
 
     def arbiters_update(self):
         narbiters = self._oracle.arbiters
+        for key,arbiter in self._arbiters.items():
+            if key not in narbiters and self._oracle.peer_is_leader(key):
+                # was del from arbiter's ring but still stay in leader's
+                self._leaders[key] = self._arbiters[key][1]
+                LOGGER.debug('MOVE ARBITER=%s into LEADER LIST\n', key[:8]) 
+
         for key,arbiter in narbiters.items():
-            if key not in self._arbiters:
-                self._arbiters[key] = arbiter
-        LOGGER.debug('UPDATE ARBITERS: %s\n', self._arbiters)
+            if key in self._arbiters:
+                # take arbiter's status
+                status = self._arbiters[key][1]
+                narbiters[key] = (arbiter[0],status,arbiter[2])
+
+        self._arbiters = narbiters
+        LOGGER.debug('UPDATE ARBITERS: %s\n', narbiters)
 
     def check_waiting_nest(self,bid):
         if bid in self._pending_nest:                                         
@@ -1505,7 +1515,8 @@ class PbftEngine(Engine):
         elif notif[1] == ConsensusNotifyPeerConnected.ARBITER_CHANGE:
             changed,i_am_new = self._oracle.change_current_arbiter(pid,notif[3])
             LOGGER.debug('NEW ARBITER PEER=%s CLUSTER -> %s ITS ME=%s ARBITER=%s\n', pid[:8], notif[3], i_am_new, self.is_arbiter)
-            #if changed and i_am_new:
+            if changed :
+                self.arbiters_update()
 
 
         if pid not in self._peers:
