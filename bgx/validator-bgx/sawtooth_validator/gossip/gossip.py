@@ -459,23 +459,36 @@ class Gossip(object):
             self.notify_peer_connected(public_key,assemble=False)
 
     def make_endpoint_mess(self,nkey):
+        """
+        make message with arbiter list for new arbiter or leader
+        """
         endpoints = []                                                                                                                                          
         for key,peer in self._fbft.arbiters.items():                                                                                                            
             LOGGER.debug("CHECK ARBITER=%s %s",key[:8],peer[1])                                                                                                 
-            if key in peer[2] :                                                                                                                                 
+            if key in peer[2] :
+                # peer[2] = cluster                                                                                                                                 
                 arbiter = peer[2][key]                                                                                                                          
-                if PeerAtr.endpoint in arbiter and PeerAtr.delegate in arbiter and arbiter[PeerAtr.delegate]:                                                   
+                if PeerAtr.endpoint in arbiter and PeerAtr.delegate in arbiter and arbiter[PeerAtr.delegate] and key != nkey:                                                   
                     LOGGER.debug("SAY ARBITER'S=%s(%s) endpoint=%s to new LEADER=%s",key[:8],arbiter[PeerAtr.name],arbiter[PeerAtr.endpoint],nkey[:8])          
                     endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=arbiter[PeerAtr.endpoint])                                                      
                     endpoints.append(endpoint)                                                                                                                  
                 else:                                                                                                                                           
-                    LOGGER.debug("SKIP ARBITER'S=%s(%s) %s NO endpoint or old",key[:8],arbiter[PeerAtr.name],peer[1])                                           
+                    LOGGER.debug("SKIP ARBITER'S=%s(%s) %s NO endpoint or old or itself",key[:8],arbiter[PeerAtr.name],peer[1])                                           
             else:                                                                                                                                               
                 LOGGER.debug("NO ARBITER=%s IN CLUSTER %s",key[:8],peer[1]) 
+
+        for key,peer in self._fbft.leaders.items():                                                                                                            
+            LOGGER.debug("CHECK LEADERS=%s %s",key[:8],peer[1])
+            if key not in self._fbft.arbiters and key in peer[2]:
+                leader = peer[2][key]
+                if PeerAtr.endpoint in leader:
+                    endpoint_url = leader[PeerAtr.endpoint]
+                    LOGGER.debug("SAY LEADER'S=%s endpoint=%s to new LEADER=%s",key[:8],endpoint_url,nkey[:8])          
+                    endpoint = EndpointItem(peer_id=bytes.fromhex(key),endpoint=endpoint_url)                                                      
+                    endpoints.append(endpoint)
+            else:
+                LOGGER.debug("LEADERS IS ARBITER=%s SKIP",key[:8]) 
         return endpoints                                                                                            
-
-
-
 
 
     def update_cluster_leader(self,cluster,npeer):
@@ -522,25 +535,37 @@ class Gossip(object):
 
 
 
-    def update_cluster_arbiter(self,cluster,npeer):
+    def update_cluster_arbiter(self,cname,npeer):
         """
         new cluster arbiter
         """
-        LOGGER.debug("NEW ARBITER INTO CLUSTER=%s.%s",cluster,npeer)
-        is_arbiter = self._fbft.is_arbiter # old arbiter
-        changed,nkey = self._fbft.change_cluster_arbiter(cluster,npeer)                                                                                                                 
+        LOGGER.debug("NEW ARBITER INTO CLUSTER=%s.%s",cname,npeer)
+        was_arbiter = self._fbft.is_arbiter # old arbiter
+        changed,nkey = self._fbft.change_cluster_arbiter(cname,npeer)                                                                                                                 
         if not changed :
             return
         # arbiter was changed                                                                                                                                                                   
-        LOGGER.debug("UPDATED topology - NEW ARBITER %s.%s key=%s!!!\n",cluster,npeer,nkey[:8])
-        if cluster == self._fbft.nest_colour:
+        LOGGER.debug("UPDATED topology - NEW ARBITER %s.%s key=%s!!!\n",cname,npeer,nkey[:8])
+        self._consensus_notifier.notify_peer_change_role(nkey,cname,is_arbiter=True) 
+        if cname == self._fbft.nest_colour:
             # in my cluster
-            if is_arbiter:
+            if was_arbiter:
+                # I was arbiter
                 endpoints = self.make_endpoint_mess(nkey)                                                                                                                                                     
                 if len(endpoints) > 0:                                                                                                                                             
                     # make message for new arbiter                                                                                                                                  
                     self.send_endpoint_message(endpoints,nkey)
-        self._consensus_notifier.notify_peer_change_role(nkey,cluster,is_arbiter=True) 
+        else:
+            # in others cluster
+            if self._fbft.is_leader:
+                # as leader I should connect with new arbiter 
+                # self._topology._attempt_to_peer_with_endpoint(endpoint.endpoint)
+                cluster = self._fbft.arbiters[nkey][2]
+                if nkey in cluster:
+                    arbiter = cluster[nkey]
+                    if PeerAtr.endpoint in arbiter:
+                         LOGGER.debug("NEW ARBITER=%s in other cluster endpoint=%s",nkey[:8],arbiter[PeerAtr.endpoint])
+        
 
     def update_topology(self,attributes=None):
         """
@@ -685,7 +710,7 @@ class Gossip(object):
 
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)
-            if self.is_federations_assembled and status_updated:
+            if self.is_federations_assembled and (status_updated or component is not None):
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
 
         return self.is_federations_assembled
@@ -871,13 +896,13 @@ class Gossip(object):
                   gossip_message.SerializeToString(),
                   connection_id,
                   one_way=True)
-        LOGGER.debug("Gossip::send_endpoint_message...")
+        LOGGER.debug("Gossip::send_endpoint_message total=%s",len(endpoints))
 
     def endpoint_list(self,endpoints):
         """
         Info from old leader about endpoints
         """
-        LOGGER.debug("Gossip::GET endpoint_list...")
+        LOGGER.debug("Gossip::GET endpoint_list total=%s",len(endpoints.endpoints))
         for endpoint in endpoints.endpoints:
             pid = endpoint.peer_id.hex()
             if pid != self.validator_id and self._topology:

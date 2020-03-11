@@ -65,6 +65,7 @@ class FbftTopology(object):
         self._leader = None
         self._endpoint = None
         self._arbiters = {}    # my arbiters 
+        self._leaders  = {}    # leadres of other clusters
         self._cluster = None   # own cluster
         self._topology  = None
         self._nosync = False
@@ -81,12 +82,20 @@ class FbftTopology(object):
         return self._is_arbiter
 
     @property
+    def is_leader(self):
+        return self.own_role == PeerRole.leader
+
+    @property
     def cluster(self):
         return self._cluster
 
     @property
     def arbiters(self):
         return self._arbiters
+
+    @property
+    def leaders(self):
+        return self._leaders
 
     @property
     def genesis(self):
@@ -134,6 +143,9 @@ class FbftTopology(object):
         return iter_cluster(cluster[PeerAtr.children]) if cluster else []
 
     def change_cluster_leader(self,cname,npeer):
+        """
+        for Validator
+        """
         n = 0
         nkey = None
         cluster = self.get_cluster_by_name(cname)
@@ -147,6 +159,9 @@ class FbftTopology(object):
                     # I am new leader - I should communicate with arbiters 
                     self._own_role = PeerRole.leader
                     LOGGER.debug('I AM NEW LEADER arbiters=%s',len(self._arbiters))
+                else:
+                    # new leader into other cluster
+                    self._leaders[key] = (PeerRole.leader,cname,cluster[PeerAtr.children])
                 nkey = key
                 n += 1
                 """
@@ -159,12 +174,14 @@ class FbftTopology(object):
             elif peer[PeerAtr.role] == PeerRole.leader :                                 
                 LOGGER.debug('TOPOLOGY old LEADER=%s to plink',peer)                              
                 peer[PeerAtr.role] = PeerRole.plink
+                if key in self._leaders:
+                    del self._leaders[key] 
                 n += 1 
         return False,nkey
                                                      
     def change_current_leader(self,npid,cname):
         """
-        new leader key(npid) into cluster(cname)
+        for Engine - new leader key(npid) into cluster(cname)  
         """
         i_am_new_leader = False
         if npid not in self._cluster:
@@ -232,7 +249,7 @@ class FbftTopology(object):
                 return True,nkey
             if peer[PeerAtr.name] == npeer:                                     
                 LOGGER.debug('TOPOLOGY set NEW ARBITER %s.%s=%s',cname,npeer,peer)  
-                self._switch_on_arbiter(cname,cluster,peer,key)    
+                self._switch_on_arbiter(cname,cluster[PeerAtr.children],peer,key)    
                 nkey = key
                 n += 1
                 
@@ -404,6 +421,9 @@ class FbftTopology(object):
                         self._arbiters[key] = (PeerAtr.delegate,name,children)
                         #if arbiter_id == self._parent:
                         #    self._leader = key
+                    if PeerAtr.role in peer and peer[PeerAtr.role] == PeerRole.leader:
+                        # add into leaders list
+                        self._leaders[key] = (PeerRole.leader,name,children)
 
                 if self._genesis_node is None and PeerAtr.genesis in peer:
                     # this is genesis node of all network
