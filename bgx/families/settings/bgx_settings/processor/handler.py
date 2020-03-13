@@ -131,8 +131,12 @@ class SettingsTransactionHandler(TransactionHandler):
         setting_topology = SettingTopology()
         setting_topology.ParseFromString(setting_topology_data)
         value = _get_setting_value(context, setting_topology.setting, '')
-        topology = json.loads(value.replace("'",'"'))
-        update = json.loads(setting_topology.value)
+        try:
+            topology = json.loads(value.replace("'",'"'))
+            update = json.loads(setting_topology.value)
+        except ValueError as e:
+            raise InvalidTransaction("Can't apply topology operation ({})".format('Invalid json: '+ str(e)))
+
         extra = []
         if 'oper' in update:
             oper = update['oper']
@@ -142,18 +146,38 @@ class SettingsTransactionHandler(TransactionHandler):
             if oper == 'lead' or oper == 'arbiter':
                 # change current leader or arbiter
                 if 'cluster' in update and 'peer' in update:
-                    cluster,npeer = update['cluster'],update['peer']
-                    extra.append(('cluster',cluster))
+                    cname,npeer = update['cluster'],update['peer']
+                    extra.append(('cluster',cname))
                     extra.append(('peer',npeer))
                     if oper == 'lead':
-                        changed,_ = fbft.change_cluster_leader(cluster,npeer)
+                        changed,_ = fbft.change_cluster_leader(cname,npeer)
                     else:
-                        changed,_ = fbft.change_cluster_arbiter(cluster,npeer)
+                        changed,_ = fbft.change_cluster_arbiter(cname,npeer)
                     if not changed:
-                        raise InvalidTransaction("Can't set new {} into cluster='{}'".format(oper,cluster))
+                        raise InvalidTransaction("Can't set new {} into cluster='{}'".format(oper,cname))
                     
                 else:
                     raise InvalidTransaction('Undefine cluster or peer for new leader operation')
+            elif oper == 'del' or oper == 'add':
+                # del/add peer or cluster
+                if ('cluster' in update or 'pid' in update) and 'list' in update:
+                    # del peer or cluster
+                    cname, plist = update['cluster'], update['list']
+                    if oper == 'del':
+                        LOGGER.debug('TOPOLOGY DEL PEERS %s into %s',plist,cname)
+                        changed,err = fbft.del_peers(cname,plist)
+                    else: # add new peer into cluster
+                        LOGGER.debug('TOPOLOGY ADD PEERS %s into %s',plist,cname)
+                        changed,err = fbft.add_new_peers(cname,plist)
+                        
+                    if not changed:
+                        raise InvalidTransaction("Can't do '{}' into cluster='{}' ({})".format(oper,cname,err))
+                else:
+                    raise InvalidTransaction("Undefined all params for operation '{}'".format(oper))
+            else:
+                # add peer into cluster
+                raise InvalidTransaction("Undefined operation '{}'".format(oper))
+
         else:
             raise InvalidTransaction('Undefined SET operation')
 

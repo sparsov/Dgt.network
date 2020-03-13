@@ -283,11 +283,65 @@ class FbftTopology(object):
         self._switch_on_arbiter(cname,cluster,peer,npid) 
         return True,(npid == self._validator_id)                                                   
 
-    
-    def peer_is_leader(self,peer_key):
+    def del_peers(self,cname,pold):
+        """
+        Del peers from cluster cname
+        """
+        cluster = self.get_cluster_by_name(cname)
+        if cluster is None:
+            return False,"Undefined cluster {}".format(cname)
+
+        try:
+            peers = json.loads(pold.replace("'",'"'))
+        except ValueError as e:
+            return False,'Invalid json: '+ str(e)
+        n = 0
+        for key,opeer in peers.items():
+            if key in cluster:
+                LOGGER.debug('DEL PEER=%s INTO %s',key[:8],cname)
+                del cluster[key]
+                n = n + 1
+        if n == 0 :
+            return False,"There are no peers for del into cluster {}".format(cname)
+        return True,None
+
+    def add_new_peers(self,cname,pnew):
+        """
+        Add new peer into cluster cname
+        """
+        cluster = self.get_cluster_by_name(cname)
+        try:
+            peers = json.loads(pnew.replace("'",'"'))
+        except ValueError as e:
+            return False,'Invalid json: '+ str(e)
+
+        if cluster is None:
+            return False,"Undefined cluster {}".format(cname)
+
+        #LOGGER.debug('ADD NEW PEER=%s INTO %s',peers,cname)
+        for key,npeer in peers.items():
+            peer = self.peer_is_exist(key)
+            if peer is None:
+                if (PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader):
+                    return False,"New peer with key={} can't be leader or arbiter".format(key[:8])
+                else:
+                    LOGGER.debug('ADD NEW PEER=%s : %s INTO %s',key[:8],npeer,cname)
+                    cluster[key] = npeer
+            else:
+                return False,"Peer {} with key={} already exist".format(peer,key[:8])
+
+        return True,None
+
+    def peer_is_exist(self,peer_key):
         for key,peer in self.get_topology_iter():
-            if (key == peer_key) and (PeerAtr.role in peer) and peer[PeerAtr.role] == PeerRole.leader :
-                return True
+            if (key == peer_key):
+                return peer
+        return None
+
+    def peer_is_leader(self,peer_key):
+        peer = self.peer_is_exist(peer_key)
+        if peer and (PeerAtr.role in peer) and peer[PeerAtr.role] == PeerRole.leader :
+            return True
         LOGGER.debug('peer_is_leader: is not leader=%s',peer_key[:8])
         return False
 

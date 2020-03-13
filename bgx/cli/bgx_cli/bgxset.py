@@ -372,6 +372,11 @@ def _set_topology(rest_client,signer,args):
         param['peer'] = args.peer
     if args.oper:
         param['oper'] = args.oper
+    if args.oper:
+        param['list'] = args.list
+    if args.oper:
+        param['pid'] = args.pid
+
     val = json.dumps(param, sort_keys=True, indent=4)
     print('topology val',val,'>>>')
     txns = [_create_topology_txn(signer, (TOPOLOGY_SET_NM,val))]
@@ -790,6 +795,16 @@ def create_parser(prog_name):
         type=str,
         help='specify signing key for resulting batches and initial authorized key',
         default='clusters/c1/bgx1/keys/validator.priv'
+        )
+    topology_set_parser.add_argument(
+        '-i', '--pid',
+        type=str,
+        help='specify key of peer instead of cluster+peer',
+        )
+    topology_set_parser.add_argument(
+        '-l', '--list',
+        type=str,
+        help='Peers JSON description',
         )
     topology_set_parser.add_argument(
         '--url',
