@@ -296,10 +296,11 @@ class FbftTopology(object):
         except ValueError as e:
             return False,'Invalid json: '+ str(e)
         n = 0
+        children = cluster[PeerAtr.children]
         for key,opeer in peers.items():
-            if key in cluster:
+            if key in children:
                 LOGGER.debug('DEL PEER=%s INTO %s',key[:8],cname)
-                del cluster[key]
+                del children[key]
                 n = n + 1
         if n == 0 :
             return False,"There are no peers for del into cluster {}".format(cname)
@@ -317,19 +318,54 @@ class FbftTopology(object):
 
         if cluster is None:
             return False,"Undefined cluster {}".format(cname)
-
+        children = cluster[PeerAtr.children]
         #LOGGER.debug('ADD NEW PEER=%s INTO %s',peers,cname)
         for key,npeer in peers.items():
             peer = self.peer_is_exist(key)
             if peer is None:
-                if (PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader):
+                if (PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader and len(children) > 0):
                     return False,"New peer with key={} can't be leader or arbiter".format(key[:8])
                 else:
                     LOGGER.debug('ADD NEW PEER=%s : %s INTO %s',key[:8],npeer,cname)
-                    cluster[key] = npeer
+                    children[key] = npeer
             else:
                 return False,"Peer {} with key={} already exist".format(peer,key[:8])
 
+        return True,None
+
+    def add_new_cluster(self,cname,pname,clist):
+        ppeer = self.get_peer_by_name(cname,pname)
+        if ppeer is None:
+            return False,"Peer {}.{} does not exist".format(cname,pname)
+        if PeerAtr.cluster in ppeer:
+            return False,"Peer {}.{} already cluster owner".format(cname,pname)
+
+        try: # {'name': 'Bgx2', 'type': 'cluster'}
+            ncluster = json.loads(clist.replace("'",'"'))
+        except ValueError as e:
+            return False,'Invalid json: '+ str(e)
+        if PeerAtr.name in ncluster and PeerAtr.ptype in ncluster :
+            cluster = self.get_cluster_by_name(ncluster[PeerAtr.name])
+            if cluster is not None:
+                return False,"Cluster {} already exist".format(cname)
+            ncluster[PeerAtr.children] = {}
+            ppeer[PeerAtr.cluster] = ncluster
+        else:
+            return False,"Undefined new cluster params"
+
+        return True,None
+
+    def del_cluster(self,cname,pname):
+        # del empty cluster
+        ppeer = self.get_peer_by_name(cname,pname)
+        if ppeer is None:
+            return False,"Peer {}.{} does not exist".format(cname,pname)
+        if PeerAtr.cluster not in ppeer:
+            return False,"Peer {}.{} is not cluster owner".format(cname,pname)
+        cluster = ppeer[PeerAtr.cluster]
+        if len(cluster[PeerAtr.children]) > 0:
+            return False,"Cluster {} for {}.{} is not empty".format(cluster[PeerAtr.name],cname,pname)
+        del ppeer[PeerAtr.cluster]
         return True,None
 
     def peer_is_exist(self,peer_key):
@@ -406,6 +442,7 @@ class FbftTopology(object):
     def get_cluster_arbiter(self,cname):
         cluster = self.get_cluster_by_name(cname)
 
+    """
     def get_peer_by_name(self,cname,name):
         for key,peer in self.get_topology_iter():
             if PeerAtr.cluster in peer:
@@ -416,8 +453,15 @@ class FbftTopology(object):
                         if PeerAtr.name in speer and speer[PeerAtr.ptype] == 'peer' and speer[PeerAtr.name] == name:
                             return speer
         return None
-
+    """
     def get_peer_by_name(self,cname,name):
+        cluster = self.get_cluster_by_name(cname)
+        if cluster is None:
+            return None
+        for key,peer in cluster[PeerAtr.children].items():
+            if PeerAtr.name in peer and peer[PeerAtr.name] == name:
+                return peer
+        """
         for key,peer in self.get_topology_iter():
             if PeerAtr.cluster in peer:
                 cluster = peer[PeerAtr.cluster]
@@ -426,6 +470,7 @@ class FbftTopology(object):
                         #print('SPEER',speer,speer[PeerAtr.name] == cname)
                         if PeerAtr.name in speer and speer[PeerAtr.ptype] == 'peer' and speer[PeerAtr.name] == name:
                             return speer
+        """
         return None
 
     def update_peer_component(self,peer_key,component=None):

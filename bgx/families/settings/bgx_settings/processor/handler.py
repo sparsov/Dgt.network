@@ -143,9 +143,9 @@ class SettingsTransactionHandler(TransactionHandler):
             extra.append(('oper',oper))
             fbft = FbftTopology()
             fbft.get_topology(topology,'','','static')
-            if oper == 'lead' or oper == 'arbiter':
-                # change current leader or arbiter
-                if 'cluster' in update and 'peer' in update:
+            if oper == 'lead' or oper == 'arbiter' :
+                # change current leader or arbiter 
+                if ('cluster' in update and 'peer' in update) or 'pid' in update:
                     cname,npeer = update['cluster'],update['peer']
                     extra.append(('cluster',cname))
                     extra.append(('peer',npeer))
@@ -174,6 +174,23 @@ class SettingsTransactionHandler(TransactionHandler):
                         raise InvalidTransaction("Can't do '{}' into cluster='{}' ({})".format(oper,cname,err))
                 else:
                     raise InvalidTransaction("Undefined all params for operation '{}'".format(oper))
+            elif oper == 'cluster':
+                # Create new cluster
+                if (('cluster' in update and 'peer' in update) or 'pid' in update) and 'list' in update:
+                    cname,npeer,clist = update['cluster'], update['peer'], update['list']
+                    changed,err = fbft.add_new_cluster(cname,npeer,clist)
+                    if not changed:
+                        raise InvalidTransaction("Can't do '{}' operation for='{}.{}' ({})".format(oper,cname,npeer,err))
+                else:
+                    raise InvalidTransaction("Undefined params for 'cluster' operation")
+            elif oper == 'cdel' :
+                if (('cluster' in update and 'peer' in update) or 'pid' in update) :
+                    cname,npeer = update['cluster'], update['peer']
+                    changed,err = fbft.del_cluster(cname,npeer)
+                    if not changed:
+                        raise InvalidTransaction("Can't do '{}' operation for='{}.{}' ({})".format(oper,cname,npeer,err))
+                else:
+                    raise InvalidTransaction("Undefined params for 'cluster' operation")
             else:
                 # add peer into cluster
                 raise InvalidTransaction("Undefined operation '{}'".format(oper))
