@@ -172,6 +172,7 @@ class SettingsTransactionHandler(TransactionHandler):
                         
                     if not changed:
                         raise InvalidTransaction("Can't do '{}' into cluster='{}' ({})".format(oper,cname,err))
+                    extra.append(('list',plist))
                 else:
                     raise InvalidTransaction("Undefined all params for operation '{}'".format(oper))
             elif oper == 'cluster':
@@ -181,6 +182,9 @@ class SettingsTransactionHandler(TransactionHandler):
                     changed,err = fbft.add_new_cluster(cname,npeer,clist)
                     if not changed:
                         raise InvalidTransaction("Can't do '{}' operation for='{}.{}' ({})".format(oper,cname,npeer,err))
+                    extra.append(('cluster',cname))
+                    extra.append(('peer',npeer))
+                    extra.append(('list',clist))
                 else:
                     raise InvalidTransaction("Undefined params for 'cluster' operation")
             elif oper == 'cdel' :
@@ -189,6 +193,8 @@ class SettingsTransactionHandler(TransactionHandler):
                     changed,err = fbft.del_cluster(cname,npeer)
                     if not changed:
                         raise InvalidTransaction("Can't do '{}' operation for='{}.{}' ({})".format(oper,cname,npeer,err))
+                    extra.append(('cluster',cname))
+                    extra.append(('peer',npeer))
                 else:
                     raise InvalidTransaction("Undefined params for 'cluster' operation")
             else:

@@ -1517,7 +1517,13 @@ class PbftEngine(Engine):
             LOGGER.debug('NEW ARBITER PEER=%s CLUSTER -> %s ITS ME=%s ARBITER=%s\n', pid[:8], notif[3], i_am_new, self.is_arbiter)
             if changed :
                 self.arbiters_update()
-
+            return
+        elif notif[1] == ConsensusNotifyPeerConnected.ADD_CLUSTER:
+            LOGGER.debug('ADD CLUSTER TO PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
+            return    
+        elif notif[1] == ConsensusNotifyPeerConnected.DEL_CLUSTER:
+            LOGGER.debug('DEL CLUSTER PEER=%s\n',pid[:8])
+            return
 
         if pid not in self._peers:
             if pid == self.validator_id:

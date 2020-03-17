@@ -322,7 +322,7 @@ def _get_topology(rest_client,args):
                             print('cluster',args.cls,'peer',peer)
                         """
                     else:
-                        topology = fbft.get_peer_by_name(args.cls,args.peer)
+                        topology,_ = fbft.get_peer_by_name(args.cls,args.peer)
                     #print('CLUSTER',args.cls,args.peer,'>>>',cls)
                 
         

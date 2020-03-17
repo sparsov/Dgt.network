@@ -334,7 +334,7 @@ class FbftTopology(object):
         return True,None
 
     def add_new_cluster(self,cname,pname,clist):
-        ppeer = self.get_peer_by_name(cname,pname)
+        ppeer,_ = self.get_peer_by_name(cname,pname)
         if ppeer is None:
             return False,"Peer {}.{} does not exist".format(cname,pname)
         if PeerAtr.cluster in ppeer:
@@ -357,7 +357,7 @@ class FbftTopology(object):
 
     def del_cluster(self,cname,pname):
         # del empty cluster
-        ppeer = self.get_peer_by_name(cname,pname)
+        ppeer,_ = self.get_peer_by_name(cname,pname)
         if ppeer is None:
             return False,"Peer {}.{} does not exist".format(cname,pname)
         if PeerAtr.cluster not in ppeer:
@@ -442,25 +442,14 @@ class FbftTopology(object):
     def get_cluster_arbiter(self,cname):
         cluster = self.get_cluster_by_name(cname)
 
-    """
-    def get_peer_by_name(self,cname,name):
-        for key,peer in self.get_topology_iter():
-            if PeerAtr.cluster in peer:
-                cluster = peer[PeerAtr.cluster]
-                if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == cname:
-                    for skey,speer in cluster[PeerAtr.children].items():
-                        #print('SPEER',speer,speer[PeerAtr.name] == cname)
-                        if PeerAtr.name in speer and speer[PeerAtr.ptype] == 'peer' and speer[PeerAtr.name] == name:
-                            return speer
-        return None
-    """
+    
     def get_peer_by_name(self,cname,name):
         cluster = self.get_cluster_by_name(cname)
         if cluster is None:
-            return None
+            return None,None
         for key,peer in cluster[PeerAtr.children].items():
             if PeerAtr.name in peer and peer[PeerAtr.name] == name:
-                return peer
+                return peer,key
         """
         for key,peer in self.get_topology_iter():
             if PeerAtr.cluster in peer:
@@ -471,7 +460,7 @@ class FbftTopology(object):
                         if PeerAtr.name in speer and speer[PeerAtr.ptype] == 'peer' and speer[PeerAtr.name] == name:
                             return speer
         """
-        return None
+        return None,None
 
     def update_peer_component(self,peer_key,component=None):
         for key,peer in self.get_topology_iter():

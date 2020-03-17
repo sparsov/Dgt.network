@@ -104,6 +104,10 @@ message ConsensusNotifyPeerConnected {
     STATUS_UNSET = 2;
     ROLE_CHANGE  = 3;
     ARBITER_CHANGE = 4;
+    ADD_CLUSTER    = 5;
+    DEL_CLUSTER    = 6;
+    ADD_PEER       = 7;
+    DEL_PEER       = 8;
   }
   enum Modes {
     NORMAL     = 0;
@@ -114,8 +118,8 @@ message ConsensusNotifyPeerConnected {
   ConsensusPeerInfo peer_info = 1;
   Status            status = 2;
   Modes             mode   = 3;  // Malicious mode
-  string            role   = 4;  // in case status == ROLE_CHANGE - this is cluster name where leader changed
-}
+  string            info   = 4;  // in case status == ROLE_CHANGE - this is cluster name where leader changed or json
+ }
 
 // An existing peer was dropped
 message ConsensusNotifyPeerDisconnected {
