@@ -260,6 +260,11 @@ class PbftOracle:
     def change_current_arbiter(self,npid,cluster):
         return self._fbft.change_current_arbiter(npid,cluster)
 
+    def add_new_cluster(self,npid,list):
+        return self._fbft.add_new_cluster('', '', list, self._fbft.peer_is_exist(npid))
+    def del_cluster(self,npid):
+        return self._fbft.del_cluster('', '', self._fbft.peer_is_exist(npid))
+
     def make_nest_step(self,num,authorized_keys=None):
         """
         proposal request

@@ -1500,30 +1500,45 @@ class PbftEngine(Engine):
     def _handle_peer_disconnected(self, notif):
         LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
 
+    def handle_topology_update(self,pid,oper,val):
+        """
+        topology update
+        """
+        if oper == ConsensusNotifyPeerConnected.ROLE_CHANGE:                                                                                      
+            LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s\n',pid[:8],val)                                                                       
+            changed,i_am_new = self._oracle.change_current_leader(pid,val)                                                                       
+            if changed and i_am_new:                                                                                                                  
+                self.arbiters_update()                                                                                                                
+            
+        elif oper == ConsensusNotifyPeerConnected.ARBITER_CHANGE:                                                                                 
+            changed,i_am_new = self._oracle.change_current_arbiter(pid,val)                                                                      
+            LOGGER.debug('NEW ARBITER PEER=%s CLUSTER -> %s ITS ME=%s ARBITER=%s\n', pid[:8], val, i_am_new, self.is_arbiter)                    
+            if changed :                                                                                                                              
+                self.arbiters_update()                                                                                                                
+            
+        elif oper == ConsensusNotifyPeerConnected.ADD_CLUSTER:                                                                                    
+            ret,_ = self._oracle.add_new_cluster(pid,val)                                                                                        
+            LOGGER.debug('ADD CLUSTER TO PEER=%s CLUSTER -> %s ret=%s\n',pid[:8],val,ret)                                                        
+        elif oper == ConsensusNotifyPeerConnected.DEL_CLUSTER:                                                                                    
+            ret,_ = self._oracle.del_cluster(pid)                                                                                                     
+            LOGGER.debug('DEL CLUSTER PEER=%s ret=%s\n',pid[:8],ret)  
+        elif oper == ConsensusNotifyPeerConnected.ADD_PEER:
+            LOGGER.debug('ADD PEER=%s %s\n',pid[:8],val)
+        elif oper == ConsensusNotifyPeerConnected.DEL_PEER:
+            LOGGER.debug('DEL PEER=%s %s\n',pid[:8],val)        
+        else:
+            return False
+        return True
+
     def _handle_peer_connected(self, notif):
         """
         Handle peer activity - conn/discon and status change
         """
         #LOGGER.debug('Connected peer status=%s',notif[1])
+        
         pid = notif[0].peer_id.hex()
-        if notif[1] == ConsensusNotifyPeerConnected.ROLE_CHANGE:
-            LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
-            changed,i_am_new = self._oracle.change_current_leader(pid,notif[3])
-            if changed and i_am_new:
-                self.arbiters_update()
-            return
-        elif notif[1] == ConsensusNotifyPeerConnected.ARBITER_CHANGE:
-            changed,i_am_new = self._oracle.change_current_arbiter(pid,notif[3])
-            LOGGER.debug('NEW ARBITER PEER=%s CLUSTER -> %s ITS ME=%s ARBITER=%s\n', pid[:8], notif[3], i_am_new, self.is_arbiter)
-            if changed :
-                self.arbiters_update()
-            return
-        elif notif[1] == ConsensusNotifyPeerConnected.ADD_CLUSTER:
-            LOGGER.debug('ADD CLUSTER TO PEER=%s CLUSTER -> %s\n',pid[:8],notif[3])
-            return    
-        elif notif[1] == ConsensusNotifyPeerConnected.DEL_CLUSTER:
-            LOGGER.debug('DEL CLUSTER PEER=%s\n',pid[:8])
-            return
+        if self.handle_topology_update(pid,notif[1],notif[3]):
+            return True
 
         if pid not in self._peers:
             if pid == self.validator_id:

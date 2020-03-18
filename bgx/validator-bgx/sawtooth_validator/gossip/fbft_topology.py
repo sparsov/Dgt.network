@@ -333,8 +333,12 @@ class FbftTopology(object):
 
         return True,None
 
-    def add_new_cluster(self,cname,pname,clist):
-        ppeer,_ = self.get_peer_by_name(cname,pname)
+    def add_new_cluster(self,cname,pname,clist,ppeer=None):
+        """
+        add new cluster
+        """
+        if ppeer is None:
+            ppeer,_ = self.get_peer_by_name(cname,pname)
         if ppeer is None:
             return False,"Peer {}.{} does not exist".format(cname,pname)
         if PeerAtr.cluster in ppeer:
@@ -344,6 +348,7 @@ class FbftTopology(object):
             ncluster = json.loads(clist.replace("'",'"'))
         except ValueError as e:
             return False,'Invalid json: '+ str(e)
+
         if PeerAtr.name in ncluster and PeerAtr.ptype in ncluster :
             cluster = self.get_cluster_by_name(ncluster[PeerAtr.name])
             if cluster is not None:
@@ -355,9 +360,10 @@ class FbftTopology(object):
 
         return True,None
 
-    def del_cluster(self,cname,pname):
+    def del_cluster(self,cname,pname,ppeer=None):
         # del empty cluster
-        ppeer,_ = self.get_peer_by_name(cname,pname)
+        if ppeer is None:
+            ppeer,_ = self.get_peer_by_name(cname,pname)
         if ppeer is None:
             return False,"Peer {}.{} does not exist".format(cname,pname)
         if PeerAtr.cluster not in ppeer:
@@ -374,6 +380,7 @@ class FbftTopology(object):
                 return peer
         return None
 
+     
     def peer_is_leader(self,peer_key):
         peer = self.peer_is_exist(peer_key)
         if peer and (PeerAtr.role in peer) and peer[PeerAtr.role] == PeerRole.leader :
