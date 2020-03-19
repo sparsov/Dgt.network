@@ -88,7 +88,23 @@ class ConsensusNotifier:
                 info = list                                                                                                         
                 )                                                                                                                    
             )         
-                                                                                                                       
+    def notify_topology_peer(self,peer_id,list,is_new=True):
+        """                                                                                                                         
+        peer add/del                                                                                                        
+        """                                                                                                                         
+        LOGGER.debug('ConsensusNotifier: notify_topology_peer peer_id=%s',peer_id[:10])                                          
+        self._notify(                                                                                                               
+            validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,                                                                  
+            ConsensusNotifyPeerConnected(                                                                                           
+                peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),                                          
+                status = ConsensusNotifyPeerConnected.ADD_PEER if is_new else ConsensusNotifyPeerConnected.DEL_PEER,    
+                mode = ConsensusNotifyPeerConnected.NORMAL,                                                                         
+                info = list                                                                                                         
+                )                                                                                                                   
+            )                                                                                                                       
+
+
+
     def notify_peer_connected(self, peer_id,assemble = True,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
         A new peer was added

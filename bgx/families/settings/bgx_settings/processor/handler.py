@@ -172,6 +172,7 @@ class SettingsTransactionHandler(TransactionHandler):
                         
                     if not changed:
                         raise InvalidTransaction("Can't do '{}' into cluster='{}' ({})".format(oper,cname,err))
+                    extra.append(('cluster',cname))
                     extra.append(('list',plist))
                 else:
                     raise InvalidTransaction("Undefined all params for operation '{}'".format(oper))

@@ -30,6 +30,7 @@ from bgx_pbft_common.utils import _short_id
 from enum import IntEnum,Enum
 
 from sawtooth_sdk.messaging.future import FutureTimeoutError
+from sawtooth_validator.gossip.fbft_topology import TOPOLOGY_GENESIS_HEX
 
 LOGGER = logging.getLogger(__name__)
 _CONSENSUS_ = b'pbft'
@@ -1523,9 +1524,12 @@ class PbftEngine(Engine):
             ret,_ = self._oracle.del_cluster(pid)                                                                                                     
             LOGGER.debug('DEL CLUSTER PEER=%s ret=%s\n',pid[:8],ret)  
         elif oper == ConsensusNotifyPeerConnected.ADD_PEER:
-            LOGGER.debug('ADD PEER=%s %s\n',pid[:8],val)
+            ret,_ = self._oracle.add_peer(pid,val)
+            LOGGER.debug('ADD PEER=%s %s ret=%s\n',pid,val,ret)
+
         elif oper == ConsensusNotifyPeerConnected.DEL_PEER:
-            LOGGER.debug('DEL PEER=%s %s\n',pid[:8],val)        
+            ret,_ = self._oracle.del_peer(pid,val)
+            LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)        
         else:
             return False
         return True

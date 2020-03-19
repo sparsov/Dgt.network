@@ -25,6 +25,7 @@ from enum import Enum
 LOGGER = logging.getLogger(__name__)
 TOPOLOGY_SET_NM = 'bgx.consensus.pbft.nodes'
 BGX_NESTS_NAME  = 'bgx.dag.nests'
+TOPOLOGY_GENESIS_HEX = b'Genesis'.hex()
 
 class PeerSync():
     inactive = 'inactive'
@@ -380,7 +381,17 @@ class FbftTopology(object):
                 return peer
         return None
 
-     
+    def peer_to_cluster_name(self,peer_key):
+        if peer_key == TOPOLOGY_GENESIS_HEX:
+            return 'Genesis'
+        peer = self.peer_is_exist(peer_key)
+        if peer and (PeerAtr.cluster in peer) :
+            cluster = peer[PeerAtr.cluster]
+            return cluster[PeerAtr.name]
+        return None
+
+
+
     def peer_is_leader(self,peer_key):
         peer = self.peer_is_exist(peer_key)
         if peer and (PeerAtr.role in peer) and peer[PeerAtr.role] == PeerRole.leader :
@@ -433,8 +444,8 @@ class FbftTopology(object):
             return peer[PeerAtr.pid]
         return  None
 
-    def get_cluster_by_name(self,name):
-        if name == 'Genesis':
+    def get_cluster_by_name(self,cname):
+        if cname == 'Genesis':
             return self._topology #[PeerAtr.children]
 
         for key,peer in self.get_topology_iter(): #self._topology): # [PeerAtr.children]
@@ -442,9 +453,23 @@ class FbftTopology(object):
                 #print('PEE',key,type(peer),peer,type(self._topology))
                 cluster = peer[PeerAtr.cluster]
                 #print('CLA ',cluster[PeerAtr.name])
-                if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == name:
+                if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == cname:
                     return cluster
         return None
+
+    def get_cluster_owner(self,cname):
+        if cname == 'Genesis':
+            return TOPOLOGY_GENESIS_HEX
+
+        for key,peer in self.get_topology_iter(): #self._topology): # [PeerAtr.children]
+            if isinstance(peer,dict) and PeerAtr.cluster in peer :
+                #print('PEE',key,type(peer),peer,type(self._topology))
+                cluster = peer[PeerAtr.cluster]
+                #print('CLA ',cluster[PeerAtr.name])
+                if PeerAtr.name in cluster and PeerAtr.children in cluster and cluster[PeerAtr.name] == cname:
+                    return key
+        return None
+
 
     def get_cluster_arbiter(self,cname):
         cluster = self.get_cluster_by_name(cname)

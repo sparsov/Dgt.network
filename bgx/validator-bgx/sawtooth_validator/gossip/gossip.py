@@ -583,6 +583,30 @@ class Gossip(object):
         else:
             LOGGER.debug("Can't del cluster %s.%s (%s)\n",cname,pname,err)
 
+    def add_peer(self,cname,list):
+        """
+        new peer 
+        """
+        changed,err = self._fbft.add_new_peers(cname,list)
+        if changed:
+            self._consensus_notifier.notify_topology_peer(self._fbft.get_cluster_owner(cname),list)
+            LOGGER.debug("Add peers into cluster %s DONE\n",cname)
+        else:
+            LOGGER.debug("Can't add peers into cluster %s (%s)\n",cname,err)
+
+    def del_peer(self,cname,list):                                                                      
+        """                                                                                             
+        del peers                                                                                        
+        """                                                                                             
+        changed,err = self._fbft.del_peers(cname,list)                                              
+        if changed:                                                                                     
+            self._consensus_notifier.notify_topology_peer(self._fbft.get_cluster_owner(cname),list,False)     
+            LOGGER.debug("DEL peers into cluster %s DONE\n",cname)                                      
+        else:                                                                                           
+            LOGGER.debug("Can't del peers from cluster %s (%s)\n",cname,err)                            
+
+
+
 
     def update_topology(self,attributes=None):
         """
@@ -598,16 +622,22 @@ class Gossip(object):
                         self.update_cluster_leader(cluster,npeer)
                     elif oper == 'arbiter':
                         self.update_cluster_arbiter(cluster,npeer)
-                    elif oper == 'cluster':
+                    elif oper == 'cluster' :
                         if attributes[3].key == 'list':
-                            list = attributes[3].value 
+                            list = attributes[3].value
                             self.add_cluster(cluster,npeer,list)
+                            
                     elif oper == 'cdel':
                         self.del_cluster(cluster,npeer)
+                    
 
             elif oper == 'add' or oper == 'del':
                 # add/del peer 
-                pass
+                if attributes[1].key == 'cluster' and attributes[2].key == 'list':
+                    if oper == 'add':
+                        self.add_peer(attributes[1].value,attributes[2].value)
+                    else:
+                        self.del_peer(attributes[1].value,attributes[2].value)
             else:
                 LOGGER.debug("UPDATE topology OPERATION=%s not implemented!\n",oper)
 
