@@ -564,7 +564,8 @@ class FbftTopology(object):
             self._genesis  = topology['name'] # genesis cluster
             get_cluster_info(None,None,topology[PeerAtr.name],topology[PeerAtr.children])
         if self._nest_colour is None:
-            self._nest_colour = 'Genesis'
+            pass
+            #self._nest_colour = 'Genesis'
         else:
             # get arbiters
             get_arbiters(None,topology[PeerAtr.name],topology[PeerAtr.children])

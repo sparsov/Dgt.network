@@ -74,6 +74,7 @@ class SettingsView:
         try:
             state_entry = self._state_view.get(SettingsView.setting_address(key))
         except KeyError:
+            LOGGER.debug('Get setting return default value for (%s)',key)
             return default_value
 
         if state_entry is not None:
