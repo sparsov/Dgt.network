@@ -92,6 +92,7 @@ class BranchState(object):
         self._can_cancel = True # possible to cancel
         self._already_send_commit = False
         self._is_arbiter = None
+        self._own_type = None
         LOGGER.debug('BranchState: init BRANCH=%s for %s STATE=%s',self,bid[:8],self._state)
 
     @property
@@ -107,6 +108,8 @@ class BranchState(object):
     @property
     def own_type(self):
         # set for new block 
+        if self._own_type is None:
+            self._own_type = self._engine.own_type
         return self._own_type
     @property
     def is_sync(self):
@@ -410,7 +413,8 @@ class BranchState(object):
             for peer_id,block in commits.items():
                 self.add_commit_msg(peer_id,block)
 
-        if cluster and self.num_peers > 0 and self.is_sync:
+        num_peers = self.num_peers
+        if cluster and num_peers > 0 and self.is_sync:
             """
             start consensus for many active peers and in case it is block of own cluster
             """
@@ -419,7 +423,7 @@ class BranchState(object):
 
         if self.check_consensus(block):
             # at this point state PREPARED
-            LOGGER.info('Passed consensus check in state PREPARED: %s cluster=%s', _short_id(block.block_id.hex()),cluster)
+            LOGGER.info('Passed consensus check in state PREPARED: %s cluster=%s is sync=%s peers=%s', _short_id(block.block_id.hex()),cluster,self.is_sync,num_peers)
             if block.block_num == 3 and self._try_branch:
                 # try make branch pause current block for main branch
                 self._make_branch = True
@@ -754,6 +758,9 @@ class PbftEngine(Engine):
         return num
     @property
     def num_peers(self):
+        """
+        return number of active peers
+        """
         num = 0
         for val in self._peers.values():
             if val == ConsensusNotifyPeerConnected.OK:
