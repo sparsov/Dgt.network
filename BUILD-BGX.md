@@ -72,6 +72,16 @@ docker-compose -f bgx/docker/docker-compose-dashboard-bgx2.yaml up
 # valid
 docker-compose -f bgx/docker/docker-compose-net-bgx-val-pbft.yaml up
 docker-compose -f bgx/docker/docker-compose-net2-bgx-val-pbft.yaml up
+
+# topology set operations: del, add, cluster, cdel,
+# -c <cluster name> -p <peer name> -k <key peer> -l <json with operation params>
+bgxset topology set -c Genesis -p 16 -o del -l "{'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}" --url http://bgx-api-c1-1:8008
+bgxset topology set -c Genesis -p 16 -o add -l "{'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}" --url http://bgx-api-c1-1:8008
+
+#########################################
+
+
+
 # nodes
 export COMPOSE_PROJECT_NAME=1 N=1 API=8008 COMP=4004 NET=8800 CONS=5050;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up
 export COMPOSE_PROJECT_NAME=2 N=2 API=8009 COMP=4006 NET=8801 CONS=5051;docker-compose -f bgx/docker/docker-compose-netN-bgx-val-pbft.yaml up

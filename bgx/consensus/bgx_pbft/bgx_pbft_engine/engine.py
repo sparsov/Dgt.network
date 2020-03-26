@@ -772,6 +772,11 @@ class PbftEngine(Engine):
         # only arbiters which are ready
         return [val[2]+'('+str(val[1])+'='+aid[:8]+')' for aid,val in self.arbiters.items() if val[1] == ConsensusNotifyPeerConnected.OK]
 
+    @property                                                                                                                              
+    def peers_info(self):                                                                                                               
+        # only peers which are ready                                                                                                    
+        return [pid[:8] for pid,val in self._peers.items() if val == ConsensusNotifyPeerConnected.OK]  
+
     @property
     def nest_color(self):
         if len(self._nest_color) == 0:
@@ -1561,7 +1566,7 @@ class PbftEngine(Engine):
                 # take only peers from own cluster topology 
                 # save status of peer
                 self._peers[pid] = notif[1]
-                LOGGER.info('Connected peer with ID=%s status=%s own cluster total=%s\n', _short_id(pid),notif[1],len(self._peers))
+                LOGGER.info('Connected peer with ID=%s status=%s own cluster peers=%s\n', _short_id(pid),notif[1],self.peers_info)
             elif pid in self.arbiters:
                 # one of the arbiters - mark as ready 
                 val = self.arbiters[pid]
@@ -1578,8 +1583,10 @@ class PbftEngine(Engine):
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
         else:
             if pid in self._cluster and self._peers[pid] != notif[1]:
-                LOGGER.debug('Change status peer=%s status=%s->%s',pid[:8],self._peers[pid],notif[1])
+                old_stat = self._peers[pid] 
                 self._peers[pid] = notif[1]
+                LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
+                
 
     def _handle_peer_message(self, msg):
         """
