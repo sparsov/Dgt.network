@@ -1566,7 +1566,7 @@ class PbftEngine(Engine):
                 # take only peers from own cluster topology 
                 # save status of peer
                 self._peers[pid] = notif[1]
-                LOGGER.info('Connected peer with ID=%s status=%s own cluster peers=%s\n', _short_id(pid),notif[1],self.peers_info)
+                LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
             elif pid in self.arbiters:
                 # one of the arbiters - mark as ready 
                 val = self.arbiters[pid]

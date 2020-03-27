@@ -271,7 +271,7 @@ class Gossip(object):
 
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
                             if peer_key == self._fbft.genesis_node :
-                                # sync with genesis peer
+                                # sync with genesis peer was done - say consensus that our peer already sync 
                                 LOGGER.debug("SYNC request SET OWN STATUS sync=%s incomplete=%s\n",ack.sync,self._incomplete)
                                 if not self._incomplete:
                                     # not sync at this moment
@@ -324,7 +324,7 @@ class Gossip(object):
     def try_to_sync_with_net(self):
         """
         try:to sync in case we are out of sync
-
+        peer which started first - don't know all peer's endpoint because its didn't connected yet
         """
         if not self.is_sync:
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
@@ -336,6 +336,9 @@ class Gossip(object):
                     self._num_nosync_peer += 1
                     LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer[PeerAtr.endpoint],peer[PeerAtr.node_state])
                     self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
+                else:
+                    #LOGGER.debug("SKIP SYNC PEER=%s(%s)",key[:8],peer[PeerAtr.name] if PeerAtr.name in peer else '')
+                    pass
             if self._num_nosync_peer == 0:
                 self._nosync = False
             LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE SYNC=%s unsync peers=%s\n",self.is_sync,self._num_nosync_peer)
@@ -1521,7 +1524,7 @@ class ConnectionManager(InstrumentedThread):
 
     def _peer_callback(self, request, result, connection_id, endpoint=None):
         """
-        Reply on register request
+        Reply on my own register request
         """
         LOGGER.debug("_peer_callback %s",endpoint)
         with self._lock:
@@ -1540,7 +1543,7 @@ class ConnectionManager(InstrumentedThread):
                         and inform them after synchronization
                         """
                         LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
-                        self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=ack.sync if self._gossip.is_sync else None) #None)
+                        self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=None) # ack.sync if self._gossip.is_sync else None) #None)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
                         LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,self._gossip.peer_to_public_key(connection_id),self._gossip.is_sync)
                         """
