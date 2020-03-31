@@ -1551,7 +1551,13 @@ class PbftEngine(Engine):
         Handle peer activity - conn/discon and status change
         """
         #LOGGER.debug('Connected peer status=%s',notif[1])
-        
+        def change_peer_status(pid,old_stat=None):
+            self._peers[pid] = notif[1]
+            if not self.is_sync and notif[1] == ConsensusNotifyPeerConnected.OK:
+                self._is_sync = True
+            LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
+            #LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
+
         pid = notif[0].peer_id.hex()
         if self.handle_topology_update(pid,notif[1],notif[3]):
             return True
@@ -1565,8 +1571,9 @@ class PbftEngine(Engine):
             elif pid in self._cluster :
                 # take only peers from own cluster topology 
                 # save status of peer
-                self._peers[pid] = notif[1]
-                LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
+                change_peer_status(pid)
+                #self._peers[pid] = notif[1]
+                #LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
             elif pid in self.arbiters:
                 # one of the arbiters - mark as ready 
                 val = self.arbiters[pid]
@@ -1583,9 +1590,10 @@ class PbftEngine(Engine):
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
         else:
             if pid in self._cluster and self._peers[pid] != notif[1]:
-                old_stat = self._peers[pid] 
-                self._peers[pid] = notif[1]
-                LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
+                #old_stat = self._peers[pid] 
+                change_peer_status(pid,self._peers[pid])
+                #self._peers[pid] = notif[1]
+                #LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
                 
 
     def _handle_peer_message(self, msg):
