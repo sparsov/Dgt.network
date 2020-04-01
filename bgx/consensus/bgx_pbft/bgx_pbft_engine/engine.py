@@ -1554,7 +1554,8 @@ class PbftEngine(Engine):
         def change_peer_status(pid,old_stat=None):
             self._peers[pid] = notif[1]
             if not self.is_sync and notif[1] == ConsensusNotifyPeerConnected.OK:
-                self._is_sync = True
+                #self._is_sync = True
+                LOGGER.debug('SET OWN SYNC STATUS\n')
             LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
             #LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
 
