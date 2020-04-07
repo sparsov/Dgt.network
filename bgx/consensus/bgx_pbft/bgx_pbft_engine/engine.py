@@ -813,6 +813,7 @@ class PbftEngine(Engine):
         while i < num:
             self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
             i += 1
+        self._oracle.make_topology_tnx({'cluster':'Genesis','peer':'12','oper':'lead'})
 
     def arbiters_update(self):
         narbiters = self._oracle.arbiters

@@ -49,15 +49,16 @@ from bgx_pbft.journal.block_wrapper import BlockWrapper
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 from bgx_pbft_common.utils import _short_id
 # for nests making
-from  sawtooth_settings.protobuf.settings_pb2 import SettingProposal
-from  sawtooth_settings.protobuf.settings_pb2 import SettingsPayload
+from sawtooth_settings.protobuf.settings_pb2 import SettingProposal
+#from sawtooth_settings.protobuf.settings_pb2 import SettingsPayload
+from bgx_pbft_common.protobuf.settings_pb2 import SettingTopology,SettingsPayload
 from bgx_pbft_common.utils import _config_inputs,_config_outputs
 try:
     import sawtooth_sdk.protobuf.transaction_pb2 as txn_pb
 except TypeError:
     import sawtooth_validator.protobuf.transaction_pb2 as txn_pb
 
-from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,TOPOLOGY_SET_NM
 
 import hashlib
 import random
@@ -272,46 +273,63 @@ class PbftOracle:
     def del_peer(self,npid,list):
         return  self._fbft.del_peers(self._fbft.peer_to_cluster_name(npid),list)
 
+    def _make_settings_txn(self,public_key_hash, setting_key, payload):                                                            
+        """Creates and signs a bgx_settings transaction with with a payload.                                
+        """                                                                                                 
+        serialized_payload = payload.SerializeToString()                                                   
+        header = txn_pb.TransactionHeader(                                                                         
+            signer_public_key=public_key_hash,                                             
+            family_name='bgx_settings', 
+            family_version='1.0',                                                                           
+            inputs=_config_inputs(setting_key),                                                             
+            outputs=_config_outputs(setting_key),                                                           
+            dependencies=[],                                                                                
+            payload_sha512=hashlib.sha512(serialized_payload).hexdigest(),                                  
+            batcher_public_key=public_key_hash,
+            nonce=hex(random.randint(0, 2**64))                                             
+        ).SerializeToString()    
+                                                                                   
+        signature = self._batch_publisher.identity_signer.sign(header) 
+        return txn_pb.Transaction(                                                                                 
+            header=header,                                                                                  
+            header_signature=signature,                                                           
+            payload=serialized_payload)                                                                     
+
+
+
+    def make_topology_tnx(self,param):
+
+        public_key_hash = self._validator_id 
+        setting = TOPOLOGY_SET_NM
+        setting_value = json.dumps(param, sort_keys=True, indent=4)
+        topology = SettingTopology(
+            setting=setting,
+            value=setting_value,
+            nonce=hex(random.randint(0, 2**64)))
+        payload = SettingsPayload(data=topology.SerializeToString(),action=SettingsPayload.TOPOLOGY)
+        transaction = self._make_settings_txn(public_key_hash,setting,payload)
+        self._batch_publisher.send([transaction])
+
+
+
     def make_nest_step(self,num,authorized_keys=None):
         """
         proposal request
         """
         #public_key_hash1 = hashlib.sha256(authorized_keys.encode() if authorized_keys is not None else self.authorized_keys.encode()).hexdigest()
         public_key_hash = authorized_keys if authorized_keys else self._validator_id #self.authorized_keys #self._signer.get_public_key().as_hex() # hashlib.sha256(block_header.signer_public_key.encode()).hexdigest()
-        setting = BGX_NESTS_NAME
-        nonce=hex(random.randint(0, 2**64))
+        
         if True:
             # try to set pbft params
+            setting = BGX_NESTS_NAME
 
             proposal = SettingProposal(
                  setting=setting,
                  value=str(num),
-                 nonce=nonce)
+                 nonce=hex(random.randint(0, 2**64))
+                 )
             payload = SettingsPayload(data=proposal.SerializeToString(),action=SettingsPayload.PROPOSE)
-            serialized = payload.SerializeToString()
-            input_addresses = _config_inputs(setting) 
-            output_addresses = _config_outputs(setting)
-
-            header = txn_pb.TransactionHeader(
-                signer_public_key=public_key_hash, #self._signer.get_public_key().as_hex(),
-                family_name='bgx_settings',
-                family_version='1.0',
-                inputs=input_addresses,
-                outputs=output_addresses,
-                dependencies=[],
-                payload_sha512=hashlib.sha512(serialized).hexdigest(),
-                batcher_public_key=public_key_hash, #self._signer.get_public_key().as_hex(),
-                nonce=hex(random.randint(0, 2**64))).SerializeToString()
-
-            signature = self._batch_publisher.identity_signer.sign(header)
-
-            transaction = txn_pb.Transaction(
-                    header=header,
-                    payload=serialized,
-                    header_signature=signature)
-
-            #LOGGER.debug('payload action=%s nonce=%s public_key_hash=%s',payload.action,nonce,public_key_hash)
-
+            transaction = self._make_settings_txn(public_key_hash,setting,payload)
             self._batch_publisher.send([transaction])
         else:
             # get setting
