@@ -49,9 +49,9 @@ from bgx_pbft.journal.block_wrapper import BlockWrapper
 from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 from bgx_pbft_common.utils import _short_id
 # for nests making
-from sawtooth_settings.protobuf.settings_pb2 import SettingProposal
-#from sawtooth_settings.protobuf.settings_pb2 import SettingsPayload
-from bgx_pbft_common.protobuf.settings_pb2 import SettingTopology,SettingsPayload
+#from sawtooth_settings.protobuf.settings_pb2 import SettingProposal,SettingsPayload
+
+from bgx_pbft_common.protobuf.settings_pb2 import SettingTopology,SettingsPayload,SettingProposal
 from bgx_pbft_common.utils import _config_inputs,_config_outputs
 try:
     import sawtooth_sdk.protobuf.transaction_pb2 as txn_pb

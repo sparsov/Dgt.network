@@ -17,6 +17,7 @@ import logging
 import queue
 import time
 import json
+from collections import namedtuple
 
 from sawtooth_sdk.consensus.engine import Engine
 from sawtooth_sdk.consensus import exceptions
@@ -33,6 +34,10 @@ from sawtooth_sdk.messaging.future import FutureTimeoutError
 from sawtooth_validator.gossip.fbft_topology import TOPOLOGY_GENESIS_HEX
 
 LOGGER = logging.getLogger(__name__)
+# status , number of transaction where peer participates,count peer's was leader 
+PeerInfo = namedtuple('PeerInfo',['status', 'num','count'])
+
+
 _CONSENSUS_ = b'pbft'
 PBFT_NAME = 'pbft' 
 PBFT_VER  = '0.1'
@@ -759,11 +764,11 @@ class PbftEngine(Engine):
     @property
     def num_peers(self):
         """
-        return number of active peers
+        return number of active peers exclude me
         """
         num = 0
         for val in self._peers.values():
-            if val == ConsensusNotifyPeerConnected.OK:
+            if val.status == ConsensusNotifyPeerConnected.OK:
                 num += 1
         return num
 
@@ -775,7 +780,7 @@ class PbftEngine(Engine):
     @property                                                                                                                              
     def peers_info(self):                                                                                                               
         # only peers which are ready                                                                                                    
-        return [pid[:8] for pid,val in self._peers.items() if val == ConsensusNotifyPeerConnected.OK]  
+        return [pid[:8]+'('+str(val.count)+')' for pid,val in self._peers.items() if val.status == ConsensusNotifyPeerConnected.OK]  
 
     @property
     def nest_color(self):
@@ -813,7 +818,7 @@ class PbftEngine(Engine):
         while i < num:
             self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
             i += 1
-        self._oracle.make_topology_tnx({'cluster':'Genesis','peer':'12','oper':'lead'})
+        self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':'12','oper':'lead'})
 
     def arbiters_update(self):
         narbiters = self._oracle.arbiters
@@ -854,7 +859,7 @@ class PbftEngine(Engine):
             if not self._chain_head:
                 self._chain_head = chain_head
         except exceptions.TooManyBranch:
-            LOGGER.debug('PbftEngine: CANT CREATE NEW BRANCH (limit is reached)')
+            LOGGER.debug('PbftEngine: CANT CREATE NEW BRANCH (limit is reached)\n')
             self._make_branch = False
             self._palette     = True # pallete is ready
             return False
@@ -1502,14 +1507,14 @@ class PbftEngine(Engine):
             commits = {}
             self._commit_msgs[block_id] = commits
         LOGGER.debug('TRY SAVE COMMIT MSG for BLOCK=%s peer=%s total=%s',block_id[:8],peer_id[:8],len(commits))
-        if peer_id not in commits and peer_id in self._peers:
+        if peer_id not in commits and peer_id in self.peers:
             commits[peer_id] = block
             LOGGER.debug('SAVE COMMIT MSG for BLOCK=%s peer=%s total=%s',block_id[:8],peer_id[:8],len(commits))
 
     def peer_status(self,peer_id):
         # take in advance only message from own cluster or from arbiters
         # message from others peers will be ignored
-        return self._peers[peer_id] if peer_id in self._peers else (self.arbiters[peer_id][1] if peer_id in self.arbiters else (self._leaders[peer_id] if peer_id in self._leaders else ConsensusNotifyPeerConnected.NOT_READY))
+        return self.peers[peer_id].status if peer_id in self.peers else (self.arbiters[peer_id][1] if peer_id in self.arbiters else (self._leaders[peer_id] if peer_id in self._leaders else ConsensusNotifyPeerConnected.NOT_READY))
 
     def _handle_peer_disconnected(self, notif):
         LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
@@ -1519,11 +1524,16 @@ class PbftEngine(Engine):
         topology update
         """
         if oper == ConsensusNotifyPeerConnected.ROLE_CHANGE:                                                                                      
-            LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s\n',pid[:8],val)                                                                       
+            #LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s\n',pid[:8],val)                                                                       
             changed,i_am_new = self._oracle.change_current_leader(pid,val)                                                                       
-            if changed and i_am_new:                                                                                                                  
-                self.arbiters_update()                                                                                                                
-            
+            if changed :  
+                if i_am_new:
+                    self.arbiters_update()
+                elif pid in self.peers:
+                    # how many times this peer has leader's role
+                    self.peers[pid]._replace(count=self.peers[pid].count+1)
+            LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s peers=%s\n', pid[:8], val, self.peers_info)
+
         elif oper == ConsensusNotifyPeerConnected.ARBITER_CHANGE:                                                                                 
             changed,i_am_new = self._oracle.change_current_arbiter(pid,val)                                                                      
             LOGGER.debug('NEW ARBITER PEER=%s CLUSTER -> %s ITS ME=%s ARBITER=%s\n', pid[:8], val, i_am_new, self.is_arbiter)                    
@@ -1552,19 +1562,25 @@ class PbftEngine(Engine):
         Handle peer activity - conn/discon and status change
         """
         #LOGGER.debug('Connected peer status=%s',notif[1])
-        def change_peer_status(pid,old_stat=None):
-            self._peers[pid] = notif[1]
-            if not self.is_sync and notif[1] == ConsensusNotifyPeerConnected.OK:
+        def change_peer_status(pid,stat,old_stat=None):
+            # reset .num 
+            if old_stat is None:
+                self.peers[pid] = PeerInfo(stat,0,1 if self._oracle.peer_is_leader(pid) else 0 ) # defaults=(0,)
+            else: # update already known peer
+                self.peers[pid]._replace(status=stat,num=0)
+
+            
+            if not self.is_sync and stat == ConsensusNotifyPeerConnected.OK:
                 #self._is_sync = True
                 LOGGER.debug('SET OWN SYNC STATUS\n')
-            LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
+            LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, stat, self.is_sync,self.peers_info)
             #LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
 
         pid = notif[0].peer_id.hex()
         if self.handle_topology_update(pid,notif[1],notif[3]):
             return True
 
-        if pid not in self._peers:
+        if pid not in self.peers:
             if pid == self.validator_id:
                 LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])
                 self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
@@ -1573,9 +1589,8 @@ class PbftEngine(Engine):
             elif pid in self._cluster :
                 # take only peers from own cluster topology 
                 # save status of peer
-                change_peer_status(pid)
-                #self._peers[pid] = notif[1]
-                #LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
+                change_peer_status(pid,notif[1])
+                
             elif pid in self.arbiters:
                 # one of the arbiters - mark as ready 
                 val = self.arbiters[pid]
@@ -1590,12 +1605,11 @@ class PbftEngine(Engine):
                 LOGGER.info('Connected peer with ID=%s status=%s is other leader=%s\n', _short_id(pid),notif[1],len(self._leaders))
             else:
                 LOGGER.debug('Connected peer with ID=%s(Ignore - not in our cluster and not arbiter)\n', _short_id(pid))
-        else:
-            if pid in self._cluster and self._peers[pid] != notif[1]:
-                #old_stat = self._peers[pid] 
-                change_peer_status(pid,self._peers[pid])
-                #self._peers[pid] = notif[1]
-                #LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s peers=%s', pid[:8], old_stat, notif[1], self.is_sync,self.peers_info)
+
+        else: # this peer is already known
+            if pid in self._cluster and self.peers[pid].status != notif[1]:
+                change_peer_status(pid,notif[1],self.peers[pid].status)
+                
                 
 
     def _handle_peer_message(self, msg):
@@ -1707,8 +1721,7 @@ class PbftEngine(Engine):
                 # this is own block and it already commited (first block) 
                 branch = self._branches[block_id]
                 if branch.block_num == 0:
-                    branch.shift_to_commiting(block,self._peers[peer_id],peer_id)
-                    #branch.add_commit_msg(peer_id,self._peers,block)
+                    branch.shift_to_commiting(block,self.peers[peer_id].status,peer_id)
                     LOGGER.debug("=>COMMIT for block=%s branch=%s",block_id[:8],branch)
             else:
                 # COMMIT BEFORE NEW BLOCk
