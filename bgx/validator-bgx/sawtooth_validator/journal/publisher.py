@@ -1343,7 +1343,7 @@ class BlockPublisher(object):
 
         # pylint: disable=broad-except
         except Exception as exc:
-            LOGGER.critical("on_initialize_build_candidate exception parent=%s.",chain_head.identifier[:8])
+            LOGGER.critical("on_initialize_build_candidate exception parent=%s(%s).",chain_head.identifier[:8],exc)
             raise exc
             #LOGGER.exception(exc)
 

@@ -31,10 +31,10 @@ from bgx_pbft_common.utils import _short_id
 from enum import IntEnum,Enum
 
 from sawtooth_sdk.messaging.future import FutureTimeoutError
-from sawtooth_validator.gossip.fbft_topology import TOPOLOGY_GENESIS_HEX
+from sawtooth_validator.gossip.fbft_topology import TOPOLOGY_GENESIS_HEX,PeerAtr
 
 LOGGER = logging.getLogger(__name__)
-# status , number of transaction where peer participates,count peer's was leader 
+# status , number of transaction where peer participates,count - how many times peer's was leader 
 PeerInfo = namedtuple('PeerInfo',['status', 'num','count'])
 
 
@@ -737,7 +737,9 @@ class PbftEngine(Engine):
     @property
     def own_type(self):
         return self._oracle.own_type #self._own_type
-
+    @property
+    def is_leader(self):
+        return self.own_type == 'leader'
     @property
     def is_arbiter(self):
         return self._oracle.is_arbiter 
@@ -818,7 +820,16 @@ class PbftEngine(Engine):
         while i < num:
             self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
             i += 1
-        self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':'12','oper':'lead'})
+        
+
+    def try_change_leader(self):
+        if self.is_leader:
+            for key,info in self.peers.items():
+                if info.status == ConsensusNotifyPeerConnected.OK :
+                    peer = self._oracle.peer_by_key(key)    
+                    LOGGER.debug('TRY CHANGE LEADER %s=%s(%s)\n',peer[PeerAtr.name],key[:8],info.count)
+                    self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':peer[PeerAtr.name],'oper':'lead'})
+                    return
 
     def arbiters_update(self):
         narbiters = self._oracle.arbiters
@@ -1051,6 +1062,7 @@ class PbftEngine(Engine):
                             branch.reset_chain_len()
                             LOGGER.debug('PbftEngine: SWITCHED BRANCH[%s]=%s\n',branch.ind,branch._parent_id[:8]) 
                             # check maybe there are blocks waiting that head
+                            self.try_change_leader()
                             
 
                     else:
@@ -1114,7 +1126,7 @@ class PbftEngine(Engine):
         self._send_batches = self._oracle.send_batches 
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step
-        service.set_cluster(self.peers) # use only active peers
+        
 
         # 1. Wait for an incoming message.
         # 2. Check for exit.
@@ -1529,9 +1541,10 @@ class PbftEngine(Engine):
             if changed :  
                 if i_am_new:
                     self.arbiters_update()
-                elif pid in self.peers:
+                if pid in self.peers:
                     # how many times this peer has leader's role
                     self.peers[pid]._replace(count=self.peers[pid].count+1)
+
             LOGGER.debug('NEW LEADER PEER=%s CLUSTER -> %s peers=%s\n', pid[:8], val, self.peers_info)
 
         elif oper == ConsensusNotifyPeerConnected.ARBITER_CHANGE:                                                                                 

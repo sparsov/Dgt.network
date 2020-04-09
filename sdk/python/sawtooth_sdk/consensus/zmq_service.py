@@ -27,7 +27,7 @@ class ZmqService(Service):
         self._timeout = timeout
         self._name = name
         self._version = version
-        self._cluster = {}
+    
 
     def _send(self, request, message_type, response_type):
         response_bytes = self._stream.send(
@@ -41,10 +41,7 @@ class ZmqService(Service):
         return response
 
     # -- P2P --
-    def set_cluster(self,cluster):
-        self._cluster = cluster
-        LOGGER.debug('SET CLUSTER=%s',[id[:8] for id in self._cluster.keys()])
-         
+        
     def send_to(self, peer_id, message_type, payload):
         message = consensus_pb2.ConsensusPeerMessage(
             message_type=message_type,
@@ -84,11 +81,7 @@ class ZmqService(Service):
         if response.status != consensus_pb2.ConsensusBroadcastClusterResponse.OK:
             raise exceptions.ReceiveError(
                 'Failed with status {}'.format(response.status))
-        """
-        for peer_id in self._cluster.keys():
-            LOGGER.debug('send to peer=%s',peer_id[:8])
-            self.send_to(bytes.fromhex(peer_id),message_type,payload)
-        """
+        
 
     def broadcast_to_arbiter(self, message_type, payload):
         """
@@ -109,11 +102,7 @@ class ZmqService(Service):
         if response.status != consensus_pb2.ConsensusBroadcastArbiterResponse.OK:
             raise exceptions.ReceiveError(
                 'Failed with status {}'.format(response.status))
-        """
-        for peer_id in self._cluster.keys():
-            LOGGER.debug('send to arbiter=%s',peer_id[:8])
-            self.send_to(bytes.fromhex(peer_id),message_type,payload)
-        """
+        
 
     def broadcast(self, message_type, payload):
         message = consensus_pb2.ConsensusPeerMessage(
