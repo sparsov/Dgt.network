@@ -98,3 +98,17 @@ message SettingCandidate {
 message SettingCandidates {
     repeated SettingCandidate candidates = 1;
 }
+// Topology Setting 
+//
+// This message proposes a change in a topology setting value.
+message SettingTopology {
+    // The setting key.  E.g. bgx.config.authorization_type
+    string setting = 1;
+
+    // The setting value. E.g. 'ballot'
+    string value = 2;
+
+    // allow duplicate proposals with different hashes
+    // randomly created by the client
+    string nonce = 3;
+}
