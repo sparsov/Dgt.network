@@ -103,13 +103,18 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
 
         self._proxy = proxy
         self._consensus_notifier = consensus_notifier
+        self._last_status = None
 
     def handle_request(self, request, response):
-        LOGGER.debug('ConsensusRegisterHandler: proxy.register')
+        #LOGGER.debug('ConsensusRegisterHandler: proxy.register')
         startup_info = self._proxy.register()
 
         if startup_info is None:
+            # not ready for working with consensus engine
             response.status = consensus_pb2.ConsensusRegisterResponse.NOT_READY
+            if self._last_status != response.status:
+                LOGGER.debug('ConsensusRegisterHandler: NOT READY yet for working with consensus engine!\n')
+                self._last_status = response.status
             return
 
         #if self._proxy.is_recovery :

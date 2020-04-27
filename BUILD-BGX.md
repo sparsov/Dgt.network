@@ -126,3 +126,5 @@ export COMPOSE_PROJECT_NAME=61 C=c6 N=1 API=8608 COMP=4604 NET=8601 CONS=5651;do
 export COMPOSE_PROJECT_NAME=62 C=c6 N=2 API=8609 COMP=4606 NET=8602 CONS=5652;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 
+# telebot
+docker-compose -f bgx/docker/docker-compose-telebot-bgx.yaml up

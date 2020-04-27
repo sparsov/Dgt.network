@@ -115,7 +115,7 @@ class GenesisController(object):
             raise InvalidGenesisStateError('Cannot have a genesis_batch_file and join an existing network')
 
         if not has_genesis_batches and not has_chain_head:
-            LOGGER.info('No chain head and not the genesis node: starting in peering mode')
+            LOGGER.info('No chain head and not the genesis node: starting in PEERING MODE!\n')
 
         return has_genesis_batches and not has_chain_head and is_genesis_node
 

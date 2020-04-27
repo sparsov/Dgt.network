@@ -68,7 +68,7 @@ class FbftTopology(object):
         self._arbiters = {}    # my arbiters 
         self._leaders  = {}    # leadres of other clusters
         self._cluster = None   # own cluster
-        self._topology  = None
+        self._topology  = {PeerAtr.children:{}}
         self._nosync = False
 
     @property
@@ -556,7 +556,7 @@ class FbftTopology(object):
         #topology = json.loads(stopology)
         self._validator_id = validator_id
         self._endpoint = endpoint
-        self._topology = topology
+        self._topology = topology if topology != {} else {PeerAtr.children:{}}
         #LOGGER.debug('get_topology=%s',topology)
         topology['topology'] = peering_mode
         topology['sync'] = not self._nosync

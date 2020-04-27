@@ -99,18 +99,17 @@ message ConsensusRegisterResponse {
 // A new peer was added
 message ConsensusNotifyPeerConnected {
    enum Status {
-    OK           = 0; // peer ready for consensus
+    OK           = 0;
     NOT_READY    = 1; // for peers connected after point of assemble
     STATUS_UNSET = 2;
     ROLE_CHANGE  = 3;
+    ARBITER_CHANGE = 4;
+    ADD_CLUSTER    = 5;
+    DEL_CLUSTER    = 6;
+    ADD_PEER       = 7;
+    DEL_PEER       = 8;
   }
   enum Modes {
-    NORMAL     = 0;
-    MALICIOUS  = 1;
-    MALICIOUS1 = 2;
-    MALICIOUS2 = 3; 
-  }
-  enum Roles {
     NORMAL     = 0;
     MALICIOUS  = 1;
     MALICIOUS1 = 2;
@@ -119,7 +118,7 @@ message ConsensusNotifyPeerConnected {
   ConsensusPeerInfo peer_info = 1;
   Status            status = 2;
   Modes             mode   = 3;  // Malicious mode
-  string            role   = 4;  // in case status == ROLE_CHANGE - this new role
+  string            info   = 4;  // in case status == ROLE_CHANGE - this is cluster name where leader changed or json
 }
 
 // An existing peer was dropped

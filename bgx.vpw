@@ -1,6 +1,7 @@
 <!DOCTYPE Workspace SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpw.dtd">
 <Workspace Version="10.0" VendorName="SlickEdit">
 	<Projects>
+		<Project File="bgt-telebot.vpj"/>
 		<Project File="bgt-tp.vpj"/>
 		<Project File="bgx-api.vpj"/>
 		<Project File="bgx-cli.vpj"/>
@@ -11,5 +12,6 @@
 		<Project File="dashboard.vpj"/>
 		<Project File="protos.vpj"/>
 		<Project File="sdk.vpj"/>
+		<Project File="smallbank-go.vpj"/>
 	</Projects>
 </Workspace>

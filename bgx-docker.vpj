@@ -71,6 +71,8 @@
             Name="Other Files"
             Filters=""
             GUID="{69BD778E-2BF2-4655-E6F8-DF076F7757B5}">
+            <F N="docker/bgx-int-intkey-tp-cxx"/>
+            <F N="bgx/docker/bgx-intkey-tp-cxx-bionic"/>
             <F N="bgx/docker/docker-compose-bgx.yaml"/>
             <F N="bgx/docker/docker-compose-dashboard-bgx-local.yaml"/>
             <F N="bgx/docker/docker-compose-dashboard-bgx.yaml"/>
@@ -119,6 +121,7 @@
             <F N="bgx/docker/docker-compose-rest-api-stub.yaml"/>
             <F N="bgx/docker/docker-compose-rest-api.yaml"/>
             <F N="bgx/docker/docker-compose-rust-bgx.yaml"/>
+            <F N="bgx/docker/docker-compose-telebot-bgx.yaml"/>
             <F N="bgx/docker/rest_api/Dockerfile"/>
             <F N="bgx/docker/settings/Dockerfile"/>
             <F N="bgx/docker/validator/Dockerfile"/>
@@ -146,6 +149,7 @@
             <F N="bgx/docker/rest_api/Dockerfile-xenial"/>
             <F N="bgx/docker/validator/Dockerfile-xenial"/>
             <F N="bgx/docker/settings/Dockerfile-xinial"/>
+            <F N="docker/sawtooth-int-intkey-tp-cxx"/>
             <F N="bgx/docker/ci/sawtooth-meta-bionic"/>
             <F N="bgx/docker/sawtooth-shell"/>
             <F N="bgx/docker/sawtooth-shell-bionic"/>

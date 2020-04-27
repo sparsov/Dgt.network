@@ -40,7 +40,7 @@ class IndexedDatabase(database.Database):
     def __init__(self, filename, serializer, deserializer,
                  indexes=None,
                  flag=None,
-                 _size=DEFAULT_SIZE):
+                 _size=DEFAULT_SIZE,dupsort=False):
         """Constructor for the IndexedDatabase class.
 
         Args:
@@ -69,7 +69,7 @@ class IndexedDatabase(database.Database):
 
         self._serializer = serializer
         self._deserializer = deserializer
-
+        self._dupsort = dupsort
         self._lmdb = lmdb.Environment(
             path=filename,
             map_size=_size,
@@ -81,7 +81,7 @@ class IndexedDatabase(database.Database):
             max_dbs=len(indexes) + 1,
             lock=True)
 
-        self._main_db = self._lmdb.open_db('main'.encode())
+        self._main_db = self._lmdb.open_db('main'.encode(),dupsort=dupsort)
 
         self._indexes = \
             {name: self._make_index_tuple(name, index_info)
@@ -205,7 +205,7 @@ class IndexedDatabase(database.Database):
                     index_keys = index_key_fn(value)
                     index_cursor = txn.cursor(index_db)
                     for idx_key in index_keys:
-                        index_cursor.put(idx_key, key.encode())
+                        index_cursor.put(idx_key, key.encode(),dupdata=self._dupsort)
 
         self.sync()
 

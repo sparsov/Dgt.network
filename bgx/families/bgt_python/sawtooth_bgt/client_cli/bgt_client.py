@@ -31,13 +31,28 @@ from sawtooth_sdk.protobuf.transaction_pb2 import Transaction
 from sawtooth_sdk.protobuf.batch_pb2 import BatchList
 from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
 from sawtooth_sdk.protobuf.batch_pb2 import Batch
+from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
 
 from sawtooth_bgt.client_cli.exceptions import BgtClientException
 
+FAMILY_NAME ="bgt"
+FAMILY_VERSION ="1.0"
 
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()
 
+def _get_prefix():                                             
+    return _sha512(FAMILY_NAME.encode('utf-8'))[0:6]                     
+                                                                   
+def _get_address(name):                                      
+    prefix = _get_prefix()                                    
+    game_address = _sha512(name.encode('utf-8'))[64:]              
+    return prefix + game_address  
+                                 
+def _token_info(val):
+    token = BgtTokenInfo()
+    token.ParseFromString(val)
+    return token
 
 class BgtClient:
     def __init__(self, url, keyfile=None):
@@ -171,8 +186,8 @@ class BgtClient:
 
         header = TransactionHeader(
             signer_public_key=self._signer.get_public_key().as_hex(),
-            family_name="bgt",
-            family_version="1.0",
+            family_name=FAMILY_NAME,
+            family_version=FAMILY_VERSION,
             inputs=inputs,
             outputs=outputs,
             dependencies=[],

@@ -920,7 +920,7 @@ class ChainController(object):
 
     def start(self):
         self._set_chain_head_from_block_store()
-        LOGGER.debug("ChainController:START call _notify PUBLISHER on_chain_updated ID=%s\n",self._chain_head.identifier[:8])
+        LOGGER.debug("ChainController:START call _notify PUBLISHER on_chain_updated ID=%s\n",self._chain_head.identifier[:8] if self._chain_head else None)
         self._notify_on_chain_updated(self._chain_head)
 
         self._chain_thread = _ChainThread(

@@ -1110,7 +1110,7 @@ class BlockPublisher(object):
                     clean _chain_heads for branch_id
                     """
                     branch_candidate_id = branch_id
-                    LOGGER.info('Block publishing is suspended until new chain head for %s arrives.',branch_id[:8])
+                    LOGGER.info('Block publishing is suspended until new chain head for %s arrives.',branch_id[:8] if branch_id else None)
 
                 if branch_candidate_id in self._candidate_blocks:
                     LOGGER.info('Update DAG branch head for ID=%s heads=%s\n',branch_candidate_id[:8],self.chain_heads)
