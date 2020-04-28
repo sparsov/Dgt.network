@@ -1,0 +1,39 @@
+version: '3.6'
+
+services:
+
+  bgx-telebot:
+    build:
+      context: ../..
+      dockerfile: bgx/telebot/Dockerfile-${DISTR}
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+        - BGX_TOP=bgx
+    image: bgx-telebot
+    environment:
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+    volumes:
+      - ../..:/project/${BGX_TOP}
+    container_name: bgx-telebot
+    networks:
+    - network1
+    #ports:
+    #  - "8003:8003"
+    # depends_on:
+    #   - validator 18.222.233.160
+    command: |
+      bash -c "
+        bgx/bin/protogen
+        rm -f data-bgx/logs/bgt-bot*.log;
+        cd bgx/telebot
+        python3 setup.py clean --all
+        python3 setup.py build
+        bgt-telebot -vv  --connect tcp://validator-bgx-c1-1:4104 
+      "
+    stop_signal: SIGKILL
+
+networks:
+  network1:
+     name: bgx1-network
