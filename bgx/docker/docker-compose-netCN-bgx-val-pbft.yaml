@@ -137,7 +137,7 @@ services:
   client:
     build:
       context: ../..
-      dockerfile: bgx/docker/sawtooth-shell-${DISTR}
+      dockerfile: bgx/docker/bgx-shell-${DISTR}
       args:
         - http_proxy
         - https_proxy
