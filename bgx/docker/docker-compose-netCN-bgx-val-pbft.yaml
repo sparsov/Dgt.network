@@ -190,6 +190,7 @@ services:
       bash -c "
         bgx/bin/protogen
         if [ ${G} == 'Y' ]; then rm -f clusters/${C}/bgx${N}/data/*; else echo 'RESTART MODE'; fi; rm -f clusters/${C}/bgx${N}/logs/*.log*;
+        if [ -n ${PEERS} ]; then echo 'MANY HOST MODE ${PEERS}';echo ${PEERS} >> /tmp/hosts; else echo 'ONE HOST MODE ${PEERS}';echo ${PEERS} >> /tmp/hosts; fi
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
