@@ -281,10 +281,10 @@ class AuthorizationTrustRequestHandler(Handler):
             
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
-                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s",is_outbound_connection, connection_id)
+                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s",is_outbound_connection, connection_id[:8])
             except KeyError:
                 # Connection has gone away, drop message
-                LOGGER.debug("Connection has gone away, drop message conn=%s", connection_id)
+                LOGGER.debug("Connection has gone away, drop message conn=%s", connection_id[:8])
                 return HandlerResult(HandlerStatus.DROP)
 
             if not is_outbound_connection:
@@ -435,9 +435,10 @@ class AuthorizationChallengeSubmitHandler(Handler):
         if RoleType.Value("NETWORK") in auth_challenge_submit.roles:
             # Need to send ConnectionRequest to authorize ourself with the
             # connection if they initialized the connection
-            LOGGER.debug("connection if they initialized the connection conn=%s", connection_id)
+            
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
+                LOGGER.debug("connection if they initialized the connection outbound=%s conn=%s",is_outbound_connection, connection_id[:8])
             except KeyError:
                 # Connection has gone away, drop message
                 return HandlerResult(HandlerStatus.DROP)
@@ -450,7 +451,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
                 # begin.
                 self._gossip.connect_success(connection_id)
         else:
-            LOGGER.debug("RoleType not in request.roles 1 conn=%s", connection_id)
+            LOGGER.debug("RoleType not in request.roles 1 conn=%s", connection_id[:8])
 
         auth_challenge_result = AuthorizationChallengeResult(
             roles=[RoleType.Value("NETWORK")])
