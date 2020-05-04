@@ -1553,7 +1553,7 @@ class ConnectionManager(InstrumentedThread):
                         for federation topology try to wait sometime until peers connected
                         and only after this timeout send HEAD block request
                         """
-                        if not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
+                        if self._is_federations_assembled and not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
                             # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
                             self._gossip.send_block_request("HEAD", connection_id)
 
