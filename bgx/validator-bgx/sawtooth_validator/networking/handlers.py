@@ -290,6 +290,8 @@ class AuthorizationTrustRequestHandler(Handler):
                 # If this is an outbound connection, authorization is complete
                 # for both connections and peering can begin.
                 self._gossip.connect_success(connection_id)
+        else:
+            LOGGER.debug("RoleType not in request.roles conn=%s", connection_id)
 
         auth_trust_response = AuthorizationTrustResponse(
             roles=[RoleType.Value("NETWORK")])
@@ -402,8 +404,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
             public_key = Secp256k1PublicKey.from_hex(
                 auth_challenge_submit.public_key)
         except ParseError:
-            LOGGER.warning('Authorization Challenge Request cannot be '
-                           'verified. Invalid public key %s',
+            LOGGER.warning('Authorization Challenge Request cannot be verified. Invalid public key %s',
                            auth_challenge_submit.public_key)
             return AuthorizationChallengeSubmitHandler \
                 ._network_violation_result()
@@ -411,8 +412,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
         if not context.verify(auth_challenge_submit.signature,
                               payload,
                               public_key):
-            LOGGER.warning("Signature was not able to be verifed. Remove "
-                           "connection to %s", connection_id)
+            LOGGER.warning("Signature was not able to be verifed. Remove connection to %s", connection_id)
             return AuthorizationChallengeSubmitHandler \
                 ._network_violation_result()
 
@@ -427,9 +427,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
                     return AuthorizationChallengeSubmitHandler \
                         ._network_violation_result()
 
-        self._network.update_connection_public_key(
-            connection_id,
-            auth_challenge_submit.public_key)
+        self._network.update_connection_public_key(connection_id,auth_challenge_submit.public_key)
 
         if RoleType.Value("NETWORK") in auth_challenge_submit.roles:
             # Need to send ConnectionRequest to authorize ourself with the
@@ -447,6 +445,8 @@ class AuthorizationChallengeSubmitHandler(Handler):
                 # for both connections and peering/topology build out can
                 # begin.
                 self._gossip.connect_success(connection_id)
+        else:
+            LOGGER.debug("RoleType not in request.roles 1 conn=%s", connection_id)
 
         auth_challenge_result = AuthorizationChallengeResult(
             roles=[RoleType.Value("NETWORK")])
