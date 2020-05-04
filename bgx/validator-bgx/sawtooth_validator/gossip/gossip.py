@@ -1079,6 +1079,8 @@ class Gossip(object):
         """
         if self._topology:
             self._topology.connect_success(connection_id)
+        else:
+            LOGGER.debug("connect_success TOPOLOGY UNDEF\n")
 
     def remove_temp_endpoint(self, endpoint):
         """
