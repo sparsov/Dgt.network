@@ -779,7 +779,7 @@ class Gossip(object):
             
             if self._is_federations_assembled and not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
                 # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
-                self._gossip.send_block_request("HEAD", connection_id)
+                self.send_block_request("HEAD", connection_id)
         return self.is_federations_assembled
             
                 
