@@ -298,7 +298,7 @@ class Gossip(object):
         <-- make sync request to peer with endpoint 
         <-- DO IT after DAG sync - we should make sync with own cluster and with arbiters for leader
         """
-        LOGGER.debug("Attempting to sync peer with endpoint=%s heads_sum=%s", endpoint,self.heads_summary)
+        LOGGER.debug("Attempting to sync peer with endpoint=%s heads_sum=%s peers=%s", endpoint,self.heads_summary,self._peers)
 
         # check if the connection exists, if it does - send,
         # otherwise create it
