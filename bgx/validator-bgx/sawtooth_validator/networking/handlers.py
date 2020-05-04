@@ -278,11 +278,13 @@ class AuthorizationTrustRequestHandler(Handler):
         if RoleType.Value("NETWORK") in request.roles:
             # Need to send ConnectionRequest to authorize ourself with the
             # connection if they initialized the connection
-            LOGGER.debug("connection if they initialized the connection request conn=%s", connection_id)
+            
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
+                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s",is_outbound_connection, connection_id)
             except KeyError:
                 # Connection has gone away, drop message
+                LOGGER.debug("Connection has gone away, drop message conn=%s", connection_id)
                 return HandlerResult(HandlerStatus.DROP)
 
             if not is_outbound_connection:
