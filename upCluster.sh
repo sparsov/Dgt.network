@@ -27,6 +27,7 @@
 mode="up -d"
 peers6="1 2 3 4 5 6"
 peers="1 2 3"
+PEERS="91.216.211.46 validator-bgx-c2-1;91.216.211.46 validator-bgx-c3-1"
 if [ $1 == 'G' ]; then GENESIS="Y";shift; else GENESIS="N"; fi
  
 function upCluster1 {

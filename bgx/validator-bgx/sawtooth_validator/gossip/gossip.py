@@ -157,6 +157,7 @@ class Gossip(object):
         self._num_nosync_peer = 0              # number of non sync peer 
         self._incomplete = False               # status of own nests 
         self._is_nests_ready = False           # 
+        self._is_send_block_request = False
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         self._unsync_peers = {}                # list unsync  peers
         """
@@ -883,6 +884,7 @@ class Gossip(object):
         self.broadcast(block_request,validator_pb2.Message.GOSSIP_BLOCK_REQUEST)
 
     def send_block_request(self, block_id, connection_id):
+        self._is_send_block_request = True
         time_to_live = self.get_time_to_live()
         LOGGER.debug("gossip:send_block_request block_id=%s time_to_live=%s conn=%s",block_id,time_to_live,self._peers[connection_id])
         block_request = GossipBlockRequest(
@@ -1545,12 +1547,16 @@ class ConnectionManager(InstrumentedThread):
                         LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
                         self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=None) # ack.sync if self._gossip.is_sync else None) #None)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
-                        LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,self._gossip.peer_to_public_key(connection_id),self._gossip.is_sync)
+                        public_key = self._gossip.peer_to_public_key(connection_id) 
+                        LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,public_key[:8],self._gossip.is_sync)
                         """
                         for federation topology try to wait sometime until peers connected
                         and only after this timeout send HEAD block request
                         """
-                        #self._gossip.send_block_request("HEAD", connection_id)
+                        if not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
+                            # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
+                            self._gossip.send_block_request("HEAD", connection_id)
+
 
                     except PeeringException as e:
                         # Remove unsuccessful peer
