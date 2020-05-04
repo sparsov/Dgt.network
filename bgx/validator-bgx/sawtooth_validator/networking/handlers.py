@@ -278,6 +278,7 @@ class AuthorizationTrustRequestHandler(Handler):
         if RoleType.Value("NETWORK") in request.roles:
             # Need to send ConnectionRequest to authorize ourself with the
             # connection if they initialized the connection
+            LOGGER.debug("connection if they initialized the connection request conn=%s", connection_id)
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
             except KeyError:
@@ -296,7 +297,7 @@ class AuthorizationTrustRequestHandler(Handler):
         auth_trust_response = AuthorizationTrustResponse(
             roles=[RoleType.Value("NETWORK")])
 
-        LOGGER.debug("Connection: %s is approved", connection_id)
+        LOGGER.debug("Connection: %s is approved roles", connection_id)
 
         self._network.update_connection_status(
             connection_id,
@@ -432,6 +433,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
         if RoleType.Value("NETWORK") in auth_challenge_submit.roles:
             # Need to send ConnectionRequest to authorize ourself with the
             # connection if they initialized the connection
+            LOGGER.debug("connection if they initialized the connection conn=%s", connection_id)
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
             except KeyError:
@@ -451,7 +453,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
         auth_challenge_result = AuthorizationChallengeResult(
             roles=[RoleType.Value("NETWORK")])
 
-        LOGGER.debug("Connection: %s is approved", connection_id)
+        LOGGER.debug("Connection: %s is approved auth_challenge_submit", connection_id)
         self._network.update_connection_status(
             connection_id,
             ConnectionStatus.CONNECTED)
