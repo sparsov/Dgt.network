@@ -776,7 +776,10 @@ class Gossip(object):
                 self._fbft.update_peer_component(public_key, component)
             if self.is_federations_assembled and (status_updated or component is not None):
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
-
+            
+            if self._is_federations_assembled and not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
+                # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
+                self._gossip.send_block_request("HEAD", connection_id)
         return self.is_federations_assembled
             
                 
@@ -1553,9 +1556,9 @@ class ConnectionManager(InstrumentedThread):
                         for federation topology try to wait sometime until peers connected
                         and only after this timeout send HEAD block request
                         """
-                        if self._is_federations_assembled and not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
-                            # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
-                            self._gossip.send_block_request("HEAD", connection_id)
+                        #if self._is_federations_assembled and not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
+                        # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
+                        #   self._gossip.send_block_request("HEAD", connection_id)
 
 
                     except PeeringException as e:
@@ -1609,6 +1612,9 @@ class ConnectionManager(InstrumentedThread):
                 del self._temp_endpoints[endpoint]
 
     def _connect_success_peering(self, connection_id, endpoint):
+        """
+        send my own REGISTER request
+        """
         LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s pid=%s", connection_id,endpoint,self._gossip.component,self._gossip.peer_id)
 
         register_request = PeerRegisterRequest(
