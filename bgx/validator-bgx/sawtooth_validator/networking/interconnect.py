@@ -269,7 +269,7 @@ class _SendReceive(object):
         connection_id = self._identity_to_connection_id(zmq_identity)
         if connection_id not in self._connections:
             self._connections[connection_id] = ConnectionInfo(ConnectionType.ZMQ_IDENTITY,zmq_identity,None,None,None)
-            #LOGGER.info("RECEIVED CONN=%s from identity=%s total=%s",connection_id[:8],zmq_identity,len(self._connections))
+            LOGGER.info("RECEIVED CONN=%s from identity=%s total=%s",connection_id[:8],zmq_identity,self.connections_info)
 
     @asyncio.coroutine
     def _dispatch_message(self):

@@ -190,7 +190,7 @@ class PingHandler(Handler):
 
         request = PingRequest()
         request.ParseFromString(message_content)
-        #LOGGER.debug("PingHandler PingRequest %s(%s)",connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
+        LOGGER.debug("PingHandler PingRequest %s(%s)",connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
         ack = PingResponse()
         if self._network.get_connection_status(connection_id) == ConnectionStatus.CONNECTED:
 
