@@ -77,7 +77,7 @@ class ConnectHandler(Handler):
         """
         message = ConnectionRequest()
         message.ParseFromString(message_content)
-        LOGGER.debug("Got connect message from %s(%s). sending ack", connection_id,self._network.connection_id_to_endpoint(connection_id))
+        LOGGER.debug("Got connect message from %s(%s). sending ack", connection_id[:8],self._network.connection_id_to_endpoint(connection_id))
 
         # Need to use join here to get the string "0.0.0.0". Otherwise,
         # bandit thinks we are binding to all interfaces and returns a
@@ -96,7 +96,7 @@ class ConnectHandler(Handler):
                     message_type=validator_pb2.Message.
                     AUTHORIZATION_CONNECTION_RESPONSE)
 
-        LOGGER.debug("Endpoint of connecting node is %s", message.endpoint)
+        LOGGER.debug("Endpoint of connecting=%s node is %s", connection_id[:8],message.endpoint)
         self._network.update_connection_endpoint(connection_id,message.endpoint)
 
         # Get what AuthorizationType the network role requires

@@ -1350,7 +1350,7 @@ class ConnectionManager(InstrumentedThread):
                                     MAXIMUM_STATIC_RETRY_FREQUENCY),
                                 count=0)
 
-                    #LOGGER.debug("retry_static_peering:attempting to peer with %s", endpoint)
+                    LOGGER.debug("retry_static_peering:attempting to peer with %s", endpoint)
                     self._network.add_outbound_connection(endpoint)
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.PEERING,

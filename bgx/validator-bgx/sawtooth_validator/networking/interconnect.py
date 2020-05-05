@@ -791,7 +791,7 @@ class Interconnect(object):
             uri (str): The zmq-style (e.g. tcp://hostname:port) uri
                 to attempt to connect to.
         """
-        #LOGGER.debug("Adding outbound connection to %s", uri)
+        LOGGER.debug("Adding outbound connection to %s", uri)
         conn = OutboundConnection(
             connections=self._connections,
             endpoint=uri,
@@ -840,11 +840,11 @@ class Interconnect(object):
         connection_response.ParseFromString(result.content)
 
         if connection_response.status == connection_response.ERROR:
-            LOGGER.debug("Received an error response to the NETWORK_CONNECT we sent. Removing connection: %s",connection.connection_id)
+            LOGGER.debug("Received an error response to the NETWORK_CONNECT we sent. Removing connection: %s",connection.connection_id[:8])
             self.remove_connection(connection.connection_id)
         elif connection_response.status == connection_response.OK:
 
-            LOGGER.debug("Connection to %s was acknowledged",connection.connection_id)
+            LOGGER.debug("Connection to %s was acknowledged authorize=%s",connection.connection_id[:8],self._authorize)
             if self._authorize:
                 # Send correct Authorization Request for network role
                 auth_type = {"trust": [], "challenge": []}
