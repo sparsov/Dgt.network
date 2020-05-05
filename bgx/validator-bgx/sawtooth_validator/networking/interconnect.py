@@ -269,7 +269,7 @@ class _SendReceive(object):
         connection_id = self._identity_to_connection_id(zmq_identity)
         if connection_id not in self._connections:
             self._connections[connection_id] = ConnectionInfo(ConnectionType.ZMQ_IDENTITY,zmq_identity,None,None,None)
-            LOGGER.info("RECEIVED CONN=%s from identity=%s total=%s",connection_id[:8],zmq_identity,self.connections_info)
+            LOGGER.info("RECEIVED CONN=%s from identity=%s total=%s",connection_id[:8],zmq_identity,len(self._connections))
 
     @asyncio.coroutine
     def _dispatch_message(self):
@@ -324,6 +324,7 @@ class _SendReceive(object):
         """
         Internal coroutine for receiving messages
         """
+        #LOGGER.debug("Receive message START..")
         while True:
             try:
                 if self._socket.getsockopt(zmq.TYPE) == zmq.ROUTER:
@@ -344,6 +345,8 @@ class _SendReceive(object):
                 raise
             except Exception as e:  # pylint: disable=broad-except
                 LOGGER.exception("Received a message on address %s that caused an error: %s", self._address, e)
+
+        LOGGER.debug("Receive message DONE")
 
     @asyncio.coroutine
     def _send_message_frame(self, message_frame):
