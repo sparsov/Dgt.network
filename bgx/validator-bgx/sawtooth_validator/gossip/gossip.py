@@ -1596,7 +1596,7 @@ class ConnectionManager(InstrumentedThread):
         endpoint = self._network.connection_id_to_endpoint(connection_id)
         endpoint_info = self._temp_endpoints.get(endpoint)
 
-        LOGGER.debug("Endpoint has completed authorization: %s (id: %s)",endpoint,connection_id)
+        LOGGER.debug("Endpoint has completed authorization: %s (id: %s)",endpoint,connection_id[:8])
         if endpoint_info is None:
             LOGGER.debug("Received unknown endpoint: %s", endpoint)
 
@@ -1617,7 +1617,7 @@ class ConnectionManager(InstrumentedThread):
         """
         send my own REGISTER request
         """
-        LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s pid=%s", connection_id,endpoint,self._gossip.component,self._gossip.peer_id)
+        LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s pid=%s", connection_id[:8],endpoint,self._gossip.component,self._gossip.peer_id)
 
         register_request = PeerRegisterRequest(
             endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id,component=self._gossip.component)
