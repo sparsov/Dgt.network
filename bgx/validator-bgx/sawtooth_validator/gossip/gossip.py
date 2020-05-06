@@ -153,6 +153,7 @@ class Gossip(object):
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
         self._nosync    = True #False                # need sync with other net 
+        self._own_sync  = False                # say about own sync
         self._genesis_sync = False             # sync with genesis peer or with cluster leader
         self._num_nosync_peer = 0              # number of non sync peer 
         self._incomplete = False               # status of own nests 
@@ -240,6 +241,12 @@ class Gossip(object):
         LOGGER.debug("update federation_topology peer=%s %s unsync=%s SYNC=%s DONE",key[:8],endpoint,self._nosync,self.is_sync)
         self._fbft.update_peer_activity(key,endpoint,mode,sync,force,pid)
         LOGGER.debug("update federation_topology peer=%s %s nosync=%s DONE",key[:8],endpoint,self._nosync)
+
+    def myself_sync(self,sync=True):
+        if not self._own_sync:
+            self.update_federation_topology(self.validator_id,None,sync = sync)
+            self.notify_peer_connected(self.validator_id,assemble=sync)
+            self._own_sync = True
 
     def _peer_sync_callback(self, request, result, connection_id, endpoint=None):
         """
@@ -342,6 +349,8 @@ class Gossip(object):
                     pass
             if self._num_nosync_peer == 0:
                 self._nosync = False
+                if self.is_genesis_peer:
+                    self.myself_sync(True)
             LOGGER.debug("TRY_TO_SYNC_WITH_NET DONE SYNC=%s unsync peers=%s\n",self.is_sync,self._num_nosync_peer)
 
     def check_unsync_peer(self):
@@ -702,12 +711,13 @@ class Gossip(object):
         is_not_diff = (nests == self.heads_summary) if nests is not None else True
         with self._lock:
             public_key = self._network.connection_id_to_public_key(connection_id)
-            LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME incomplete=%s SYNC=%s hid=%s~%s", endpoint, public_key[:8], self.is_sync,self._incomplete, nests, self.heads_summary)
+            is_sync = self.is_sync
+            LOGGER.debug("sync_peer: Peer=%s key=%s ASK SYNC with ME incomplete=%s SYNC=%s hid=%s~%s", endpoint, public_key[:8], self._incomplete,is_sync, nests, self.heads_summary)
             if is_not_diff:
                 # set peer with endpoint into sync mode 
                 # FIXME - check maybe peer already sync
                 if self._fbft.get_peer_state(public_key) != PeerSync.active:
-                    LOGGER.debug("SYNC REQUEST FROM PEER=%s SET PEER STATUS SYNC=%s\n",endpoint,self.is_sync)
+                    LOGGER.debug("SYNC REQUEST FROM PEER=%s SET PEER STATUS SYNC=%s\n",endpoint,is_sync)
                     self.update_federation_topology(public_key,endpoint,sync = True,pid=pid)
                     self.notify_peer_connected(public_key,assemble=True)
                 if self._fbft.get_peer_state(self.validator_id) != PeerSync.active :
@@ -717,6 +727,13 @@ class Gossip(object):
                         self.update_federation_topology(self.validator_id,None,sync = True)
                         self.notify_peer_connected(self.validator_id,assemble=True)
                         LOGGER.debug("PEER ASK SYNC - SWITCH MYSELF TO SYNC\n")
+                if not is_sync:
+                    # appeared peer which has the same head's summary
+                    # set own sync
+                    self.myself_sync(True)
+                    
+                    LOGGER.debug("APPEARED PEER SYNC WITH ME - SWITCH MYSELF TO SYNC\n")
+
             else:
                 # if peer was in sync mode we should reset him into unsync
                 pass
@@ -830,7 +847,7 @@ class Gossip(object):
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
             keys_cid  = {self._network.connection_id_to_public_key(cid) : cid for cid in self._peers} 
         LOGGER.debug("switch_on_federations peers=%s SYNC=%s (ns:gs=%s,%s) non SYNC=%s",peer_keys,self.is_sync,self._nosync,self._genesis_sync,self._num_nosync_peer)
-        if not self.is_sync and not self._genesis_sync:
+        if not self.is_sync and not self._genesis_sync and not self._own_sync:
             # in case not genesis peer should first make nests
             self._fbft.update_peer_activity(self.validator_id,None,True,False,force=True)
             self._fbft.update_peer_activity(self._fbft.genesis_node,None,True,False,force=True)
@@ -1549,11 +1566,11 @@ class ConnectionManager(InstrumentedThread):
                         in case (ack.sync == TRUE) peer already make point of assemble and we should make sync with them 
                         and inform them after synchronization
                         """
-                        LOGGER.debug("Reply on REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
+                        LOGGER.debug("Reply on my REGISTER request to %s(%s) was successful. Peer already ack.sync=%s SYNC=%s",connection_id[:8],endpoint,ack.sync,self._gossip.is_sync)
                         self._gossip.register_peer(connection_id,ack.pid, endpoint,sync=None) # ack.sync if self._gossip.is_sync else None) #None)
                         self._connection_statuses[connection_id] = PeerStatus.PEER
                         public_key = self._gossip.peer_to_public_key(connection_id) 
-                        LOGGER.debug("Peering register_peer send_block_request to conn=%s key=%s SYNC=%s", endpoint,public_key[:8],self._gossip.is_sync)
+                        LOGGER.debug("Peering register_peer to conn=%s key=%s SYNC=%s", endpoint,public_key[:8],self._gossip.is_sync)
                         """
                         for federation topology try to wait sometime until peers connected
                         and only after this timeout send HEAD block request

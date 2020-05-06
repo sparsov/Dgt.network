@@ -1595,8 +1595,8 @@ class PbftEngine(Engine):
 
         if pid not in self.peers:
             if pid == self.validator_id:
-                LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s\n', notif[1],self._mode,notif[2])
                 self._is_sync = notif[1] != ConsensusNotifyPeerConnected.NOT_READY
+                LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s SYNC=%s ready=%s\n', notif[1],self._mode,notif[2],self._is_sync,self.num_arbiters) 
                 if self._mode != notif[2] :
                     self._mode = notif[2]
             elif pid in self._cluster :
@@ -1609,9 +1609,9 @@ class PbftEngine(Engine):
                 val = self.arbiters[pid]
                 if val[1] != notif[1]:
                     self.arbiters[pid] = (val[0],notif[1],val[2])
-                    LOGGER.debug('Connected peer with ID=%s  status=%s IS ONE OF THE OUR ARBITER=%s ready=%s\n', _short_id(pid),notif[1],val,self.num_arbiters)
+                    LOGGER.debug('Connected peer with ID=%s  status=%s OUR ARBITER=%s ready=%s SYNC=%s\n', _short_id(pid),notif[1],val,self.num_arbiters,self._is_sync)
                 else:
-                    LOGGER.debug('Connected peer with ID=%s IS ARBITER status the same\n', _short_id(pid))
+                    LOGGER.debug('Connected peer with ID=%s IS ARBITER status the same ready=%s SYNC=%s\n', _short_id(pid),self.num_arbiters,self._is_sync)
             elif self.is_arbiter and self._oracle.peer_is_leader(pid) :
                 # this is other leaders
                 self._leaders[pid] = notif[1]
