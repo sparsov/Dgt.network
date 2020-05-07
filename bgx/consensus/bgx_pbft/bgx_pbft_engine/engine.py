@@ -828,7 +828,7 @@ class PbftEngine(Engine):
                 if info.status == ConsensusNotifyPeerConnected.OK :
                     peer = self._oracle.peer_by_key(key)    
                     LOGGER.debug('TRY CHANGE LEADER %s=%s(%s)\n',peer[PeerAtr.name],key[:8],info.count)
-                    self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':peer[PeerAtr.name],'oper':'lead'})
+                    #self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':peer[PeerAtr.name],'oper':'lead'})
                     return
 
     def arbiters_update(self):
