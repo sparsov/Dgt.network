@@ -388,7 +388,7 @@ class Gossip(object):
             #    LOGGER.debug("Arbiter=%s for %s not connected",arbiter[2],arbiter[1])
         else:
             # set into self._fbft activity of peer - for dashboard
-            LOGGER.debug("Inform engine IGNORE peer=%s",public_key[:8])
+            LOGGER.debug("Inform engine IGNORE peer=%s\n",public_key[:8])
 
     def notify_peer_disconnected(self,public_key):
         """
@@ -849,6 +849,7 @@ class Gossip(object):
         LOGGER.debug("switch_on_federations peers=%s SYNC=%s (ns:gs=%s,%s) non SYNC=%s",peer_keys,self.is_sync,self._nosync,self._genesis_sync,self._num_nosync_peer)
         if not self.is_sync and not self._genesis_sync and not self._own_sync:
             # in case not genesis peer should first make nests
+            # and not self._own_sync - say about sync after dag recovery
             self._fbft.update_peer_activity(self.validator_id,None,True,False,force=True)
             self._fbft.update_peer_activity(self._fbft.genesis_node,None,True,False,force=True)
             self.notify_peer_connected(self.validator_id,assemble=False)
