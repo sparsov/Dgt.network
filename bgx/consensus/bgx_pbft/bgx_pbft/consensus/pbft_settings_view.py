@@ -34,6 +34,7 @@ class PbftSettingsView:
     _VIEW_CHANGE_TIMEOUT_ = 4000
     _DAG_STEP_ = 3
     _IS_PBFT_FULL_ = False
+    _IS_LEADER_SHIFT_ = False
 
     def __init__(self, state_view):
         """Initialize a PbftSettingsView object.
@@ -55,6 +56,7 @@ class PbftSettingsView:
         self._block_claim_delay = 2
         self._dag_step = None
         self._is_pbft_full = None
+        self._is_leader_shift=None
         self._max_branch = None
         self._send_batches = None
         self._block_timeout = None
@@ -223,6 +225,20 @@ class PbftSettingsView:
             self._is_pbft_full = bool(val)
 
         return self._is_pbft_full
+
+    
+    @property                                                                                         
+    def is_leader_shift(self):                                                                           
+        if self._is_leader_shift is None:                                                                
+            val = self._get_config_setting(                                                           
+                    name='bgx.fbft.leader_shift',                                                   
+                    value_type=int,                                                                   
+                    default_value=PbftSettingsView._IS_LEADER_SHIFT_,                                    
+                    validate_function=lambda value: value==0 or value==1) 
+            
+            self._is_leader_shift = bool(val)                                                            
+                                                                                                      
+        return self._is_leader_shift                                                                     
 
     @property
     def send_batches(self):

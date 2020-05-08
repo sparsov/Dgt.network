@@ -360,6 +360,49 @@ def _do_list_topology(args):
 
     rest_client.send_batches(batch_list)
     """
+def _param_show(rest_client,args):
+    """
+    show topology param
+    """
+    fname = ('' if args.param_name[:4] == "bgx." else "bgx.") + args.param_name
+    try:
+        state_leaf = rest_client.get_leaf(_key_to_address(fname))
+    except CliException:
+        print('undef param {}'.format(fname))
+        return
+
+    
+    if state_leaf is not None:
+        setting_bytes = b64decode(state_leaf['data'])
+        setting = Setting()
+        setting.ParseFromString(setting_bytes)
+        for entry in setting.entries:
+            if entry.key == fname:
+                print('{} = {}'.format(fname,entry.value))
+    else:
+        print('undef param {}'.format(fname))
+
+def _param_topology(rest_client,signer,args):
+    """
+    set topology params
+    """
+    #print('_param_topology args',args,'>>>')
+    if args.new == '':
+        # show value
+        _param_show(rest_client,args)
+    else:
+        #set value
+        fname = ('' if args.param_name[:4] == "bgx." else "bgx.") + args.param_name
+        txns = [_create_propose_txn(signer, (fname,args.new))]
+        batch = _create_batch(signer, txns)
+
+        batch_list = BatchList(batches=[batch])
+
+        if args.url is not None:
+            rest_client = RestClient(args.url)
+            rest_client.send_batches(batch_list)
+        else:
+            raise AssertionError('No target for create set.')
 
 def _set_topology(rest_client,signer,args):
     """
@@ -392,6 +435,14 @@ def _set_topology(rest_client,signer,args):
         raise AssertionError('No target for create set.')
 
     
+
+def _do_param_topology(args):
+    """
+     Executes the 'topology set' subcommand.  
+    """
+    signer = _read_signer(args.key)
+    rest_client = RestClient(args.url)
+    _param_topology(rest_client,signer,args)
 
 
 def _do_set_topology(args):
@@ -811,7 +862,33 @@ def create_parser(prog_name):
         type=str,
         help="identify the URL of a validator's REST API",
         default='http://localhost:8008')
+    # PARAM
+    topology_param_parser = topology_parsers.add_parser(
+        'param',
+        help='change topology settings',
+        description='change topology  settings. '
+                    )
+    topology_param_parser.add_argument(
+        '-k', '--key',
+        type=str,
+        help='specify signing key for resulting batches and initial authorized key',
+        default='clusters/c1/bgx1/keys/validator.priv'
+        )
+    topology_param_parser.add_argument(
+        '--url',
+        type=str,
+        help="identify the URL of a validator's REST API",
+        default='http://bgx-api-c1-1:8008')
+    topology_param_parser.add_argument(
+        'param_name',
+        type=str,
+        help='identify the param')
 
+    topology_param_parser.add_argument(
+        '-n', '--new',
+        default='',
+        type=str,
+        help='identify the value of param')
 
     return parser
 
@@ -843,8 +920,11 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None,
             _do_list_topology(args)
         elif args.topology_cmd == 'set':
             _do_set_topology(args)
+        elif args.topology_cmd == 'param':
+            _do_param_topology(args)
         else:
             raise CliException('"{}" is not a valid subcommand of "topology"'.format(args.subcommand))
+    #elif args.subcommand == 'fbft':
 
     else:
         raise CliException(

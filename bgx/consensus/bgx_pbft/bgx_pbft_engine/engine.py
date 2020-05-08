@@ -823,12 +823,12 @@ class PbftEngine(Engine):
         
 
     def try_change_leader(self):
-        if self.is_leader:
+        if self.is_leader and self._oracle.is_leader_shift:
             for key,info in self.peers.items():
                 if info.status == ConsensusNotifyPeerConnected.OK :
                     peer = self._oracle.peer_by_key(key)    
                     LOGGER.debug('TRY CHANGE LEADER %s=%s(%s)\n',peer[PeerAtr.name],key[:8],info.count)
-                    #self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':peer[PeerAtr.name],'oper':'lead'})
+                    self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':peer[PeerAtr.name],'oper':'lead'})
                     return
 
     def arbiters_update(self):
@@ -1145,8 +1145,8 @@ class PbftEngine(Engine):
         }
         self._sum_cnt = 0
         self.is_real_mode = True
-        LOGGER.debug('Start wait message in %s mode validator=%s dag_step=%s full=%s send_batches=%s timeout=%s.','REAL' if self.is_real_mode else 'TEST',
-                      self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._send_batches,self.block_timeout
+        LOGGER.debug('Start wait message in %s mode validator=%s dag_step=%s full=%s leader_shift=%s send_batches=%s timeout=%s.','REAL' if self.is_real_mode else 'TEST',
+                      self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._oracle.is_leader_shift,self._send_batches,self.block_timeout
                     )
         #self._service.initialize_block() is None
         if self._cluster_name is None:

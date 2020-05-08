@@ -147,6 +147,10 @@ class PbftOracle:
         return self._pbft_settings_view.is_pbft_full
 
     @property
+    def is_leader_shift(self):
+        return self._pbft_settings_view.is_leader_shift
+
+    @property
     def send_batches(self):
         return self._pbft_settings_view.send_batches
 
