@@ -35,6 +35,7 @@ class PbftSettingsView:
     _DAG_STEP_ = 3
     _IS_PBFT_FULL_ = False
     _IS_LEADER_SHIFT_ = False
+    LEADER_SHIFT = 'bgx.fbft.leader_shift'
 
     def __init__(self, state_view):
         """Initialize a PbftSettingsView object.
@@ -57,6 +58,7 @@ class PbftSettingsView:
         self._dag_step = None
         self._is_pbft_full = None
         self._is_leader_shift=None
+        self._params = {}
         self._max_branch = None
         self._send_batches = None
         self._block_timeout = None
@@ -100,6 +102,11 @@ class PbftSettingsView:
             LOGGER.debug('use default for %s=%s',name,value)
 
         return value
+
+    def update_param(self,pname):
+        if pname in self._params:
+            del self._params[pname]
+            LOGGER.debug('CLEAR PARAM %s',pname)
 
     @property
     def pbft_max_log_size(self):
@@ -229,16 +236,16 @@ class PbftSettingsView:
     
     @property                                                                                         
     def is_leader_shift(self):                                                                           
-        if self._is_leader_shift is None:                                                                
+        if PbftSettingsView.LEADER_SHIFT not in self._params:                                                                
             val = self._get_config_setting(                                                           
-                    name='bgx.fbft.leader_shift',                                                   
+                    name=PbftSettingsView.LEADER_SHIFT,                                                   
                     value_type=int,                                                                   
                     default_value=PbftSettingsView._IS_LEADER_SHIFT_,                                    
                     validate_function=lambda value: value==0 or value==1) 
             
-            self._is_leader_shift = bool(val)                                                            
+            self._params[PbftSettingsView.LEADER_SHIFT] = bool(val)                                                            
                                                                                                       
-        return self._is_leader_shift                                                                     
+        return self._params[PbftSettingsView.LEADER_SHIFT]                                                                     
 
     @property
     def send_batches(self):

@@ -657,6 +657,10 @@ class Gossip(object):
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
 
+    def update_topology_params(self,attributes=None):
+        LOGGER.debug("UPDATE topology params='%s' !!!\n",attributes)
+        self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes)
+
     def get_topology_cache(self):
         topology = self._settings_cache.get_setting(
                 TOPOLOGY_SET_NM,
@@ -673,6 +677,7 @@ class Gossip(object):
         self._stopology = self.get_topology_cache()
         
         self._settings_cache.add_handler(TOPOLOGY_SET_NM,self.update_topology)
+        self._settings_cache.add_handler("bgx.fbft.",self.update_topology_params)
 
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 

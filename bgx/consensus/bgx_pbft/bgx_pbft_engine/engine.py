@@ -1565,7 +1565,10 @@ class PbftEngine(Engine):
 
         elif oper == ConsensusNotifyPeerConnected.DEL_PEER:
             ret,_ = self._oracle.del_peer(pid,val)
-            LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)        
+            LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)  
+        elif oper == ConsensusNotifyPeerConnected.PARAM_UPDATE:
+            LOGGER.debug('PARAM_UPDATE=%s\n',val)
+            self._oracle.update_param(val)
         else:
             return False
         return True

@@ -108,6 +108,7 @@ message ConsensusNotifyPeerConnected {
     DEL_CLUSTER    = 6;
     ADD_PEER       = 7;
     DEL_PEER       = 8;
+    PARAM_UPDATE   = 9;
   }
   enum Modes {
     NORMAL     = 0;

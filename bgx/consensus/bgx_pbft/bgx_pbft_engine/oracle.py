@@ -247,7 +247,9 @@ class PbftOracle:
     
     """
 
-    
+    def update_param(self,pname):
+        return self._pbft_settings_view.update_param(pname)
+
     def get_validator_id(self):
         return self._validator_id 
 

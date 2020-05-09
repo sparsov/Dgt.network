@@ -60,6 +60,21 @@ class ConsensusNotifier:
         else:
             LOGGER.debug('ConsensusNotifier: CANT _notify - no registered engine ')
 
+    def notify_peer_param_update(self, peer_id,cname):
+        """
+        peer change role or became arbiter
+        """
+        LOGGER.debug('ConsensusNotifier: notify_peer_param_update peer_id=%s PARAM=%s',peer_id[:10],cname)
+        self._notify(
+            validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,
+            ConsensusNotifyPeerConnected(
+                peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),
+                status = ConsensusNotifyPeerConnected.PARAM_UPDATE,
+                mode = ConsensusNotifyPeerConnected.NORMAL,
+                info = cname
+                )
+            )
+
     def notify_peer_change_role(self, peer_id,cname,is_arbiter=False):
         """
         peer change role or became arbiter
