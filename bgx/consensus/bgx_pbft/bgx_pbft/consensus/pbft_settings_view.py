@@ -35,7 +35,13 @@ class PbftSettingsView:
     _DAG_STEP_ = 3
     _IS_PBFT_FULL_ = False
     _IS_LEADER_SHIFT_ = False
+    _BLOCK_TIMEOUT_ = 0.5
+    _MAX_BRANCH_ = 6
+    BLOCK_TIMEOUT = 'bgx.consensus.block_timeout'
     LEADER_SHIFT = 'bgx.fbft.leader_shift'
+    PBFT_FULL    = 'bgx.consensus.pbft.full'
+    MAX_BRANCH = 'bgx.dag.max_branch'
+    DAG_STEP = 'bgx.dag.step'
 
     def __init__(self, state_view):
         """Initialize a PbftSettingsView object.
@@ -55,13 +61,10 @@ class PbftSettingsView:
         self._signup_commit_maximum_delay = 2
         self._key_block_claim_limit = 2
         self._block_claim_delay = 2
-        self._dag_step = None
-        self._is_pbft_full = None
-        self._is_leader_shift=None
         self._params = {}
         self._max_branch = None
         self._send_batches = None
-        self._block_timeout = None
+        
 
     def _get_config_setting(self,
                             name,
@@ -203,35 +206,36 @@ class PbftSettingsView:
 
     @property
     def dag_step(self):
-        if self._dag_step is None:
-            self._dag_step = self._get_config_setting(
+        if PbftSettingsView.DAG_STEP not in self._params :
+            self._params[PbftSettingsView.DAG_STEP] = self._get_config_setting(
                     name='bgx.dag.step',
                     value_type=int,
                     default_value=PbftSettingsView._DAG_STEP_,
                     validate_function=lambda value: value)
 
-        return self._dag_step
+        return self._params[PbftSettingsView.DAG_STEP]
     @property
     def max_branch(self):
-        if self._max_branch is None:                                 
-            self._max_branch = self._get_config_setting(             
-                    name='bgx.dag.max_branch',                           
+        if PbftSettingsView.MAX_BRANCH not in self._params:                                 
+            self._params[PbftSettingsView.MAX_BRANCH] = self._get_config_setting(             
+                    name=PbftSettingsView.MAX_BRANCH,                           
                     value_type=int,                                
-                    default_value=6,     
+                    default_value=PbftSettingsView._MAX_BRANCH_,     
                     validate_function=lambda value: value)         
                                                                    
-        return self._max_branch                                      
+        return self._params[PbftSettingsView.MAX_BRANCH] 
     @property
     def is_pbft_full(self):
-        if self._is_pbft_full is None:
+        if PbftSettingsView.PBFT_FULL not in self._params :
             val = self._get_config_setting(
-                    name='bgx.consensus.pbft.full',
+                    name=PbftSettingsView.PBFT_FULL,
                     value_type=int,
                     default_value=PbftSettingsView._IS_PBFT_FULL_,
                     validate_function=lambda value: value==0 or value==1)
-            self._is_pbft_full = bool(val)
 
-        return self._is_pbft_full
+            self._params[PbftSettingsView.PBFT_FULL] = bool(val)
+
+        return self._params[PbftSettingsView.PBFT_FULL]
 
     
     @property                                                                                         
@@ -261,15 +265,15 @@ class PbftSettingsView:
     # bgx.consensus.block_timeout
     @property
     def block_timeout(self):
-        if self._block_timeout is None:
+        if PbftSettingsView.BLOCK_TIMEOUT not in self._params :
             val = self._get_config_setting(
-                    name='bgx.consensus.block_timeout',
+                    name=PbftSettingsView.BLOCK_TIMEOUT,
                     value_type=float,
-                    default_value=0.5,
+                    default_value=PbftSettingsView._BLOCK_TIMEOUT_,
                     validate_function=lambda value: value)
-            self._block_timeout = val
+            self._params[PbftSettingsView.BLOCK_TIMEOUT] = val
 
-        return self._block_timeout
+        return self._params[PbftSettingsView.BLOCK_TIMEOUT] 
 
     @property
     def signup_commit_maximum_delay(self):
