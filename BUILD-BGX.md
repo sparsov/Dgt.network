@@ -129,3 +129,8 @@ export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;do
 # telebot
 docker-compose -f bgx/docker/docker-compose-telebot-bgx.yaml up
 # sudo nmap -sT -p- ntr
+# from branch to master
+#git checkout -b dag origin/dag 
+#git merge -s ours master
+#git checkout master
+#git merge origin dag

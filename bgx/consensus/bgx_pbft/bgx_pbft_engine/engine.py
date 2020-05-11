@@ -806,7 +806,7 @@ class PbftEngine(Engine):
 
     @property
     def block_timeout(self):
-        return self._block_timeout
+        return self._oracle.block_timeout
 
     def belonge_cluster(self,peer_id):
         return peer_id in self._cluster
@@ -1122,7 +1122,7 @@ class PbftEngine(Engine):
         self.arbiters_update()         # ring of arbiter     
         self._cluster = self._oracle.cluster           # own cluster's peers
 
-        self._block_timeout = self._oracle.block_timeout 
+        #self._block_timeout = self._oracle.block_timeout 
         self._send_batches = self._oracle.send_batches 
         self._dag_step = self._oracle.dag_step
         CHAIN_LEN_FOR_BRANCH = self._dag_step

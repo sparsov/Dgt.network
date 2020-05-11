@@ -678,6 +678,7 @@ class Gossip(object):
         
         self._settings_cache.add_handler(TOPOLOGY_SET_NM,self.update_topology)
         self._settings_cache.add_handler("bgx.fbft.",self.update_topology_params)
+        self._settings_cache.add_handler("bgx.consensus.",self.update_topology_params)
 
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
