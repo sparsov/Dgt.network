@@ -175,6 +175,7 @@ services:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - ENDPOINTS=${ENDPOINTS}
     volumes:
       - ../..:/project/${BGX_TOP}
     container_name: validator-bgx-${C}-${N}

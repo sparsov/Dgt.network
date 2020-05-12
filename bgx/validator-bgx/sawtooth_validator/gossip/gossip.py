@@ -171,6 +171,30 @@ class Gossip(object):
         end_host = url.hostname
         self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
         LOGGER.debug("Gossip endpoint=%s component=%s peers=%s is_recovery=%s\n",endpoint,self._component,initial_peer_endpoints,self._is_recovery_func())
+        endpoints = os.environ.get('ENDPOINTS')
+        
+        if endpoints != '':
+            self.update_endpoints(endpoints)
+
+    def update_endpoints(self,val):
+        #LOGGER.debug("Gossip use external ENDPOINTS='%s'",val)
+        try:
+            endpoints = json.loads(val)
+            LOGGER.debug("Load external ENDPOINTS='%s'",endpoints)
+            peers = enumerate(self._initial_peer_endpoints, 0)
+            for endp in endpoints:
+                #LOGGER.debug("Check ENDPOINT '%s'",endp)
+                url = urlparse(endp)
+                nscheme,host,nport = url.scheme, url.hostname, url.port
+                for num, peer in peers:
+                    url = urlparse(peer)
+                    if url.hostname == host:
+                        self._initial_peer_endpoints[num] = "{}://{}:{}".format(url.scheme,host,nport)
+                        LOGGER.debug("Update ENDPOINT '%s'",host)
+                        break
+            LOGGER.debug("New  ENDPOINTS='%s'",self._initial_peer_endpoints)
+        except Exception as ex:
+            LOGGER.debug("Cant load ENDPOINTS from '%s'(%s)",val,ex)
 
     @property
     def component(self):
