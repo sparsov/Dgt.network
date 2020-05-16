@@ -46,7 +46,13 @@ message GetPeersRequest {
 }
 
 message GetPeersResponse {
-    repeated string peer_endpoints = 1;
+enum GetPeersStatus {
+        OK      = 1;
+	PENDING = 2;
+        DENIED  = 3;
+    }
+    GetPeersStatus status = 1;
+    repeated string peer_endpoints = 2;
 }
 
 message PingRequest {

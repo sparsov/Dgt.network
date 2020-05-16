@@ -19,7 +19,7 @@ from collections import namedtuple
 
 StartupState = namedtuple(
     'StartupInfo',
-    ['chain_head', 'peers', 'local_peer_info'])
+    ['chain_head', 'peers', 'local_peer_info','peering_mode'])
 
 
 class Engine(metaclass=abc.ABCMeta):

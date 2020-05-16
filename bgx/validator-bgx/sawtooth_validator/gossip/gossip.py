@@ -177,6 +177,9 @@ class Gossip(object):
             self.update_endpoints(endpoints)
 
     def update_endpoints(self,val):
+        """
+        update list of peers which defined into config
+        """
         #LOGGER.debug("Gossip use external ENDPOINTS='%s'",val)
         try:
             endpoints = json.loads(val)
@@ -186,12 +189,17 @@ class Gossip(object):
                 #LOGGER.debug("Check ENDPOINT '%s'",endp)
                 url = urlparse(endp)
                 nscheme,host,nport = url.scheme, url.hostname, url.port
+                is_update = False
                 for num, peer in peers:
                     url = urlparse(peer)
                     if url.hostname == host:
                         self._initial_peer_endpoints[num] = "{}://{}:{}".format(url.scheme,host,nport)
+                        is_update = True
                         LOGGER.debug("Update ENDPOINT '%s'",host)
                         break
+                if not is_update:
+                    self._initial_peer_endpoints.append("{}://{}:{}".format(nscheme,host,nport))
+
             LOGGER.debug("New  ENDPOINTS='%s'",self._initial_peer_endpoints)
         except Exception as ex:
             LOGGER.debug("Cant load ENDPOINTS from '%s'(%s)",val,ex)
@@ -233,7 +241,20 @@ class Gossip(object):
     @property
     def heads_summary(self):
         return self._get_heads_func(summary=True)
-                                      
+
+    @property
+    def peering_mode(self):
+        return self._peering_mode
+    @property
+    def join_cluster(self):
+        return None
+    @property
+    def KYC(self):
+        return None
+    @property
+    def endpoint(self):
+        return self._endpoint
+
     def set_nests_ready(self):
         self._is_nests_ready = True
 
@@ -424,19 +445,25 @@ class Gossip(object):
             self._consensus_notifier.notify_peer_disconnected(public_key)
 
     def send_peers(self, connection_id):
-        """Sends a message containing our peers to the
+        """
+        Dynamic topology mode
+        Sends a message containing our peers to the
         connection identified by connection_id.
 
         Args:
             connection_id (str): A unique identifier which identifies an
                 connection on the network server socket.
+            
         """
         with self._lock:
-            # Needs to actually be the list of advertised endpoints of
-            # our peers
+            """
+             Needs to actually be the list of advertised endpoints of
+             our peers
+            """
             peer_endpoints = list(self._peers.values())
             if self._endpoint:
                 peer_endpoints.append(self._endpoint)
+            LOGGER.debug("Send peers ENDPOINTS: %s\n", peer_endpoints)
             peers_response = GetPeersResponse(peer_endpoints=peer_endpoints)
             try:
                 # Send a one_way message because the connection will be closed
@@ -449,8 +476,81 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def add_candidate_peer_endpoints(self, peer_endpoints):
-        """Adds candidate endpoints to the list of endpoints to
+    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None):
+        """
+        Dynamic Fbft topology mode
+        Sends a message containing our peers to the
+        connection identified by connection_id.
+
+        Args:
+            connection_id (str): A unique identifier which identifies an
+                connection on the network server socket.
+            pid - public key of peer
+            endpoint - peer endpoint
+            cluster - desire cluster
+            KYC     - KYC of new peer
+        """
+        peer,parent = self._fbft.key_to_peer(pid)
+        if peer is None:
+            # try to find position into public cluster or into private cluster with KYC control
+            status = GetPeersResponse.PENDING
+            if KYC == '':
+                # find place into public cluster
+                cname,parent = self._fbft.get_position_in_public()
+                
+            else:
+                # cluster name should be set
+                cname = None
+                
+            LOGGER.debug("Undefined new peer=%s cluster=%s\n", pid[:8],cname)
+        else:
+            cname = parent[PeerAtr.name]
+            status = GetPeersResponse.OK 
+            LOGGER.debug("New peer=%s cluster=%s (%s)\n", pid[:8],cname,peer)
+            
+
+        with self._lock:
+            """
+             check pid into topology and in case of success make list of peer for peer position into topology
+             Needs to actually be the list of advertised endpoints of
+             our peers
+            """
+            if cname == self._fbft.nest_colour:
+                # this is own cluster of new peer
+                peer_endpoints = list(self._peers.values())
+                if self._endpoint:
+                    peer_endpoints.append(self._endpoint)
+            else:
+                # send redirect
+                peer_endpoints = []
+                leader = self._fbft.get_cluster_leader(parent)
+                if leader and PeerAtr.endpoint in leader:
+                    peer_endpoints.append(leader[PeerAtr.endpoint])
+                    status = GetPeersResponse.REDIRECT
+                elif self._endpoint:
+                    # continue ask my node 
+                    peer_endpoints.append(self._endpoint)
+            
+                
+            LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
+            peers_response = GetPeersResponse(status=status,
+                                              cluster=cname,
+                                              peer_endpoints=peer_endpoints
+                                              )
+            try:
+                # Send a one_way message because the connection will be closed
+                # if this is a temp connection.
+                self._network.send(
+                    validator_pb2.Message.GOSSIP_GET_PEERS_RESPONSE,
+                    peers_response.SerializeToString(),
+                    connection_id,
+                    one_way=True)
+            except ValueError:
+                LOGGER.debug("Connection disconnected: %s", connection_id)
+
+    def add_candidate_peer_endpoints(self, peer_endpoints,status=None):
+        """
+        Adds candidate endpoints to the list of endpoints to
         attempt to peer with.
 
         Args:
@@ -458,13 +558,13 @@ class Gossip(object):
                 validator can attempt to peer with.
         """
         if self._topology:
-            self._topology.add_candidate_peer_endpoints(peer_endpoints)
+            self._topology.add_candidate_peer_endpoints(peer_endpoints,status)
         else:
-            LOGGER.debug("Could not add peer endpoints to topology. "
-                         "ConnectionManager does not exist.")
+            LOGGER.debug("Could not add peer endpoints to topology. ConnectionManager does not exist.")
 
     def get_peers(self,mode = ConsensusNotifyPeerConnected.NORMAL):
-        """Returns a copy of the gossip peers.
+        """
+        Returns a copy of the gossip peers.
         """
         LOGGER.debug("GET PEERS MODE=%s->%s\n",self._malicious,mode)
         if self._malicious != mode:
@@ -1247,10 +1347,7 @@ class ConnectionManager(InstrumentedThread):
                     peers = self._gossip.get_peers()
                     peer_count = len(peers)
                     if peer_count < self._min_peers:
-                        LOGGER.debug(
-                            "Number of peers (%s) below "
-                            "minimum peer threshold (%s). "
-                            "Doing topology search.",
+                        LOGGER.debug("Number of peers (%s) below minimum peer threshold (%s). Doing topology search.",
                             peer_count,
                             self._min_peers)
 
@@ -1263,9 +1360,7 @@ class ConnectionManager(InstrumentedThread):
                         peers = self._gossip.get_peers()
 
                         self._get_peers_of_peers(peers)
-                        self._get_peers_of_endpoints(
-                            peers,
-                            self._initial_seed_endpoints)
+                        self._get_peers_of_endpoints(peers,self._initial_seed_endpoints)
 
                         # Wait for GOSSIP_GET_PEER_RESPONSE messages to arrive
                         time.sleep(self._response_duration)
@@ -1411,14 +1506,16 @@ class ConnectionManager(InstrumentedThread):
                 self._initial_peer_endpoints.remove(endpoint)
                 del self._static_peer_status[endpoint]
 
-    def add_candidate_peer_endpoints(self, peer_endpoints):
-        """Adds candidate endpoints to the list of endpoints to
+    def add_candidate_peer_endpoints(self, peer_endpoints,status=None):
+        """
+        Adds candidate endpoints to the list of endpoints to
         attempt to peer with.
 
         Args:
             peer_endpoints ([str]): A list of public uri's which the
                 validator can attempt to peer with.
         """
+        LOGGER.debug("add_candidate_peer_endpoints: status=%s",status)
         with self._lock:
             for endpoint in peer_endpoints:
                 if endpoint not in self._candidate_peer_endpoints:
@@ -1458,12 +1555,9 @@ class ConnectionManager(InstrumentedThread):
     def _refresh_peer_list(self, peers):
         for conn_id in peers:
             try:
-                self._network.get_connection_id_by_endpoint(
-                    peers[conn_id])
+                self._network.get_connection_id_by_endpoint(peers[conn_id])
             except KeyError:
-                LOGGER.debug("removing peer %s because "
-                             "connection went away",
-                             peers[conn_id])
+                LOGGER.debug("removing peer %s because connection went away",peers[conn_id])
 
                 self._gossip.unregister_peer(conn_id)
                 if conn_id in self._connection_statuses:
@@ -1479,8 +1573,19 @@ class ConnectionManager(InstrumentedThread):
             for connection_id in closed_connections:
                 del self._connection_statuses[connection_id]
 
+    def make_peers_request(self):
+        peers_request = GetPeersRequest(peer_id=bytes.fromhex(self._gossip.validator_id),
+                                            endpoint = self._gossip.endpoint,
+                                            cluster = self._gossip.join_cluster,
+                                            KYC = self._gossip.KYC
+                                            )
+        return peers_request
+
     def _get_peers_of_peers(self, peers):
-        get_peers_request = GetPeersRequest()
+        """
+        for dynamical topology -
+        """
+        get_peers_request = self.make_peers_request()
 
         for conn_id in peers:
             try:
@@ -1488,17 +1593,22 @@ class ConnectionManager(InstrumentedThread):
                     validator_pb2.Message.GOSSIP_GET_PEERS_REQUEST,
                     get_peers_request.SerializeToString(),
                     conn_id)
+                LOGGER.debug("gossip:_get_peers_of_peers conn=%d ",conn_id[:8])
             except ValueError:
                 LOGGER.debug("Peer disconnected: %s", conn_id)
 
     def _get_peers_of_endpoints(self, peers, endpoints):
-        get_peers_request = GetPeersRequest()
+        """
+        for dynamical topology - use initial list of endpoints and send connection request to it
+        in this case endpoints are list of gateway into federation net 
+        """
+        get_peers_request = self.make_peers_request()
+
         LOGGER.debug("gossip:_get_peers_of_endpoints endpoints=%d ",len(endpoints))
         for endpoint in endpoints:
             conn_id = None
             try:
-                conn_id = self._network.get_connection_id_by_endpoint(
-                    endpoint)
+                conn_id = self._network.get_connection_id_by_endpoint(endpoint)
 
             except KeyError:
                 # If the connection does not exist, send a connection request
@@ -1623,7 +1733,7 @@ class ConnectionManager(InstrumentedThread):
     def _remove_temporary_connection(self, connection_id):
         status = self._connection_statuses.get(connection_id)
         if status == PeerStatus.TEMP:
-            LOGGER.debug("Closing connection to %s", connection_id)
+            LOGGER.debug("Closing connection to %s PeerStatus.TEMP", connection_id[:8])
             msg = DisconnectMessage()
             try:
                 self._network.send(validator_pb2.Message.NETWORK_DISCONNECT,msg.SerializeToString(),connection_id)
@@ -1632,9 +1742,9 @@ class ConnectionManager(InstrumentedThread):
             del self._connection_statuses[connection_id]
             self._network.remove_connection(connection_id)
         elif status == PeerStatus.PEER:
-            LOGGER.debug("Connection close request for peer ignored: %s",connection_id)
+            LOGGER.debug("Connection close request for peer ignored: %s",connection_id[:8])
         elif status is None:
-            LOGGER.debug("Connection close request for unknown connection ignored: %s",connection_id)
+            LOGGER.debug("Connection close request for unknown connection ignored: %s",connection_id[:8])
 
     def connect_success(self, connection_id):
         """
@@ -1686,14 +1796,18 @@ class ConnectionManager(InstrumentedThread):
             LOGGER.debug("Connection disconnected: %s", connection_id)
 
     def _connect_success_topology(self, connection_id):
-        LOGGER.debug("Connection to %s succeeded for topology request",connection_id)
+        """
+        for dynamical topology - success request 
+        """
+        LOGGER.debug("Connection to %s succeeded for TOPOLOGY request",connection_id[:8])
 
         self._connection_statuses[connection_id] = PeerStatus.TEMP
-        get_peers_request = GetPeersRequest()
+        get_peers_request = self.make_peers_request()
 
         def callback(request, result):
             # request, result are ignored, but required by the callback
             self._remove_temporary_connection(connection_id)
+            LOGGER.debug("Connection %s succeeded callback TOPOLOGY ",connection_id[:8])
 
         try:
             self._network.send(

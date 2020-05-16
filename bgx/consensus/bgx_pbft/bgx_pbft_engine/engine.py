@@ -808,6 +808,10 @@ class PbftEngine(Engine):
     def block_timeout(self):
         return self._oracle.block_timeout
 
+    @property
+    def is_dynamic_mode(self):
+        return self._peering_mode == 'dynamic'
+
     def belonge_cluster(self,peer_id):
         return peer_id in self._cluster
 
@@ -1095,14 +1099,14 @@ class PbftEngine(Engine):
 
 
     def start(self, updates, service, startup_state):
-        LOGGER.debug('PbftEngine: start service=%s startup_state=%s head=%s.',service,startup_state,startup_state.chain_head)
+        LOGGER.debug('PbftEngine: start service=%s startup_state=%s head=%s peering_mode=%s.',service,startup_state,startup_state.chain_head,startup_state.peering_mode)
         if startup_state.chain_head.previous_id.hex() != NULL_BLOCK_IDENTIFIER:
             self._is_sync = False
             LOGGER.debug('PbftEngine: Not Genisis start SYNC=%s!\n',self._is_sync)
             self._genesis_mode = False
         
 
-
+        self._peering_mode = startup_state.peering_mode
         self._service = service
         self._state_view_factory = _StateViewFactoryProxy(service)
         self._oracle = PbftOracle(
@@ -1151,6 +1155,8 @@ class PbftEngine(Engine):
         #self._service.initialize_block() is None
         if self._cluster_name is None:
             LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
+            if self.is_dynamic_mode:
+                LOGGER.debug("Dynamic mode - waiting position into topology")
         else:
             LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
                      self.arbiters_info,self.is_ready_arbiter
@@ -1176,7 +1182,12 @@ class PbftEngine(Engine):
 
                 #self._try_to_publish()
                 if self._cluster_name is None:
+                    if self.is_dynamic_mode:
+                        # until get position into topology
+                        pass
+
                     continue
+
                 if self.is_real_mode:
                     self._check_block_timeout()
                     self._real_mode()

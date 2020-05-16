@@ -37,8 +37,10 @@ class PbftSettingsView:
     _IS_LEADER_SHIFT_ = False
     _BLOCK_TIMEOUT_ = 0.5
     _MAX_BRANCH_ = 6
+    _MAX_FEDER_PEER_ = 6
     BLOCK_TIMEOUT = 'bgx.consensus.block_timeout'
     LEADER_SHIFT = 'bgx.fbft.leader_shift'
+    MAX_FEDER_PEER = 'bgx.fbft.max_feder_peer'
     PBFT_FULL    = 'bgx.consensus.pbft.full'
     MAX_BRANCH = 'bgx.dag.max_branch'
     DAG_STEP = 'bgx.dag.step'
@@ -250,6 +252,20 @@ class PbftSettingsView:
             self._params[PbftSettingsView.LEADER_SHIFT] = bool(val)                                                            
                                                                                                       
         return self._params[PbftSettingsView.LEADER_SHIFT]                                                                     
+
+
+    @property                                                                                         
+    def max_feder_peer(self):                                                                           
+        if PbftSettingsView.MAX_FEDER_PEER not in self._params:                                                                
+            self._params[PbftSettingsView.MAX_FEDER_PEER] = self._get_config_setting(                                                           
+                    name=PbftSettingsView.MAX_FEDER_PEER,                                                   
+                    value_type=int,                                                                   
+                    default_value=PbftSettingsView._MAX_FEDER_PEER_,                                    
+                    validate_function=lambda value: value==0 or value==1) 
+
+            
+
+        return self._params[PbftSettingsView.MAX_FEDER_PEER]                                                                     
 
     @property
     def send_batches(self):

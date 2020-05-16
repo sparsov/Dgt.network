@@ -34,7 +34,7 @@ class TooManyBranch(Exception):
 
 StartupInfo = namedtuple(
     'SignupInfo',
-    ['chain_head', 'peers', 'local_peer_info'])
+    ['chain_head', 'peers', 'local_peer_info','peering_mode'])
 
 
 class ConsensusProxy:
@@ -69,7 +69,8 @@ class ConsensusProxy:
                 self._gossip.peer_to_public_key(peer)
                 for peer in self._gossip.get_peers()
             ],
-            local_peer_info=self._public_key)
+            local_peer_info=self._public_key,
+            peering_mode = self._gossip.peering_mode) # add marker for dynamic
 
     @property
     def is_recovery(self):

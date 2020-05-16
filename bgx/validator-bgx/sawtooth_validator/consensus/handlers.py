@@ -144,6 +144,7 @@ class ConsensusRegisterHandler(ConsensusServiceHandler):
         ])
 
         response.local_peer_info.peer_id = local_peer_info
+        response.peering_mode = startup_info.peering_mode 
 
         self._consensus_notifier.add_registered_engine(request.name,request.version)
 

@@ -41,12 +41,18 @@ class GetPeersRequestHandler(Handler):
         self._gossip = gossip
 
     def handle(self, connection_id, message_content):
+        """
+        Dynamic topology request
+        """
         request = GetPeersRequest()
         request.ParseFromString(message_content)
-
-        LOGGER.debug("Got peers request message from %s", connection_id)
-
-        self._gossip.send_peers(connection_id)
+        pid = request.peer_id.hex()
+        LOGGER.debug("Got peers request message from %s peer_id=%s cluster='%s' KYC='%s' endpoint='%s'\n", connection_id[:8],pid[:8],request.cluster,request.KYC,request.endpoint)
+        if request.endpoint == '':
+            self._gossip.send_peers(connection_id)
+        else:
+            # fbft dynamic mode
+            self._gossip.send_fbft_peers(connection_id,pid,request.endpoint,request.cluster,request.KYC)
 
         ack = NetworkAcknowledgement()
         ack.status = ack.OK
@@ -62,15 +68,15 @@ class GetPeersResponseHandler(Handler):
         self._gossip = gossip
 
     def handle(self, connection_id, message_content):
+        """
+        reply on my dynamic request about peers 
+        """
         response = GetPeersResponse()
         response.ParseFromString(message_content)
 
-        LOGGER.debug(
-            "Got peers response message from %s. Endpoints: %s",
-            connection_id,
-            response.peer_endpoints)
+        LOGGER.debug("Got peers topology response message from %s. Status=%s cluster=%s Endpoints: %s",connection_id[:8],response.status,response.cluster,response.peer_endpoints)
 
-        self._gossip.add_candidate_peer_endpoints(response.peer_endpoints)
+        self._gossip.add_candidate_peer_endpoints(response.peer_endpoints,response.status)
 
         return HandlerResult(HandlerStatus.PASS)
 

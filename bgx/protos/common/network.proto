@@ -43,10 +43,23 @@ message PeerUnregisterRequest {
 }
 
 message GetPeersRequest {
+bytes  peer_id      = 1; // public key
+string endpoint     = 2; // my own net endpoint
+string cluster      = 3; // desire cluster or None
+string KYC          = 4; // KYC or None
+
 }
 
 message GetPeersResponse {
-    repeated string peer_endpoints = 1;
+    enum GetPeersStatus {
+        OK       = 0;
+	PENDING  = 1;
+	REDIRECT = 2;
+        DENIED   = 3;
+    }
+    GetPeersStatus status  = 1;
+    string         cluster = 2;
+    repeated string peer_endpoints = 3;
 }
 
 message PingRequest {

@@ -281,7 +281,7 @@ class AuthorizationTrustRequestHandler(Handler):
             
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
-                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s",is_outbound_connection, connection_id[:8])
+                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s TRUST",is_outbound_connection, connection_id[:8])
             except KeyError:
                 # Connection has gone away, drop message
                 LOGGER.debug("Connection has gone away, drop message conn=%s", connection_id[:8])
@@ -299,7 +299,7 @@ class AuthorizationTrustRequestHandler(Handler):
         auth_trust_response = AuthorizationTrustResponse(
             roles=[RoleType.Value("NETWORK")])
 
-        LOGGER.debug("Connection: %s is approved roles", connection_id)
+        LOGGER.debug("Connection: %s is approved roles", connection_id[:8])
 
         self._network.update_connection_status(
             connection_id,
@@ -438,7 +438,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
             
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
-                LOGGER.debug("connection if they initialized the connection outbound=%s conn=%s",is_outbound_connection, connection_id[:8])
+                LOGGER.debug("connection if they initialized the connection outbound=%s conn=%s AUTHORIZATION",is_outbound_connection, connection_id[:8])
             except KeyError:
                 # Connection has gone away, drop message
                 return HandlerResult(HandlerStatus.DROP)

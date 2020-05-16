@@ -120,7 +120,8 @@ class ZmqDriver(Driver):
                 return StartupState(
                     response.chain_head,
                     response.peers,
-                    response.local_peer_info)
+                    response.local_peer_info,
+                    response.peering_mode)
 
             raise exceptions.ReceiveError(
                 'Registration failed with status {}'.format(response.status))

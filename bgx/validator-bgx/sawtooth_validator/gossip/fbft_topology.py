@@ -47,8 +47,10 @@ class PeerAtr():
     delegate   = 'delegate'
     genesis    = 'genesis'
     ptype      = 'type'
-    pid        = 'pid'   
-
+    pid        = 'pid' 
+    public     = 'public'  
+    KYC        = 'KYC'
+    maxpeer    = 'maxpeer'
 
 
 class FbftTopology(object):
@@ -67,6 +69,7 @@ class FbftTopology(object):
         self._endpoint = None
         self._arbiters = {}    # my arbiters 
         self._leaders  = {}    # leadres of other clusters
+        self._publics  = []    # public clusters
         self._cluster = None   # own cluster
         self._topology  = {PeerAtr.children:{}}
         self._nosync = False
@@ -131,6 +134,23 @@ class FbftTopology(object):
         #check children FIXME    
         return iter_topology(self._topology[PeerAtr.children] if root is None else root)
 
+
+    def get_topology_iter1(self, root=None):
+        # search peer and its cluster
+        def iter_topology(children,parent):
+            for key,peer in children.items():
+                #print("iter_topology key ",key)
+                yield key,(peer,parent)
+                if isinstance(peer,dict) and PeerAtr.cluster in peer :
+                    cluster = peer[PeerAtr.cluster]
+                    if PeerAtr.name in cluster and PeerAtr.children in cluster:
+                        #LOGGER.debug("iter_topology >>> %s",cluster['name'])
+                        yield from iter_topology(cluster[PeerAtr.children],cluster)
+                        #LOGGER.debug("iter_topology <<< %s",cluster['name'])
+
+        #check children FIXME    
+        return iter_topology(self._topology[PeerAtr.children],self._topology) # if root is None else root)
+
     def __iter__(self):
         return self.get_topology_iter()
 
@@ -142,6 +162,12 @@ class FbftTopology(object):
         if cluster is None:
             cluster = self.get_cluster_by_name(cname)
         return iter_cluster(cluster[PeerAtr.children]) if cluster else []
+
+    def get_cluster_leader(self,cluster):
+        for key,peer in cluster[PeerAtr.children].items():
+            if peer[PeerAtr.role] == PeerRole.leader :
+                return peer
+        return None
 
     def change_cluster_leader(self,cname,npeer):
         """
@@ -381,6 +407,20 @@ class FbftTopology(object):
                 return peer
         return None
 
+    def key_to_peer(self,peer_key):
+        # get peer and it cluster by key 
+        for key,peer in self.get_topology_iter1():
+            if (key == peer_key):
+                return peer
+        return None,None
+    def get_position_in_public(self):
+        
+        for cluster in self._publics:
+            pmax = (cluster[PeerAtr.maxpeer] if PeerAtr.maxpeer in cluster else 7)
+            LOGGER.debug('check : cluster=%s peers=%s~%s',cluster[PeerAtr.name],len(cluster[PeerAtr.children]),pmax)
+            if len(cluster[PeerAtr.children]) < (cluster[PeerAtr.maxpeer] if PeerAtr.maxpeer in cluster else 7):
+                return cluster[PeerAtr.name],cluster
+        return None,None
     def peer_to_cluster_name(self,peer_key):
         if peer_key == TOPOLOGY_GENESIS_HEX:
             return 'Genesis'
@@ -398,7 +438,7 @@ class FbftTopology(object):
             return True
         LOGGER.debug('peer_is_leader: is not leader=%s',peer_key[:8])
         return False
-
+    
     def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):
         
         for key,peer in self.get_topology_iter():
@@ -422,6 +462,8 @@ class FbftTopology(object):
         return None
 
     def get_peer(self,peer_key):
+        if self._cluster is None:
+            return None
         if peer_key in self._cluster:
             peer = self._cluster[peer_key]
             return peer
@@ -551,6 +593,9 @@ class FbftTopology(object):
                 if PeerAtr.cluster in peer:
                     cluster = peer[PeerAtr.cluster]
                     if PeerAtr.name in cluster and PeerAtr.children in cluster:
+                        if PeerAtr.public in cluster and cluster[PeerAtr.public]:
+                            # add public cluster into list
+                            self._publics.append(cluster)
                         get_arbiters(key,cluster[PeerAtr.name],cluster[PeerAtr.children])
 
         #topology = json.loads(stopology)
@@ -584,7 +629,7 @@ class FbftTopology(object):
                                     'KYCKey'  : '0ABD7E'
 
             }
-            LOGGER.debug('Arbiters RING=%s GENESIS=%s',self._arbiters,self.genesis_node[:8])
+            LOGGER.debug('Arbiters RING=%s GENESIS=%s PUBLICS=%s', self._arbiters, self.genesis_node[:8], len(self._publics))
 
 
 
