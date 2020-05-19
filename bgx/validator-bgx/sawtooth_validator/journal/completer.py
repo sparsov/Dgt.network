@@ -62,6 +62,7 @@ class Completer(object):
             TimedCaches.
         """
         self.gossip = gossip
+        
         self.batch_cache = TimedCache(cache_keep_time, cache_purge_frequency)
         self.block_cache = BlockCache(block_store,
                                       cache_keep_time,
@@ -81,6 +82,7 @@ class Completer(object):
         self._is_nests_ready = None
         self._incomplete_loop = False
         self.lock = RLock()
+        self.gossip.set_add_batch(self.add_batch)
 
     @property
     def incomplete_blocks(self):

@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.join(TOP_DIR,'bgx','consensus'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','consensus','pbft'))
 sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
 sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','cli'))
 
 from sawtooth_validator.server.cli import main
 

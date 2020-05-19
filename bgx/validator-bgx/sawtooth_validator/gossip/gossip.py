@@ -46,6 +46,7 @@ from sawtooth_validator.exceptions import PeeringException
 from sawtooth_validator.networking.interconnect import get_enum_name
 # FBFT topology
 from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM
+from bgx_cli.make_set_txn import _create_batch,_create_topology_txn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -147,6 +148,8 @@ class Gossip(object):
         self._topology = None
         self._peers = {}
         self._peer_id = int(time.time())
+        self._signer = self._network.signer # for sign transaction
+
         # feder topology
         self._is_federations_assembled = False # point of assemble
         self._fbft = FbftTopology()            # F-BFT topology
@@ -161,6 +164,8 @@ class Gossip(object):
         self._is_send_block_request = False
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         self._unsync_peers = {}                # list unsync  peers
+        self._add_batch = None
+
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -254,6 +259,9 @@ class Gossip(object):
     @property
     def endpoint(self):
         return self._endpoint
+
+    def set_add_batch(self,add_batch):
+        self._add_batch = add_batch
 
     def set_nests_ready(self):
         self._is_nests_ready = True
@@ -501,7 +509,11 @@ class Gossip(object):
             else:
                 # cluster name should be set
                 cname = None
-                
+            if cname:
+                batch = self.add_peer_batch(parent,cname,pid,KYC)
+                LOGGER.debug("batch add peer=%s",batch)
+                self._add_batch(batch,('',0,0))
+
             LOGGER.debug("Undefined new peer=%s cluster=%s\n", pid[:8],cname)
         else:
             cname = parent[PeerAtr.name]
@@ -517,9 +529,13 @@ class Gossip(object):
             """
             if cname == self._fbft.nest_colour:
                 # this is own cluster of new peer
-                peer_endpoints = list(self._peers.values())
-                if self._endpoint:
-                    peer_endpoints.append(self._endpoint)
+                if peer:
+                    # there is position for peer
+                    peer_endpoints = list(self._peers.values())
+                    if self._endpoint:
+                        peer_endpoints.append(self._endpoint)
+                else:
+                    peer_endpoints = []
             else:
                 # send redirect
                 peer_endpoints = []
@@ -784,6 +800,17 @@ class Gossip(object):
     def update_topology_params(self,attributes=None):
         LOGGER.debug("UPDATE topology params='%s' !!!\n",attributes)
         self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes)
+
+    def add_peer_batch(self,cluster,cname,pid,KYC):
+        # make batch for adding new peer into topology 
+        pname = "{}_{}".format(cname,len(cluster[PeerAtr.children])+1)
+        npeer = "{'"+str(pid)+"':{'role':'plink','type':'peer','name':'"+pname+"'}}"
+        param = {'oper':'add','cluster':cname,'list':npeer}
+        
+        val = json.dumps(param, sort_keys=True, indent=4)
+        txns = [_create_topology_txn(self._signer, (TOPOLOGY_SET_NM,val))]
+        batch = _create_batch(self._signer, txns)
+        return batch
 
     def get_topology_cache(self):
         topology = self._settings_cache.get_setting(
@@ -1307,6 +1334,7 @@ class ConnectionManager(InstrumentedThread):
         self._endpoint = endpoint
         self._initial_peer_endpoints = initial_peer_endpoints
         self._initial_seed_endpoints = initial_seed_endpoints
+        self._redirect_seed_endpoints = []  # seed which is leared of our cluster
         self._peering_mode = peering_mode
         self._min_peers = min_peers
         self._max_peers = max_peers
@@ -1322,6 +1350,7 @@ class ConnectionManager(InstrumentedThread):
         self._federations_timeout = federations_timeout
         self._check_time = 0
         self._peer_timeout = 0
+        self._dstatus = None
 
     @property
     def is_federations_assembled(self):
@@ -1343,6 +1372,11 @@ class ConnectionManager(InstrumentedThread):
         while not self._stopped:
             try:
                 if self._peering_mode == 'dynamic':
+                    self.dynamic_peering()
+                elif self._peering_mode == 'static':
+                    self.retry_static_peering()
+                elif self._peering_mode == 'sdynamic':
+                    # sawtooth dynamic peering
                     self._refresh_peer_list(self._gossip.get_peers())
                     peers = self._gossip.get_peers()
                     peer_count = len(peers)
@@ -1376,11 +1410,10 @@ class ConnectionManager(InstrumentedThread):
                         LOGGER.debug("Peers are: %s. Unpeered candidates are: %s",peered_endpoints,unpeered_candidates)
 
                         if unpeered_candidates:
-                            self._attempt_to_peer_with_endpoint(
-                                random.choice(unpeered_candidates))
+                            # connect with new peers in PEERING mode not TOPOLOGY
+                            self._attempt_to_peer_with_endpoint(random.choice(unpeered_candidates))
 
-                if self._peering_mode == 'static':
-                    self.retry_static_peering()
+                
 
                 time.sleep(self._check_frequency)
             except Exception:  # pylint: disable=broad-except
@@ -1403,6 +1436,70 @@ class ConnectionManager(InstrumentedThread):
             except ValueError:
                 # Connection has already been disconnected.
                 pass
+
+    def dynamic_peering(self):
+        """
+        Fbft dynamic peering  
+        first step we connect to gateway and get position into topology or REDIRECT or DENIED or PENDING (for instance in case our cluster not ready yet)
+        next step we connect to own cluster leader and get all peers which we should know
+        in case if gateway is leader we after first step will get info about own cluster
+        """   
+        
+        self._refresh_peer_list(self._gossip.get_peers())                                                              
+        peers = self._gossip.get_peers()                                                                               
+        peer_count = len(peers)                                                                                        
+        if self._dstatus != GetPeersResponse.JOINED:                                                                               
+            LOGGER.debug("Number of peers (%s) below minimum peer threshold (%s). Doing topology search status=%s.",peer_count,self._min_peers,self._dstatus)                                                                                       
+            if self._dstatus != GetPeersResponse.OK:                                                                                                           
+                self._reset_candidate_peer_endpoints()                                                                     
+            self._refresh_peer_list(peers)                                                                             
+            # Cleans out any old connections that have disconnected  
+                                                              
+            self._refresh_connection_list()                                                                            
+            self._check_temp_endpoints()                                                                               
+                                                                                                                       
+            peers = self._gossip.get_peers()                                                                           
+                                                                                                                       
+            self._get_peers_of_peers(peers)  
+            if self._dstatus is None:
+                self._get_peers_of_endpoints(peers,self._initial_seed_endpoints)                                           
+                                                                                                                       
+            # Wait for GOSSIP_GET_PEER_RESPONSE messages to arrive                                                     
+            time.sleep(self._response_duration)                                                                        
+                                                                                                                       
+            peered_endpoints = list(peers.values())                                                                    
+                                                                                                                       
+            with self._lock: 
+                status = self._dstatus                                                                                          
+                unpeered_candidates = list(                                                                            
+                    set(self._candidate_peer_endpoints) -                                                              
+                    set(peered_endpoints) -                    # already known peers                                                        
+                    set([self._endpoint]))                                                                             
+                                                                                                                       
+            LOGGER.debug("Status=%s Peers are: %s. Unpeered candidates are: %s",status,peered_endpoints,unpeered_candidates)            
+                                                                                                                       
+            #if unpeered_candidates: 
+                # connect with new peers in PEERING mode not TOPOLOGY  
+                # in case   we have position in topology  
+            if status == GetPeersResponse.OK:
+                LOGGER.debug("JOINED to cluster success unpeered=%s candidate=%s",unpeered_candidates,self._candidate_peer_endpoints) 
+                if unpeered_candidates:
+                    self._attempt_to_peer_with_endpoint(random.choice(unpeered_candidates)) 
+                with self._lock:
+                    self._dstatus = GetPeersResponse.JOINED
+
+            elif status == GetPeersResponse.REDIRECT :
+                # go to cluster which promise give me position into topology
+                LOGGER.debug("REDIRECT to cluster %s for position into topology",unpeered_candidates) 
+                self._redirect_seed_endpoints.append(unpeered_candidates[0])
+                if unpeered_candidates:
+                    self._get_peers_of_endpoints(peers,unpeered_candidates)
+
+            elif status == GetPeersResponse.PENDING and len(self._redirect_seed_endpoints) > 0:
+                # ping until get position into topology
+                self._get_peers_of_endpoints(peers,self._redirect_seed_endpoints)
+        else:
+            LOGGER.debug("JOINED CLUSTER ..")
 
     def retry_static_peering(self):
         """
@@ -1515,11 +1612,18 @@ class ConnectionManager(InstrumentedThread):
             peer_endpoints ([str]): A list of public uri's which the
                 validator can attempt to peer with.
         """
-        LOGGER.debug("add_candidate_peer_endpoints: status=%s",status)
+        LOGGER.debug("add_candidate_peer_endpoints: status=%s->%s candidate=%s",status,self._dstatus,self._candidate_peer_endpoints)
         with self._lock:
+            if status == GetPeersResponse.REDIRECT:
+                # go to the redirect peer, which know all peers for us
+                self._candidate_peer_endpoints = []
+            if  self._dstatus != GetPeersResponse.JOINED:
+                # set current state of 
+                self._dstatus = status
             for endpoint in peer_endpoints:
                 if endpoint not in self._candidate_peer_endpoints:
                     self._candidate_peer_endpoints.append(endpoint)
+        LOGGER.debug("add_candidate_peer_endpoints: candidate=%s",self._candidate_peer_endpoints)
 
     def set_connection_status(self, connection_id, status):
         self._connection_statuses[connection_id] = status
@@ -1549,8 +1653,8 @@ class ConnectionManager(InstrumentedThread):
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         endpoint_info.status,
                         time.time(),
-                        min(endpoint_info.retry_threshold * 2,
-                            MAXIMUM_RETRY_FREQUENCY))
+                        min(endpoint_info.retry_threshold * 2,MAXIMUM_RETRY_FREQUENCY)
+                        )
 
     def _refresh_peer_list(self, peers):
         for conn_id in peers:
@@ -1574,6 +1678,9 @@ class ConnectionManager(InstrumentedThread):
                 del self._connection_statuses[connection_id]
 
     def make_peers_request(self):
+        """
+        request for position into topology
+        """
         peers_request = GetPeersRequest(peer_id=bytes.fromhex(self._gossip.validator_id),
                                             endpoint = self._gossip.endpoint,
                                             cluster = self._gossip.join_cluster,
@@ -1615,7 +1722,7 @@ class ConnectionManager(InstrumentedThread):
                 with self._lock:
                     if endpoint in self._temp_endpoints:
                         del self._temp_endpoints[endpoint]
-
+                    LOGGER.debug("Send a TOPOLOGY connection request endpoint=%s\n",endpoint)
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.TOPOLOGY,
                         time.time(),

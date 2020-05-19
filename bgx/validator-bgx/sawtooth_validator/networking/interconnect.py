@@ -707,6 +707,10 @@ class Interconnect(object):
         return self._signer.get_public_key().as_hex()
 
     @property
+    def signer(self):
+        return self._signer
+
+    @property
     def roles(self):
         return self._roles
 
