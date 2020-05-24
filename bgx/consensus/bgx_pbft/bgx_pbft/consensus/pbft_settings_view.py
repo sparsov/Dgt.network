@@ -17,7 +17,7 @@ import math
 import logging
 
 from bgx_pbft.state.settings_view import SettingsView
-
+from sawtooth_validator.gossip.fbft_topology import TOPOLOGY_SET_NM
 LOGGER = logging.getLogger(__name__)
 
 
@@ -112,6 +112,8 @@ class PbftSettingsView:
         if pname in self._params:
             del self._params[pname]
             LOGGER.debug('CLEAR PARAM %s',pname)
+            return True
+        return False
 
     @property
     def pbft_max_log_size(self):
@@ -197,14 +199,16 @@ class PbftSettingsView:
     def pbft_nodes(self):
         """Return nodes list.
         """
-        if self._nodes is None:
-            self._nodes = self._get_config_setting(
-                    name='bgx.consensus.pbft.nodes',
+        if TOPOLOGY_SET_NM not in self._params:
+            #self._settings_view.get_setting.cache_clear()
+            #self._settings_view.get_setting.cache_info()
+            self._params[TOPOLOGY_SET_NM] = self._get_config_setting(
+                    name=TOPOLOGY_SET_NM,
                     value_type=str,
                     default_value=PbftSettingsView._NODES_,
                     validate_function=lambda value: value)
 
-        return self._nodes
+        return self._params[TOPOLOGY_SET_NM]
 
     @property
     def dag_step(self):
@@ -288,7 +292,7 @@ class PbftSettingsView:
                     default_value=PbftSettingsView._BLOCK_TIMEOUT_,
                     validate_function=lambda value: value)
             self._params[PbftSettingsView.BLOCK_TIMEOUT] = val
-
+            LOGGER.debug('block_timeout  new=%s',val)
         return self._params[PbftSettingsView.BLOCK_TIMEOUT] 
 
     @property

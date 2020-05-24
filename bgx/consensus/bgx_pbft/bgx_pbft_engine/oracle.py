@@ -78,14 +78,15 @@ class PbftOracle:
     """
     CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
-    def __init__(self, service, component_endpoint,config_dir, data_dir, key_dir):
+    def __init__(self, service, component_endpoint,config_dir, data_dir, key_dir,peering_mode):
         
+        self._peering_mode = peering_mode
         self._config_dir = config_dir
         self._data_dir = data_dir
         self._service = service
         LOGGER.debug('Stream key_dir=%s',key_dir)
         self._signer = _load_identity_signer(key_dir, 'validator')
-        #self._setting_signer = _load_identity_signer('/root/.sawtooth/keys', 'my_key')
+        #self._setting_signer = _load_identity_signer('/root/.dgt/keys', 'my_key')
         self._validator_id = self._signer.get_public_key().as_hex()
 
         LOGGER.debug('Stream component_endpoint=%s ',component_endpoint)
@@ -102,38 +103,19 @@ class PbftOracle:
                 state_view_factory=self._state_view_factory)
 
         self._pbft_settings_view = PbftSettingsView(state_view)
-        nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
         self._authorized_keys = self._pbft_settings_view.authorized_keys
         LOGGER.debug("authorized_keys=%s\n",self._authorized_keys)
         #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
-        self._fbft = FbftTopology()
-        #self._nodes = json.loads(nodes)
-        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static')
-        LOGGER.debug('nodes=%s',nodes)
-        """
-        because we have some clusters we should search itself into nodes tree
-        and for node of cluster we should know : parent and name of cluster,list of nodes which belonge our cluster,this node type
-        """
-        """
-        self._node = None
-        self._genesis_node = None
-        self._cluster_name = None
-        self._cluster = {}
-        self._arbiters = {} # ring of arbiters
-        if 'name' in self._nodes:
-            self._genesis  = self._nodes['name'] # genesis cluster
-            self.get_cluster_info(None,None,self._nodes['name'],self._nodes['children'])
-            self.get_arbiters(None,self._nodes['name'],self._nodes['children'])
-        else:
-            self._genesis = 'UNDEF'      
-            self._genesis_node = 'UNDEF' 
-        #self._node = self._nodes[self._validator_id] if self._validator_id in self._nodes else 'plink'
-        #LOGGER.debug('_validator_id=%s is [%s] cluster=%s',self._validator_id,self._node['role'],self._node['cluster'])
-        """
+        self.get_topology()
         self._canceled = False
         #sid = self.get_validator_id().encode()
         #sidd = sid.decode()
         #LOGGER.debug('PbftOracle:: _validator_id %s %s..%s',sid,sidd[:8],sidd[-8:])
+    def get_topology(self):
+        nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
+        self._fbft = FbftTopology()
+        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static')
+        LOGGER.debug('nodes=%s tout=%s',nodes,self._pbft_settings_view.block_timeout)
 
     @property
     def dag_step(self):
@@ -161,7 +143,7 @@ class PbftOracle:
     @property
     def cluster(self):
         #LOGGER.debug('CLUSTER: %s ~ %s\n', self._fbft.cluster, self._cluster)
-        return self._fbft.cluster
+        return self._fbft.cluster if self._fbft.cluster else {}
 
     @property
     def genesis(self):
@@ -197,58 +179,12 @@ class PbftOracle:
     @property
     def authorized_keys(self):
         return self._authorized_keys
-    """
-    def get_arbiters(self,arbiter_id,name,children):
-        # make ring of arbiter - add only arbiter from other cluster
-        LOGGER.debug('get arbiters: cluster=%s children=%s self=%s',name,len(children),self._cluster_name)
-        for key,val in children.items():
-            if self._cluster_name != name:
-                # check only other cluster and add delegate
-                if 'delegate' in val:
-                    self._arbiters[key] = ('delegate',ConsensusNotifyPeerConnected.STATUS_UNSET,name)
-
-            if self._genesis_node is None and 'genesis' in val:
-                # this is genesis node of all network
-                self._genesis_node = key
-
-            if 'cluster' in val:
-                cluster = val['cluster']
-                if 'name' in cluster and 'children' in cluster:
-                    self.get_arbiters(key,cluster['name'],cluster['children'])
-                    
-    
-    def get_cluster_info(self,arbiter_id,parent_name,name,children):
-        LOGGER.debug('cluster_info=%s children=%s',name,len(children))
-        for key,val in children.items():
-            LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
-            if self._node is None and key == self._validator_id:
-                #
-                #this is me - stop searching
-                #set own node type and cluster info
-                #
-                self._node = val['role'] if 'role' in val else 'plink'
-                #
-                #if arbiter_id is not None:
-                #    self._arbiters[arbiter_id] = ('arbiter',False,parent_name)  # type of arbiter and status(not ready)
-                #
-                self._cluster = children
-                self._cluster_name = name 
-                LOGGER.debug('Found own validator_id=%s is [%s] cluster=%s name=%s nodes=%s',self._validator_id,self._node,arbiter_id[:8] if arbiter_id else None,name,len(self._cluster))
-                return
-           
-            if 'cluster' in val:
-                cluster = val['cluster']
-                if 'name' in cluster and 'children' in cluster:
-                    self.get_cluster_info(key,name,cluster['name'],cluster['children'])
-                    if self._node is not None:
-                        return
-                else:
-                    LOGGER.debug('IGNORE bad cluster_info for node=%s:%s',name,key[:8])
-    
-    """
 
     def update_param(self,pname):
-        return self._pbft_settings_view.update_param(pname)
+        if self._pbft_settings_view.update_param(pname) :
+            if pname == TOPOLOGY_SET_NM and self._peering_mode == 'dynamic':
+                LOGGER.debug('UPDATE TOPOLOGY\n')
+                self.get_topology()
 
     def get_validator_id(self):
         return self._validator_id 
@@ -389,7 +325,7 @@ class PbftOracle:
         LOGGER.debug('PbftOracle: switch_forks %s signer=%s~%s',cur_fork_head,cur_fork_head.signer_id.hex()[:8],new_fork_head.signer_id.hex()[:8])
         if new_fork_head.block_num == 0 and new_fork_head.block_num == cur_fork_head.block_num:
             # use genesis block from 
-            is_genesis_node = new_fork_head.signer_id.hex() == self.genesis_node
+            is_genesis_node = new_fork_head.signer_id.hex() == self.genesis_node or (self._peering_mode == 'dynamic')
             LOGGER.debug('PbftOracle: IS GENESIS_NODE=%s',is_genesis_node)
             return True if is_genesis_node else False
 

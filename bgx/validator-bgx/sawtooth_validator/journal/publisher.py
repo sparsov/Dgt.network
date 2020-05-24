@@ -649,7 +649,11 @@ class BlockPublisher(object):
     def belong_cluster(self,peer_id):
         LOGGER.debug('Check CLUSTER for peer_id=%s',peer_id[:8])
         return (peer_id in self._topology.cluster) if self._topology.cluster else True
-    
+
+    def on_topology_updated(self):
+        LOGGER.debug('ON_TOPOLOGY_UPDATED \n')
+        self.get_topology_info()
+
     def get_topology_info(self):
         """
         get topology info - we should know own nests color

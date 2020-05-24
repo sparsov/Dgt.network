@@ -260,6 +260,10 @@ class Gossip(object):
     def endpoint(self):
         return self._endpoint
 
+    @property
+    def peers_info(self):
+        return [cid[:8]+":"+endpoint for cid,endpoint in self._peers.items()]
+
     def set_add_batch(self,add_batch):
         self._add_batch = add_batch
 
@@ -416,6 +420,10 @@ class Gossip(object):
                     if (ctime - stime) > SYNC_CHECK_TOUT:
                         LOGGER.debug("TRY SYNC WITH peer=%s\n",endpoint)
                         self.sync_to_peer_with_endpoint(endpoint)
+
+    def peer_is_visible_for_me(self,public_key):
+        is_arbiter = public_key in self._fbft.arbiters
+        return public_key in self._fbft.cluster or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key))
 
     def notify_peer_connected(self,public_key,assemble=False,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
@@ -582,9 +590,10 @@ class Gossip(object):
         """
         Returns a copy of the gossip peers.
         """
-        LOGGER.debug("GET PEERS MODE=%s->%s\n",self._malicious,mode)
+        
         if self._malicious != mode:
             # say engine about new mode
+            LOGGER.debug("GET PEERS MODE=%s->%s\n",self._malicious,mode)
             self._malicious = mode
             self.notify_peer_connected(self.validator_id,assemble=True,mode=mode)
 
@@ -766,7 +775,11 @@ class Gossip(object):
         topology was update
         """
         LOGGER.debug("UPDATE topology attributes=%s!!!\n",attributes)
-        if attributes[0].key == 'oper':
+        if len(attributes) == 0:
+            # full update
+            self.reload_topology()
+            self.update_topology_params(TOPOLOGY_SET_NM) 
+        elif attributes[0].key == 'oper':
             oper = attributes[0].value
             if oper in ['lead','arbiter','cluster','cdel']:
                 if attributes[1].key == 'cluster' and attributes[2].key == 'peer': 
@@ -802,7 +815,7 @@ class Gossip(object):
         self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes)
 
     def add_peer_batch(self,cluster,cname,pid,KYC):
-        # make batch for adding new peer into topology 
+        # make batch for adding new peer into topology - gateway dynamic mode
         pname = "{}_{}".format(cname,len(cluster[PeerAtr.children])+1)
         npeer = "{'"+str(pid)+"':{'role':'plink','type':'peer','name':'"+pname+"'}}"
         param = {'oper':'add','cluster':cname,'list':npeer}
@@ -819,6 +832,15 @@ class Gossip(object):
                 default_value='{}'
             ).replace("'",'"')
         return topology 
+
+    def reload_topology(self):
+        self._stopology = self.get_topology_cache()
+        self._ftopology = json.loads(self._stopology)
+        fbft = FbftTopology()
+        fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode)
+        with self._lock:
+            self._fbft = fbft
+        LOGGER.debug("RELOAD topology=%s\n",self._ftopology)
 
     def load_topology(self):
         if self._stopology is not None :
@@ -911,13 +933,13 @@ class Gossip(object):
         
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
-                LOGGER.debug("Register endpoint=%s component=%s assembled=%s sync=%s SYNC=%s peers=%s",endpoint,component,self.is_federations_assembled,sync,self.is_sync,[cid[:8] for cid in self._peers])
+                LOGGER.debug("Register endpoint=%s component=%s assembled=%s sync=%s SYNC=%s peers=%s",endpoint,component,self.is_federations_assembled,sync,self.is_sync,self.peers_info)
                 self._peers[connection_id] = endpoint
                 if self._topology:
                     self._topology.set_connection_status(connection_id,PeerStatus.PEER)
                 else:
                      LOGGER.debug("Can't set connection status for  endpoint=%s(TOO EARLY)\n",endpoint)
-                LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id, endpoint, self._peers)
+                LOGGER.debug("Added connection_id %s with endpoint %s, connected identities are now=%s",connection_id[:8], endpoint, self.peers_info)
             else:
                 raise PeeringException("At maximum configured number of peers: {} Rejecting peering request from {}.".format(self._maximum_peer_connectivity,endpoint))
 
@@ -948,6 +970,11 @@ class Gossip(object):
 
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)
+                if peer and self.peer_is_visible_for_me(public_key) and endpoint not in self._initial_peer_endpoints:
+                    # if this peer belonge our cluster make connection with them 
+                    LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER", public_key[:8], endpoint)
+                    self._topology.add_visible_peer(endpoint)
+
             if self.is_federations_assembled and (status_updated or component is not None):
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
             
@@ -1029,6 +1056,22 @@ class Gossip(object):
         if self._fbft.genesis_node == self.validator_id :
             # this is genesis peer - make nests 
             LOGGER.debug("switch_on_federations make NESTS for genesis=%s SYNC=%s",self.validator_id[:8],self.is_sync)
+
+    def dyn_switch_on_federations(self,endpoint):
+        """
+        send request about block HEAD
+        that topology point of assemble after that we suppose all appeared peers inconsistent 
+        """
+        leader_cid = None
+        with self._lock:
+            for cid,endp in self._peers.items():
+                if endp == endpoint:
+                    leader_cid = cid
+                    break
+        if leader_cid:
+            # ask head from leader
+            self._is_federations_assembled = True
+            self.send_block_request("HEAD", cid)
 
     def get_time_to_live(self):
         time_to_live = \
@@ -1356,6 +1399,23 @@ class ConnectionManager(InstrumentedThread):
     def is_federations_assembled(self):
         return self._gossip.is_federations_assembled
 
+    def add_visible_peer(self,endpoint):
+        """
+        appeared new peer which is visible
+        """
+        with self._lock:
+            self._initial_peer_endpoints.append(endpoint)
+            self._static_peer_status[endpoint] = StaticPeerInfo(
+                    time=0,
+                    retry_threshold=INITIAL_RETRY_FREQUENCY,
+                    count=0)
+            self._network.add_outbound_connection(endpoint)
+            self._temp_endpoints[endpoint] = EndpointInfo(
+                        EndpointStatus.PEERING,
+                        time.time(),
+                        INITIAL_RETRY_FREQUENCY)
+        LOGGER.debug("ADD VISIBLE PEER=%s",endpoint)
+
     def start(self):
         # First, attempt to connect to explicit peers
         
@@ -1483,10 +1543,12 @@ class ConnectionManager(InstrumentedThread):
                 # in case   we have position in topology  
             if status == GetPeersResponse.OK:
                 LOGGER.debug("JOINED to cluster success unpeered=%s candidate=%s",unpeered_candidates,self._candidate_peer_endpoints) 
-                if unpeered_candidates:
-                    self._attempt_to_peer_with_endpoint(random.choice(unpeered_candidates)) 
                 with self._lock:
                     self._dstatus = GetPeersResponse.JOINED
+                if unpeered_candidates:
+                    for candidate in unpeered_candidates:
+                        self._attempt_to_peer_with_endpoint(candidate) # random.choice(unpeered_candidates)) 
+                
 
             elif status == GetPeersResponse.REDIRECT :
                 # go to cluster which promise give me position into topology
@@ -1499,7 +1561,11 @@ class ConnectionManager(InstrumentedThread):
                 # ping until get position into topology
                 self._get_peers_of_endpoints(peers,self._redirect_seed_endpoints)
         else:
-            LOGGER.debug("JOINED CLUSTER ..")
+            if not self.is_federations_assembled and not self._gossip._is_recovery_func():
+                LOGGER.debug("JOINED:ready ask head peers=%s redirect=%s.",self._gossip.peers_info,self._redirect_seed_endpoints)
+                self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0])
+            
+                
 
     def retry_static_peering(self):
         """
@@ -1541,7 +1607,8 @@ class ConnectionManager(InstrumentedThread):
                 if connection_id is not None:
                     if connection_id in self._connection_statuses:
                         # Endpoint is already a Peer
-                        #LOGGER.debug("retry_static_peering:Endpoint %s is already a Peer",endpoint)
+                        #if endpoint == 'tcp://validator-bgx-c2-7:8207':
+                        #    LOGGER.debug("retry_static_peering:Endpoint %s is already a Peer",endpoint)
                         if self._connection_statuses[connection_id] == PeerStatus.PEER:
                             # reset static peering info
                             self._static_peer_status[endpoint] = \
@@ -1550,7 +1617,8 @@ class ConnectionManager(InstrumentedThread):
                                     retry_threshold=INITIAL_RETRY_FREQUENCY,
                                     count=0)
                             continue
-                #LOGGER.debug("retry_static_peering:KeyError for %s threshold=%s",str(time.time() - static_peer_info.time),static_peer_info.retry_threshold)
+                #if endpoint == 'tcp://validator-bgx-c2-7:8207':
+                #    LOGGER.debug("retry_static_peering:KeyError for %s threshold=%s",str(time.time() - static_peer_info.time),static_peer_info.retry_threshold)
                 if (time.time() - static_peer_info.time) > static_peer_info.retry_threshold:
                     #LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s(%s)",static_peer_info.retry_threshold,endpoint,connection_id)
                     if connection_id is not None:

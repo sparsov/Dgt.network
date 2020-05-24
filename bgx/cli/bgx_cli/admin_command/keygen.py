@@ -33,8 +33,8 @@ def add_keygen_parser(subparsers, parent_parser):
 
     epilog = (
         'The private and public key pair is stored in '
-        '/etc/sawtooth/keys/<key-name>.priv and '
-        '/etc/sawtooth/keys/<key-name>.pub.'
+        '/etc/dgt/keys/<key-name>.priv and '
+        '/etc/dgt/keys/<key-name>.pub.'
     )
 
     parser = subparsers.add_parser(

@@ -732,6 +732,8 @@ class PbftEngine(Engine):
 
     @property
     def is_ready_arbiter(self):
+        if len(self.arbiters) == 0:
+            return 0
         return max(self.arbiters.values(), key = lambda x: 1 if x[1] == ConsensusNotifyPeerConnected.OK else 0)[1] == ConsensusNotifyPeerConnected.OK
 
     @property
@@ -1114,7 +1116,8 @@ class PbftEngine(Engine):
             component_endpoint=self._component_endpoint,
             config_dir=self._path_config.config_dir,
             data_dir=self._path_config.data_dir,
-            key_dir=self._path_config.key_dir)
+            key_dir=self._path_config.key_dir,
+            peering_mode = self._peering_mode)
         self._validator_id = self._oracle.validator_id
         """
         for cluster topology use ring of arbiter
@@ -1156,7 +1159,7 @@ class PbftEngine(Engine):
         if self._cluster_name is None:
             LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
             if self.is_dynamic_mode:
-                LOGGER.debug("Dynamic mode - waiting position into topology")
+                LOGGER.debug("Dynamic mode - waiting position into topology\n")
         else:
             LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
                      self.arbiters_info,self.is_ready_arbiter
@@ -1181,7 +1184,7 @@ class PbftEngine(Engine):
                     break
 
                 #self._try_to_publish()
-                if self._cluster_name is None:
+                if self._cluster_name is None and not self.is_dynamic_mode:
                     if self.is_dynamic_mode:
                         # until get position into topology
                         pass

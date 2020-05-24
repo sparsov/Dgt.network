@@ -136,3 +136,6 @@ docker-compose -f bgx/docker/docker-compose-telebot-bgx.yaml up
 #git merge origin dag
 # update peers ports
 # export ENDPOINTS="[\"tcp://validator-bgx-c2-1:81\",\"tcp://validator-bgx-c3-1:82\"]"
+# composer 
+# sudo curl -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+

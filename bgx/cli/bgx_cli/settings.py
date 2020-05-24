@@ -25,8 +25,8 @@ from bgx_cli.exceptions import CliException
 from bgx_cli.rest_client import RestClient
 from bgx_cli import tty
 
-from bgx_cli.protobuf.setting_pb2 import Setting
-
+#from bgx_cli.protobuf.setting_pb2 import Setting
+from sawtooth_validator.protobuf.setting_pb2 import Setting
 
 SETTINGS_NAMESPACE = '000000'
 

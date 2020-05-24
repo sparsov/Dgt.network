@@ -24,8 +24,8 @@ from bgx_cli.exceptions import CliException
 from bgx_cli.parent_parsers import base_http_parser
 from bgx_cli.parent_parsers import base_list_parser
 from bgx_cli.parent_parsers import base_show_parser
-from bgx_cli.protobuf import batch_pb2
-
+#from bgx_cli.protobuf import batch_pb2
+from sawtooth_validator.protobuf import batch_pb2
 
 def add_batch_parser(subparsers, parent_parser):
     """Adds arguments parsers for the batch list, batch show and batch status

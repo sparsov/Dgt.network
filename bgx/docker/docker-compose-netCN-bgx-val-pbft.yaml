@@ -155,7 +155,7 @@ services:
       - validator-bgx
     command: |
       bash -c "
-        sawtooth keygen --force &&
+        bgx keygen --force &&
         tail -f /dev/null
       "
     stop_signal: SIGKILL
@@ -186,7 +186,7 @@ services:
     ports:
       - ${COMP}:${COMP}
       - ${NET}:${NET}
-    # start the validator with an empty genesis batch sawtooth.consensus.algorithm=devmode and ADD sawtooth.consensus.version=0.1
+    # start the validator with an empty genesis batch sawtooth.consensus.algorithm=devmode and ADD sawtooth.consensus.version=0.1 /root/.dgt/keys/my_key.priv
     command: |
       bash -c "
         bgx/bin/protogen
@@ -195,11 +195,14 @@ services:
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
-        bgxadm keygen
-        bgx keygen my_key
-        bgxset proposal create -k /root/.sawtooth/keys/my_key.priv -o sawset.batch $$(cat ../../bgx/etc/bgx_val.conf)
-        bgxset genesis -k /root/.sawtooth/keys/my_key.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub) -A $$(cat ../../clusters/c1/bgx1/keys/validator.pub)
-        if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  sawset.batch; else echo 'RESTART MODE'; fi
+        ls -al /root/
+        bgxadm keygen;
+        bgx keygen my_key;ls -al /root/
+        echo 'CONFIG=${DCONFIG},GATEWAY=${GATEWAY}'
+        bgxset proposal create -k ../../clusters/${C}/bgx${N}/keys/validator.priv -o dgtset.batch $$(cat ../../bgx/etc/${DCONFIG})
+        bgxset genesis -k ../../clusters/${C}/bgx${N}/keys/validator.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub) -A $$(cat ../../clusters/c1/bgx1/keys/validator.pub)
+        if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
+        ls -al /root/
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \

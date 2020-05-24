@@ -37,8 +37,10 @@ from bgx_cli.make_set_txn import _create_batch,_create_propose_txn,_create_topol
 from bgx_cli.protobuf.settings_pb2 import SettingCandidates
 #from bgx_cli.protobuf.setting_pb2 import Setting
 from sawtooth_validator.protobuf.setting_pb2 import Setting
+
 #from bgx_cli.protobuf.transaction_pb2 import TransactionHeader
 #from bgx_cli.protobuf.transaction_pb2 import Transaction
+
 from sawtooth_validator.protobuf.batch_pb2 import BatchList
 #from bgx_cli.protobuf.batch_pb2 import BatchList
 
@@ -52,7 +54,8 @@ DISTRIBUTION_NAME = 'bgxset'
 
 _MIN_PRINT_WIDTH = 15
 
-
+def setting_key_to_address(key):
+    return _key_to_address(key)
 
 def add_config_parser(subparsers, parent_parser):
     """Creates the arg parsers needed for the config command and
@@ -270,7 +273,7 @@ def _read_signer(key_filename):
     filename = key_filename
     if filename is None:
         filename = os.path.join(os.path.expanduser('~'),
-                                '.sawtooth',
+                                '.dgt',
                                 'keys',
                                 getpass.getuser() + '.priv')
 

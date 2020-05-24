@@ -346,8 +346,11 @@ def _set_setting_value(context, key, value,extra=[],data=None):
         if key == entry.key:
             old_value = entry.value
             old_entry_index = i
-
+    inform = True
     if old_entry_index is not None:
+        if setting.entries[old_entry_index].value == value:
+            inform = False
+            LOGGER.debug('NEW VALUE THE SAME')
         setting.entries[old_entry_index].value = value
     else:
         setting.entries.add(key=key, value=value)
@@ -366,10 +369,11 @@ def _set_setting_value(context, key, value,extra=[],data=None):
     if setting != 'sawtooth.settings.vote.proposals':
         LOGGER.info('Setting setting %s changed from %s to %s',key, old_value, value)
     # add events into context
-    context.add_event(
-        event_type="settings/update",
-        attributes=[("updated", key)]+extra,
-        data=data
+    if inform:
+        context.add_event(
+            event_type="settings/update",
+            attributes=[("updated", key)]+extra,
+            data=data
         )
 
 

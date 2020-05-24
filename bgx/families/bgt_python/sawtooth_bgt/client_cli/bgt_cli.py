@@ -373,7 +373,7 @@ def _get_keyfile(args):
 
     real_user = getpass.getuser()
     home = os.path.expanduser("~")
-    key_dir = os.path.join(home, ".sawtooth", "keys")
+    key_dir = os.path.join(home, ".dgt", "keys")
 
     return '{}/{}.priv'.format(key_dir, real_user)
 

@@ -252,9 +252,10 @@ class BlockValidator(object):
                 
                 if not is_my:
                     LOGGER.debug("Processing EXTERNAL transactions for block=%s.%s state=%s batches=%s",blkw.block_num,blkw.identifier[:8],blkw.state_root_hash[:8],len(blkw.block.batches))
-                    if blkw.block_num == 0 :
+                    if blkw.block_num == 0 and False:
                         # for external genesis block add mapping to own genesis state 
                         # FIXME Also we should make transaction from this block
+                        # because in case dynamic mode this block contain info about topology 
                         prev_state = self._block_store.chain_head.state_root_hash 
                         self._update_state_hash(blkw.state_root_hash,prev_state)
                         return True
@@ -763,6 +764,7 @@ class ChainController(object):
                  chain_head_lock,
                  on_chain_updated,
                  on_head_updated,
+                 on_topology_updated,
                  get_recompute_context,
                  belong_cluster,
                  squash_handler,
@@ -818,6 +820,7 @@ class ChainController(object):
         self._transaction_executor = transaction_executor
         self._notify_on_chain_updated = on_chain_updated
         self._notify_on_head_updated = on_head_updated
+        self._notify_on_topology_updated = on_topology_updated
         self._get_recompute_context = get_recompute_context
         self._belong_cluster = belong_cluster
         self._squash_handler = squash_handler
@@ -1406,9 +1409,13 @@ class ChainController(object):
             for block in reversed(result["new_chain"]):
                 receipts = self._make_receipts(block.execution_results)
                 # Update all chain observers
-                LOGGER.debug('Update all chain OBSERVERS: num=%s',len(self._chain_observers))
+                LOGGER.debug('Update all chain OBSERVERS: num=%s FOR BLOCK=%s.%s\n',len(self._chain_observers),new_block.block_num,nid[:8])
+                topology_updated = 0
                 for observer in self._chain_observers:
-                    observer.chain_update(block, receipts)
+                    if observer.chain_update(block, receipts):
+                        topology_updated += 1
+                if topology_updated > 0:
+                    self._notify_on_topology_updated()
 
         if self._metrics_registry:
             #LOGGER.debug("CHAIN DUMP METRICS=%s",self._metrics_registry.dump_metrics)

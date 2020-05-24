@@ -33,11 +33,11 @@ from bgx_cli.protobuf.identity_pb2 import Policy
 from bgx_cli.protobuf.identity_pb2 import PolicyList
 from bgx_cli.protobuf.identity_pb2 import Role
 from bgx_cli.protobuf.identity_pb2 import RoleList
-from bgx_cli.protobuf.transaction_pb2 import TransactionHeader
-from bgx_cli.protobuf.transaction_pb2 import Transaction
-from bgx_cli.protobuf.batch_pb2 import BatchHeader
-from bgx_cli.protobuf.batch_pb2 import Batch
-from bgx_cli.protobuf.batch_pb2 import BatchList
+from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader,Transaction
+from sawtooth_validator.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
+#from bgx_cli.protobuf.transaction_pb2 import TransactionHeader,Transaction
+#from bgx_cli.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
+
 from bgx_cli.bgxset import setting_key_to_address
 
 from sawtooth_signing import create_context
@@ -548,7 +548,7 @@ def _read_signer(key_filename):
     filename = key_filename
     if filename is None:
         filename = os.path.join(os.path.expanduser('~'),
-                                '.sawtooth',
+                                '.dgt',
                                 'keys',
                                 getpass.getuser() + '.priv')
 

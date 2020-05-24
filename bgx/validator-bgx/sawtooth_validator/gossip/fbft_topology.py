@@ -91,7 +91,7 @@ class FbftTopology(object):
 
     @property
     def cluster(self):
-        return self._cluster
+        return self._cluster if self._cluster else {}
 
     @property
     def arbiters(self):

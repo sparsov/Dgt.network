@@ -31,7 +31,7 @@ def add_keygen_parser(subparsers, parent_parser):
         'transactions and batches.',
         epilog='The private and public key files are stored in '
         '<key-dir>/<key-name>.priv and <key-dir>/<key-name>.pub. '
-        '<key-dir> defaults to ~/.sawtooth and <key-name> defaults to $USER.',
+        '<key-dir> defaults to ~/.dgt and <key-name> defaults to $USER.',
         parents=[parent_parser])
 
     parser.add_argument(
@@ -66,7 +66,7 @@ def do_keygen(args):
         if not os.path.exists(key_dir):
             raise CliException('no such directory: {}'.format(key_dir))
     else:
-        key_dir = os.path.join(os.path.expanduser('~'), '.sawtooth', 'keys')
+        key_dir = os.path.join(os.path.expanduser('~'), '.dgt', 'keys')
         if not os.path.exists(key_dir):
             if not args.quiet:
                 print('creating key directory: {}'.format(key_dir))
