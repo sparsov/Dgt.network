@@ -545,10 +545,21 @@ class FbftTopology(object):
                 break
 
 
-    def get_topology(self,topology,validator_id,endpoint,peering_mode='static'):
+    def get_topology(self,topology,validator_id,endpoint,peering_mode='static',join_cluster=None):
         # get topology from string
 
         def get_cluster_info(arbiter_id,parent_name,name,children):
+            if join_cluster is not None and join_cluster == name:
+                # dynamic  mode - join this cluster
+                if arbiter_id is not None:
+                    self._arbiters[arbiter_id] = ('arbiter',parent_name)
+                self._nest_colour = name
+                self._cluster    = children
+                self._parent     = arbiter_id
+                self._own_role   = PeerRole.plink
+                self._is_arbiter = False
+                LOGGER.debug('JOIN NEST=%s',name)
+                return
             for key,peer in children.items():
                 #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
                 if key == self._validator_id:
@@ -599,6 +610,7 @@ class FbftTopology(object):
                         get_arbiters(key,cluster[PeerAtr.name],cluster[PeerAtr.children])
 
         #topology = json.loads(stopology)
+        # join_cluster - for dymanic mode
         self._validator_id = validator_id
         self._endpoint = endpoint
         self._topology = topology if topology != {} else {PeerAtr.children:{}}
@@ -629,7 +641,7 @@ class FbftTopology(object):
                                     'KYCKey'  : '0ABD7E'
 
             }
-            LOGGER.debug('Arbiters RING=%s GENESIS=%s PUBLICS=%s', self._arbiters, self.genesis_node[:8], len(self._publics))
+            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s', self._arbiters, self.genesis_node[:8], len(self._publics))
 
 
 

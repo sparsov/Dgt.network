@@ -457,6 +457,9 @@ class BranchState(object):
             self._num_block += 1 
             self._chain_len += 1
             LOGGER.warning("cancel_block: for branch[%s]=%s NUM HANDLED BLOCKS=%s chain len=%s\n",self._ind,self._head_id[:8],self._num_block,self._chain_len)
+            if self._num_block == 1 and self._engine.is_dynamic_mode:
+                self._oracle.update_state_view_block(bytes.fromhex(self._head_id))
+
         except exceptions.InvalidState:
             LOGGER.warning("cancel_block:  InvalidState\n")
             pass
@@ -705,6 +708,7 @@ class PbftEngine(Engine):
         self._is_sync = True
         self._mode = ConsensusNotifyPeerConnected.NORMAL 
         self._genesis_mode = True
+        self._join_cluster = None
         LOGGER.debug('PbftEngine: init done')
 
     def name(self):
@@ -1099,6 +1103,28 @@ class PbftEngine(Engine):
         if self.is_not_build(): # there is not build one
             self._my_finalize_block()
 
+    def update_topology_settings(self):
+        """
+        for cluster topology use ring of arbiter
+        """
+        self._genesis_node = self._oracle.genesis_node # genesis node of all net - we take its genesis block for all net
+        self._genesis      = self._oracle.genesis      # genesis cluster name
+        self._cluster_name = self._oracle.cluster_name # own clusters name
+        #self._own_type = self._oracle.own_type
+        self.arbiters_update()         # ring of arbiter     
+        self._cluster = self._oracle.cluster           # own cluster's peers
+        if self._cluster_name is None:
+            
+            if self.is_dynamic_mode:
+                LOGGER.debug("Waiting position into topology for=%s (Dynamic mode)\n",self._validator_id)
+                self._is_sync = False
+            else:
+                LOGGER.debug("Undefined place into topology for=%s (Update bgx/etc/bgx_val.conf)", self._validator_id)
+            LOGGER.debug("Genesis=%s(%s) Node=%s arbiters=%s",self._genesis,self._genesis_node[:8],self.arbiters_info)
+        else:
+            LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
+                     self.arbiters_info,self.is_ready_arbiter
+                     )
 
     def start(self, updates, service, startup_state):
         LOGGER.debug('PbftEngine: start service=%s startup_state=%s head=%s peering_mode=%s.',service,startup_state,startup_state.chain_head,startup_state.peering_mode)
@@ -1119,16 +1145,8 @@ class PbftEngine(Engine):
             key_dir=self._path_config.key_dir,
             peering_mode = self._peering_mode)
         self._validator_id = self._oracle.validator_id
-        """
-        for cluster topology use ring of arbiter
-        """
-        self._genesis_node = self._oracle.genesis_node # genesis node of all net - we take its genesis block for all net
-        self._genesis      = self._oracle.genesis      # genesis cluster name
-        self._cluster_name = self._oracle.cluster_name # own clusters name
-        #self._own_type = self._oracle.own_type
-        self.arbiters_update()         # ring of arbiter     
-        self._cluster = self._oracle.cluster           # own cluster's peers
-
+        self.update_topology_settings()
+        
         #self._block_timeout = self._oracle.block_timeout 
         self._send_batches = self._oracle.send_batches 
         self._dag_step = self._oracle.dag_step
@@ -1156,14 +1174,7 @@ class PbftEngine(Engine):
                       self._validator_id[:8],self._dag_step,self._oracle.is_pbft_full,self._oracle.is_leader_shift,self._send_batches,self.block_timeout
                     )
         #self._service.initialize_block() is None
-        if self._cluster_name is None:
-            LOGGER.debug("Undefined place into topology for=%s update bgx_val.conf", self._validator_id)
-            if self.is_dynamic_mode:
-                LOGGER.debug("Dynamic mode - waiting position into topology\n")
-        else:
-            LOGGER.debug("Genesis=%s(%s) Node=%s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self._cluster_name,[key[:8] for key in self._cluster.keys()],
-                     self.arbiters_info,self.is_ready_arbiter
-                     )
+        
         while True:
             try:
                 try:
@@ -1582,7 +1593,16 @@ class PbftEngine(Engine):
             LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)  
         elif oper == ConsensusNotifyPeerConnected.PARAM_UPDATE:
             LOGGER.debug('PARAM_UPDATE=%s\n',val)
-            self._oracle.update_param(val)
+            if self._oracle.update_param(val):
+                # topology was updated
+                self._oracle.get_topology(self._join_cluster)
+                self.update_topology_settings()
+                self._nest_color = []
+                self.nest_color
+
+        elif oper == ConsensusNotifyPeerConnected.JOIN_CLUSTER:
+            LOGGER.debug('JOIN_CLUSTER=%s\n',val)
+            self._join_cluster = val
         else:
             return False
         return True

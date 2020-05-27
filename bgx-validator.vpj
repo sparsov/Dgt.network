@@ -199,6 +199,7 @@
             <F N="bgx/validator-bgx/tests/test_scheduler/data/complex_dependency_failures.yaml"/>
             <F N="bgx/validator-bgx/tests/test_scheduler/data/deletes_test.yaml"/>
             <F N="bgx/validator-bgx/tests/test_scheduler/data/dependencies.yaml"/>
+            <F N="bgx/etc/dgt_dyn.conf"/>
             <F N="bgx/validator-bgx/Dockerfile-bionic"/>
             <F N="down12voter.sh"/>
             <F N="down63voter.sh"/>

@@ -27,7 +27,12 @@
 mode=down
 peers="1 2 3"
 
-if [ -z $GATEWAY ]; then echo STATIC MODE;export DCONFIG='bgx_val.conf' else echo DYNAMIC MODE;export DCONFIG='dyn.conf'; fi
+
+if [ -z $GATEWAY ]; then 
+  echo STATIC MODE;export DCONFIG='bgx_val.conf';export PEERING='static'; 
+  else 
+  echo DYNAMIC MODE;export DCONFIG='dgt_dyn.conf';export PEERING='dynamic';export SEEDS="--seeds $GATEWAY"; 
+fi
 
 function downCluster1 {
   echo "downCluster3 $#"
@@ -103,6 +108,9 @@ function downCluster3 {
         ;;                                          
         3)                                          
           export COMPOSE_PROJECT_NAME=33 G=$GENESIS C=c3 N=3 API=8310 COMP=4307 NET=8303 CONS=5353;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        7)
+          export COMPOSE_PROJECT_NAME=37 G=$GENESIS C=c3 N=7 API=8314 COMP=4311 NET=8307 CONS=5357;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         *)
           echo "Undefined peer into cluster."

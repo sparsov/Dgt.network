@@ -312,8 +312,13 @@ class ConsensusProxy:
         block_iter = self._block_manager.get(block_ids)
         blocks = [b for b in block_iter]
         #blocks = self._chain_controller.get_blocks_validation(block_ids)
-        if len(blocks) != len(block_ids):
-            LOGGER.debug("ConsensusProxy:_get_blocks UnknownBlock")
-            raise UnknownBlock()
+        if len(blocks) != len(block_ids): 
+            # FIXME !!! check what kind of exception throw function get_block_from_cache
+            try:
+                block = self._chain_controller.get_block_from_cache(block_ids[0])
+                LOGGER.debug("ConsensusProxy:_get_blocks UnknownBlock blocks=%s",type(block))
+                return [block.get_block()]
+            except Exception:
+                raise UnknownBlock()
 
         return blocks

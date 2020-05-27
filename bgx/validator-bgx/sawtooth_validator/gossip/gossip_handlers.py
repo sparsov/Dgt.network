@@ -76,7 +76,7 @@ class GetPeersResponseHandler(Handler):
 
         LOGGER.debug("Got peers topology response message from %s. Status=%s cluster=%s Endpoints: %s",connection_id[:8],response.status,response.cluster,response.peer_endpoints)
 
-        self._gossip.add_candidate_peer_endpoints(response.peer_endpoints,response.status)
+        self._gossip.add_candidate_peer_endpoints(response.peer_endpoints,response.status,response.cluster)
 
         return HandlerResult(HandlerStatus.PASS)
 

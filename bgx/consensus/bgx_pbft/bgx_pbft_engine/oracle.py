@@ -98,11 +98,11 @@ class PbftOracle:
         self._batch_publisher = _BatchPublisherProxy(stream, self._signer) # self._signer)
         self._publisher = None
         self._consensus_state_store = ConsensusStateStore(data_dir=self._data_dir,validator_id=self._validator_id)
-        state_view = BlockWrapper.state_view_for_block(
+        self._state_view = BlockWrapper.state_view_for_block(
                 block_wrapper=self._block_cache.block_store.chain_head,
                 state_view_factory=self._state_view_factory)
 
-        self._pbft_settings_view = PbftSettingsView(state_view)
+        self._pbft_settings_view = PbftSettingsView(self._state_view)
         self._authorized_keys = self._pbft_settings_view.authorized_keys
         LOGGER.debug("authorized_keys=%s\n",self._authorized_keys)
         #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
@@ -111,11 +111,14 @@ class PbftOracle:
         #sid = self.get_validator_id().encode()
         #sidd = sid.decode()
         #LOGGER.debug('PbftOracle:: _validator_id %s %s..%s',sid,sidd[:8],sidd[-8:])
-    def get_topology(self):
+    def get_topology(self,cluster=None):
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
         self._fbft = FbftTopology()
-        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static')
+        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static',cluster)
         LOGGER.debug('nodes=%s tout=%s',nodes,self._pbft_settings_view.block_timeout)
+
+    def update_state_view_block(self,block_id):
+        self._state_view.update_block(block_id)
 
     @property
     def dag_step(self):
@@ -184,7 +187,9 @@ class PbftOracle:
         if self._pbft_settings_view.update_param(pname) :
             if pname == TOPOLOGY_SET_NM and self._peering_mode == 'dynamic':
                 LOGGER.debug('UPDATE TOPOLOGY\n')
-                self.get_topology()
+                
+                return True
+        return False
 
     def get_validator_id(self):
         return self._validator_id 
@@ -1284,6 +1289,7 @@ class _StateViewProxy:
             result = self._service.get_state(
                 block_id=self._block_id,
                 addresses=[address])
+            #LOGGER.debug('_StateViewProxy: ASK STATE block=%s\n',self._block_id)
         except UnknownBlock:
             LOGGER.debug('_StateViewProxy: UnknownBlock %s\n',self._block_id)
             return None
@@ -1298,6 +1304,12 @@ class _StateViewProxy:
             (address, data)
             for address, data in result.items()
         ]
+
+    def update_block(self,block_id):
+        # for dynamic mode and not only
+        # we should ask settings into context of current state of view
+        self._block_id = block_id
+        LOGGER.debug('UPDATE_BLOCK=%s',block_id.hex()[:8])
 
 
 class _BatchPublisherProxy:

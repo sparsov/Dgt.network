@@ -37,7 +37,7 @@ bind = [
 # and 'dynamic' which will do topology buildouts. If 'dynamic' is provided,
 # any static peers will be processed first, prior to the topology buildout
 # starting.
-peering = "static"
+peering = "dynamic"
 
 # Advertised network endpoint URL.
 endpoint = "tcp://validator-bgx-c3-7:8307"
@@ -46,11 +46,11 @@ endpoint = "tcp://validator-bgx-c3-7:8307"
 # in the format tcp://hostname:port. This is not needed in static peering mode
 # and defaults to None. Replace host1 with the seed's hostname or IP address.
 # seeds = ["tcp://host1:8800"]
-
+seeds = ["tcp://validator-bgx-c1-1:8101"]
 # A list of peers to attempt to connect to in the format tcp://hostname:port.
 # It defaults to None. Replace host1 with the peer's hostname or IP address.
-peers = ["tcp://validator-bgx-c1-1:8101","tcp://validator-bgx-c3-1:8301","tcp://validator-bgx-c3-2:8302","tcp://validator-bgx-c3-4:8304","tcp://validator-bgx-c3-5:8305","tcp://validator-bgx-c3-3:8303"]
-
+#peers = ["tcp://validator-bgx-c1-1:8101","tcp://validator-bgx-c3-1:8301","tcp://validator-bgx-c3-2:8302","tcp://validator-bgx-c3-4:8304","tcp://validator-bgx-c3-5:8305","tcp://validator-bgx-c3-3:8303"]
+peers = []
 # The type of scheduler to use. The choices are 'serial' or 'parallel'.
 scheduler = 'parallel'
 #database  = 'uri://admin:foo@orientdb:2424/blocks'

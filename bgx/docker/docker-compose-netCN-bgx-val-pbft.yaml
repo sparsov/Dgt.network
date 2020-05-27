@@ -195,20 +195,18 @@ services:
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
-        ls -al /root/
         bgxadm keygen;
         bgx keygen my_key;ls -al /root/
-        echo 'CONFIG=${DCONFIG},GATEWAY=${GATEWAY}'
+        echo 'CONFIG=${DCONFIG},GATEWAY=${SEEDS},PEERING=${PEERING}'
         bgxset proposal create -k ../../clusters/${C}/bgx${N}/keys/validator.priv -o dgtset.batch $$(cat ../../bgx/etc/${DCONFIG})
         bgxset genesis -k ../../clusters/${C}/bgx${N}/keys/validator.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub) -A $$(cat ../../clusters/c1/bgx1/keys/validator.pub)
         if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
-        ls -al /root/
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \
             --bind network:tcp://eth0:${NET} \
             --bind consensus:tcp://eth0:${CONS} \
-            --max_dag_branch 6 --scheduler parallel --maximum-peer-connectivity 70 \
+            --max_dag_branch 6 --scheduler parallel --peering ${PEERING} ${SEEDS} --maximum-peer-connectivity 70 \
             --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGKILL

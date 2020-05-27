@@ -165,7 +165,7 @@ class Gossip(object):
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         self._unsync_peers = {}                # list unsync  peers
         self._add_batch = None
-
+        self._join_cluster = None
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -175,12 +175,16 @@ class Gossip(object):
         url = urlparse(endpoint)
         end_host = url.hostname
         self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
-        LOGGER.debug("Gossip endpoint=%s component=%s peers=%s is_recovery=%s\n",endpoint,self._component,initial_peer_endpoints,self._is_recovery_func())
+        
         endpoints = os.environ.get('ENDPOINTS')
         
         if endpoints != '':
             self.update_endpoints(endpoints)
-
+        LOGGER.debug("Gossip: %s endpoint=%s component=%s is_recovery=%s",peering_mode,endpoint,self._component,self._is_recovery_func())
+        if self.is_dynamic:
+            LOGGER.debug("Gossip: seeds=%s\n",self._initial_seed_endpoints)
+        else:
+            LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
     def update_endpoints(self,val):
         """
         update list of peers which defined into config
@@ -250,6 +254,11 @@ class Gossip(object):
     @property
     def peering_mode(self):
         return self._peering_mode
+
+    @property
+    def is_dynamic(self):
+        return self._peering_mode == 'dynamic'
+
     @property
     def join_cluster(self):
         return None
@@ -526,7 +535,7 @@ class Gossip(object):
         else:
             cname = parent[PeerAtr.name]
             status = GetPeersResponse.OK 
-            LOGGER.debug("New peer=%s cluster=%s (%s)\n", pid[:8],cname,peer)
+            LOGGER.debug("New peer=%s(%s) cluster=%s (%s)\n",endpoint, pid[:8],cname,peer)
             
 
         with self._lock:
@@ -538,14 +547,17 @@ class Gossip(object):
             if cname == self._fbft.nest_colour:
                 # this is own cluster of new peer
                 if peer:
-                    # there is position for peer
-                    peer_endpoints = list(self._peers.values())
+                    """
+                    There is position for peer add all known peer into list
+                    and inform about new peer all rest peers of this cluster
+                    """
+                    peer_endpoints = list(set(self._peers.values()))
                     if self._endpoint:
                         peer_endpoints.append(self._endpoint)
                 else:
                     peer_endpoints = []
             else:
-                # send redirect
+                # send redirect to cluster node - which know all registered peers
                 peer_endpoints = []
                 leader = self._fbft.get_cluster_leader(parent)
                 if leader and PeerAtr.endpoint in leader:
@@ -572,7 +584,7 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def add_candidate_peer_endpoints(self, peer_endpoints,status=None):
+    def add_candidate_peer_endpoints(self, peer_endpoints,status=None,cluster=None):
         """
         Adds candidate endpoints to the list of endpoints to
         attempt to peer with.
@@ -581,6 +593,8 @@ class Gossip(object):
             peer_endpoints ([str]): A list of public uri's which the
                 validator can attempt to peer with.
         """
+        if cluster:
+            self._join_cluster = cluster
         if self._topology:
             self._topology.add_candidate_peer_endpoints(peer_endpoints,status)
         else:
@@ -777,8 +791,11 @@ class Gossip(object):
         LOGGER.debug("UPDATE topology attributes=%s!!!\n",attributes)
         if len(attributes) == 0:
             # full update
-            self.reload_topology()
+            LOGGER.debug("JOIN CLUSTER=%s!!!\n",self._join_cluster)
+            self._consensus_notifier.notify_peer_join_cluster(self.validator_id,self._join_cluster)
+            self.reload_topology(self._join_cluster)
             self.update_topology_params(TOPOLOGY_SET_NM) 
+            self.refresh_topology_peers()
         elif attributes[0].key == 'oper':
             oper = attributes[0].value
             if oper in ['lead','arbiter','cluster','cdel']:
@@ -810,6 +827,18 @@ class Gossip(object):
         else:
             LOGGER.debug("UPDATE topology UNDEFINED OPERATION!!!\n")
 
+    def refresh_topology_peers(self):
+        peers = self.get_peers()                                                             
+        for conn_id in peers:
+            try:
+                endpoint = peers[conn_id]
+                cid = self._network.get_connection_id_by_endpoint(endpoint)
+                pid = self._network.connection_id_to_public_key(cid)
+                LOGGER.debug("Refresh: Peer %s(%s) conn=%s\n",endpoint,pid[:8],cid[:8])
+                self._fbft.update_peer_activity(pid,endpoint,True,False,force=True)
+            except KeyError:
+                LOGGER.debug("peer %s went away",peers[conn_id])
+
     def update_topology_params(self,attributes=None):
         LOGGER.debug("UPDATE topology params='%s' !!!\n",attributes)
         self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes)
@@ -833,11 +862,11 @@ class Gossip(object):
             ).replace("'",'"')
         return topology 
 
-    def reload_topology(self):
+    def reload_topology(self,cluster):
         self._stopology = self.get_topology_cache()
         self._ftopology = json.loads(self._stopology)
         fbft = FbftTopology()
-        fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode)
+        fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode,cluster)
         with self._lock:
             self._fbft = fbft
         LOGGER.debug("RELOAD topology=%s\n",self._ftopology)
@@ -1723,6 +1752,8 @@ class ConnectionManager(InstrumentedThread):
                         time.time(),
                         min(endpoint_info.retry_threshold * 2,MAXIMUM_RETRY_FREQUENCY)
                         )
+
+    
 
     def _refresh_peer_list(self, peers):
         for conn_id in peers:

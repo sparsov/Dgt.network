@@ -581,8 +581,9 @@ class ConsensusStateGetHandler(ConsensusServiceHandler):
                 for address, data in self._proxy.state_get(
                     request.block_id, request.addresses)
             ])
+            LOGGER.debug('ConsensusStateGetHandler:proxy ASK STATE ENTRY')
         except UnknownBlock:
-            LOGGER.debug('ConsensusStateGetHandler:proxy UNKNOWN_BLOCK')
+            LOGGER.debug('ConsensusStateGetHandler:proxy UNKNOWN BLOCK=%s',request.block_id.hex())
             response.status = \
                 consensus_pb2.ConsensusStateGetResponse.UNKNOWN_BLOCK
         except Exception:  # pylint: disable=broad-except
