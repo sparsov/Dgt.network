@@ -178,11 +178,34 @@ function downCluster6 {
      esac
   done
 }
+function downClusterDyn {
+  echo "downCluster Dynamic $#"
+  for node in $@;do
+    #echo "START $node"
+    case $node in
+        1)
+          export COMPOSE_PROJECT_NAME=61 G=$GENESIS C=dyn N=1 API=8708 COMP=4704 NET=8701 CONS=5751;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        2)
+          export COMPOSE_PROJECT_NAME=62 G=$GENESIS C=dyn N=2 API=8709 COMP=4706 NET=8702 CONS=5752;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        3)
+          export COMPOSE_PROJECT_NAME=63 G=$GENESIS C=dyn N=3 API=8710 COMP=4707 NET=8703 CONS=5753;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        4)
+          export COMPOSE_PROJECT_NAME=64 G=$GENESIS C=dyn N=4 API=8711 COMP=4708 NET=8704 CONS=5754;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        *)
+          echo "Undefined peer into cluster."
+        ;;
+     esac
+  done
+}
 cluster=$1
 shift
 case $cluster in
      1|genesis)
-          echo "Start cluster genesis"
+          echo "Stop cluster genesis"
           if (( $# > 0 ));then
             downCluster1 $@
           else  
@@ -190,7 +213,7 @@ case $cluster in
           fi
           ;;
      2)
-          echo "Start cluster 2"
+          echo "Stop cluster 2"
           if (( $# > 0 ));then
             downCluster2 $@
           else  
@@ -198,7 +221,7 @@ case $cluster in
           fi 
           ;;
      3)
-          echo "Start cluster 3"
+          echo "Stop cluster 3"
           if (( $# > 0 ));then
             downCluster3 $@
           else  
@@ -206,7 +229,7 @@ case $cluster in
           fi
           ;; 
      4)
-          echo "Start cluster 4"
+          echo "Stop cluster 4"
           if (( $# > 0 ));then
             downCluster4 $@
           else  
@@ -214,7 +237,7 @@ case $cluster in
           fi 
           ;; 
      5)
-          echo "Start cluster 5"
+          echo "Stop cluster 5"
           if (( $# > 0 ));then
             downCluster5 $@
           else  
@@ -222,7 +245,7 @@ case $cluster in
           fi
           ;; 
      6)
-          echo "Start cluster 6"
+          echo "Stop cluster 6"
           if (( $# > 0 ));then
             downCluster6 $@
           else  
@@ -230,6 +253,16 @@ case $cluster in
           fi
           
           ;;
+     dyn)
+          echo "Stop dyamic cluster"
+          if (( $# > 0 ));then
+            downClusterDyn $@
+          else  
+            downClusterDyn $peers 
+          fi
+          
+          ;;
+
      all)
           downCluster1 $peers
           downCluster2 $peers

@@ -27,6 +27,8 @@ from bgx_cli.admin_command.genesis import add_genesis_parser
 from bgx_cli.admin_command.genesis import do_genesis
 from bgx_cli.admin_command.keygen import add_keygen_parser
 from bgx_cli.admin_command.keygen import do_keygen
+from bgx_cli.admin_command.node import add_node_parser
+from bgx_cli.admin_command.node import do_node
 
 
 DISTRIBUTION_NAME = 'bgxadm'
@@ -45,6 +47,7 @@ def create_parser(prog_name):
 
     add_genesis_parser(subparsers, parent_parser)
     add_keygen_parser(subparsers, parent_parser)
+    add_node_parser(subparsers, parent_parser)
 
     return parser
 
@@ -67,6 +70,9 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None,
         do_genesis(args)
     elif args.subcommand == 'keygen':
         do_keygen(args)
+    elif args.subcommand == 'node':
+        do_node(args)
+        
     else:
         raise CliException('Invalid command: {}'.format(args.subcommand))
 
@@ -137,7 +143,7 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(
         '-V', '--version',
         action='version',
-        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth) version {}')
+        version=(DISTRIBUTION_NAME + ' (Hyperledger DGT) version {}')
         .format(version),
         help='display version information')
 

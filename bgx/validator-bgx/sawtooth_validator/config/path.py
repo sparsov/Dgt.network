@@ -30,8 +30,8 @@ def get_default_path_config():
     """Returns the default PathConfig as calculated based on SAWTOOTH_HOME
     (if set) and operating system.
     """
-    if 'SAWTOOTH_HOME' in os.environ:
-        home_dir = os.environ['SAWTOOTH_HOME']
+    if 'SAWTOOTH_HOME' in os.environ or 'PEER_HOME' in os.environ:
+        home_dir = os.environ['PEER_HOME'] if 'PEER_HOME' in os.environ else os.environ['SAWTOOTH_HOME']
         return PathConfig(
             config_dir=os.path.join(home_dir, 'etc'),
             log_dir=os.path.join(home_dir, 'logs'),

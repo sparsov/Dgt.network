@@ -31,7 +31,6 @@ filename = "/project/peer/logs/validator-debug.log"
 level = "DEBUG"
 formatter = "simple"
 class = "logging.handlers.RotatingFileHandler"
-#filename = "/var/log/sawtooth/interconnect.log"
 filename = "/project/peer/logs/interconnect.log"
 maxBytes = 5000000
 backupCount=20

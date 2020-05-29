@@ -180,6 +180,29 @@ function upCluster6 {
      esac
   done
 }
+function upClusterDyn {
+  echo "upCluster Dynamic $#"
+  for node in $@;do
+    #echo "START $node"
+    case $node in
+        1)
+          export COMPOSE_PROJECT_NAME=61 G=$GENESIS C=dyn N=1 API=8708 COMP=4704 NET=8701 CONS=5751;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        2)
+          export COMPOSE_PROJECT_NAME=62 G=$GENESIS C=dyn N=2 API=8709 COMP=4706 NET=8702 CONS=5752;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        3)
+          export COMPOSE_PROJECT_NAME=63 G=$GENESIS C=dyn N=3 API=8710 COMP=4707 NET=8703 CONS=5753;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        4)
+          export COMPOSE_PROJECT_NAME=64 G=$GENESIS C=dyn N=4 API=8711 COMP=4708 NET=8704 CONS=5754;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        *)
+          echo "Undefined peer into cluster."
+        ;;
+     esac
+  done
+}
 cluster=$1
 shift
 case $cluster in
@@ -232,6 +255,16 @@ case $cluster in
           fi
           
           ;; 
+     dyn)
+     echo "Start dynamic cluster"
+     if (( $# > 0 ));then
+       upClusterDyn $@
+     else  
+       upClusterDyn $peers
+     fi
+     
+     ;; 
+
      all)
           upCluster1 $peers
           upCluster2 $peers

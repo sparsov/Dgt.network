@@ -22,7 +22,9 @@ def get_config_dir():
     """Returns the sawtooth configuration directory based on the
     SAWTOOTH_HOME environment variable (if set) or OS defaults.
     """
-    if 'SAWTOOTH_HOME' in os.environ:
+    if 'PEER_HOME' in os.environ:
+        return os.path.join(os.environ['PEER_HOME'], 'etc')
+    elif 'SAWTOOTH_HOME' in os.environ:
         return os.path.join(os.environ['SAWTOOTH_HOME'], 'etc')
 
     if os.name == 'nt':
@@ -60,7 +62,9 @@ def _get_dir(toml_config_setting,
         if toml_config_setting in toml_config:
             return toml_config[toml_config_setting]
 
-    if 'SAWTOOTH_HOME' in os.environ:
+    if 'PEER_HOME' in os.environ:
+        return os.path.join(os.environ['PEER_HOME'], sawtooth_home_dir)
+    elif 'SAWTOOTH_HOME' in os.environ:
         return os.path.join(os.environ['SAWTOOTH_HOME'], sawtooth_home_dir)
 
     if os.name == 'nt':

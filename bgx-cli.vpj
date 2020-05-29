@@ -31,6 +31,7 @@
             <F N="bgx/cli/bgx_cli/network_command/list_blocks.py"/>
             <F N="bgx/cli/bgx_cli/main.py"/>
             <F N="bgx/cli/bgx_cli/make_set_txn.py"/>
+            <F N="bgx/cli/bgx_cli/admin_command/node.py"/>
             <F N="bgx/cli/bgx_cli/parent_parsers.py"/>
             <F N="bgx/cli/bgx_cli/network_command/parent_parsers.py"/>
             <F N="bgx/cli/bgx_cli/peer.py"/>

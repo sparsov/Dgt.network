@@ -74,7 +74,9 @@ def _load_toml_cli_config(filename=None):
 
 
 def _get_config_dir():
-    if 'SAWTOOTH_HOME' in os.environ:
+    if 'PEER_HOME' in os.environ:
+        return os.path.join(os.environ['PEER_HOME'], 'etc')
+    elif 'SAWTOOTH_HOME' in os.environ:
         return os.path.join(os.environ['SAWTOOTH_HOME'], 'etc')
 
     return '/etc/sawtooth'

@@ -32,14 +32,17 @@ services:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
     container_name: bgx-settings-tp-bgx-${C}-${N}
     depends_on:
       - validator-bgx
     command: |
       bash -c "
         cd bgx/families/settings
+        bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
         settings-tp -vv -C tcp://validator-bgx-${C}-${N}:${COMP}
@@ -58,16 +61,19 @@ services:
     image: bgt-tp-python-bgx:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
     networks:
     - network1
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
     container_name: bgt-tp-python-bgx-${C}-${N}
     depends_on:
       - validator-bgx
     command: |
       bash -c "
         cd bgx/families/bgt_python
+        bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
         bgt-tp-python -vv -C tcp://validator-bgx-${C}-${N}:${COMP}
@@ -148,8 +154,10 @@ services:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
     container_name: shell-bgx-${C}-${N}
     depends_on:
       - validator-bgx
@@ -175,9 +183,11 @@ services:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
     - ENDPOINTS=${ENDPOINTS}
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
     container_name: validator-bgx-${C}-${N}
     expose:
       - ${COMP}
@@ -190,16 +200,16 @@ services:
     command: |
       bash -c "
         bgx/bin/protogen
-        if [ ${G} == 'Y' ]; then rm -f clusters/${C}/bgx${N}/data/*; else echo 'RESTART MODE'; fi; rm -f clusters/${C}/bgx${N}/logs/*.log*;
         if [ -z ${PEERS} ]; then echo 'ONE HOST MODE'; else echo 'MANY HOST MODE (${PEERS})';add_peers.sh '${PEERS}'; fi
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
-        bgxadm keygen;
-        bgx keygen my_key;ls -al /root/
+        bgxadm node ${C} bgx${N};bgxadm keygen;ls -l /project/peer;
+        if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/*.log*;
+        bgx keygen my_key;
         echo 'CONFIG=${DCONFIG},GATEWAY=${SEEDS},PEERING=${PEERING}'
-        bgxset proposal create -k ../../clusters/${C}/bgx${N}/keys/validator.priv -o dgtset.batch $$(cat ../../bgx/etc/${DCONFIG})
-        bgxset genesis -k ../../clusters/${C}/bgx${N}/keys/validator.priv -A $$(cat ../../clusters/${C}/bgx${N}/keys/validator.pub) -A $$(cat ../../clusters/c1/bgx1/keys/validator.pub)
+        bgxset proposal create -k /project/peer/keys/validator.priv -o dgtset.batch $$(cat /project/peer/etc/dgt.conf)
+        bgxset genesis -k /project/peer/keys/validator.priv -A $$(cat /project/${BGX_TOP}/clusters/c1/bgx1/keys/validator.pub) -A $$(cat /project/peer/keys/validator.pub)
         if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
         validator-dbgx -vv  \
             --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
@@ -223,8 +233,10 @@ services:
     image: bgx-rest-api:${ISOLATION_ID}
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
     container_name: bgx-api-${C}-${N}
     networks:
     - network1
@@ -235,6 +247,7 @@ services:
     command: |
       bash -c "
         cd bgx/rest-api
+        bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
         bgx-rest-api -vv --connect tcp://validator-bgx-${C}-${N}:${COMP} --bind bgx-api-${C}-${N}:${API} --opentsdb-url http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
@@ -256,8 +269,10 @@ services:
     - network1
     environment:
     - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
     container_name: bgx-pbft-${C}-${N}
     depends_on:
       - validator-bgx
@@ -265,6 +280,7 @@ services:
     command: |
       bash -c "
         cd bgx/consensus/bgx_pbft
+        bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
         bgx-pbft -vv --connect tcp://validator-bgx-${C}-${N}:${CONS} --component tcp://validator-bgx-${C}-${N}:${COMP}

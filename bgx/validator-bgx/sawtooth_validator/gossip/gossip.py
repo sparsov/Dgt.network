@@ -1593,6 +1593,8 @@ class ConnectionManager(InstrumentedThread):
             if not self.is_federations_assembled and not self._gossip._is_recovery_func():
                 LOGGER.debug("JOINED:ready ask head peers=%s redirect=%s.",self._gossip.peers_info,self._redirect_seed_endpoints)
                 self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0])
+            else:
+                self._gossip.check_unsync_peer()
             
                 
 
