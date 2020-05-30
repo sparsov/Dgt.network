@@ -21,6 +21,7 @@ import binascii
 import json
 
 from urllib.parse import urlparse
+import http.client
 
 from threading import Lock
 from functools import partial
@@ -166,25 +167,44 @@ class Gossip(object):
         self._unsync_peers = {}                # list unsync  peers
         self._add_batch = None
         self._join_cluster = None
+        self._my_ip = None
+        self._ext_endpoint = None
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
         """
-        url = urlparse(component)
-        comp_scheme,comp_port = url.scheme, url.port
-        url = urlparse(endpoint)
-        end_host = url.hostname
-        self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
         
         endpoints = os.environ.get('ENDPOINTS')
-        
+        single = os.environ.get('SINGLE')
         if endpoints != '':
             self.update_endpoints(endpoints)
-        LOGGER.debug("Gossip: %s endpoint=%s component=%s is_recovery=%s",peering_mode,endpoint,self._component,self._is_recovery_func())
+        if single == 'Y':
+            self.set_single_mode()
+        # make component 
+        url = urlparse(component)
+        comp_scheme,comp_port = url.scheme, url.port
+        url = urlparse(self.endpoint)
+        end_host = url.hostname
+        self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
+
+        LOGGER.debug("Gossip: %s endpoint=%s->%s component=%s is_recovery=%s single=%s",peering_mode,endpoint,self.endpoint,self._component,self._is_recovery_func(),single)
         if self.is_dynamic:
             LOGGER.debug("Gossip: seeds=%s\n",self._initial_seed_endpoints)
         else:
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
+
+    def set_single_mode(self):
+        endport = os.environ.get('ENDPORT')
+        LOGGER.debug("Gossip: set SINGLE mode endport=%s",endport)
+        conn = http.client.HTTPConnection("ifconfig.me")
+        conn.request("GET", "/ip")
+        my_ip = conn.getresponse().read()
+        my_ip = my_ip.decode('utf-8')
+        url = urlparse(self._endpoint)
+        self._ext_endpoint = "{}://{}:{}".format(url.scheme,my_ip,(endport if endport != '' else url.port))
+        LOGGER.debug("Gossip: MY ENDPOINT='%s'\n",self._ext_endpoint)
+        # make external enpoint
+
     def update_endpoints(self,val):
         """
         update list of peers which defined into config
@@ -267,7 +287,7 @@ class Gossip(object):
         return None
     @property
     def endpoint(self):
-        return self._endpoint
+        return self._endpoint if self._ext_endpoint is None else self._ext_endpoint 
 
     @property
     def peers_info(self):
@@ -378,7 +398,7 @@ class Gossip(object):
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
+            register_request = PeerRegisterRequest(endpoint=self.endpoint,mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -486,8 +506,8 @@ class Gossip(object):
              our peers
             """
             peer_endpoints = list(self._peers.values())
-            if self._endpoint:
-                peer_endpoints.append(self._endpoint)
+            if self.endpoint:
+                peer_endpoints.append(self.endpoint)
             LOGGER.debug("Send peers ENDPOINTS: %s\n", peer_endpoints)
             peers_response = GetPeersResponse(peer_endpoints=peer_endpoints)
             try:
@@ -552,8 +572,8 @@ class Gossip(object):
                     and inform about new peer all rest peers of this cluster
                     """
                     peer_endpoints = list(set(self._peers.values()))
-                    if self._endpoint:
-                        peer_endpoints.append(self._endpoint)
+                    if self.endpoint:
+                        peer_endpoints.append(self.endpoint)
                 else:
                     peer_endpoints = []
             else:
@@ -563,9 +583,9 @@ class Gossip(object):
                 if leader and PeerAtr.endpoint in leader:
                     peer_endpoints.append(leader[PeerAtr.endpoint])
                     status = GetPeersResponse.REDIRECT
-                elif self._endpoint:
+                elif self.endpoint:
                     # continue ask my node 
-                    peer_endpoints.append(self._endpoint)
+                    peer_endpoints.append(self.endpoint)
             
                 
             LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
@@ -866,7 +886,7 @@ class Gossip(object):
         self._stopology = self.get_topology_cache()
         self._ftopology = json.loads(self._stopology)
         fbft = FbftTopology()
-        fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode,cluster)
+        fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode,cluster)
         with self._lock:
             self._fbft = fbft
         LOGGER.debug("RELOAD topology=%s\n",self._ftopology)
@@ -884,7 +904,7 @@ class Gossip(object):
 
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
-        self._fbft.get_topology(self._ftopology,self.validator_id,self._endpoint,self._peering_mode)
+        self._fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode)
         LOGGER.debug("LOAD topology DONE SYNC=%s",self.is_sync)
         
 
@@ -1346,7 +1366,7 @@ class Gossip(object):
         self._topology = ConnectionManager(
             gossip=self,
             network=self._network,
-            endpoint=self._endpoint,
+            endpoint=self.endpoint,
             initial_peer_endpoints=self._initial_peer_endpoints,
             initial_seed_endpoints=self._initial_seed_endpoints,
             peering_mode=self._peering_mode,
@@ -1783,7 +1803,7 @@ class ConnectionManager(InstrumentedThread):
         request for position into topology
         """
         peers_request = GetPeersRequest(peer_id=bytes.fromhex(self._gossip.validator_id),
-                                            endpoint = self._gossip.endpoint,
+                                            endpoint = self._gossip.endpoint , #if self._gossip._ext_endpoint is None else self._gossip._ext_endpoint,
                                             cluster = self._gossip.join_cluster,
                                             KYC = self._gossip.KYC
                                             )

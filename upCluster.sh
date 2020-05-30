@@ -28,13 +28,33 @@ mode="up -d"
 peers6="1 2 3 4 5 6"
 peers="1 2 3"
 _PEERS_="91.216.211.46 validator-bgx-c2-1;91.216.211.46 validator-bgx-c3-1"
+# default value
+GENESIS="N"
+export SINGLE="N"
+export PEERING='static'
+while [ -n "$1" ]
+do
+case "$1" in
+-G) GENESIS="Y";echo "Genesis mode." ;;
+-E) export SINGLE="Y";echo "External mode." ;;
+-S) echo "Dynamic mode." 
+shift;export PEERING='dynamic';export SEEDS="--seeds $1";echo "--seed $1"
+;;
+-P) shift; export ENDPORT=$1 ;;
+--) shift;break ;;
+*) break ;;
+esac
+shift
+done
 
-if [ $1 == 'G' ]; then GENESIS="Y";shift; else GENESIS="N"; fi
-if [ -z $GATEWAY ]; then 
-  echo STATIC MODE;export DCONFIG='bgx_val.conf';export PEERING='static'; 
-  else 
-  echo DYNAMIC MODE;export DCONFIG='dgt_dyn.conf';export PEERING='dynamic';export SEEDS="--seeds $GATEWAY"; 
-fi
+#echo "$1 $2 $GENESIS $SINGLE $PEERING $SEEDS"
+#exit
+#if [ $1 == 'G' ]; then GENESIS="Y";shift; else GENESIS="N"; fi
+#if [ -z $GATEWAY ]; then 
+#  echo STATIC MODE;export DCONFIG='bgx_val.conf';export PEERING='static'; 
+#  else 
+#  echo DYNAMIC MODE;export DCONFIG='dgt_dyn.conf';export PEERING='dynamic';export SEEDS="--seeds $GATEWAY"; 
+#fi
 
 function upCluster1 {
   echo "upCluster1 $#"
