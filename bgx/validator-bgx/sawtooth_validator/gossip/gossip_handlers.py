@@ -47,12 +47,12 @@ class GetPeersRequestHandler(Handler):
         request = GetPeersRequest()
         request.ParseFromString(message_content)
         pid = request.peer_id.hex()
-        LOGGER.debug("Got peers request message from %s peer_id=%s cluster='%s' KYC='%s' endpoint='%s'\n", connection_id[:8],pid[:8],request.cluster,request.KYC,request.endpoint)
+        LOGGER.debug("Got peers request message from %s peer_id=%s cluster='%s' KYC='%s' single=%s endpoint='%s'\n", connection_id[:8],pid[:8],request.cluster,request.KYC,request.single,request.endpoint)
         if request.endpoint == '':
             self._gossip.send_peers(connection_id)
         else:
             # fbft dynamic mode
-            self._gossip.send_fbft_peers(connection_id,pid,request.endpoint,request.cluster,request.KYC)
+            self._gossip.send_fbft_peers(connection_id,pid,request.endpoint,request.cluster,request.KYC,request.single)
 
         ack = NetworkAcknowledgement()
         ack.status = ack.OK

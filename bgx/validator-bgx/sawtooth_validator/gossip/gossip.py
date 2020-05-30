@@ -175,11 +175,11 @@ class Gossip(object):
         """
         
         endpoints = os.environ.get('ENDPOINTS')
-        single = os.environ.get('SINGLE')
+        
         if endpoints != '':
             self.update_endpoints(endpoints)
-        if single == 'Y':
-            self.set_single_mode()
+        
+        self.set_single_mode()
         # make component 
         url = urlparse(component)
         comp_scheme,comp_port = url.scheme, url.port
@@ -193,15 +193,21 @@ class Gossip(object):
         else:
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
 
+    def endpoint_to_expoint(self,endpoint,my_ip,port=''):
+        url = urlparse(endpoint)
+        expoint = "{}://{}:{}".format(url.scheme,my_ip,(port if port != '' else url.port))
+        return expoint
+
     def set_single_mode(self):
+        single = os.environ.get('SINGLE')
         endport = os.environ.get('ENDPORT')
-        LOGGER.debug("Gossip: set SINGLE mode endport=%s",endport)
+        self._single = (single == 'Y')
+        LOGGER.debug("Gossip: set SINGLE=%s  endport=%s",self._single,endport)
         conn = http.client.HTTPConnection("ifconfig.me")
         conn.request("GET", "/ip")
         my_ip = conn.getresponse().read()
-        my_ip = my_ip.decode('utf-8')
-        url = urlparse(self._endpoint)
-        self._ext_endpoint = "{}://{}:{}".format(url.scheme,my_ip,(endport if endport != '' else url.port))
+        self._my_ip = my_ip.decode('utf-8')
+        self._ext_endpoint = self.endpoint_to_expoint(self._endpoint,self._my_ip,endport)
         LOGGER.debug("Gossip: MY ENDPOINT='%s'\n",self._ext_endpoint)
         # make external enpoint
 
@@ -280,6 +286,10 @@ class Gossip(object):
         return self._peering_mode == 'dynamic'
 
     @property
+    def is_single(self):
+        return self._single
+
+    @property
     def join_cluster(self):
         return None
     @property
@@ -287,7 +297,7 @@ class Gossip(object):
         return None
     @property
     def endpoint(self):
-        return self._endpoint if self._ext_endpoint is None else self._ext_endpoint 
+        return self._endpoint if not self._single else self._ext_endpoint 
 
     @property
     def peers_info(self):
@@ -521,7 +531,7 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None):
+    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,single=False):
         """
         Dynamic Fbft topology mode
         Sends a message containing our peers to the
@@ -573,7 +583,7 @@ class Gossip(object):
                     """
                     peer_endpoints = list(set(self._peers.values()))
                     if self.endpoint:
-                        peer_endpoints.append(self.endpoint)
+                        peer_endpoints.append(self.endpoint_to_expoint(self.endpoint, self._my_ip) if self.is_single else self.endpoint)
                 else:
                     peer_endpoints = []
             else:
@@ -581,7 +591,8 @@ class Gossip(object):
                 peer_endpoints = []
                 leader = self._fbft.get_cluster_leader(parent)
                 if leader and PeerAtr.endpoint in leader:
-                    peer_endpoints.append(leader[PeerAtr.endpoint])
+                    endpoint = self.endpoint_to_expoint(leader[PeerAtr.endpoint], self._my_ip) if self.is_single else leader[PeerAtr.endpoint]
+                    peer_endpoints.append(endpoint)
                     status = GetPeersResponse.REDIRECT
                 elif self.endpoint:
                     # continue ask my node 
@@ -1805,7 +1816,8 @@ class ConnectionManager(InstrumentedThread):
         peers_request = GetPeersRequest(peer_id=bytes.fromhex(self._gossip.validator_id),
                                             endpoint = self._gossip.endpoint , #if self._gossip._ext_endpoint is None else self._gossip._ext_endpoint,
                                             cluster = self._gossip.join_cluster,
-                                            KYC = self._gossip.KYC
+                                            KYC = self._gossip.KYC,
+                                            single = self._gossip.is_single
                                             )
         return peers_request
 

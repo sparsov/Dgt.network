@@ -47,7 +47,7 @@ bytes  peer_id      = 1; // public key
 string endpoint     = 2; // my own net endpoint
 string cluster      = 3; // desire cluster or None
 string KYC          = 4; // KYC or None
-
+bool   single       = 5; // single peer
 }
 
 message GetPeersResponse {
