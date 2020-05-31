@@ -599,9 +599,11 @@ class Gossip(object):
 
 
                     if self.endpoint:
-                        extpoints.append(self.extpoint if single else self.endpoint)
-                        LOGGER.debug("EXPOINT=%s\n", extpoints)
-                        peer_endpoints.append(self.endpoint)
+                        if single:
+                            peer_endpoints = extpoints.append(self.extpoint)
+                            LOGGER.debug("EXPOINT=%s\n", peer_endpoints)
+                        else:
+                            peer_endpoints.append(self.endpoint)
                 else:
                     peer_endpoints = []
             else:
@@ -611,7 +613,7 @@ class Gossip(object):
                 if leader and PeerAtr.endpoint in leader:
                     endpoint = leader[PeerAtr.extpoint if single else PeerAtr.endpoint] 
                     LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
-                    peer_endpoints.append(leader[PeerAtr.endpoint])
+                    peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
                     status = GetPeersResponse.REDIRECT 
                 elif self.endpoint:
                     # continue ask my node 
