@@ -752,6 +752,15 @@ class Interconnect(object):
                 return conn_id
         return None
 
+    def endpoint_to_public_key(self,endpoint):
+        """
+        take connection for peer with public_key
+        """
+        for info in self._connections.values():
+            if info.uri == endpoint :
+                return info.public_key
+        return None
+
     def connection_id_to_endpoint(self, connection_id):
         """
         Get stored public key for a connection.

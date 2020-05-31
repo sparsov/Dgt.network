@@ -34,8 +34,9 @@ message PeerRegisterRequest {
     uint32 protocol_version = 2;
     RegisterMode mode  = 3;
     uint32       pid   = 4;  // peer instance ID
-    string component   = 5; // for dashboard  
-    string hid         = 6; // heads summary
+    string component   = 5; // for dashboard
+    string extpoint    = 6; // ext endpoint  
+    string hid         = 7; // heads summary
 }
 
 // The unregistration request from a peer to the validator

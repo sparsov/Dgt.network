@@ -98,8 +98,8 @@ class PeerRegisterHandler(Handler):
                 """
                 Other peer ask register - mark this peer unsync until sync request appeared
                 """
-                LOGGER.debug("Peer=%s(%s) ask REGISTER component=%s",request.endpoint,connection_id[:10],request.component)
-                sync = self._gossip.register_peer(connection_id,request.pid, request.endpoint,sync=None,component=request.component) # sync=(True if self._gossip.is_sync else None)
+                LOGGER.debug("Peer=%s(%s) ask REGISTER component=%s expoint=%s",request.endpoint,connection_id[:10],request.component,request.extpoint)
+                sync = self._gossip.register_peer(connection_id,request.pid, request.endpoint,sync=None,component=request.component,extpoint=request.extpoint) # sync=(True if self._gossip.is_sync else None)
                 # say asked peer about point of assemble
                 ack.status = ack.OK
                 ack.sync   = self._gossip.is_sync # FIXME sync

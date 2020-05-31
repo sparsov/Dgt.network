@@ -168,7 +168,7 @@ class Gossip(object):
         self._add_batch = None
         self._join_cluster = None
         self._my_ip = None
-        self._ext_endpoint = None
+        self._extpoint = None
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -187,7 +187,7 @@ class Gossip(object):
         end_host = url.hostname
         self._component = "{}://{}:{}".format(comp_scheme,end_host,comp_port)
 
-        LOGGER.debug("Gossip: %s endpoint=%s->%s component=%s is_recovery=%s single=%s",peering_mode,endpoint,self.endpoint,self._component,self._is_recovery_func(),single)
+        LOGGER.debug("Gossip: %s endpoint=%s->%s component=%s is_recovery=%s single=%s",peering_mode,endpoint,self.endpoint,self._component,self._is_recovery_func(),self.is_single)
         if self.is_dynamic:
             LOGGER.debug("Gossip: seeds=%s\n",self._initial_seed_endpoints)
         else:
@@ -207,8 +207,8 @@ class Gossip(object):
         conn.request("GET", "/ip")
         my_ip = conn.getresponse().read()
         self._my_ip = my_ip.decode('utf-8')
-        self._ext_endpoint = self.endpoint_to_expoint(self._endpoint,self._my_ip,endport)
-        LOGGER.debug("Gossip: MY ENDPOINT='%s'\n",self._ext_endpoint)
+        self._extpoint = self.endpoint_to_expoint(self._endpoint,self._my_ip,endport)
+        LOGGER.debug("Gossip: MY EXTPOINT='%s'\n",self._extpoint)
         # make external enpoint
 
     def update_endpoints(self,val):
@@ -295,9 +295,14 @@ class Gossip(object):
     @property
     def KYC(self):
         return None
+
     @property
     def endpoint(self):
-        return self._endpoint if not self._single else self._ext_endpoint 
+        return self._endpoint if not self._single else self._extpoint 
+
+    @property
+    def extpoint(self):
+        return self._extpoint
 
     @property
     def peers_info(self):
@@ -582,8 +587,21 @@ class Gossip(object):
                     and inform about new peer all rest peers of this cluster
                     """
                     peer_endpoints = list(set(self._peers.values()))
+                    extpoints = []
+                    if single:
+                        # change endpoint on extpoint
+                        for pend in peer_endpoints:
+                            pkey = self._network.endpoint_to_public_key(pend)
+                            if pkey :
+                                epeer,_ = self._fbft.key_to_peer(pkey)
+                                if epeer and PeerAtr.endpoint in epeer:
+                                    extpoints.append(epeer[PeerAtr.extpoint])
+
+
                     if self.endpoint:
-                        peer_endpoints.append(self.endpoint_to_expoint(self.endpoint, self._my_ip) if self.is_single else self.endpoint)
+                        extpoints.append(self.extpoint if single else self.endpoint)
+                        LOGGER.debug("EXPOINT=%s\n", extpoints)
+                        peer_endpoints.append(self.endpoint)
                 else:
                     peer_endpoints = []
             else:
@@ -591,12 +609,13 @@ class Gossip(object):
                 peer_endpoints = []
                 leader = self._fbft.get_cluster_leader(parent)
                 if leader and PeerAtr.endpoint in leader:
-                    endpoint = self.endpoint_to_expoint(leader[PeerAtr.endpoint], self._my_ip) if self.is_single else leader[PeerAtr.endpoint]
-                    peer_endpoints.append(endpoint)
-                    status = GetPeersResponse.REDIRECT
+                    endpoint = leader[PeerAtr.extpoint if single else PeerAtr.endpoint] 
+                    LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
+                    peer_endpoints.append(leader[PeerAtr.endpoint])
+                    status = GetPeersResponse.REDIRECT 
                 elif self.endpoint:
                     # continue ask my node 
-                    peer_endpoints.append(self.endpoint)
+                    peer_endpoints.append(self.extpoint if single else self.endpoint)
             
                 
             LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
@@ -979,7 +998,7 @@ class Gossip(object):
         # answer for endpoint peer 
         return is_not_diff
 
-    def register_peer(self, connection_id,pid, endpoint,sync=None,component=None):
+    def register_peer(self, connection_id,pid, endpoint,sync=None,component=None,extpoint=None):
         """Registers a connected connection_id.
 
         Args:
@@ -1017,7 +1036,7 @@ class Gossip(object):
             if self._fbft.get_peer_state(public_key,peer) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
-                self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
+                self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid,extpoint=extpoint)
                 status_updated = True
                 #self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
             else :
@@ -1814,7 +1833,7 @@ class ConnectionManager(InstrumentedThread):
         request for position into topology
         """
         peers_request = GetPeersRequest(peer_id=bytes.fromhex(self._gossip.validator_id),
-                                            endpoint = self._gossip.endpoint , #if self._gossip._ext_endpoint is None else self._gossip._ext_endpoint,
+                                            endpoint = self._gossip.endpoint , 
                                             cluster = self._gossip.join_cluster,
                                             KYC = self._gossip.KYC,
                                             single = self._gossip.is_single
@@ -1892,7 +1911,7 @@ class ConnectionManager(InstrumentedThread):
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
 
-            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id)
+            register_request = PeerRegisterRequest(endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id,extpoint=self._gossip.extpoint)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -2018,7 +2037,7 @@ class ConnectionManager(InstrumentedThread):
         LOGGER.debug("Connection to %s succeeded endpoint=%s component=%s pid=%s", connection_id[:8],endpoint,self._gossip.component,self._gossip.peer_id)
 
         register_request = PeerRegisterRequest(
-            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id,component=self._gossip.component)
+            endpoint=self._endpoint,mode=PeerRegisterRequest.REGISTER,pid=self._gossip.peer_id,component=self._gossip.component,extpoint=self._gossip.extpoint)
         self._connection_statuses[connection_id] = PeerStatus.TEMP
         try:
             """

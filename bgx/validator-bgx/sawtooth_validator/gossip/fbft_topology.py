@@ -38,6 +38,7 @@ class PeerRole():
 
 class PeerAtr():
     endpoint   = 'endpoint'
+    extpoint   = 'extpoint'
     component  = 'component'
     node_state = 'node_state'
     cluster    = 'cluster'
@@ -439,7 +440,7 @@ class FbftTopology(object):
         LOGGER.debug('peer_is_leader: is not leader=%s',peer_key[:8])
         return False
     
-    def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None):
+    def update_peer_activity(self,peer_key,endpoint,mode,sync=False,force=False,pid=None,extpoint=None):
         
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key) or (PeerAtr.endpoint in peer and peer[PeerAtr.endpoint] == endpoint)  :
@@ -447,6 +448,8 @@ class FbftTopology(object):
                     peer[PeerAtr.endpoint] = endpoint
                 if pid is not None:
                     peer[PeerAtr.pid] = pid
+                if extpoint is not None:
+                    peer[PeerAtr.extpoint] = extpoint
                 #if sync or (not sync and (peer[PeerAtr.node_state] != PeerSync.active or force)) :
                 peer[PeerAtr.node_state] = (PeerSync.active if sync else PeerSync.nosync) if mode else PeerSync.inactive
                 """
