@@ -1882,7 +1882,7 @@ class ConnectionManager(InstrumentedThread):
                         time.time(),
                         INITIAL_RETRY_FREQUENCY)
 
-                    self._network.add_outbound_connection(endpoint)
+                    self._network.add_outbound_connection(endpoint,self._gossip.endpoint)
 
             # If the connection does exist, request peers.
             if conn_id is not None:

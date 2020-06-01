@@ -700,7 +700,7 @@ class Interconnect(object):
         self._send_response_timers = {}
         # cluster info
         self._cluster = None
-        LOGGER.debug("Interconnect init endpoint=%s",self._endpoint)
+        LOGGER.debug("Interconnect init endpoint=%s public_endpoint=%s",self._endpoint,self._public_endpoint)
 
     @property
     def validator_id(self):
@@ -800,7 +800,7 @@ class Interconnect(object):
         """
         return uri in self.outbound_connections
 
-    def add_outbound_connection(self, uri):
+    def add_outbound_connection(self, uri,endpoint=None):
         """Adds an outbound connection to the network.
 
         Args:
@@ -827,7 +827,7 @@ class Interconnect(object):
 
         self._add_connection(conn, uri)
 
-        connect_message = ConnectionRequest(endpoint=self._public_endpoint)
+        connect_message = ConnectionRequest(endpoint= endpoint if endpoint else self._public_endpoint)
         conn.send(
             validator_pb2.Message.NETWORK_CONNECT,
             connect_message.SerializeToString(),
