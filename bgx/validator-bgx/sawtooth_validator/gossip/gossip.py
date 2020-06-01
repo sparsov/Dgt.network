@@ -585,14 +585,15 @@ class Gossip(object):
                     extpoints = []
                     if single:
                         # change endpoint on extpoint
-                        LOGGER.debug("change endpoint=%s on extpoint", peer_endpoints)
+                        #LOGGER.debug("change endpoint=%s on extpoint", peer_endpoints)
                         for pend in peer_endpoints:
                             
                             pkey = self._network.endpoint_to_public_key(pend)
-                            LOGGER.debug("GET PKEY=%s endpoint=%s",pkey,pend)
+                            #LOGGER.debug("GET PKEY=%s endpoint=%s",pkey,pend)
                             if pkey :
                                 epeer,_ = self._fbft.key_to_peer(pkey)
                                 if epeer and PeerAtr.endpoint in epeer:
+                                    LOGGER.debug("ADD PEER extpoint=%s",epeer[PeerAtr.extpoint])
                                     extpoints.append(epeer[PeerAtr.extpoint])
                                 else:
                                     LOGGER.debug("Can't get expoint from %s", epeer)
@@ -602,7 +603,8 @@ class Gossip(object):
 
                     if self.endpoint:
                         if single:
-                            peer_endpoints = extpoints.append(self.extpoint)
+                            extpoints.append(self.extpoint)
+                            peer_endpoints = extpoints
                             LOGGER.debug("EXPOINTS=%s + %s\n", peer_endpoints,self.extpoint)
                         else:
                             peer_endpoints.append(self.endpoint)
