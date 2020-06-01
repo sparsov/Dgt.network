@@ -96,8 +96,8 @@ class ConnectHandler(Handler):
                     message_type=validator_pb2.Message.
                     AUTHORIZATION_CONNECTION_RESPONSE)
 
-        LOGGER.debug("Endpoint of connecting=%s node is %s", connection_id[:8],message.endpoint)
-        self._network.update_connection_endpoint(connection_id,message.endpoint)
+        LOGGER.debug("Endpoint of connecting=%s node is %s single=%s", connection_id[:8],message.endpoint,message.single)
+        self._network.update_connection_endpoint(connection_id,message.endpoint,message.single)
 
         # Get what AuthorizationType the network role requires
         roles = self._network.roles
@@ -281,7 +281,7 @@ class AuthorizationTrustRequestHandler(Handler):
             
             try:
                 is_outbound_connection = self._network.is_outbound_connection(connection_id)
-                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s TRUST",is_outbound_connection, connection_id[:8])
+                LOGGER.debug("Connection if they initialized the connection request outbound=%s conn=%s TRUST ",is_outbound_connection, connection_id[:8])
             except KeyError:
                 # Connection has gone away, drop message
                 LOGGER.debug("Connection has gone away, drop message conn=%s", connection_id[:8])

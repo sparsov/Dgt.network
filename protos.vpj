@@ -55,6 +55,7 @@
             Name="Source Files"
             Filters="*.c;*.C;*.cc;*.cpp;*.cp;*.cxx;*.c++;*.prg;*.pas;*.dpr;*.asm;*.s;*.bas;*.java;*.cs;*.sc;*.e;*.cob;*.html;*.rc;*.tcl;*.py;*.pl;*.d;*.m;*.mm;*.go"
             GUID="{5DE312BA-27D5-4460-A1B6-4391FE1893BD}">
+            <F N="bgx/protos/common/authorization.proto"/>
             <F N="protos/authorization.proto"/>
             <F N="bgx/protos/common/batch.proto"/>
             <F N="protos/batch.proto"/>

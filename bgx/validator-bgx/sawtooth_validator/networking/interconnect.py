@@ -49,6 +49,7 @@ from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
 import os
 from urllib.parse import urlparse
+import http.client
 
 LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class AuthorizationType(Enum):
 
 ConnectionInfo = namedtuple('ConnectionInfo',
                             ['connection_type', 'connection', 'uri',
-                             'status', 'public_key'])
+                             'status', 'public_key','single'])
 
 
 def _generate_id():
@@ -271,7 +272,7 @@ class _SendReceive(object):
         self._last_message_times[zmq_identity] = time.time()
         connection_id = self._identity_to_connection_id(zmq_identity)
         if connection_id not in self._connections:
-            self._connections[connection_id] = ConnectionInfo(ConnectionType.ZMQ_IDENTITY,zmq_identity,None,None,None)
+            self._connections[connection_id] = ConnectionInfo(ConnectionType.ZMQ_IDENTITY,zmq_identity,None,None,None,False)
             LOGGER.info("RECEIVED CONN=%s from identity=%s total=%s",connection_id[:8],zmq_identity,len(self._connections))
 
     @asyncio.coroutine
@@ -651,17 +652,13 @@ class Interconnect(object):
                 callbacks, defaults to 10
             signer (:obj:`Signer`): cryptographic signer for the validator
         """
-        """
-        if public_endpoint:
-            nendport = os.environ.get('ENDPORT')
-            if nendport != '' and os.environ.get('SINGLE') == 'Y':
-                # change port 
-                url = urlparse(endpoint)
-                endpoint = "{}://{}:{}".format(url.scheme,url.hostname,nendport)
-        """
+        self._single = False
         self._endpoint = endpoint
         #LOGGER.debug("Interconnect endpoint=%s", endpoint)
         self._public_endpoint = public_endpoint
+        if public_endpoint:
+            self.set_single_mode(public_endpoint)
+
         self._future_callback_threadpool = InstrumentedThreadPoolExecutor(max_workers=max_future_callback_workers,name='FutureCallback',metrics_registry=metrics_registry)
         self._futures = future.FutureCollection(resolving_threadpool=self._future_callback_threadpool)
         self._dispatcher = dispatcher
@@ -712,6 +709,19 @@ class Interconnect(object):
         self._cluster = None
         LOGGER.debug("Interconnect init endpoint=%s public_endpoint=%s",self._endpoint,self._public_endpoint)
 
+    def set_single_mode(self,public_endpoint):
+        single = os.environ.get('SINGLE')
+        self._single = (single == 'Y')
+        LOGGER.debug("Interconnect:SINGLE=%s",self._single)
+        conn = http.client.HTTPConnection("ifconfig.me")
+        conn.request("GET", "/ip")
+        my_ip = conn.getresponse().read()
+        self._my_ip = my_ip.decode('utf-8')
+        url = urlparse(public_endpoint)
+        self._public_extpoint = "{}://{}:{}".format(url.scheme,self._my_ip,url.port)
+        
+        LOGGER.debug("Interconnect: MY EXTPOINT='%s'\n",self._public_extpoint)
+
     @property
     def validator_id(self):
         return self._signer.get_public_key().as_hex()
@@ -727,6 +737,14 @@ class Interconnect(object):
     @property
     def endpoint(self):
         return self._endpoint
+
+    @property
+    def extpoint(self):
+        return self._public_extpoint
+
+    @property
+    def single(self):
+        return self._single
 
     @property
     def connections_info(self):
@@ -789,6 +807,15 @@ class Interconnect(object):
             return connection_info.status
         return None
 
+    def get_connection_single(self, connection_id):
+        """
+        Get status of the connection during Role enforcement.
+        """
+        if connection_id in self._connections:
+            connection_info = self._connections[connection_id]
+            return connection_info.single
+        return False
+
     def set_check_connections(self, function):
         self._send_receive_thread.set_check_connections(function)
 
@@ -837,7 +864,7 @@ class Interconnect(object):
 
         self._add_connection(conn, uri)
 
-        connect_message = ConnectionRequest(endpoint= endpoint if endpoint else self._public_endpoint)
+        connect_message = ConnectionRequest(endpoint= endpoint if endpoint else self._public_endpoint,single=(endpoint is not None))
         conn.send(
             validator_pb2.Message.NETWORK_CONNECT,
             connect_message.SerializeToString(),
@@ -853,7 +880,10 @@ class Interconnect(object):
         Send ConnectionRequest to an inbound connection. This allows
         the validator to be authorized by the incoming connection.
         """
-        connect_message = ConnectionRequest(endpoint=self._public_endpoint)
+        single = self.get_connection_single(connection_id)
+        endpoint = self._public_endpoint if not single else self._public_extpoint
+        LOGGER.debug("SEND_CONNECT_REQUEST endpoint=%s single=%s",endpoint,single)
+        connect_message = ConnectionRequest(endpoint=endpoint)
         self._safe_send(
             validator_pb2.Message.NETWORK_CONNECT,
             connect_message.SerializeToString(),
@@ -1096,7 +1126,7 @@ class Interconnect(object):
                 return connection_id
         raise KeyError()
 
-    def update_connection_endpoint(self, connection_id, endpoint):
+    def update_connection_endpoint(self, connection_id, endpoint,single=False):
         """Adds the endpoint to the connection definition. When the
         connection is created by the send/receive thread, we do not
         yet have the endpoint of the remote node. That is not known
@@ -1114,7 +1144,8 @@ class Interconnect(object):
                                connection_info.connection,
                                endpoint,
                                connection_info.status,
-                               connection_info.public_key)
+                               connection_info.public_key,
+                               single)
 
         else:
             LOGGER.debug("Could not update the endpoint %s for connection_id %s. The connection does not exist.",endpoint,connection_id)
@@ -1136,7 +1167,8 @@ class Interconnect(object):
                                connection_info.connection,
                                connection_info.uri,
                                connection_info.status,
-                               public_key)
+                               public_key,
+                               connection_info.single)
         else:
             LOGGER.debug("Could not update the public key %s for connection_id %s. The connection does not exist.",
                          public_key,
@@ -1160,7 +1192,8 @@ class Interconnect(object):
                                connection_info.connection,
                                connection_info.uri,
                                status,
-                               connection_info.public_key)
+                               connection_info.public_key,
+                               connection_info.single)
         else:
             LOGGER.debug("Could not update the status to %s for connection_id %s. The connection does not exist.",status,connection_id)
 
@@ -1168,7 +1201,7 @@ class Interconnect(object):
         with self._connections_lock:
             connection_id = connection.connection_id
             if connection_id not in self._connections:
-                self._connections[connection_id] = ConnectionInfo(ConnectionType.OUTBOUND_CONNECTION,connection,uri,None,None)
+                self._connections[connection_id] = ConnectionInfo(ConnectionType.OUTBOUND_CONNECTION,connection,uri,None,None,False)
                 #LOGGER.debug("ADD CONN=%s uri=%s total=%s", connection_id[:8], uri, self.connections_info)
 
     def remove_connection(self, connection_id):

@@ -199,17 +199,11 @@ class Gossip(object):
         return expoint
 
     def set_single_mode(self):
-        single = os.environ.get('SINGLE')
-        endport = os.environ.get('ENDPORT')
-        self._single = (single == 'Y')
-        LOGGER.debug("Gossip: set SINGLE=%s  endport=%s",self._single,endport)
-        conn = http.client.HTTPConnection("ifconfig.me")
-        conn.request("GET", "/ip")
-        my_ip = conn.getresponse().read()
-        self._my_ip = my_ip.decode('utf-8')
-        self._extpoint = self.endpoint_to_expoint(self._endpoint,self._my_ip)#,endport)
-        LOGGER.debug("Gossip: MY EXTPOINT='%s'\n",self._extpoint)
-        # make external enpoint
+        #endport = os.environ.get('ENDPORT')
+        self._single = self._network.single
+        self._extpoint = self._network.extpoint
+        LOGGER.debug("Gossip: set SINGLE=%s  EXTPOINT=%s",self._single,self._extpoint)
+        
 
     def update_endpoints(self,val):
         """

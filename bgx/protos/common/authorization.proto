@@ -22,6 +22,7 @@ message ConnectionRequest {
   // This is the first message that must be sent to start off authorization.
   // The endpoint of the connection.
   string endpoint = 1;
+  bool   single   = 2; // this is single node
 }
 
 enum RoleType {

@@ -48,7 +48,7 @@ esac
 shift
 done
 
-echo "$1 $2 $GENESIS $SINGLE $PEERING $SEEDS ${ENDPORT:-8701}"
+#echo "$1 $2 $GENESIS $SINGLE $PEERING $SEEDS ${ENDPORT:-8701}"
 #exit
 #if [ $1 == 'G' ]; then GENESIS="Y";shift; else GENESIS="N"; fi
 #if [ -z $GATEWAY ]; then 
@@ -213,10 +213,10 @@ function upClusterDyn {
           export COMPOSE_PROJECT_NAME=62 G=$GENESIS C=dyn N=2 API=8709 COMP=4706 NET=${ENDPORT:-8702} CONS=5752;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         3)
-          export COMPOSE_PROJECT_NAME=63 G=$GENESIS C=dyn N=3 API=8710 COMP=4707 NET=8703 CONS=5753;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=63 G=$GENESIS C=dyn N=3 API=8710 COMP=4707 NET=${ENDPORT:-8703} CONS=5753;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         4)
-          export COMPOSE_PROJECT_NAME=64 G=$GENESIS C=dyn N=4 API=8711 COMP=4708 NET=8704 CONS=5754;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=64 G=$GENESIS C=dyn N=4 API=8711 COMP=4708 NET=${ENDPORT:-8704} CONS=5754;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         *)
           echo "Undefined peer into cluster."
