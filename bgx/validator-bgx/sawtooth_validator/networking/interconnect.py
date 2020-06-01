@@ -651,13 +651,14 @@ class Interconnect(object):
                 callbacks, defaults to 10
             signer (:obj:`Signer`): cryptographic signer for the validator
         """
+        """
         if public_endpoint:
             nendport = os.environ.get('ENDPORT')
             if nendport != '' and os.environ.get('SINGLE') == 'Y':
                 # change port 
                 url = urlparse(endpoint)
                 endpoint = "{}://{}:{}".format(url.scheme,url.hostname,nendport)
-
+        """
         self._endpoint = endpoint
         #LOGGER.debug("Interconnect endpoint=%s", endpoint)
         self._public_endpoint = public_endpoint

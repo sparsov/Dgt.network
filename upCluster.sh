@@ -32,6 +32,7 @@ _PEERS_="91.216.211.46 validator-bgx-c2-1;91.216.211.46 validator-bgx-c3-1"
 GENESIS="N"
 export SINGLE="N"
 export PEERING='static'
+
 while [ -n "$1" ]
 do
 case "$1" in
@@ -47,7 +48,7 @@ esac
 shift
 done
 
-#echo "$1 $2 $GENESIS $SINGLE $PEERING $SEEDS"
+echo "$1 $2 $GENESIS $SINGLE $PEERING $SEEDS ${ENDPORT:-8701}"
 #exit
 #if [ $1 == 'G' ]; then GENESIS="Y";shift; else GENESIS="N"; fi
 #if [ -z $GATEWAY ]; then 
@@ -206,10 +207,10 @@ function upClusterDyn {
     #echo "START $node"
     case $node in
         1)
-          export COMPOSE_PROJECT_NAME=61 G=$GENESIS C=dyn N=1 API=8708 COMP=4704 NET=8701 CONS=5751;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=61 G=$GENESIS C=dyn N=1 API=8708 COMP=4704 NET=${ENDPORT:-8701} CONS=5751;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         2)
-          export COMPOSE_PROJECT_NAME=62 G=$GENESIS C=dyn N=2 API=8709 COMP=4706 NET=8702 CONS=5752;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=62 G=$GENESIS C=dyn N=2 API=8709 COMP=4706 NET=${ENDPORT:-8702} CONS=5752;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         3)
           export COMPOSE_PROJECT_NAME=63 G=$GENESIS C=dyn N=3 API=8710 COMP=4707 NET=8703 CONS=5753;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode

@@ -207,7 +207,7 @@ class Gossip(object):
         conn.request("GET", "/ip")
         my_ip = conn.getresponse().read()
         self._my_ip = my_ip.decode('utf-8')
-        self._extpoint = self.endpoint_to_expoint(self._endpoint,self._my_ip,endport)
+        self._extpoint = self.endpoint_to_expoint(self._endpoint,self._my_ip)#,endport)
         LOGGER.debug("Gossip: MY EXTPOINT='%s'\n",self._extpoint)
         # make external enpoint
 
