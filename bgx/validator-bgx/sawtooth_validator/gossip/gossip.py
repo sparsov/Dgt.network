@@ -587,6 +587,7 @@ class Gossip(object):
                         # change endpoint on extpoint
                         LOGGER.debug("change endpoint=%s on extpoint", peer_endpoints)
                         for pend in peer_endpoints:
+                            LOGGER.debug("GET PKEY endpoint=%s",pend)
                             pkey = self._network.endpoint_to_public_key(pend)
                             if pkey :
                                 epeer,_ = self._fbft.key_to_peer(pkey)
