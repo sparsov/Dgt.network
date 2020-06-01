@@ -581,6 +581,7 @@ class Gossip(object):
                     and inform about new peer all rest peers of this cluster
                     """
                     peer_endpoints = list(set(self._peers.values()))
+                    LOGGER.debug("peer_endpoints=%s", peer_endpoints)
                     extpoints = []
                     if single:
                         # change endpoint on extpoint
@@ -1929,7 +1930,7 @@ class ConnectionManager(InstrumentedThread):
                     EndpointStatus.PEERING,
                     time.time(),
                     INITIAL_RETRY_FREQUENCY)
-            self._network.add_outbound_connection(endpoint)
+            self._network.add_outbound_connection(endpoint,self._gossip.extpoint if self._gossip.is_single else None)
 
 
     def _reset_candidate_peer_endpoints(self):
