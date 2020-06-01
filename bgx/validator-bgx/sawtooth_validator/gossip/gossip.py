@@ -590,12 +590,14 @@ class Gossip(object):
                                 epeer,_ = self._fbft.key_to_peer(pkey)
                                 if epeer and PeerAtr.endpoint in epeer:
                                     extpoints.append(epeer[PeerAtr.extpoint])
+                            else:
+                                LOGGER.debug("Can't get KEY for %s", pend)
 
 
                     if self.endpoint:
                         if single:
                             peer_endpoints = extpoints.append(self.extpoint)
-                            LOGGER.debug("EXPOINT=%s\n", peer_endpoints)
+                            LOGGER.debug("EXPOINTS=%s + %s\n", peer_endpoints,self.extpoint)
                         else:
                             peer_endpoints.append(self.endpoint)
                 else:
