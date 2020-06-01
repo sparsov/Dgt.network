@@ -47,6 +47,7 @@ from sawtooth_validator.metrics.wrappers import TimerWrapper
 from sawtooth_validator.metrics.wrappers import CounterWrapper
 from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
+from urllib.parse import urlparse
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=too-many-lines
@@ -648,6 +649,12 @@ class Interconnect(object):
                 callbacks, defaults to 10
             signer (:obj:`Signer`): cryptographic signer for the validator
         """
+        if public_endpoint:
+            nendport = os.environ.get('ENDPORT')
+            if nendport != '' and os.environ.get('SINGLE') == 'Y':
+                # change port 
+                url = urlparse(endpoint)
+                endpoint = "{}://{}:{}".format(url.scheme,url.host,nendport)
 
         self._endpoint = endpoint
         #LOGGER.debug("Interconnect endpoint=%s", endpoint)
