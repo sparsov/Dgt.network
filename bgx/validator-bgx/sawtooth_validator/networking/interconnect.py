@@ -656,7 +656,7 @@ class Interconnect(object):
             if nendport != '' and os.environ.get('SINGLE') == 'Y':
                 # change port 
                 url = urlparse(endpoint)
-                endpoint = "{}://{}:{}".format(url.scheme,url.host,nendport)
+                endpoint = "{}://{}:{}".format(url.scheme,url.hostname,nendport)
 
         self._endpoint = endpoint
         #LOGGER.debug("Interconnect endpoint=%s", endpoint)
