@@ -406,8 +406,8 @@ class Gossip(object):
         # otherwise create it
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
-
-            register_request = PeerRegisterRequest(endpoint=self.endpoint,mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
+            single = self._network.get_connection_single(connection_id)    
+            register_request = PeerRegisterRequest(endpoint= self.extpoint if single else self.endpoint,mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
