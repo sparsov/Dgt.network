@@ -47,7 +47,9 @@ from sawtooth_validator.metrics.wrappers import TimerWrapper
 from sawtooth_validator.metrics.wrappers import CounterWrapper
 from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
+import os
 from urllib.parse import urlparse
+
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=too-many-lines
