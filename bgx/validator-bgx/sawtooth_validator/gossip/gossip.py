@@ -585,6 +585,7 @@ class Gossip(object):
                     extpoints = []
                     if single:
                         # change endpoint on extpoint
+                        LOGGER.debug("change endpoint=%s on extpoint", peer_endpoints)
                         for pend in peer_endpoints:
                             pkey = self._network.endpoint_to_public_key(pend)
                             if pkey :
@@ -1029,6 +1030,7 @@ class Gossip(object):
             send message about peer to consensus engine
             in case timeout for waiting peers is expired
             """
+             
             peer = self._fbft.get_peer(public_key)
             #if self._fbft.own_role == PeerRole.leader and peer and peer[PeerAtr.role] == PeerRole.leader:
             #    # check maybe this is new leader
@@ -1052,8 +1054,9 @@ class Gossip(object):
                 self._fbft.update_peer_component(public_key, component)
                 if peer and self.peer_is_visible_for_me(public_key) and endpoint not in self._initial_peer_endpoints:
                     # if this peer belonge our cluster make connection with them 
-                    LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER", public_key[:8], endpoint)
-                    self._topology.add_visible_peer(endpoint)
+                    single = self._network.get_connection_single(connection_id)
+                    LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER single=%s", public_key[:8], endpoint,single)
+                    self._topology.add_visible_peer(endpoint,single)
 
             if self.is_federations_assembled and (status_updated or component is not None):
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
@@ -1479,7 +1482,7 @@ class ConnectionManager(InstrumentedThread):
     def is_federations_assembled(self):
         return self._gossip.is_federations_assembled
 
-    def add_visible_peer(self,endpoint):
+    def add_visible_peer(self,endpoint,single):
         """
         appeared new peer which is visible
         """
@@ -1489,7 +1492,7 @@ class ConnectionManager(InstrumentedThread):
                     time=0,
                     retry_threshold=INITIAL_RETRY_FREQUENCY,
                     count=0)
-            self._network.add_outbound_connection(endpoint)
+            self._network.add_outbound_connection(endpoint,self._gossip.extpoint if single else None)
             self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.PEERING,
                         time.time(),
