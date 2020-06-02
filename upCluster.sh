@@ -32,7 +32,7 @@ _PEERS_="91.216.211.46 validator-bgx-c2-1;91.216.211.46 validator-bgx-c3-1"
 GENESIS="N"
 export SINGLE="N"
 export PEERING='static'
-
+export NETWORK='net0'
 while [ -n "$1" ]
 do
 case "$1" in
@@ -42,6 +42,7 @@ case "$1" in
 shift;export PEERING='dynamic';export SEEDS="--seeds $1";echo "--seed $1"
 ;;
 -P) shift; export ENDPORT=$1 ;;
+-N) shift; export NETWORK=$1 ;;
 --) shift;break ;;
 *) break ;;
 esac

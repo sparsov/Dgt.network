@@ -186,7 +186,7 @@ services:
     - PEER_HOME=/project/peer
     - ENDPOINTS=${ENDPOINTS}
     - SINGLE=${SINGLE}
-    - ENDPORT=${ENDPORT}
+    - NETWORK=${NETWORK}
     volumes:
       - ../..:/project/${BGX_TOP}
       - ../../../dgt_clust/${C}/bgx${N}:/project/peer
@@ -209,7 +209,7 @@ services:
         bgxadm node ${C} bgx${N};bgxadm keygen;ls -l /project/peer;
         if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/*.log*;
         bgx keygen my_key;
-        echo 'GATEWAY=${SEEDS},PEERING=${PEERING}'
+        echo 'GATEWAY=${SEEDS},PEERING=${PEERING},NETWORK=${NETWORK}'
         bgxset proposal create -k /project/peer/keys/validator.priv -o dgtset.batch $$(cat /project/peer/etc/dgt.conf)
         bgxset genesis -k /project/peer/keys/validator.priv -A $$(cat /project/${BGX_TOP}/clusters/c1/bgx1/keys/validator.pub) -A $$(cat /project/peer/keys/validator.pub)
         if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi

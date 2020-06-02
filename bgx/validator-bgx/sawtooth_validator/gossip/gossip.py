@@ -202,7 +202,8 @@ class Gossip(object):
         #endport = os.environ.get('ENDPORT')
         self._single = self._network.single
         self._extpoint = self._network.extpoint
-        LOGGER.debug("Gossip: set SINGLE=%s  EXTPOINT=%s",self._single,self._extpoint)
+        self._network  = self._network.network
+        LOGGER.debug("Gossip: set SINGLE=%s  EXTPOINT=%s NETWORK=%s",self._single,self._extpoint,self._network)
         
 
     def update_endpoints(self,val):
@@ -282,6 +283,9 @@ class Gossip(object):
     @property
     def is_single(self):
         return self._single
+    @property
+    def network(self):
+        return self._network
 
     @property
     def join_cluster(self):
@@ -406,8 +410,8 @@ class Gossip(object):
         # otherwise create it
         try:
             connection_id = self._network.get_connection_id_by_endpoint(endpoint)
-            single = self._network.get_connection_single(connection_id)    
-            register_request = PeerRegisterRequest(endpoint= self.extpoint if single else self.endpoint,mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
+            network = self._network.get_connection_network(connection_id)    
+            register_request = PeerRegisterRequest(endpoint=(self.extpoint if network != self.network else self._endpoint),mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
 
             self._network.send(
                 validator_pb2.Message.GOSSIP_REGISTER,
@@ -530,7 +534,7 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,single=False):
+    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,network='net0'):
         """
         Dynamic Fbft topology mode
         Sends a message containing our peers to the
@@ -583,7 +587,7 @@ class Gossip(object):
                     peer_endpoints = list(set(self._peers.values()))
                     LOGGER.debug("peer_endpoints=%s", peer_endpoints)
                     extpoints = []
-                    if single:
+                    if network != self.network:
                         # change endpoint on extpoint
                         #LOGGER.debug("change endpoint=%s on extpoint", peer_endpoints)
                         for pend in peer_endpoints:
@@ -602,12 +606,12 @@ class Gossip(object):
 
 
                     if self.endpoint:
-                        if single:
+                        if network != self.network:
                             extpoints.append(self.extpoint)
                             peer_endpoints = extpoints
                             LOGGER.debug("EXPOINTS=%s + %s\n", peer_endpoints,self.extpoint)
                         else:
-                            peer_endpoints.append(self.endpoint)
+                            peer_endpoints.append(self._endpoint)
                 else:
                     peer_endpoints = []
             else:
@@ -621,7 +625,7 @@ class Gossip(object):
                     status = GetPeersResponse.REDIRECT 
                 elif self.endpoint:
                     # continue ask my node 
-                    peer_endpoints.append(self.extpoint if single else self.endpoint)
+                    peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
             
                 
             LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
@@ -1058,9 +1062,9 @@ class Gossip(object):
                 self._fbft.update_peer_component(public_key, component)
                 if peer and self.peer_is_visible_for_me(public_key) and endpoint not in self._initial_peer_endpoints:
                     # if this peer belonge our cluster make connection with them 
-                    single = self._network.get_connection_single(connection_id)
-                    LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER single=%s", public_key[:8], endpoint,single)
-                    self._topology.add_visible_peer(endpoint,single)
+                    network = self._network.get_connection_network(connection_id)
+                    LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER network=%s", public_key[:8], endpoint,network)
+                    self._topology.add_visible_peer(endpoint,network != self.network)
 
             if self.is_federations_assembled and (status_updated or component is not None):
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
@@ -1844,7 +1848,7 @@ class ConnectionManager(InstrumentedThread):
                                             endpoint = self._gossip.endpoint , 
                                             cluster = self._gossip.join_cluster,
                                             KYC = self._gossip.KYC,
-                                            single = self._gossip.is_single
+                                            network = self._gossip.network
                                             )
         return peers_request
 
@@ -1933,12 +1937,13 @@ class ConnectionManager(InstrumentedThread):
             # if the connection uri wasn't found in the network's
             # connections, it raises a KeyError and we need to add
             # a new outbound connection
-            LOGGER.debug("ADD NEW outbound connection with %s\n", endpoint)
+            LOGGER.debug("ADD NEW outbound connection with %s single=%s\n", endpoint,self._gossip.is_single)
             with self._lock:
                 self._temp_endpoints[endpoint] = EndpointInfo(
                     EndpointStatus.PEERING,
                     time.time(),
                     INITIAL_RETRY_FREQUENCY)
+            # in this case we use SINGLE start peer's marker which say us that endpoint belonge to other network
             self._network.add_outbound_connection(endpoint,self._gossip.extpoint if self._gossip.is_single else None)
 
 

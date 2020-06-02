@@ -96,8 +96,8 @@ class ConnectHandler(Handler):
                     message_type=validator_pb2.Message.
                     AUTHORIZATION_CONNECTION_RESPONSE)
 
-        LOGGER.debug("Endpoint of connecting=%s node is %s single=%s", connection_id[:8],message.endpoint,message.single)
-        self._network.update_connection_endpoint(connection_id,message.endpoint,message.single)
+        LOGGER.debug("Endpoint of connecting=%s node is %s network=%s", connection_id[:8],message.endpoint,message.network)
+        self._network.update_connection_endpoint(connection_id,message.endpoint,message.network)
 
         # Get what AuthorizationType the network role requires
         roles = self._network.roles

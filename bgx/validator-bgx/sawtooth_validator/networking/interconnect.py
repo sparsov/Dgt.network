@@ -74,7 +74,7 @@ class AuthorizationType(Enum):
 
 ConnectionInfo = namedtuple('ConnectionInfo',
                             ['connection_type', 'connection', 'uri',
-                             'status', 'public_key','single'])
+                             'status', 'public_key','network'])
 
 
 def _generate_id():
@@ -653,11 +653,12 @@ class Interconnect(object):
             signer (:obj:`Signer`): cryptographic signer for the validator
         """
         self._single = False
+        self._network = 'net0'
         self._endpoint = endpoint
         #LOGGER.debug("Interconnect endpoint=%s", endpoint)
         self._public_endpoint = public_endpoint
         if public_endpoint:
-            self.set_single_mode(public_endpoint)
+            self.set_network_mode(public_endpoint)
 
         self._future_callback_threadpool = InstrumentedThreadPoolExecutor(max_workers=max_future_callback_workers,name='FutureCallback',metrics_registry=metrics_registry)
         self._futures = future.FutureCollection(resolving_threadpool=self._future_callback_threadpool)
@@ -707,12 +708,12 @@ class Interconnect(object):
         self._send_response_timers = {}
         # cluster info
         self._cluster = None
-        LOGGER.debug("Interconnect init endpoint=%s public_endpoint=%s",self._endpoint,self._public_endpoint)
+        LOGGER.debug("Interconnect init endpoint=%s public_endpoint=%s network=%s",self._endpoint,self._public_endpoint,self.network)
 
-    def set_single_mode(self,public_endpoint):
-        single = os.environ.get('SINGLE')
-        self._single = (single == 'Y')
-        LOGGER.debug("Interconnect:SINGLE=%s",self._single)
+    def set_network_mode(self,public_endpoint):
+        self._network = os.environ.get('NETWORK')
+        self._single = (os.environ.get('SINGLE') == 'Y')
+        LOGGER.debug("Interconnect:SINGLE=%s NETWORK=%s",self._single,self._network)
         conn = http.client.HTTPConnection("ifconfig.me")
         conn.request("GET", "/ip")
         my_ip = conn.getresponse().read()
@@ -741,6 +742,10 @@ class Interconnect(object):
     @property
     def extpoint(self):
         return self._public_extpoint
+
+    @property
+    def network(self):
+        return self._network
 
     @property
     def single(self):
@@ -807,13 +812,13 @@ class Interconnect(object):
             return connection_info.status
         return None
 
-    def get_connection_single(self, connection_id):
+    def get_connection_network(self, connection_id):
         """
         Get status of the connection during Role enforcement.
         """
         if connection_id in self._connections:
             connection_info = self._connections[connection_id]
-            return connection_info.single
+            return connection_info.network
         return False
 
     def set_check_connections(self, function):
@@ -864,7 +869,7 @@ class Interconnect(object):
 
         self._add_connection(conn, uri)
 
-        connect_message = ConnectionRequest(endpoint= endpoint if endpoint else self._public_endpoint,single=(endpoint is not None))
+        connect_message = ConnectionRequest(endpoint= endpoint if endpoint else self._public_endpoint,network=self.network)
         conn.send(
             validator_pb2.Message.NETWORK_CONNECT,
             connect_message.SerializeToString(),
@@ -880,10 +885,10 @@ class Interconnect(object):
         Send ConnectionRequest to an inbound connection. This allows
         the validator to be authorized by the incoming connection.
         """
-        single = self.get_connection_single(connection_id)
-        endpoint = self._public_endpoint if not single else self._public_extpoint
-        LOGGER.debug("SEND_CONNECT_REQUEST endpoint=%s single=%s",endpoint,single)
-        connect_message = ConnectionRequest(endpoint=endpoint)
+        network = self.get_connection_network(connection_id)
+        endpoint = self._public_endpoint if network == self.network else self._public_extpoint
+        LOGGER.debug("SEND_CONNECT_REQUEST endpoint=%s network=%s",endpoint,network)
+        connect_message = ConnectionRequest(endpoint=endpoint,network=self.network)
         self._safe_send(
             validator_pb2.Message.NETWORK_CONNECT,
             connect_message.SerializeToString(),
@@ -1126,7 +1131,7 @@ class Interconnect(object):
                 return connection_id
         raise KeyError()
 
-    def update_connection_endpoint(self, connection_id, endpoint,single=False):
+    def update_connection_endpoint(self, connection_id, endpoint,network='net0'):
         """Adds the endpoint to the connection definition. When the
         connection is created by the send/receive thread, we do not
         yet have the endpoint of the remote node. That is not known
@@ -1145,7 +1150,7 @@ class Interconnect(object):
                                endpoint,
                                connection_info.status,
                                connection_info.public_key,
-                               single)
+                               network)
 
         else:
             LOGGER.debug("Could not update the endpoint %s for connection_id %s. The connection does not exist.",endpoint,connection_id)
@@ -1168,7 +1173,7 @@ class Interconnect(object):
                                connection_info.uri,
                                connection_info.status,
                                public_key,
-                               connection_info.single)
+                               connection_info.network)
         else:
             LOGGER.debug("Could not update the public key %s for connection_id %s. The connection does not exist.",
                          public_key,
@@ -1193,7 +1198,7 @@ class Interconnect(object):
                                connection_info.uri,
                                status,
                                connection_info.public_key,
-                               connection_info.single)
+                               connection_info.network)
         else:
             LOGGER.debug("Could not update the status to %s for connection_id %s. The connection does not exist.",status,connection_id)
 
