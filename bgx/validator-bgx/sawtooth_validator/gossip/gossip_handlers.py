@@ -327,7 +327,7 @@ class GossipBroadcastHandler(Handler):
                     cluster_exclude.append(connection_id)
                 else:
                     cluster_exclude = [connection_id]
-                LOGGER.debug("broadcast block=%s exclude=%s !!!",block.header_signature[:8],[self._gossip._peers[cid] for cid in cluster_exclude])
+                LOGGER.debug("broadcast block=%s exclude=%s cid=%s!!!",block.header_signature[:8],[self._gossip._peers[cid] for cid in cluster_exclude if cid in self._gossip._peers],connection_id[:8])
                 self._gossip.broadcast_block(block, cluster_exclude)
         elif gossip_message.content_type == GossipMessage.ENDPOINTS:
             endpoints = EndpointList()
