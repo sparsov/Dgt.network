@@ -619,7 +619,7 @@ class Gossip(object):
                 peer_endpoints = []
                 leader = self._fbft.get_cluster_leader(parent)
                 if leader and PeerAtr.endpoint in leader:
-                    endpoint = leader[PeerAtr.extpoint if single else PeerAtr.endpoint] 
+                    endpoint = leader[PeerAtr.extpoint if network != self.network else PeerAtr.endpoint] 
                     LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
                     peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
                     status = GetPeersResponse.REDIRECT 
