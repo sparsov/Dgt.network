@@ -202,8 +202,8 @@ class Gossip(object):
         #endport = os.environ.get('ENDPORT')
         self._single = self._network.single
         self._extpoint = self._network.extpoint
-        self._network  = self._network.network
-        LOGGER.debug("Gossip: set SINGLE=%s  EXTPOINT=%s NETWORK=%s",self._single,self._extpoint,self._network)
+        self._own_network  = self._network.network
+        LOGGER.debug("Gossip: set SINGLE=%s  EXTPOINT=%s NETWORK=%s",self._single,self._extpoint,self._own_network)
         
 
     def update_endpoints(self,val):
@@ -285,7 +285,7 @@ class Gossip(object):
         return self._single
     @property
     def network(self):
-        return self._network
+        return self._own_network
 
     @property
     def join_cluster(self):
