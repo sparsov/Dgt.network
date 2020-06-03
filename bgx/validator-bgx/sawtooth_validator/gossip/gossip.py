@@ -78,6 +78,10 @@ MAXIMUM_STATIC_RETRY_FREQUENCY = 3600
 MAXIMUM_STATIC_RETRIES = 24
 
 TIME_TO_LIVE = 3
+TIME_TO_LIVE_NM       = "bgx.gossip.time_to_live"
+MAX_PUBLIC_CLUSTER_NM = 'bgx.fbft.max_public_cluster'
+AUTO_CLUSTER_NM       = 'bgx.fbft.auto_cluster'
+
 
 
 class Gossip(object):
@@ -399,17 +403,18 @@ class Gossip(object):
         LOGGER.debug("_peer_sync_callback endpoint=%s DONE",endpoint)
                     
 
-    def sync_to_peer_with_endpoint(self, endpoint):
+    def sync_to_peer_with_endpoint(self, endpoint,connection_id=None):
         """
         <-- make sync request to peer with endpoint 
         <-- DO IT after DAG sync - we should make sync with own cluster and with arbiters for leader
         """
-        LOGGER.debug("Attempting to sync peer with endpoint=%s heads_sum=%s peers=%s", endpoint,self.heads_summary,self._peers)
+        LOGGER.debug("Attempting to sync peer with endpoint=%s heads_sum=%s peers=%s", endpoint,self.heads_summary,self.peers_info)
 
         # check if the connection exists, if it does - send,
         # otherwise create it
         try:
-            connection_id = self._network.get_connection_id_by_endpoint(endpoint)
+            if connection_id is None:
+                connection_id = self._network.get_connection_id_by_endpoint(endpoint) 
             network = self._network.get_connection_network(connection_id)    
             register_request = PeerRegisterRequest(endpoint=(self.extpoint if network != self.network else self._endpoint),mode=PeerRegisterRequest.SYNC,pid=self.peer_id,hid=self.heads_summary)
 
@@ -421,6 +426,7 @@ class Gossip(object):
                     self._peer_sync_callback,
                     endpoint=endpoint,
                     connection_id=connection_id))
+            self._num_nosync_peer += 1
         except KeyError:
             # if the connection uri wasn't found in the network's
             # connections, it raises a KeyError and we need to add
@@ -440,7 +446,7 @@ class Gossip(object):
             for key,peer in self._fbft.get_topology_iter():
                 # send message to all unsync peers and peer[PeerAtr.node_state] == PeerSync.nosync
                 if key != self.validator_id and PeerAtr.node_state in peer  and PeerAtr.endpoint in peer:
-                    self._num_nosync_peer += 1
+                    #self._num_nosync_peer += 1
                     LOGGER.debug("SYNC PEER=%s endpoint=%s node_state=%s",key[:8],peer[PeerAtr.endpoint],peer[PeerAtr.node_state])
                     self.sync_to_peer_with_endpoint(peer[PeerAtr.endpoint])
                 else:
@@ -1009,7 +1015,8 @@ class Gossip(object):
         return is_not_diff
 
     def register_peer(self, connection_id,pid, endpoint,sync=None,component=None,extpoint=None):
-        """Registers a connected connection_id.
+        """
+        Registers a connected connection_id.
 
         Args:
             connection_id (str): A unique identifier which identifies an
@@ -1022,7 +1029,7 @@ class Gossip(object):
         
         with self._lock:
             if len(self._peers) < self._maximum_peer_connectivity:
-                LOGGER.debug("Register endpoint=%s component=%s assembled=%s sync=%s SYNC=%s peers=%s",endpoint,component,self.is_federations_assembled,sync,self.is_sync,self.peers_info)
+                LOGGER.debug("Register endpoint=%s component=%s assembled=%s sync=%s SYNC=%s incomplete=%s peers=%s",endpoint,component,self.is_federations_assembled,sync,self.is_sync,self._incomplete,self.peers_info)
                 self._peers[connection_id] = endpoint
                 if self._topology:
                     self._topology.set_connection_status(connection_id,PeerStatus.PEER)
@@ -1065,6 +1072,13 @@ class Gossip(object):
                     network = self._network.get_connection_network(connection_id)
                     LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER network=%s", public_key[:8], endpoint,network)
                     self._topology.add_visible_peer(endpoint,network != self.network)
+            else:
+                # This is Reply on my REGISTER request
+                if not self._incomplete:
+                    """
+                    in case broken connection with this peer we should check DAG's hash of this peer and understand sync status of this peer
+                    """
+                    self.sync_to_peer_with_endpoint(endpoint,connection_id)
 
             if self.is_federations_assembled and (status_updated or component is not None):
                 self.notify_peer_connected(public_key,assemble=(sync== True)) # CHECKME
@@ -1164,10 +1178,19 @@ class Gossip(object):
             self._is_federations_assembled = True
             self.send_block_request("HEAD", cid)
 
+    def get_fbft_setting(self,param):
+        val = \
+            self._settings_cache.get_setting(
+                param,
+                self._current_root_func(),
+                default_value=TIME_TO_LIVE
+            )
+        return val
+
     def get_time_to_live(self):
         time_to_live = \
             self._settings_cache.get_setting(
-                "bgx.gossip.time_to_live",
+                TIME_TO_LIVE_NM,
                 self._current_root_func(),
                 default_value=TIME_TO_LIVE
             )
@@ -1991,6 +2014,7 @@ class ConnectionManager(InstrumentedThread):
                         #if self._is_federations_assembled and not self._is_send_block_request and self._fbft.genesis_node == public_key and not self._is_recovery_func():
                         # after point of assemble we can have no connected peers - so if this is Genesis ask HEAD
                         #   self._gossip.send_block_request("HEAD", connection_id)
+                        
 
 
                     except PeeringException as e:
