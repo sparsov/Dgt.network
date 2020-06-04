@@ -1051,9 +1051,18 @@ class Gossip(object):
             #    # check maybe this is new leader
             #    self.check_leader_outbound(endpoint)
             status_updated = False
+            peer_state = self._fbft.get_peer_state(public_key,peer)
+            LOGGER.debug("Register endpoint=%s STATE=%s",endpoint,peer_state) 
+            if sync is None:
+                # set unsync until SYNC request
+                LOGGER.debug("Register endpoint=%s set STATE=unsync",endpoint)
+                self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid,extpoint=extpoint)
+                status_updated = True
+            """
             if self._fbft.get_peer_state(public_key,peer) != PeerSync.active : #and sync is not None  :
                 # it could appeared after sync from this peer 
                 # this is reply on my own register request
+                LOGGER.debug("Register endpoint=%s set STATE=unsync",endpoint)
                 self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid,extpoint=extpoint)
                 status_updated = True
                 #self.update_federation_topology(public_key,endpoint)#,sync = False) #(not self.is_federations_assembled and not sync))
@@ -1061,9 +1070,10 @@ class Gossip(object):
                 # was active - set unsync 
                 # in case peer restart
                 if sync is None and self._fbft.get_peer_id(public_key) != pid: # sync is None and component is not None
+                    # set UNSYNC mode
                     self._fbft.update_peer_activity(public_key,endpoint,True,False,force=True,pid=pid)
                     status_updated = True
-                
+            """    
 
             if component is not None:
                 self._fbft.update_peer_component(public_key, component)

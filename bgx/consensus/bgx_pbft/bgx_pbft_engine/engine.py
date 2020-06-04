@@ -638,7 +638,7 @@ class BranchState(object):
             LOGGER.info('arbitration_done: for block=%s', self.block_num)
             self.commit_block(block.block_id)
         else:
-            LOGGER.info('arbitration_done: for block=%s (%s) arbiters reply', self.block_num,self._num_arbiters)
+            LOGGER.info('arbitration_done: for block=%s (%s) arbiters reply state=%s', self.block_num,self._num_arbiters,self._state)
 
     def check_arbitration(self,block_id,broadcast=True):
         # 
