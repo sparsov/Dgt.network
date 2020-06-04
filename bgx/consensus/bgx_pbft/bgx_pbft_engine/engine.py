@@ -92,6 +92,7 @@ class BranchState(object):
         self._commit_msgs = {}
         self._engine = engine
         self._num_arbiters = 0
+        self._arbiters_reply = {}
         self._nest_color = None
         self._stime = None
         self._can_cancel = True # possible to cancel
@@ -289,11 +290,16 @@ class BranchState(object):
          plink wait from leader
          arbiter wait from leader which asked arbitration
         """
-        LOGGER.debug("WAIT ARBITRATION LEADER=%s ARBITER=%s...",self.is_leader,self.is_arbiter)
+        LOGGER.debug("WAIT ARBITRATION LEADER=%s ARBITER=%s reply=%s.",self.is_leader,self.is_arbiter,len(self._arbiters_reply))
         self._state = State.Arbitration
         self._num_arbiters = 1
         if self.is_leader or self.is_arbiter:
             self.check_arbitration(block_id,broadcast=False)
+        else:
+            for pid,block in self._arbiters_reply.items():
+                self.arbitration_done(block,pid)
+
+
 
 
     def _send_arbitration(self,block):
@@ -621,10 +627,16 @@ class BranchState(object):
             LOGGER.info('SKIP broadcast ARBITRATION DONE for own cluster block=%s LEADER=%s ARBITER=%s\n', self.block_num, self.is_leader, self.is_arbiter)
             #self.broadcast_arbitration_done(block)
 
-    def arbitration_done(self,block):
+    def arbitration_done(self,block,peer_id):
         """
         this is answer on arbitration
         """
+        if self._state != State.Arbitration:
+            LOGGER.info('arbitration_done: for block=%s (%s) reply too early', self.block_num,self._state)
+            if peer_id not in self._arbiters_reply:
+                self._arbiters_reply[peer_id] = block
+            return
+
         self._num_arbiters -= 1
         if self._num_arbiters == 0:
             """
@@ -635,7 +647,7 @@ class BranchState(object):
                 LOGGER.info('arbitration_done: broadcast ARBITRATION DONE for own cluster block=%s', self.block_num)
                 self.broadcast_arbitration_done(block)
 
-            LOGGER.info('arbitration_done: for block=%s', self.block_num)
+            LOGGER.info('arbitration_done: for block=%s state=%s', self.block_num,self._state)
             self.commit_block(block.block_id)
         else:
             LOGGER.info('arbitration_done: for block=%s (%s) arbiters reply state=%s', self.block_num,self._num_arbiters,self._state)
@@ -660,6 +672,7 @@ class BranchState(object):
         self._commit_msgs = {}
         self._can_cancel = True
         self._already_send_commit = False
+        self._arbiters_reply = {}
 
     def __str__(self):
         return "{} (block_num:{}, {})".format(
@@ -1798,9 +1811,10 @@ class PbftEngine(Engine):
                 
 
         elif msg_type == PbftMessageInfo.ARBITRATION_DONE_MSG:
+            #check peer_id which should be arbiter or leader FIXME
             LOGGER.debug("=>ARBITRATION_DONE for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
-                branch.arbitration_done(block)
+                branch.arbitration_done(block,peer_id)
                 
             
