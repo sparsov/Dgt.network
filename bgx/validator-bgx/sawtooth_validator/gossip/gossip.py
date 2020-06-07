@@ -1725,8 +1725,9 @@ class ConnectionManager(InstrumentedThread):
 
             elif status == GetPeersResponse.REDIRECT :
                 # go to cluster which promise give me position into topology
-                LOGGER.debug("REDIRECT to cluster %s for position into topology",unpeered_candidates) 
-                self._redirect_seed_endpoints.append(unpeered_candidates[0])
+                LOGGER.debug("REDIRECT to cluster %s for position into topology",unpeered_candidates)
+                if len(unpeered_candidates) > 0:
+                    self._redirect_seed_endpoints.append(unpeered_candidates[0])
                 if unpeered_candidates:
                     self._get_peers_of_endpoints(peers,unpeered_candidates)
 
