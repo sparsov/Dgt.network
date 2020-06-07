@@ -96,7 +96,7 @@ function upCluster2 {
           export COMPOSE_PROJECT_NAME=21 G=$GENESIS C=c2 N=1 API=8208 COMP=4204 NET=8201 CONS=5251;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         2)
-          export COMPOSE_PROJECT_NAME=22 G=$GENESIS C=c2 N=2 API=8209 COMP=4206 NET=8202 CONS=5252;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=22 G=$GENESIS C=c2 N=2 API=8209 COMP=4206 NET=${ENDPORT:-8202} CONS=5252;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         3)
           export COMPOSE_PROJECT_NAME=23 G=$GENESIS C=c2 N=3 API=8210 COMP=4207 NET=8203 CONS=5253;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
