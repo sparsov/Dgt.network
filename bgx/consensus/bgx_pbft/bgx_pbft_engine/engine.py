@@ -999,7 +999,7 @@ class PbftEngine(Engine):
             #LOGGER.debug('Block not ready to be summarized')
             return None
         bid = parent_id.hex()
-        LOGGER.debug('Can FINALIZE NOW parent=%s branches=%s',_short_id(bid),[key[:8] for key in self._branches.keys()])
+        LOGGER.debug('Can FINALIZE NOW parent=%s branches=%s',_short_id(bid),self.branches_info)
         if bid in self._branches:
             LOGGER.debug('FINALIZE BRANCH=%s',bid[:8])
             branch = self._branches[bid]
@@ -1389,12 +1389,12 @@ class PbftEngine(Engine):
                         if not self.is_sync or not branch.can_cancel:
                             branch.reset_state()
             else:
-                LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],[key[:8] for key in self._peers_branches.keys()])
+                LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],self.peer_branches_info)
                 if bid in self._peers_branches:
                     branch = self._peers_branches[bid]
                     branch = self.reset_state()
                     del self._peers_branches[bid]
-            LOGGER.info('=> INVALID_BLOCK: branches=%s \n',[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.info('=> INVALID_BLOCK: branches=%s \n',self.peer_branches_info)
         except :
             LOGGER.info('=> INVALID_BLOCK: undefined id=%s\n', _short_id(block_id.hex()))
         self.reset_state()
@@ -1498,7 +1498,7 @@ class PbftEngine(Engine):
         # and we should use it for asking chain head for this branch 
         if block_id in self._new_heads:
             hid = self._new_heads.pop(block_id) # hid is parent of this block
-            LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s+%s',hid[:8],block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.info('   update chain head for BRANCH=%s->%s branches=%s+%s',hid[:8],block_id[:8],self.branches_info,self.peer_branches_info)
             if hid in self._branches:
                 branch = self._branches.pop(hid)
                 if block_id in self._peers_branches :
@@ -1511,10 +1511,10 @@ class PbftEngine(Engine):
                 self._TOTAL_BLOCK += 1 
                 if block_id in self._peers_branches:
                     del self._peers_branches[block_id]
-                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s peers branches=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK,[key[:8] for key in self._peers_branches.keys()])
+                LOGGER.info('   set new head=%s for BRANCH=%s TOTAL=%s peers branches=%s',block_id[:8],hid[:8],self._TOTAL_BLOCK,self.peer_branches_info)
             else:
                 # external block
-                LOGGER.info('head updated for=%s  peers branches=%s arb=%s',_short_id(block_id),[key[:8] for key in self._peers_branches.keys()],[key[:8] for key in self._arbitration_msgs.keys()])
+                LOGGER.info('head updated for=%s  peers branches=%s arb=%s',_short_id(block_id),self.peer_branches_info,[key[:8] for key in self._arbitration_msgs.keys()])
                 if block_id in self._peers_branches:
                     branch = self._peers_branches[block_id]
                     branch.check_arbitration(block_id)
@@ -1535,7 +1535,7 @@ class PbftEngine(Engine):
 
 
         
-        LOGGER.info('=> BLOCK_COMMIT prepre=%s pre=%s branches=%s+%s',len(self._pre_prepare_msgs),len(self._prepare_msgs),[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+        LOGGER.info('=> BLOCK_COMMIT prepre=%s pre=%s branches=%s+%s',len(self._pre_prepare_msgs),len(self._prepare_msgs),self.branches_info,self.peer_branches_info)
         self._process_pending_forks()
         self.reset_state()
 
@@ -1673,8 +1673,13 @@ class PbftEngine(Engine):
             if pid in self._cluster and self.peers[pid].status != notif[1]:
                 change_peer_status(pid,notif[1],self.peers[pid].status)
                 
-                
-
+    @property
+    def branches_info(self):
+        return [key[:8] for key in self._branches.keys()]
+    @property
+    def peer_branches_info(self):
+        return [key[:8] for key in self._peers_branches.keys()]
+    
     def _handle_peer_message(self, msg):
         """
         consensuse message: PrePrepare, Prepare, Commit, Checkpoint 
@@ -1700,7 +1705,7 @@ class PbftEngine(Engine):
         LOGGER.debug("=> PEER_MESSAGE %s.'%s' block_id=%s(%s) summary=%s peer=%s(%s)",info.seq_num,CONSENSUS_MSG[msg_type],block_id[:8],signer_id[:8],summary[:8],peer_id[:8],peer_status)
         if msg_type == PbftMessageInfo.PRE_PREPARE_MSG:
             # send reply 
-            LOGGER.debug("=>PRE PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>PRE PREPARE for block=%s branches=%s+%s",block_id[:8],self.branches_info,self.peer_branches_info)
             if block_id in self._branches:
                 # for genesis block
                 LOGGER.debug("=>PRE PREPARE for block=%s BRANCHES!!\n",block_id[:8])
@@ -1715,7 +1720,7 @@ class PbftEngine(Engine):
 
         elif msg_type == PbftMessageInfo.PREPARE_MSG:
             # continue consensus 
-            LOGGER.debug("=>PREPARE for block=%s branches=%s+%s",block_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>PREPARE for block=%s branches=%s+%s",block_id[:8],self.branches_info,self.peer_branches_info)
             if block_id in self._peers_branches:
                 """
                 it really means that NEW_BLOCK message already appeared
@@ -1775,7 +1780,7 @@ class PbftEngine(Engine):
             """
             commiting state - COMMIT MSG can appeared before NEW_BLOCK
             """
-            LOGGER.debug("=>COMMIT for block=%s peer=%s(%s) branches=%s+%s", block_id[:8], peer_id[:8], peer_status, [key[:8] for key in self._branches.keys()], [key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>COMMIT for block=%s peer=%s(%s) branches=%s+%s", block_id[:8], peer_id[:8], peer_status,self.branches_info,self.peer_branches_info)
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
                 branch.add_commit_msg(peer_id,block)
@@ -1795,7 +1800,7 @@ class PbftEngine(Engine):
             """
             cluster Arbitration message
             """
-            LOGGER.debug("=>ARBITRATION for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])  
+            LOGGER.debug("=>ARBITRATION for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],self.branches_info,self.peer_branches_info)  
             if block_id in self._branches:
                 branch = self._branches[block_id]
                 LOGGER.debug("=>ARBITRATION_DONE for block=%s peer branch=%s",block_id[:8],branch)
@@ -1812,7 +1817,7 @@ class PbftEngine(Engine):
 
         elif msg_type == PbftMessageInfo.ARBITRATION_DONE_MSG:
             #check peer_id which should be arbiter or leader FIXME
-            LOGGER.debug("=>ARBITRATION_DONE for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],[key[:8] for key in self._branches.keys()],[key[:8] for key in self._peers_branches.keys()])
+            LOGGER.debug("=>ARBITRATION_DONE for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],self.branches_info,self.peer_branches_info)
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
                 branch.arbitration_done(block,peer_id)

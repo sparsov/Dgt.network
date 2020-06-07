@@ -39,6 +39,7 @@ class PeerRole():
 class PeerAtr():
     endpoint   = 'endpoint'
     extpoint   = 'extpoint'
+    intpoint   = 'intpoint'
     component  = 'component'
     node_state = 'node_state'
     cluster    = 'cluster'
@@ -539,12 +540,18 @@ class FbftTopology(object):
         """
         return None,None
 
-    def update_peer_component(self,peer_key,component=None):
+    def update_peer_component(self,peer_key,component=None,pid=None,extpoint=None,intpoint=None):
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key)  :
                 if component is not None:
                     peer[PeerAtr.component] = component
                     LOGGER.debug("UPDATE peer_component=%s  peer=%s",component,peer)
+                if pid is not None:
+                    peer[PeerAtr.pid] = pid
+                if extpoint is not None:
+                    peer[PeerAtr.extpoint] = extpoint
+                if intpoint is not None:
+                    peer[PeerAtr.intpoint] = intpoint
                 break
 
 

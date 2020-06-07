@@ -58,6 +58,7 @@ message GetPeersResponse {
 	REDIRECT = 2;
         DENIED   = 3;
 	JOINED   = 4;
+	DYNPEERS = 5;
     }
     GetPeersStatus status  = 1;
     string         cluster = 2;
