@@ -355,7 +355,7 @@ class Gossip(object):
     def get_conn_expoint(self,cid,ext=True):
         pkey = self._network.connection_id_to_public_key(cid)
         peer = self._fbft.get_peer(pkey)
-        return peer[PeerAtr.extpoint if ext else PeerAtr.intpoint]
+        return peer[PeerAtr.extpoint if ext else PeerAtr.intpoint] if peer else None
 
     def _peer_sync_callback(self, request, result, connection_id, endpoint=None):
         """
@@ -407,8 +407,8 @@ class Gossip(object):
                                                     # dnet and net the same network
                                                     dendp = self.get_conn_expoint(cid,ext=False)
 
-
-                                        dyn_endpoints.append(dendp )
+                                        if dendp:
+                                            dyn_endpoints.append(dendp )
                                         LOGGER.debug("add DYN peer=%s dendp=%s net=%s networ=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))
                                 
                                 if len(dyn_endpoints) > 0:
