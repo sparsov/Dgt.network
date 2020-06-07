@@ -657,7 +657,7 @@ class Gossip(object):
                             #LOGGER.debug("GET PKEY=%s endpoint=%s",pkey,pend)
                             if pkey :
                                 epeer,_ = self._fbft.key_to_peer(pkey)
-                                if epeer and PeerAtr.endpoint in epeer:
+                                if epeer and PeerAtr.extpoint in epeer:
                                     LOGGER.debug("ADD PEER extpoint=%s",epeer[PeerAtr.extpoint])
                                     extpoints.append(epeer[PeerAtr.extpoint])
                                 else:
