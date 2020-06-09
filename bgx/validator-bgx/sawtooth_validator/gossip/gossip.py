@@ -81,7 +81,13 @@ TIME_TO_LIVE = 3
 TIME_TO_LIVE_NM       = "bgx.gossip.time_to_live"
 MAX_PUBLIC_CLUSTER_NM = 'bgx.fbft.max_public_cluster'
 AUTO_CLUSTER_NM       = 'bgx.fbft.auto_cluster'
-
+MAX_FEDER_PEER_NM     = 'bgx.fbft.max_feder_peer'
+_PARAM_DEFAULT_ = {
+    TIME_TO_LIVE_NM      : 3,
+    MAX_PUBLIC_CLUSTER_NM: 2,
+    MAX_FEDER_PEER_NM    : 7,
+    AUTO_CLUSTER_NM      : True,
+    }
 
 
 class Gossip(object):
@@ -157,6 +163,7 @@ class Gossip(object):
         self._signer = self._network.signer # for sign transaction
 
         # feder topology
+        self._settings = {}                    # DAG settings
         self._is_federations_assembled = False # point of assemble
         self._fbft = FbftTopology()            # F-BFT topology
         self._stopology = None                 # string 
@@ -172,6 +179,7 @@ class Gossip(object):
         self._unsync_peers = {}                # list unsync  peers
         self._add_batch = None
         self._join_cluster = None
+        self._batch        = None
         self._my_ip = None
         self._extpoint = None
         """
@@ -311,6 +319,16 @@ class Gossip(object):
     def peers_info(self):
         return [cid[:8]+":"+endpoint for cid,endpoint in self._peers.items()]
 
+    @property
+    def auto_cluster_mode(self):
+        return self.get_fbft_setting(AUTO_CLUSTER_NM)
+    @property
+    def max_public_cluster(self):
+        return self.get_fbft_setting(MAX_PUBLIC_CLUSTER_NM)
+    @property
+    def max_feder_peer(self):
+        return int(self.get_fbft_setting(MAX_FEDER_PEER_NM))
+
     def set_add_batch(self,add_batch):
         self._add_batch = add_batch
 
@@ -387,33 +405,12 @@ class Gossip(object):
                                 self._nosync = False
 
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
+
                             if endpoint in self._static_peer_endpoints and peer_key != self._fbft.genesis_node:
                                 # inform static peer about registred dynamic
                                 # use info about endpoint's networks
-                                net = self._network.get_connection_network(connection_id)
-                                dyn_endpoints = []
-                                for cid,endp in self._peers.items():
-                                    if endp not in self._static_peer_endpoints:
-                                        dnet = self._network.get_connection_network(cid)
-                                        if net == self.network:
-                                            dendp = endp
-                                        else:
-                                            if dnet == self.network:
-                                                dendp = self.get_conn_expoint(cid)
-                                            else:
-                                                if dnet != net:
-                                                    dendp = endp
-                                                else:
-                                                    # dnet and net the same network
-                                                    dendp = self.get_conn_expoint(cid,ext=False)
-
-                                        if dendp:
-                                            dyn_endpoints.append(dendp )
-                                        LOGGER.debug("add DYN peer=%s dendp=%s net=%s networ=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))
+                                self.send_dynamic_peers_info(endpoint,connection_id)
                                 
-                                if len(dyn_endpoints) > 0:
-                                    LOGGER.debug("INFORM static peer=%s net=%s about dynamic=%s",endpoint,net,dyn_endpoints)
-                                    self.send_dynamic_peers_info(connection_id,set(dyn_endpoints))
 
                             if peer_key == self._fbft.genesis_node :
                                 # sync with genesis peer was done - say consensus that our peer already sync 
@@ -578,24 +575,49 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def send_dynamic_peers_info(self,connection_id,dyn_endpoints):
+    def send_dynamic_peers_info(self,endpoint,connection_id):
         # for static peer send info about dynamic peers
-        peers_response = GetPeersResponse(status=GetPeersResponse.DYNPEERS,
-                                          cluster=None,
-                                          peer_endpoints=dyn_endpoints
-                                         )
-        try:
-            # Send a one_way message because the connection will be closed
-            # if this is a temp connection.
-            self._network.send(
-                validator_pb2.Message.GOSSIP_GET_PEERS_RESPONSE,
-                peers_response.SerializeToString(),
-                connection_id,
-                one_way=True)
-        except ValueError:
-            LOGGER.debug("Connection disconnected: %s", connection_id)
+        # inform static peer about registred dynamic                                                                                          
+        # use info about endpoint's networks                                                                                                  
+        net = self._network.get_connection_network(connection_id)                                                                             
+        dyn_endpoints = []                                                                                                                    
+        for cid,endp in self._peers.items():                                                                                                  
+            if endp not in self._static_peer_endpoints:                                                                                       
+                dnet = self._network.get_connection_network(cid)                                                                              
+                if net == self.network:                                                                                                       
+                    dendp = endp                                                                                                              
+                else:                                                                                                                         
+                    if dnet == self.network:                                                                                                  
+                        dendp = self.get_conn_expoint(cid)                                                                                    
+                    else:                                                                                                                     
+                        if dnet != net:                                                                                                       
+                            dendp = endp                                                                                                      
+                        else:                                                                                                                 
+                            # dnet and net the same network                                                                                   
+                            dendp = self.get_conn_expoint(cid,ext=False)                                                                      
+                                                                                                                                              
+                if dendp:                                                                                                                     
+                    dyn_endpoints.append(dendp )                                                                                              
+                LOGGER.debug("add DYN peer=%s dendp=%s net=%s networ=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))    
+                  
+        if len(dyn_endpoints) > 0:
+            LOGGER.debug("INFORM static peer=%s net=%s about dynamic=%s",endpoint,net,dyn_endpoints)
+            peers_response = GetPeersResponse(status=GetPeersResponse.DYNPEERS,
+                                              cluster=None,
+                                              peer_endpoints=dyn_endpoints
+                                             )
+            try:
+                # Send a one_way message because the connection will be closed
+                # if this is a temp connection.
+                self._network.send(
+                    validator_pb2.Message.GOSSIP_GET_PEERS_RESPONSE,
+                    peers_response.SerializeToString(),
+                    connection_id,
+                    one_way=True)
+            except ValueError:
+                LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,network='net0'):
+    def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,network='net0',pbatch=None):
         """
         Dynamic Fbft topology mode
         Sends a message containing our peers to the
@@ -615,14 +637,29 @@ class Gossip(object):
             status = GetPeersResponse.PENDING
             if KYC == '':
                 # find place into public cluster
-                cname,parent = self._fbft.get_position_in_public()
+                cname,parent = self._fbft.get_position_in_public(self.max_feder_peer)
+                if cname is None :
+                    status = GetPeersResponse.NOSPACE
+                    if self.auto_cluster_mode:
+                        if pbatch == '':
+                            batch = self.add_public_cluster_batch(pid,KYC)
+                            if batch:
+                                LOGGER.debug("TRY CREATE NEW PUBLIC CLUSTER batch=%s",batch.header_signature)
+                                status = GetPeersResponse.WAITING
+                                self._add_batch(batch,('',0,0))
+                        else:
+                            LOGGER.debug("WAITING UNTIL NEW CLUSTER WAS CREATED pbatch=%s",pbatch)
+                            status = GetPeersResponse.WAITING
+                    else:
+                        LOGGER.debug("There are no space into PUBLIC CLUSTER!")
+                        
                 
             else:
                 # cluster name should be set
                 cname = None
             if cname:
                 batch = self.add_peer_batch(parent,cname,pid,KYC)
-                LOGGER.debug("batch add peer=%s",batch)
+                LOGGER.debug("batch add peer=%s",batch.header_signature)
                 self._add_batch(batch,('',0,0))
 
             LOGGER.debug("Undefined new peer=%s cluster=%s\n", pid[:8],cname)
@@ -678,20 +715,29 @@ class Gossip(object):
             else:
                 # send redirect to cluster node - which know all registered peers
                 peer_endpoints = []
-                leader = self._fbft.get_cluster_leader(parent)
-                if leader and PeerAtr.endpoint in leader:
-                    endpoint = leader[PeerAtr.extpoint if network != self.network else PeerAtr.endpoint] 
-                    LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
-                    peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
-                    status = GetPeersResponse.REDIRECT 
-                elif self.endpoint:
-                    # continue ask my node 
-                    peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+                if cname is not None:
+                    
+                    leader = self._fbft.get_cluster_leader(parent)
+                    if leader and PeerAtr.endpoint in leader:
+                        endpoint = leader[PeerAtr.extpoint if network != self.network else PeerAtr.endpoint] 
+                        LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
+                        peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
+                        status = GetPeersResponse.REDIRECT 
+                    elif self.endpoint: 
+                        # continue ask my node 
+                        status = GetPeersResponse.PENDING
+                        LOGGER.debug("LEADER=%s of CLUSTER=%s NOT READY FOR REDIRECT ON IT\n",leader is not None,cname)
+                        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+                else:
+                    #
+                    if status != GetPeersResponse.NOSPACE:
+                        # wait place into new cluster and ask me
+                        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
             
                 
             LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
             peers_response = GetPeersResponse(status=status,
-                                              cluster=cname,
+                                              cluster=cname if status != GetPeersResponse.WAITING else (pbatch if pbatch != '' else batch.header_signature),
                                               peer_endpoints=peer_endpoints
                                               )
             try:
@@ -720,9 +766,12 @@ class Gossip(object):
                 if endp not in self._initial_peer_endpoints :
                     self._topology.add_visible_peer(endp,False)
             return
-
+        LOGGER.debug("add_candidate_peer_endpoints: cluster=%s  status=%s",cluster,status)
         if cluster:
-            self._join_cluster = cluster
+            if status == GetPeersResponse.WAITING:
+                self._batch = cluster
+            else:
+                self._join_cluster = cluster
         if self._topology:
             self._topology.add_candidate_peer_endpoints(peer_endpoints,status)
         else:
@@ -971,14 +1020,44 @@ class Gossip(object):
         LOGGER.debug("UPDATE topology params='%s' !!!\n",attributes)
         self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes)
 
-    def add_peer_batch(self,cluster,cname,pid,KYC):
+    def _make_new_peer_tnx(self,cluster,cname,pid,KYC):
         # make batch for adding new peer into topology - gateway dynamic mode
         pname = "{}_{}".format(cname,len(cluster[PeerAtr.children])+1)
         npeer = "{'"+str(pid)+"':{'role':'plink','type':'peer','name':'"+pname+"'}}"
         param = {'oper':'add','cluster':cname,'list':npeer}
         
         val = json.dumps(param, sort_keys=True, indent=4)
-        txns = [_create_topology_txn(self._signer, (TOPOLOGY_SET_NM,val))]
+        return _create_topology_txn(self._signer, (TOPOLOGY_SET_NM,val))
+
+    def _make_new_cluster_tnx(self,cname=None,cowner=None,powner=None):
+        # make tnx for adding new cluster into topology 
+        cl_name = "dyn{}".format(len(self._fbft.publics)) if cname is None else cname
+        
+        if cowner is None:
+            cowner,powner = self._fbft.get_public_extent_point()
+        if cowner is None:
+            return None
+        LOGGER.debug("_make_new_cluster_tnx new cluster='%s' point=%s.%s",cl_name,cowner,powner)
+        nclust = "{'type':'cluster','public':true,'name':'"+cl_name+"'}"
+        param = {'oper':'cluster','cluster':cowner,'peer':powner,'list':nclust}
+      
+        val = json.dumps(param, sort_keys=True, indent=4)
+        LOGGER.debug("_make_new_cluster_tnx params='%s' !!!\n",val)
+        return _create_topology_txn(self._signer, (TOPOLOGY_SET_NM,val))
+
+    def add_peer_batch(self,cluster,cname,pid,KYC):
+        # make batch for adding new peer into topology - gateway dynamic mode
+        txns = [self._make_new_peer_tnx(cluster,cname,pid,KYC)]
+        batch = _create_batch(self._signer, txns)
+        return batch
+
+    def add_public_cluster_batch(self,pid,KYC):
+        # make batch for adding new public cluster and peer into this cluster - gateway dynamic mode
+        clust_txn = self._make_new_cluster_tnx()
+        if clust_txn is None:
+            return None
+        
+        txns = [clust_txn]
         batch = _create_batch(self._signer, txns)
         return batch
 
@@ -1238,13 +1317,14 @@ class Gossip(object):
             self.send_block_request("HEAD", cid)
 
     def get_fbft_setting(self,param):
-        val = \
+        if param not in self._settings:
+            self._settings[param] = \
             self._settings_cache.get_setting(
                 param,
                 self._current_root_func(),
-                default_value=TIME_TO_LIVE
+                default_value=_PARAM_DEFAULT_[param]
             )
-        return val
+        return self._settings[param]
 
     def get_time_to_live(self):
         time_to_live = \
@@ -1567,6 +1647,7 @@ class ConnectionManager(InstrumentedThread):
         self._check_time = 0
         self._peer_timeout = 0
         self._dstatus = None
+        self._err_msg = None
 
     @property
     def is_federations_assembled(self):
@@ -1681,9 +1762,9 @@ class ConnectionManager(InstrumentedThread):
         self._refresh_peer_list(self._gossip.get_peers())                                                              
         peers = self._gossip.get_peers()                                                                               
         peer_count = len(peers)                                                                                        
-        if self._dstatus != GetPeersResponse.JOINED:                                                                               
+        if self._dstatus != GetPeersResponse.JOINED and self._dstatus != GetPeersResponse.NOSPACE :                                                                               
             LOGGER.debug("Number of peers (%s) below minimum peer threshold (%s). Doing topology search status=%s.",peer_count,self._min_peers,self._dstatus)                                                                                       
-            if self._dstatus != GetPeersResponse.OK:                                                                                                           
+            if self._dstatus not in [GetPeersResponse.OK,GetPeersResponse.PENDING,GetPeersResponse.WAITING]:                                                                                                           
                 self._reset_candidate_peer_endpoints()                                                                     
             self._refresh_peer_list(peers)                                                                             
             # Cleans out any old connections that have disconnected  
@@ -1731,15 +1812,29 @@ class ConnectionManager(InstrumentedThread):
                 if unpeered_candidates:
                     self._get_peers_of_endpoints(peers,unpeered_candidates)
 
-            elif status == GetPeersResponse.PENDING and len(self._redirect_seed_endpoints) > 0:
-                # ping until get position into topology
-                self._get_peers_of_endpoints(peers,self._redirect_seed_endpoints)
+            elif status == GetPeersResponse.PENDING:
+                LOGGER.debug("Continue PENDING candidates=%s",self._candidate_peer_endpoints)
+                if len(self._redirect_seed_endpoints) > 0:
+                    # ping until get position into topology
+                    self._get_peers_of_endpoints(peers,self._redirect_seed_endpoints)
+                elif len(self._candidate_peer_endpoints) > 0:
+                    self._get_peers_of_endpoints(peers,self._candidate_peer_endpoints)
+            elif GetPeersResponse.WAITING:
+                if len(self._candidate_peer_endpoints) > 0:
+                    # waiting position
+                    LOGGER.debug("Continue WAITING temps=%s",self._temp_endpoints)
+                    self._get_peers_of_endpoints(peers,self._candidate_peer_endpoints)
         else:
-            if not self.is_federations_assembled and not self._gossip._is_recovery_func():
-                LOGGER.debug("JOINED:ready ask head peers=%s redirect=%s.",self._gossip.peers_info,self._redirect_seed_endpoints)
-                self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0])
+            if self._dstatus != GetPeersResponse.NOSPACE:
+                if not self.is_federations_assembled and not self._gossip._is_recovery_func():
+                    LOGGER.debug("JOINED:ready ask head peers=%s redirect=%s.",self._gossip.peers_info,self._redirect_seed_endpoints)
+                    self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0])
+                else:
+                    self._gossip.check_unsync_peer()
             else:
-                self._gossip.check_unsync_peer()
+                if self._err_msg is None:
+                    LOGGER.debug("CAN't JOIN WITH NETWORK - NO SPACE\n")
+                    self._err_msg = "NO SPACE INTO NET"
             
                 
 
@@ -1856,7 +1951,7 @@ class ConnectionManager(InstrumentedThread):
             peer_endpoints ([str]): A list of public uri's which the
                 validator can attempt to peer with.
         """
-        LOGGER.debug("add_candidate_peer_endpoints: status=%s->%s candidate=%s",status,self._dstatus,self._candidate_peer_endpoints)
+        LOGGER.debug("add_candidate_peer_endpoints: status=%s->%s candidate=%s",self._dstatus,status,self._candidate_peer_endpoints)
         with self._lock:
             if status == GetPeersResponse.REDIRECT:
                 # go to the redirect peer, which know all peers for us
@@ -1937,7 +2032,8 @@ class ConnectionManager(InstrumentedThread):
                                             endpoint = self._gossip.endpoint , 
                                             cluster = self._gossip.join_cluster,
                                             KYC = self._gossip.KYC,
-                                            network = self._gossip.network
+                                            network = self._gossip.network,
+                                            batch = self._gossip._batch
                                             )
         return peers_request
 

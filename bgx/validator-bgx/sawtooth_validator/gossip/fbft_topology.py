@@ -102,7 +102,9 @@ class FbftTopology(object):
     @property
     def leaders(self):
         return self._leaders
-
+    @property
+    def publics(self):
+        return self._publics
     @property
     def genesis(self):
         return self._genesis
@@ -384,6 +386,8 @@ class FbftTopology(object):
                 return False,"Cluster {} already exist".format(cname)
             ncluster[PeerAtr.children] = {}
             ppeer[PeerAtr.cluster] = ncluster
+            if PeerAtr.public in ncluster and ncluster[PeerAtr.public]:
+                self._publics.append(ncluster)
         else:
             return False,"Undefined new cluster params"
 
@@ -415,14 +419,25 @@ class FbftTopology(object):
             if (key == peer_key):
                 return peer
         return None,None
-    def get_position_in_public(self):
+
+    def get_position_in_public(self,max_feder_peer=7):
         
-        for cluster in self._publics:
-            pmax = (cluster[PeerAtr.maxpeer] if PeerAtr.maxpeer in cluster else 7)
+        for cluster in self.publics:
+            pmax = (cluster[PeerAtr.maxpeer] if PeerAtr.maxpeer in cluster else max_feder_peer)
             LOGGER.debug('check : cluster=%s peers=%s~%s',cluster[PeerAtr.name],len(cluster[PeerAtr.children]),pmax)
-            if len(cluster[PeerAtr.children]) < (cluster[PeerAtr.maxpeer] if PeerAtr.maxpeer in cluster else 7):
+            if len(cluster[PeerAtr.children]) < (cluster[PeerAtr.maxpeer] if PeerAtr.maxpeer in cluster else max_feder_peer):
                 return cluster[PeerAtr.name],cluster
         return None,None
+
+    def get_public_extent_point(self):
+        # get point to add new public cluster
+        for cluster in self.publics:
+            if PeerAtr.children in cluster:
+                for peer in cluster[PeerAtr.children].values():
+                    if PeerAtr.cluster not in peer:
+                        return cluster[PeerAtr.name],peer[PeerAtr.name]
+        return None,None
+
     def peer_to_cluster_name(self,peer_key):
         if peer_key == TOPOLOGY_GENESIS_HEX:
             return 'Genesis'
@@ -651,7 +666,7 @@ class FbftTopology(object):
                                     'KYCKey'  : '0ABD7E'
 
             }
-            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s', self._arbiters, self.genesis_node[:8], len(self._publics))
+            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s', self._arbiters, self.genesis_node[:8], len(self.publics))
 
 
 

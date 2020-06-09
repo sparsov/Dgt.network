@@ -177,7 +177,7 @@ class SettingsTransactionHandler(TransactionHandler):
                 else:
                     raise InvalidTransaction("Undefined all params for operation '{}'".format(oper))
             elif oper == 'cluster':
-                # Create new cluster
+                # Create new cluster 
                 if (('cluster' in update and 'peer' in update) or 'pid' in update) and 'list' in update:
                     cname,npeer,clist = update['cluster'], update['peer'], update['list']
                     changed,err = fbft.add_new_cluster(cname,npeer,clist)

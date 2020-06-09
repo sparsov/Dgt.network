@@ -49,6 +49,7 @@ string endpoint     = 2; // my own net endpoint
 string cluster      = 3; // desire cluster or None
 string KYC          = 4; // KYC or None
 string network      = 5; // network of peer
+string batch        = 6; // waiting batch result
 }
 
 message GetPeersResponse {
@@ -59,6 +60,9 @@ message GetPeersResponse {
         DENIED   = 3;
 	JOINED   = 4;
 	DYNPEERS = 5;
+	NOSPACE  = 6; // can't add peer into topology
+	WAITING  = 7; // waiting tnx
+
     }
     GetPeersStatus status  = 1;
     string         cluster = 2;
