@@ -1764,7 +1764,7 @@ class ConnectionManager(InstrumentedThread):
         peer_count = len(peers)                                                                                        
         if self._dstatus != GetPeersResponse.JOINED and self._dstatus != GetPeersResponse.NOSPACE :                                                                               
             LOGGER.debug("Number of peers (%s) below minimum peer threshold (%s). Doing topology search status=%s.",peer_count,self._min_peers,self._dstatus)                                                                                       
-            if self._dstatus not in [GetPeersResponse.OK,GetPeersResponse.PENDING,GetPeersResponse.WAITING]:                                                                                                           
+            if self._dstatus not in [GetPeersResponse.OK,GetPeersResponse.PENDING,GetPeersResponse.WAITING,GetPeersResponse.REDIRECT]:                                                                                                           
                 self._reset_candidate_peer_endpoints()                                                                     
             self._refresh_peer_list(peers)                                                                             
             # Cleans out any old connections that have disconnected  
@@ -1790,7 +1790,7 @@ class ConnectionManager(InstrumentedThread):
                     set(peered_endpoints) -                    # already known peers                                                        
                     set([self._endpoint]))                                                                             
                                                                                                                        
-            LOGGER.debug("Status=%s Peers are: %s. Unpeered candidates are: %s",status,peered_endpoints,unpeered_candidates)            
+            LOGGER.debug("Status=%s Peers are: %s.candidates=%s Unpeered candidates are: %s",status,peered_endpoints,self._candidate_peer_endpoints,unpeered_candidates)            
                                                                                                                        
             #if unpeered_candidates: 
                 # connect with new peers in PEERING mode not TOPOLOGY  
@@ -2136,6 +2136,7 @@ class ConnectionManager(InstrumentedThread):
             self.add_peering_outbound_conn(endpoint)
 
     def _reset_candidate_peer_endpoints(self):
+        LOGGER.debug("RESET CANDIDATES..")
         with self._lock:
             self._candidate_peer_endpoints = []
 
