@@ -1600,6 +1600,8 @@ class PbftEngine(Engine):
         elif oper == ConsensusNotifyPeerConnected.ADD_PEER:
             ret,_ = self._oracle.add_peer(pid,val)
             LOGGER.debug('ADD PEER=%s %s ret=%s\n',pid,val,ret)
+            if ret == 1 or ret == 3:
+                self.arbiters_update()
 
         elif oper == ConsensusNotifyPeerConnected.DEL_PEER:
             ret,_ = self._oracle.del_peer(pid,val)

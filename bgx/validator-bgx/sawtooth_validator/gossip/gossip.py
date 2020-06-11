@@ -617,6 +617,24 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
+    def get_peer_info_for_leader(self,network):
+        """
+        new leader - get list of peer which it should know
+        """
+        peer_endpoints = []
+        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+    
+        for key,arbiter in self._fbft.arbiters.items():
+            arb = arbiter[2][key] 
+            LOGGER.debug("info_for_leader arbiter: %s.%s active=%s network=%s", key[:8],arb[PeerAtr.name],PeerAtr.endpoint in arb,network)
+            if PeerAtr.endpoint in arb:
+                endpoint = arb[PeerAtr.endpoint]
+                net = self._network.endpoint_to_network(endpoint)
+                real_endpoint = arb[PeerAtr.intpoint if network == net else PeerAtr.extpoint]
+                peer_endpoints.append(real_endpoint)
+                LOGGER.debug("add active peer=%s %s(%s) into info list endp=%s", key[:8],endpoint,net,real_endpoint)
+        return peer_endpoints
+
     def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,network='net0',pbatch=None):
         """
         Dynamic Fbft topology mode
@@ -717,12 +735,18 @@ class Gossip(object):
                 peer_endpoints = []
                 if cname is not None:
                     
-                    leader = self._fbft.get_cluster_leader(parent)
-                    if leader and PeerAtr.endpoint in leader:
-                        endpoint = leader[PeerAtr.extpoint if network != self.network else PeerAtr.endpoint] 
-                        LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
-                        peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
-                        status = GetPeersResponse.REDIRECT 
+                    leader,key = self._fbft.get_cluster_leader(parent)
+                    if leader :
+                        if key == pid :
+                            # send info about known leader and arbiters
+                            LOGGER.debug("FIRST PEER IN NEW CLUSTER=%s\n", cname)
+                            peer_endpoints = self.get_peer_info_for_leader(network)
+                        elif PeerAtr.endpoint in leader:
+                            endpoint = leader[PeerAtr.extpoint if network != self.network else PeerAtr.endpoint] 
+                            LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
+                            peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
+                            status = GetPeersResponse.REDIRECT 
+
                     elif self.endpoint: 
                         # continue ask my node 
                         status = GetPeersResponse.PENDING
@@ -941,7 +965,7 @@ class Gossip(object):
         new peer 
         """
         changed,err = self._fbft.add_new_peers(cname,list)
-        if changed:
+        if changed != -1:
             self._consensus_notifier.notify_topology_peer(self._fbft.get_cluster_owner(cname),list)
             LOGGER.debug("Add peers into cluster %s DONE\n",cname)
         else:
@@ -1022,8 +1046,11 @@ class Gossip(object):
 
     def _make_new_peer_tnx(self,cluster,cname,pid,KYC):
         # make batch for adding new peer into topology - gateway dynamic mode
-        pname = "{}_{}".format(cname,len(cluster[PeerAtr.children])+1)
-        npeer = "{'"+str(pid)+"':{'role':'plink','type':'peer','name':'"+pname+"'}}"
+        child_num = len(cluster[PeerAtr.children])
+        pname = "{}_{}".format(cname,child_num+1)
+        prole = 'plink' if child_num > 0 else 'leader'
+        pdelegate = 'false' if child_num > 0 else 'true'
+        npeer = "{'"+str(pid)+"':{'role':'"+ prole + "','delegate':"+pdelegate+",'type':'peer','name':'"+pname+"'}}"
         param = {'oper':'add','cluster':cname,'list':npeer}
         
         val = json.dumps(param, sort_keys=True, indent=4)
@@ -1308,7 +1335,7 @@ class Gossip(object):
         leader_cid = None
         with self._lock:
             for cid,endp in self._peers.items():
-                if endp == endpoint:
+                if endp == endpoint or endpoint is None:
                     leader_cid = cid
                     break
         if leader_cid:
@@ -1828,7 +1855,7 @@ class ConnectionManager(InstrumentedThread):
             if self._dstatus != GetPeersResponse.NOSPACE:
                 if not self.is_federations_assembled and not self._gossip._is_recovery_func():
                     LOGGER.debug("JOINED:ready ask head peers=%s redirect=%s.",self._gossip.peers_info,self._redirect_seed_endpoints)
-                    self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0])
+                    self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0] if self._redirect_seed_endpoints != [] else None)
                 else:
                     self._gossip.check_unsync_peer()
             else:

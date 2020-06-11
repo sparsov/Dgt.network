@@ -170,8 +170,8 @@ class FbftTopology(object):
     def get_cluster_leader(self,cluster):
         for key,peer in cluster[PeerAtr.children].items():
             if peer[PeerAtr.role] == PeerRole.leader :
-                return peer
-        return None
+                return peer,key
+        return None,None
 
     def change_cluster_leader(self,cname,npeer):
         """
@@ -342,27 +342,38 @@ class FbftTopology(object):
         Add new peer into cluster cname
         """
         cluster = self.get_cluster_by_name(cname)
+        ret = -1
         try:
             peers = json.loads(pnew.replace("'",'"'))
         except ValueError as e:
-            return False,'Invalid json: '+ str(e)
+            return ret,'Invalid json: '+ str(e)
 
         if cluster is None:
-            return False,"Undefined cluster {}".format(cname)
+            return ret,"Undefined cluster {}".format(cname)
         children = cluster[PeerAtr.children]
         #LOGGER.debug('ADD NEW PEER=%s INTO %s',peers,cname)
         for key,npeer in peers.items():
             peer = self.peer_is_exist(key)
             if peer is None:
-                if (PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader and len(children) > 0):
+                if ((PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader)) and len(children) > 0:
                     return False,"New peer with key={} can't be leader or arbiter".format(key[:8])
                 else:
                     LOGGER.debug('ADD NEW PEER=%s : %s INTO %s',key[:8],npeer,cname)
                     children[key] = npeer
+                    ret = 0
+                    if PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader:
+                        # add into leaders list
+                        self._leaders[key] = (PeerRole.leader,cname,children)
+                        self._own_role = PeerRole.leader
+                        ret = 2
+                    if PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]:
+                        self._arbiters[key] = (PeerAtr.delegate,cname,children)
+                        self._is_arbiter = True
+                        ret += 1
             else:
-                return False,"Peer {} with key={} already exist".format(peer,key[:8])
+                return ret,"Peer {} with key={} already exist".format(peer,key[:8])
 
-        return True,None
+        return ret,None
 
     def add_new_cluster(self,cname,pname,clist,ppeer=None):
         """
@@ -615,7 +626,7 @@ class FbftTopology(object):
             for key,peer in children.items():
                 if self._nest_colour != name:
                     # check only other cluster and add delegate
-                    if PeerAtr.delegate in peer:
+                    if PeerAtr.delegate in peer and peer[PeerAtr.delegate]:
                         self._arbiters[key] = (PeerAtr.delegate,name,children)
                         #if arbiter_id == self._parent:
                         #    self._leader = key

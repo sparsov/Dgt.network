@@ -170,7 +170,7 @@ class SettingsTransactionHandler(TransactionHandler):
                         LOGGER.debug('TOPOLOGY ADD PEERS %s into %s',plist,cname)
                         changed,err = fbft.add_new_peers(cname,plist)
                         
-                    if not changed:
+                    if changed == -1:
                         raise InvalidTransaction("Can't do '{}' into cluster='{}' ({})".format(oper,cname,err))
                     extra.append(('cluster',cname))
                     extra.append(('list',plist))
