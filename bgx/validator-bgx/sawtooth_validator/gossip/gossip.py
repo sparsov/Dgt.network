@@ -684,7 +684,7 @@ class Gossip(object):
         else:
             cname = parent[PeerAtr.name]
             status = GetPeersResponse.OK 
-            LOGGER.debug("New peer=%s(%s) cluster=%s (%s)\n",endpoint, pid[:8],cname,peer)
+            LOGGER.debug("New peer=%s(%s) cluster=%s(%s) (%s)\n",endpoint, pid[:8],cname,self._fbft.nest_colour,peer)
             
 
         with self._lock:
@@ -746,7 +746,10 @@ class Gossip(object):
                             LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
                             peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
                             status = GetPeersResponse.REDIRECT 
-
+                        else:
+                            status = GetPeersResponse.PENDING
+                            LOGGER.debug("LEADER=%s of CLUSTER=%s NOT READY PENDING\n",leader is not None,cname)
+                            peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
                     elif self.endpoint: 
                         # continue ask my node 
                         status = GetPeersResponse.PENDING
@@ -756,6 +759,7 @@ class Gossip(object):
                     #
                     if status != GetPeersResponse.NOSPACE:
                         # wait place into new cluster and ask me
+                        LOGGER.debug("WAIT PLACE INTO CLUSTER=%s\n", cname)
                         peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
             
                 

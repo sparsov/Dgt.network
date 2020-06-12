@@ -854,6 +854,9 @@ class PbftEngine(Engine):
                     self._oracle.make_topology_tnx({'cluster':self._cluster_name,'peer':peer[PeerAtr.name],'oper':'lead'})
                     return
 
+    def cluster_update(self):
+        self._cluster = self._oracle.cluster
+
     def arbiters_update(self):
         narbiters = self._oracle.arbiters
         for key,arbiter in self._arbiters.items():
@@ -1124,8 +1127,9 @@ class PbftEngine(Engine):
         self._genesis      = self._oracle.genesis      # genesis cluster name
         self._cluster_name = self._oracle.cluster_name # own clusters name
         #self._own_type = self._oracle.own_type
-        self.arbiters_update()         # ring of arbiter     
-        self._cluster = self._oracle.cluster           # own cluster's peers
+        self.arbiters_update()         # ring of arbiter  
+        self.cluster_update()          # own cluster's peers
+        
         if self._cluster_name is None:
             
             if self.is_dynamic_mode:
@@ -1600,8 +1604,14 @@ class PbftEngine(Engine):
         elif oper == ConsensusNotifyPeerConnected.ADD_PEER:
             ret,_ = self._oracle.add_peer(pid,val)
             LOGGER.debug('ADD PEER=%s %s ret=%s\n',pid,val,ret)
-            if ret == 1 or ret == 3:
-                self.arbiters_update()
+            if ret > 0:
+                if (ret & 0b001) > 0:
+                    LOGGER.debug('arbiters_update ')
+                    self.arbiters_update()
+                if (ret & 0b100) > 0:
+                    LOGGER.debug('cluster_update ')
+                    self.cluster_update()
+            #own cluster update 
 
         elif oper == ConsensusNotifyPeerConnected.DEL_PEER:
             ret,_ = self._oracle.del_peer(pid,val)

@@ -94,7 +94,9 @@ class FbftTopology(object):
     @property
     def cluster(self):
         return self._cluster if self._cluster else {}
-
+    @property
+    def own_child_info(self):
+        return [peer[PeerAtr.name]+":"+pid[:8] for pid,peer in self.cluster.items()]
     @property
     def arbiters(self):
         return self._arbiters
@@ -358,18 +360,34 @@ class FbftTopology(object):
                 if ((PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader)) and len(children) > 0:
                     return False,"New peer with key={} can't be leader or arbiter".format(key[:8])
                 else:
-                    LOGGER.debug('ADD NEW PEER=%s : %s INTO %s',key[:8],npeer,cname)
                     children[key] = npeer
                     ret = 0
+                    if cname == self.nest_colour :
+                        ret += 4
+                        if (self._cluster is None or self._cluster == {}):
+                            self._cluster = children 
+                            LOGGER.debug("SET OWN CLUSTER LIST %s",cname)
+
+                    LOGGER.debug('ADD NEW PEER=%s : %s INTO %s(%s) child=%s',key[:8],npeer,cname,self.nest_colour,self.own_child_info)
+                    
                     if PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader:
                         # add into leaders list
-                        self._leaders[key] = (PeerRole.leader,cname,children)
-                        self._own_role = PeerRole.leader
-                        ret = 2
+                        if self.nest_colour is not None and cname != self.nest_colour:
+                            self._leaders[key] = (PeerRole.leader,cname,children)
+                            ret += 2
+                        if key == self._validator_id:
+                            self._own_role = PeerRole.leader
+                        
                     if PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]:
-                        self._arbiters[key] = (PeerAtr.delegate,cname,children)
-                        self._is_arbiter = True
-                        ret += 1
+                        if self.nest_colour is not None and cname != self.nest_colour:
+                            self._arbiters[key] = (PeerAtr.delegate,cname,children)
+                            ret += 1
+                        if key == self._validator_id:
+                            self._is_arbiter = True
+                        
+                    
+
+
             else:
                 return ret,"Peer {} with key={} already exist".format(peer,key[:8])
 
@@ -647,6 +665,9 @@ class FbftTopology(object):
 
         #topology = json.loads(stopology)
         # join_cluster - for dymanic mode
+        if join_cluster and self._nest_colour is None:
+            self._nest_colour = join_cluster
+
         self._validator_id = validator_id
         self._endpoint = endpoint
         self._topology = topology if topology != {} else {PeerAtr.children:{}}
@@ -662,7 +683,7 @@ class FbftTopology(object):
         else:
             # get arbiters
             get_arbiters(None,topology[PeerAtr.name],topology[PeerAtr.children])
-            for key,peer in self._cluster.items():
+            for key,peer in self.cluster.items():
                 if peer[PeerAtr.role] == PeerRole.leader:
                     self._leader = key
                     break
@@ -677,7 +698,7 @@ class FbftTopology(object):
                                     'KYCKey'  : '0ABD7E'
 
             }
-            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s', self._arbiters, self.genesis_node[:8], len(self.publics))
+            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s child=%s', self._arbiters, self.genesis_node[:8], len(self.publics),self.own_child_info)
 
 
 
