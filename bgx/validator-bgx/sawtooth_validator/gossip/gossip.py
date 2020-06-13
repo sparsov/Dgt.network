@@ -409,10 +409,10 @@ class Gossip(object):
 
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
 
-                            if  peer_key != self._fbft.genesis_node and self._fbft.is_leader and peer_key in self._fbft.cluster: #endpoint in self._static_peer_endpoints and
+                            if  peer_key != self._fbft.genesis_node and self._fbft.is_leader: 
                                 # inform static or dynamic peer about registred dynamic peers
                                 # use info about endpoint's networks
-                                self.send_dynamic_peers_info(endpoint,connection_id)
+                                self.send_dynamic_peers_info(endpoint,connection_id,peer_key)
                                 
 
                             if peer_key == self._fbft.genesis_node :
@@ -578,15 +578,27 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def send_dynamic_peers_info(self,endpoint,connection_id):
+    def send_dynamic_peers_info(self,endpoint,connection_id,pkey):
         # for static peer send info about dynamic peers
         # inform static peer about registred dynamic                                                                                          
-        # use info about endpoint's networks                                                                                                  
+        # use info about endpoint's networks   
+        is_own=pkey in self._fbft.cluster  
+                                                                                                     
         net = self._network.get_connection_network(connection_id)                                                                             
         dyn_endpoints = []                                                                                                                    
         for cid,endp in self._peers.items():                                                                                                  
-            if endp not in self._static_peer_endpoints and  endp != endpoint:                                                                                       
-                dnet = self._network.get_connection_network(cid)                                                                              
+            if  endp != endpoint:   #endp not in self._static_peer_endpoints                                                                                    
+                dnet = self._network.get_connection_network(cid)
+                pid = self._network.connection_id_to_public_key(cid)  
+                if is_own:
+                    # for own cluster peer send only other cluster peers
+                    if pid not in self._fbft.cluster:
+                        continue
+                else:
+                    # it could be leader or arbiter - send other known arbiters
+                    if pid not in self._fbft.arbiters:
+                        continue
+
                 if net == self.network:                                                                                                       
                     dendp = endp                                                                                                              
                 else:                                                                                                                         

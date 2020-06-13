@@ -41,7 +41,7 @@ services:
       - validator-bgx
     command: |
       bash -c "
-        cd bgx/families/settings
+        cd bgx/families/settings;rm -f /project/peer/logs/settings-*.log*;
         bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
@@ -72,7 +72,7 @@ services:
       - validator-bgx
     command: |
       bash -c "
-        cd bgx/families/bgt_python
+        cd bgx/families/bgt_python;rm -f /project/peer/logs/bgt-*.log*;
         bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
@@ -207,7 +207,7 @@ services:
         python3 setup.py clean --all
         python3 setup.py build
         bgxadm node ${C} bgx${N};bgxadm keygen;ls -l /project/peer;
-        if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/*.log*;
+        if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/validator*.log* /project/peer/logs/interc*.log* ;
         bgx keygen my_key;
         echo 'GATEWAY=${SEEDS},PEERING=${PEERING},NETWORK=${NETWORK}'
         bgxset proposal create -k /project/peer/keys/validator.priv -o dgtset.batch $$(cat /project/peer/etc/dgt.conf)
@@ -248,7 +248,7 @@ services:
        - validator-bgx
     command: |
       bash -c "
-        cd bgx/rest-api
+        cd bgx/rest-api;rm -f /project/peer/logs/bgx-rest-api*.log*;
         bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
@@ -281,7 +281,7 @@ services:
     #  - bgx-registry
     command: |
       bash -c "
-        cd bgx/consensus/bgx_pbft
+        cd bgx/consensus/bgx_pbft;rm -f /project/peer/logs/pbft*.log*;
         bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
