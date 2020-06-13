@@ -373,7 +373,10 @@ class Gossip(object):
     def get_conn_expoint(self,cid,ext=True):
         pkey = self._network.connection_id_to_public_key(cid)
         peer = self._fbft.get_peer(pkey)
-        return peer[PeerAtr.extpoint if ext else PeerAtr.intpoint] if peer else None
+        try:
+            return peer[PeerAtr.extpoint if ext else PeerAtr.intpoint] if peer else None
+        except KeyError:
+            return None
 
     def _peer_sync_callback(self, request, result, connection_id, endpoint=None):
         """
@@ -406,8 +409,8 @@ class Gossip(object):
 
                             self.notify_peer_connected(peer_key,assemble=True)          # peer status
 
-                            if endpoint in self._static_peer_endpoints and peer_key != self._fbft.genesis_node:
-                                # inform static peer about registred dynamic
+                            if  peer_key != self._fbft.genesis_node and self._fbft.is_leader and peer_key in self._fbft.cluster: #endpoint in self._static_peer_endpoints and
+                                # inform static or dynamic peer about registred dynamic peers
                                 # use info about endpoint's networks
                                 self.send_dynamic_peers_info(endpoint,connection_id)
                                 
@@ -582,7 +585,7 @@ class Gossip(object):
         net = self._network.get_connection_network(connection_id)                                                                             
         dyn_endpoints = []                                                                                                                    
         for cid,endp in self._peers.items():                                                                                                  
-            if endp not in self._static_peer_endpoints:                                                                                       
+            if endp not in self._static_peer_endpoints and  endp != endpoint:                                                                                       
                 dnet = self._network.get_connection_network(cid)                                                                              
                 if net == self.network:                                                                                                       
                     dendp = endp                                                                                                              
@@ -598,13 +601,13 @@ class Gossip(object):
                                                                                                                                               
                 if dendp:                                                                                                                     
                     dyn_endpoints.append(dendp )                                                                                              
-                LOGGER.debug("add DYN peer=%s dendp=%s net=%s networ=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))    
+                LOGGER.debug("add DYN peer=%s dendp=%s net=%s network=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))    
                   
         if len(dyn_endpoints) > 0:
             LOGGER.debug("INFORM static peer=%s net=%s about dynamic=%s",endpoint,net,dyn_endpoints)
             peers_response = GetPeersResponse(status=GetPeersResponse.DYNPEERS,
                                               cluster=None,
-                                              peer_endpoints=dyn_endpoints
+                                              peer_endpoints=set(dyn_endpoints)
                                              )
             try:
                 # Send a one_way message because the connection will be closed
