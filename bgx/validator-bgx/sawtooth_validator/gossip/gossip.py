@@ -65,7 +65,7 @@ class EndpointStatus(Enum):
     TOPOLOGY = 2
 
 EndpointInfo = namedtuple('EndpointInfo',
-                          ['status', 'time', "retry_threshold"])
+                          ['status', 'time', "retry_threshold","network"])
 
 StaticPeerInfo = namedtuple('StaticPeerInfo',
                             ['time', 'retry_threshold', 'count'])
@@ -578,46 +578,54 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
+    def get_dynamic_peers_info(self,endpoint,connection_id,is_own):
+        dyn_endpoints = [] 
+        # get network of peer for which we preparing info                                                                                             
+        net = self._network.get_connection_network(connection_id)                                                                                                                      
+        for cid,endp in self._peers.items():                                                                                                     
+            if  endp == endpoint:   #endp not in self._static_peer_endpoints  
+                continue
+            dnet = self._network.get_connection_network(cid)                                                                                 
+            pid = self._network.connection_id_to_public_key(cid)                                                                             
+            if is_own:                                                                                                                       
+                # for own cluster peer send only other cluster peers                                                                         
+                if pid not in self._fbft.cluster:                                                                                            
+                    continue                                                                                                                 
+            else:                                                                                                                            
+                # it could be leader or arbiter - send other known arbiters                                                                  
+                if pid not in self._fbft.arbiters:                                                                                           
+                    continue                                                                                                                 
+                                                                                                                                             
+            if net == self.network:                                                                                                          
+                dendp = endp                                                                                                                 
+            else:                                                                                                                            
+                if dnet == self.network:                                                                                                     
+                    dendp = self.get_conn_expoint(cid)                                                                                       
+                else:                                                                                                                        
+                    if dnet != net:                                                                                                          
+                        dendp = endp                                                                                                         
+                    else:                                                                                                                    
+                        # dnet and net the same network                                                                                      
+                        dendp = self.get_conn_expoint(cid,ext=False)                                                                         
+                                                                                                                                             
+            if dendp and dendp not in dyn_endpoints:                                                                                         
+                dyn_endpoints.append(dendp)                                                                                                  
+                dyn_endpoints.append(dnet)                                                                                                   
+                LOGGER.debug("ADD DYN peer=%s dendp=%s net=%s network=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))    
+        return dyn_endpoints
+
+
+
     def send_dynamic_peers_info(self,endpoint,connection_id,pkey):
         # for static peer send info about dynamic peers
         # inform static peer about registred dynamic                                                                                          
         # use info about endpoint's networks   
         is_own=pkey in self._fbft.cluster  
-        # get network of peer for which we preparing info                                                                                             
-        net = self._network.get_connection_network(connection_id)                                                                             
-        dyn_endpoints = []                                                                                                                    
-        for cid,endp in self._peers.items():                                                                                                  
-            if  endp != endpoint:   #endp not in self._static_peer_endpoints                                                                                    
-                dnet = self._network.get_connection_network(cid)
-                pid = self._network.connection_id_to_public_key(cid)  
-                if is_own:
-                    # for own cluster peer send only other cluster peers
-                    if pid not in self._fbft.cluster:
-                        continue
-                else:
-                    # it could be leader or arbiter - send other known arbiters
-                    if pid not in self._fbft.arbiters:
-                        continue
-
-                if net == self.network:                                                                                                       
-                    dendp = endp                                                                                                              
-                else:                                                                                                                         
-                    if dnet == self.network:                                                                                                  
-                        dendp = self.get_conn_expoint(cid)                                                                                    
-                    else:                                                                                                                     
-                        if dnet != net:                                                                                                       
-                            dendp = endp                                                                                                      
-                        else:                                                                                                                 
-                            # dnet and net the same network                                                                                   
-                            dendp = self.get_conn_expoint(cid,ext=False)                                                                      
-                                                                                                                                              
-                if dendp and dendp not in dyn_endpoints:                                                                                                                     
-                    dyn_endpoints.append(dendp)
-                    dyn_endpoints.append(dnet)                                                                                              
-                    LOGGER.debug("add DYN peer=%s dendp=%s net=%s network=%s ext=%s",endp,dendp,dnet,self.network,self.get_conn_expoint(cid))    
-                  
+        
+        dyn_endpoints = self.get_dynamic_peers_info(endpoint,connection_id,is_own)                                                                                                                    
+                          
         if len(dyn_endpoints) > 0:
-            LOGGER.debug("INFORM static peer=%s net=%s about dynamic=%s",endpoint,net,dyn_endpoints)
+            LOGGER.debug("INFORM static peer=%s  about dynamic=%s",endpoint,dyn_endpoints)
             peers_response = GetPeersResponse(status=GetPeersResponse.DYNPEERS,
                                               cluster=None,
                                               peer_endpoints=dyn_endpoints
@@ -633,12 +641,17 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
+    def add_me_into_peer_info(self,peer_endpoints,network):
+        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+        peer_endpoints.append(self.network)
+
     def get_peer_info_for_leader(self,network):
         """
         new leader - get list of peer which it should know
         """
         peer_endpoints = []
-        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+        self.add_me_into_peer_info(peer_endpoints,network)
+        
     
         for key,arbiter in self._fbft.arbiters.items():
             arb = arbiter[2][key] 
@@ -648,6 +661,7 @@ class Gossip(object):
                 net = self._network.endpoint_to_network(endpoint)
                 real_endpoint = arb[PeerAtr.intpoint if network == net else PeerAtr.extpoint]
                 peer_endpoints.append(real_endpoint)
+                peer_endpoints.append(net)
                 LOGGER.debug("add active peer=%s %s(%s) into info list endp=%s", key[:8],endpoint,net,real_endpoint)
         return peer_endpoints
 
@@ -716,8 +730,11 @@ class Gossip(object):
                     There is position for peer add all known peer into list
                     and inform about new peer all rest peers of this cluster
                     """
-                    peer_endpoints = list(set(self._peers.values()))
+                    peer_endpoints =  self.get_dynamic_peers_info(endpoint,connection_id,True) #list(set(self._peers.values()))
                     LOGGER.debug("peer_endpoints=%s", peer_endpoints)
+                    self.add_me_into_peer_info(peer_endpoints,network)
+
+                    """
                     extpoints = []
                     if network != self.network:
                         # change endpoint on extpoint
@@ -735,15 +752,10 @@ class Gossip(object):
                                     LOGGER.debug("Can't get expoint from %s", epeer)
                             else:
                                 LOGGER.debug("Can't get KEY for %s", pend)
-
-
-                    if self.endpoint:
-                        if network != self.network:
-                            extpoints.append(self.extpoint)
-                            peer_endpoints = extpoints
-                            LOGGER.debug("EXPOINTS=%s + %s\n", peer_endpoints,self.extpoint)
-                        else:
-                            peer_endpoints.append(self._endpoint)
+                    """ 
+                    
+                    
+                    
                 else:
                     peer_endpoints = []
             else:
@@ -759,24 +771,30 @@ class Gossip(object):
                             peer_endpoints = self.get_peer_info_for_leader(network)
                         elif PeerAtr.endpoint in leader:
                             endpoint = leader[PeerAtr.extpoint if network != self.network else PeerAtr.endpoint] 
-                            LOGGER.debug("REDIRECT EXPOINT=%s\n", endpoint)
-                            peer_endpoints.append(endpoint) #leader[PeerAtr.endpoint])
+                            net = self._network.endpoint_to_network(leader[PeerAtr.endpoint])
+                            LOGGER.debug("REDIRECT EXPOINT=%s(%s)\n", endpoint,net)
+                            peer_endpoints.append(endpoint) 
+                            peer_endpoints.append(net)
                             status = GetPeersResponse.REDIRECT 
                         else:
                             status = GetPeersResponse.PENDING
                             LOGGER.debug("LEADER=%s of CLUSTER=%s NOT READY PENDING\n",leader is not None,cname)
-                            peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+                            self.add_me_into_peer_info(peer_endpoints,network)
+                            #peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+
                     elif self.endpoint: 
                         # continue ask my node 
                         status = GetPeersResponse.PENDING
                         LOGGER.debug("LEADER=%s of CLUSTER=%s NOT READY FOR REDIRECT ON IT\n",leader is not None,cname)
-                        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+                        self.add_me_into_peer_info(peer_endpoints,network)
+                        #peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
                 else:
                     #
                     if status != GetPeersResponse.NOSPACE:
                         # wait place into new cluster and ask me
                         LOGGER.debug("WAIT PLACE INTO CLUSTER=%s\n", cname)
-                        peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+                        self.add_me_into_peer_info(peer_endpoints,network)
+                        #peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
             
                 
             LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
@@ -810,7 +828,7 @@ class Gossip(object):
                 if i % 2 == 0:
                     endp = peer_endpoints[i]
                     if endp not in self._initial_peer_endpoints:
-                        self._topology.add_visible_peer(endp,peer_endpoints[i+1] != self.network)
+                        self._topology.add_visible_peer(endp,peer_endpoints[i+1])
 
             return
         LOGGER.debug("add_candidate_peer_endpoints: cluster=%s  status=%s",cluster,status)
@@ -1259,7 +1277,7 @@ class Gossip(object):
                     # if this peer belonge our cluster make connection with them 
                     network = self._network.get_connection_network(connection_id)
                     LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER network=%s inet=%s", public_key[:8], endpoint,network,intpoint)
-                    self._topology.add_visible_peer(endpoint,network != self.network)
+                    self._topology.add_visible_peer(endpoint,network)
             else:
                 # This is Reply on my REGISTER request
                 if not self._incomplete:
@@ -1687,6 +1705,7 @@ class ConnectionManager(InstrumentedThread):
         self._check_frequency = check_frequency
 
         self._candidate_peer_endpoints = []
+        self._candidate_net = {}
         # Seconds to wait for messages to arrive
         self._response_duration = 2
         self._connection_statuses = {}
@@ -1703,7 +1722,7 @@ class ConnectionManager(InstrumentedThread):
     def is_federations_assembled(self):
         return self._gossip.is_federations_assembled
 
-    def add_visible_peer(self,endpoint,single):
+    def add_visible_peer(self,endpoint,network):
         """
         appeared new peer which is visible
         """
@@ -1713,12 +1732,13 @@ class ConnectionManager(InstrumentedThread):
                     time=0,
                     retry_threshold=INITIAL_RETRY_FREQUENCY,
                     count=0)
-            self._network.add_outbound_connection(endpoint,self._gossip.extpoint if single else None)
+            self._network.add_outbound_connection(endpoint,self._gossip.extpoint if network != self._gossip.network else None)
             self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.PEERING,
                         time.time(),
-                        INITIAL_RETRY_FREQUENCY)
-        LOGGER.debug("ADD VISIBLE PEER=%s",endpoint)
+                        INITIAL_RETRY_FREQUENCY,
+                        network)
+        LOGGER.debug("ADD VISIBLE PEER=%s(%s)",endpoint,network)
 
     def start(self):
         # First, attempt to connect to explicit peers
@@ -1851,7 +1871,8 @@ class ConnectionManager(InstrumentedThread):
                     self._dstatus = GetPeersResponse.JOINED
                 if unpeered_candidates:
                     for candidate in unpeered_candidates:
-                        self._attempt_to_peer_with_endpoint(candidate) # random.choice(unpeered_candidates)) 
+                        net = self._candidate_net[candidate]
+                        self._attempt_to_peer_with_endpoint(candidate,net) # random.choice(unpeered_candidates)) 
                 
 
             elif status == GetPeersResponse.REDIRECT :
@@ -1984,7 +2005,7 @@ class ConnectionManager(InstrumentedThread):
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.PEERING,
                         time.time(),
-                        INITIAL_RETRY_FREQUENCY)
+                        INITIAL_RETRY_FREQUENCY,self._gossip.network)
 
             for endpoint in to_remove:
                 # Endpoints that have reached their retry count and should be
@@ -2006,12 +2027,22 @@ class ConnectionManager(InstrumentedThread):
             if status == GetPeersResponse.REDIRECT:
                 # go to the redirect peer, which know all peers for us
                 self._candidate_peer_endpoints = []
+                self._candidate_net = {}
+
             if  self._dstatus != GetPeersResponse.JOINED:
                 # set current state of 
                 self._dstatus = status
+            for i in  range(len(peer_endpoints)):
+                if i % 2 == 0:
+                    endpoint = peer_endpoints[i]
+                    if endpoint not in self._candidate_peer_endpoints:
+                        self._candidate_peer_endpoints.append(endpoint)
+                        self._candidate_net[endpoint] = peer_endpoints[i+1]
+            """
             for endpoint in peer_endpoints:
                 if endpoint not in self._candidate_peer_endpoints:
                     self._candidate_peer_endpoints.append(endpoint)
+            """
         LOGGER.debug("add_candidate_peer_endpoints: candidate=%s",self._candidate_peer_endpoints)
 
     def set_connection_status(self, connection_id, status):
@@ -2042,7 +2073,8 @@ class ConnectionManager(InstrumentedThread):
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         endpoint_info.status,
                         time.time(),
-                        min(endpoint_info.retry_threshold * 2,MAXIMUM_RETRY_FREQUENCY)
+                        min(endpoint_info.retry_threshold * 2,MAXIMUM_RETRY_FREQUENCY),
+                        endpoint_info.network
                         )
 
     
@@ -2058,11 +2090,11 @@ class ConnectionManager(InstrumentedThread):
                 self._gossip.unregister_peer(conn_id)
                 if conn_id in self._connection_statuses:
                     status = self._connection_statuses.get(conn_id)
-                    del self._connection_statuses[conn_id]
-                    LOGGER.debug("removing peer %s conn status=%s",endpoint,status)
+                    info = self._connection_statuses.pop(conn_id)
+                    LOGGER.debug("removing peer %s(%s) conn status=%s",endpoint,info.network,status)
                     if status == PeerStatus.TEMP:
                         # for dynamic peer add connection again
-                        self.add_peering_outbound_conn(endpoint)
+                        self.add_peering_outbound_conn(endpoint,info.network)
 
     def _refresh_connection_list(self):
         with self._lock:
@@ -2125,7 +2157,7 @@ class ConnectionManager(InstrumentedThread):
                     self._temp_endpoints[endpoint] = EndpointInfo(
                         EndpointStatus.TOPOLOGY,
                         time.time(),
-                        INITIAL_RETRY_FREQUENCY)
+                        INITIAL_RETRY_FREQUENCY, self._gossip.network if not self._gossip._single else (self._gossip.network+'E')) # in single mode change net name
 
                     self._network.add_outbound_connection(endpoint,self._gossip.endpoint)
 
@@ -2149,19 +2181,20 @@ class ConnectionManager(InstrumentedThread):
                     except ValueError:
                         LOGGER.debug("Connection disconnected: %s", conn_id)
 
-    def add_peering_outbound_conn(self,endpoint):
-        LOGGER.debug("ADD NEW outbound connection with %s single=%s\n", endpoint,self._gossip.is_single)            
+    def add_peering_outbound_conn(self,endpoint,network):
+        LOGGER.debug("ADD NEW outbound connection with %s(%s) single=%s\n", endpoint,network,self._gossip.is_single)            
         with self._lock:                                                                                            
             self._temp_endpoints[endpoint] = EndpointInfo(                                                          
                 EndpointStatus.PEERING,                                                                             
                 time.time(),                                                                                        
-                INITIAL_RETRY_FREQUENCY)                                                                            
+                INITIAL_RETRY_FREQUENCY,
+                network)                                                                            
         # in this case we use SINGLE start peer's marker which say us that endpoint belonge to other network        
-        self._network.add_outbound_connection(endpoint,self._gossip.extpoint if self._gossip.is_single else None)   
+        self._network.add_outbound_connection(endpoint,self._gossip.extpoint if network != self._gossip.network else None)   
 
 
-    def _attempt_to_peer_with_endpoint(self, endpoint):
-        LOGGER.debug("Attempting to connect/peer with %s inet=%s exnet=%s", endpoint,self._gossip._endpoint,self._gossip.extpoint)
+    def _attempt_to_peer_with_endpoint(self, endpoint,net='net0'):
+        LOGGER.debug("Attempting to connect/peer with %s(%s) inet=%s exnet=%s", endpoint,net,self._gossip._endpoint,self._gossip.extpoint)
 
         # check if the connection exists, if it does - send,
         # otherwise create it
@@ -2183,12 +2216,14 @@ class ConnectionManager(InstrumentedThread):
             # if the connection uri wasn't found in the network's
             # connections, it raises a KeyError and we need to add
             # a new outbound connection
-            self.add_peering_outbound_conn(endpoint)
+            LOGGER.debug("Attempting to connect/peer with %s(%s)", endpoint,net)
+            self.add_peering_outbound_conn(endpoint,net)
 
     def _reset_candidate_peer_endpoints(self):
         LOGGER.debug("RESET CANDIDATES..")
         with self._lock:
             self._candidate_peer_endpoints = []
+            self._candidate_net = {}
 
  
     def check_federations_status(self):
