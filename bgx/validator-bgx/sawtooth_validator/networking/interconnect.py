@@ -873,12 +873,13 @@ class Interconnect(object):
             metrics_registry=self._metrics_registry)
 
         self.outbound_connections[uri] = conn
-        LOGGER.debug("Adding outbound connection=%s to %s",conn.connection_id[:8], uri)
+        endp = endpoint if endpoint else self._public_endpoint
+        LOGGER.debug("Adding outbound connection=%s to %s endp=%s(%s)",conn.connection_id[:8], uri,endp,self.network)
         conn.start()
 
         self._add_connection(conn, uri)
 
-        connect_message = ConnectionRequest(endpoint= endpoint if endpoint else self._public_endpoint,network=self.network)
+        connect_message = ConnectionRequest(endpoint= endp,network=self.network)
         conn.send(
             validator_pb2.Message.NETWORK_CONNECT,
             connect_message.SerializeToString(),
