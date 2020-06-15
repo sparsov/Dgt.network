@@ -1,0 +1,36 @@
+version: '3.6'
+
+services:
+
+  intkey-cxx:
+    build:
+      context: ../..
+      dockerfile: bgx/docker/bgx-intkey-tp-cxx-${DISTR}
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+        - BGX_TOP=bgx
+    image: bgx-intkey-tp-cxx
+    environment:
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+    volumes:
+      - ../..:/project/${BGX_TOP}
+    container_name: bgx-intkey-cxx
+    networks:
+    - network1
+    ports:
+      - "8003:8003"
+    # depends_on: validator-bgx-с1-1
+    #   - validator 18.222.233.160
+    command: |
+      bash -c "
+        intkey_cxx tcp://127.0.0.1:4104 
+        tail -f /dev/null
+      "
+
+    stop_signal: SIGKILL
+
+networks:
+  network1:
+     name: bgx1-network
