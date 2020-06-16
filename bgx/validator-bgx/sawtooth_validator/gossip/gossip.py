@@ -1630,6 +1630,7 @@ class Gossip(object):
                 network.
         """
         if self._topology:
+            LOGGER.debug("Remove_temp_endpoint=%s\n",endpoint)
             self._topology.remove_temp_endpoint(endpoint)
 
     def start(self):
@@ -1721,6 +1722,9 @@ class ConnectionManager(InstrumentedThread):
     @property
     def is_federations_assembled(self):
         return self._gossip.is_federations_assembled
+    @property
+    def networks_info(self):
+        return [endp+"<-"+net for endp,net in self._peers.items()]
 
     def add_visible_peer(self,endpoint,network):
         """
@@ -1738,6 +1742,8 @@ class ConnectionManager(InstrumentedThread):
                         time.time(),
                         INITIAL_RETRY_FREQUENCY,
                         network)
+            # keep network info
+            self._candidate_net[endpoint] = network
         LOGGER.debug("ADD VISIBLE PEER=%s(%s)",endpoint,network)
 
     def start(self):
@@ -2027,7 +2033,7 @@ class ConnectionManager(InstrumentedThread):
             if status == GetPeersResponse.REDIRECT:
                 # go to the redirect peer, which know all peers for us
                 self._candidate_peer_endpoints = []
-                self._candidate_net = {}
+                #self._candidate_net = {}
 
             if  self._dstatus != GetPeersResponse.JOINED:
                 # set current state of 
@@ -2090,11 +2096,15 @@ class ConnectionManager(InstrumentedThread):
                 self._gossip.unregister_peer(conn_id)
                 if conn_id in self._connection_statuses:
                     status = self._connection_statuses.get(conn_id)
-                    info = self._connection_statuses.pop(conn_id)
-                    LOGGER.debug("removing peer %s(%s) conn status=%s",endpoint,info.network,status)
+                    del self._connection_statuses[conn_id]
+                    LOGGER.debug("removing peer %s conn status=%s",endpoint,status)
                     if status == PeerStatus.TEMP:
                         # for dynamic peer add connection again
-                        self.add_peering_outbound_conn(endpoint,info.network)
+                        if endpoint in self._temp_endpoints or endpoint in self._candidate_net:
+                            network = self._temp_endpoints[endpoint].network if endpoint in self._temp_endpoints else self._candidate_net[endpoint]
+                            self.add_peering_outbound_conn(endpoint,network)
+                        else:
+                            LOGGER.debug("removing peer %s HAS NO NETWORK INFO nets=%s\n",endpoint,self.networks_info)
 
     def _refresh_connection_list(self):
         with self._lock:
@@ -2223,7 +2233,7 @@ class ConnectionManager(InstrumentedThread):
         LOGGER.debug("RESET CANDIDATES..")
         with self._lock:
             self._candidate_peer_endpoints = []
-            self._candidate_net = {}
+            #self._candidate_net = {}
 
  
     def check_federations_status(self):
@@ -2301,7 +2311,7 @@ class ConnectionManager(InstrumentedThread):
         endpoint = self._network.connection_id_to_endpoint(connection_id)
         endpoint_info = self._temp_endpoints.get(endpoint)
 
-        LOGGER.debug("Endpoint has completed authorization: %s (id: %s)",endpoint,connection_id[:8])
+        LOGGER.debug("Endpoint has completed authorization: %s(%s) (id: %s)",endpoint,endpoint_info.network if endpoint_info else None,connection_id[:8])
         if endpoint_info is None:
             LOGGER.debug("Received unknown endpoint: %s", endpoint)
 
@@ -2312,7 +2322,7 @@ class ConnectionManager(InstrumentedThread):
             self._connect_success_topology(connection_id)
 
         else:
-            LOGGER.debug("Endpoint has unknown status: %s", endpoint)
+            LOGGER.debug("Endpoint has unknown status: %s(%s)", endpoint,endpoint_info.status)
 
         with self._lock:
             if endpoint in self._temp_endpoints:
