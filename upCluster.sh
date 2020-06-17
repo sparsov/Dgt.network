@@ -219,6 +219,15 @@ function upClusterDyn {
         4)
           export COMPOSE_PROJECT_NAME=64 G=$GENESIS C=dyn N=4 API=8711 COMP=4708 NET=${ENDPORT:-8704} CONS=5754;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
+        5)
+          export COMPOSE_PROJECT_NAME=65 G=$GENESIS C=dyn N=5 API=8712 COMP=4709 NET=${ENDPORT:-8705} CONS=5755;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        6)
+          export COMPOSE_PROJECT_NAME=66 G=$GENESIS C=dyn N=6 API=8713 COMP=4710 NET=${ENDPORT:-8706} CONS=5756;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
+        7)
+          export COMPOSE_PROJECT_NAME=67 G=$GENESIS C=dyn N=7 API=8714 COMP=4711 NET=${ENDPORT:-8707} CONS=5757;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+        ;;
         *)
           echo "Undefined peer into cluster."
         ;;

@@ -578,7 +578,7 @@ class Gossip(object):
             except ValueError:
                 LOGGER.debug("Connection disconnected: %s", connection_id)
 
-    def get_dynamic_peers_info(self,endpoint,connection_id,is_own):
+    def get_dynamic_peers_info(self,endpoint,connection_id,is_own,is_arb=False):
         dyn_endpoints = [] 
         # get network of peer for which we preparing info                                                                                             
         net = self._network.get_connection_network(connection_id)                                                                                                                      
@@ -592,8 +592,9 @@ class Gossip(object):
                 if pid not in self._fbft.cluster:                                                                                            
                     continue                                                                                                                 
             else:                                                                                                                            
-                # it could be leader or arbiter - send other known arbiters                                                                  
-                if pid not in self._fbft.arbiters:                                                                                           
+                # it could be leader or arbiter - send other known arbiters  
+                # and  endpoint should be leader or arbiter too !                                                               
+                if not is_arb or pid not in self._fbft.arbiters:                                                                                           
                     continue                                                                                                                 
                                                                                                                                              
             if net == self.network:                                                                                                          
@@ -621,11 +622,11 @@ class Gossip(object):
         # inform static peer about registred dynamic                                                                                          
         # use info about endpoint's networks   
         is_own=pkey in self._fbft.cluster  
-        
-        dyn_endpoints = self.get_dynamic_peers_info(endpoint,connection_id,is_own)                                                                                                                    
+        is_arb = pkey in self._fbft.arbiters
+        dyn_endpoints = self.get_dynamic_peers_info(endpoint,connection_id,is_own,is_arb)                                                                                                                    
                           
         if len(dyn_endpoints) > 0:
-            LOGGER.debug("INFORM static peer=%s  about dynamic=%s",endpoint,dyn_endpoints)
+            LOGGER.debug("INFORM static peer=%s is_own=%s is_arb=%s about dynamic=%s",endpoint,is_own,is_arb,dyn_endpoints)
             peers_response = GetPeersResponse(status=GetPeersResponse.DYNPEERS,
                                               cluster=None,
                                               peer_endpoints=dyn_endpoints
@@ -1724,7 +1725,7 @@ class ConnectionManager(InstrumentedThread):
         return self._gossip.is_federations_assembled
     @property
     def networks_info(self):
-        return [endp+"<-"+net for endp,net in self._peers.items()]
+        return [endp+"<-"+net for endp,net in self._candidate_net.items()]
 
     def add_visible_peer(self,endpoint,network):
         """

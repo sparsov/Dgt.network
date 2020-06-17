@@ -228,6 +228,7 @@ class Tbot(object):
         get message from bot and do something useful
         """
         self._attemp = 0
+        self._timeout = 1
         def shift_proxy():
             self.set_proxy()
             if self._attemp > len(self._proxies):
@@ -238,10 +239,12 @@ class Tbot(object):
         while not self._stop:
             await self.process_queue()
             try:
-                updates = self._bot.get_updates(offset=(self._bot.last_update_id+1),timeout=1) #get_me() # Execute an API call
+                updates = self._bot.get_updates(offset=(self._bot.last_update_id+1),timeout=self._timeout) #get_me() # Execute an API call
                 self._attemp = 0
             except ConnectTimeout:
                 LOGGER.info('Get updates ConnectTimeout')
+                if self._timeout < 4:
+                    self._timeout += 1
                 shift_proxy()
                 updates = None 
             except Exception as ex  :
