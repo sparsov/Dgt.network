@@ -55,7 +55,7 @@ PROJECT_ID = 'small-talk-wfkygw'
 SESSION_ID = '123456789'
 language_code = 'ru'
 TOKEN='1205652427:AAFr0eynwihWGyvObUA0QSjOfKMwiH3HkZs'
-PROXIES = ['82.223.120.213:1080','85.10.235.14:1080','217.69.10.129:32401','217.182.230.15:4485','96.96.33.133:1080','93.157.248.106:1080','81.17.20.50:1177','217.69.10.129:32401']
+PROXIES = ['82.223.120.213:1080','138.201.6.102:1080','85.10.235.14:1080','217.69.10.129:32401','217.182.230.15:4485','96.96.33.133:1080','93.157.248.106:1080','81.17.20.50:1177','217.69.10.129:32401','1.179.185.253:8080']
 
 class Tbot(object): 
     def __init__(self,loop, connection,tdb,token=TOKEN,project_id=PROJECT_ID,session_id=SESSION_ID,proxy=PROXIES):
@@ -243,7 +243,7 @@ class Tbot(object):
                 self._attemp = 0
             except ConnectTimeout:
                 LOGGER.info('Get updates ConnectTimeout')
-                if self._timeout < 4:
+                if self._timeout < 6:
                     self._timeout += 1
                 shift_proxy()
                 updates = None 

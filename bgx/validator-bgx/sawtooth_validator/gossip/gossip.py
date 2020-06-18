@@ -1142,10 +1142,10 @@ class Gossip(object):
         self._stopology = self.get_topology_cache()
         self._ftopology = json.loads(self._stopology)
         fbft = FbftTopology()
-        fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode,cluster)
+        fbft.get_topology(self._ftopology, self.validator_id, self.endpoint, self._peering_mode, self.network,cluster)
         with self._lock:
             self._fbft = fbft
-        LOGGER.debug("RELOAD topology=%s\n",self._ftopology)
+        LOGGER.debug("RELOAD topology=%s\n",self._fbft.topology)
 
     def load_topology(self):
         if self._stopology is not None :
@@ -1160,7 +1160,7 @@ class Gossip(object):
 
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
-        self._fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode)
+        self._fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode,self.network)
         LOGGER.debug("LOAD topology DONE SYNC=%s",self.is_sync)
         
 
@@ -1273,10 +1273,11 @@ class Gossip(object):
                 
 
             if component is not None:
-                self._fbft.update_peer_component(public_key, component,pid=pid,extpoint=extpoint,intpoint=intpoint)
+                network = self._network.get_connection_network(connection_id)
+                self._fbft.update_peer_component(public_key, component,pid=pid,extpoint=extpoint,intpoint=intpoint,network=network)
                 if peer and self.peer_is_visible_for_me(public_key) and endpoint not in self._initial_peer_endpoints:
                     # if this peer belonge our cluster make connection with them 
-                    network = self._network.get_connection_network(connection_id)
+                    
                     LOGGER.debug("PEER=%s %s VISIBLE FOR US - ADD THIS PEER network=%s inet=%s", public_key[:8], endpoint,network,intpoint)
                     self._topology.add_visible_peer(endpoint,network)
             else:
@@ -2098,7 +2099,7 @@ class ConnectionManager(InstrumentedThread):
                 if conn_id in self._connection_statuses:
                     status = self._connection_statuses.get(conn_id)
                     del self._connection_statuses[conn_id]
-                    LOGGER.debug("removing peer %s conn status=%s",endpoint,status)
+                    LOGGER.debug("removing peer %s conn status=%s nets=%s",endpoint,status,self.networks_info)
                     if status == PeerStatus.TEMP:
                         # for dynamic peer add connection again
                         if endpoint in self._temp_endpoints or endpoint in self._candidate_net:

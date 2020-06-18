@@ -40,6 +40,7 @@ class PeerAtr():
     endpoint   = 'endpoint'
     extpoint   = 'extpoint'
     intpoint   = 'intpoint'
+    network    = 'network'
     component  = 'component'
     node_state = 'node_state'
     cluster    = 'cluster'
@@ -584,7 +585,7 @@ class FbftTopology(object):
         """
         return None,None
 
-    def update_peer_component(self,peer_key,component=None,pid=None,extpoint=None,intpoint=None):
+    def update_peer_component(self,peer_key,component=None,pid=None,extpoint=None,intpoint=None,network="net0"):
         for key,peer in self.get_topology_iter():
             if (peer_key is not None and key == peer_key)  :
                 if component is not None:
@@ -596,10 +597,11 @@ class FbftTopology(object):
                     peer[PeerAtr.extpoint] = extpoint
                 if intpoint is not None:
                     peer[PeerAtr.intpoint] = intpoint
+                peer[PeerAtr.network] = network
                 break
 
 
-    def get_topology(self,topology,validator_id,endpoint,peering_mode='static',join_cluster=None):
+    def get_topology(self,topology,validator_id,endpoint,peering_mode='static',network='net0',join_cluster=None,KYCKey='0ABD7E'):
         # get topology from string
 
         def get_cluster_info(arbiter_id,parent_name,name,children):
@@ -629,6 +631,7 @@ class FbftTopology(object):
                     #  yourself 
                     peer[PeerAtr.endpoint] = endpoint
                     peer[PeerAtr.node_state] = PeerSync.active
+                    peer[PeerAtr.network] = network
                     LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
                     return
 
@@ -671,7 +674,7 @@ class FbftTopology(object):
         self._validator_id = validator_id
         self._endpoint = endpoint
         self._topology = topology if topology != {} else {PeerAtr.children:{}}
-        #LOGGER.debug('get_topology=%s',topology)
+        #LOGGER.debug('get_topology=%s',self._topology)
         topology['topology'] = peering_mode
         topology['sync'] = not self._nosync
         if PeerAtr.name in topology and PeerAtr.children in topology:
@@ -691,11 +694,12 @@ class FbftTopology(object):
             topology['Network'] = 'DGT TEST network'
             topology['Identity'] = {'PubKey': self._validator_id,
                                     'IP' : self._endpoint,
+                                    'Network' : network,
                                     'Cluster' : self._nest_colour,
                                     'Genesis' : self._genesis_node,
                                     'Leader'  : self._leader if self._leader else 'UNDEF',
                                     'Parent'  : self._parent if self._parent else 'UNDEF',
-                                    'KYCKey'  : '0ABD7E'
+                                    'KYCKey'  : KYCKey
 
             }
             LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s child=%s', self._arbiters, self.genesis_node[:8], len(self.publics),self.own_child_info)

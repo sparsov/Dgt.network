@@ -114,7 +114,7 @@ class PbftOracle:
     def get_topology(self,cluster=None):
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
         self._fbft = FbftTopology()
-        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static',cluster)
+        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static',join_cluster=cluster)
         LOGGER.debug('nodes=%s tout=%s',nodes,self._pbft_settings_view.block_timeout)
 
     def update_state_view_block(self,block_id):
