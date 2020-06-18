@@ -84,7 +84,7 @@ class Tbot(object):
 
     def set_proxy(self):
         proxy = self._proxies[self._proxy_pos]
-        apihelper.proxy = {'https': 'socks5://{}'.format(proxy)}
+        #apihelper.proxy = {'https': 'socks5://{}'.format(proxy)}
         self._proxy_pos += 1
         self._proxy_pos = self._proxy_pos % len(self._proxies)
         LOGGER.info("NEXT proxy %d",self._proxy_pos)
