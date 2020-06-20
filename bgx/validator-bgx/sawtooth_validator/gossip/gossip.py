@@ -280,7 +280,10 @@ class Gossip(object):
     @property
     def validator_id(self):
         return self._network.validator_id
-
+    @property
+    def is_arbiter(self):
+        return self._fbft.is_arbiter
+    
     @property
     def heads_summary(self):
         return self._get_heads_func(summary=True)
@@ -511,13 +514,47 @@ class Gossip(object):
         is_arbiter = public_key in self._fbft.arbiters
         return public_key in self._fbft.cluster or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key))
 
+    def update_peer_dashboard(self,pkey,status,network):
+        """
+        update peer status for dashboard
+        """
+        LOGGER.debug("Inform DASBOARD network=%s peers=%s status=%s",network,pkey[:8],status)
+        peer,_ = self._fbft.key_to_peer(pkey)
+        if peer:
+            peer[PeerAtr.network] = network
+            peer[PeerAtr.node_state] = (PeerSync.active if status else PeerSync.nosync)
+
+    def notify_dashboard(self,pkey,status,network):
+        """
+        send info about not leader peer to dashboard
+        """
+        LOGGER.debug("Inform DASBOARD about peer=%s network=%s status=%s\n",pkey[:8],network,status)
+        cid = self._network.public_key_to_connection_id(self._fbft.genesis_node)
+        if cid :
+            # send info
+            peers_response = GetPeersResponse(status=GetPeersResponse.PEERSTAT,
+                                              cluster=network,
+                                              peer_endpoints=[pkey,str(status) ]
+                                              )
+            try:
+                # Send a one_way message because the connection will be closed
+                # if this is a temp connection.
+                self._network.send(
+                    validator_pb2.Message.GOSSIP_GET_PEERS_RESPONSE,
+                    peers_response.SerializeToString(),
+                    cid,
+                    one_way=True)
+            except ValueError:
+                LOGGER.debug("Connection disconnected: %s", connection_id)
+
     def notify_peer_connected(self,public_key,assemble=False,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
         Use topology for restrict peer notification
         """
         is_arbiter = public_key in self._fbft.arbiters
+        is_own_peer = public_key in self._fbft.cluster
         
-        if public_key in self._fbft.cluster or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key)):
+        if is_own_peer or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key)):
             """
             own cluster or arbiters
             if is_arbiter:
@@ -526,6 +563,11 @@ class Gossip(object):
             In case of leader change this request could be appeared before new leader will be set into topology 
             so we should inform consensus later 
             """
+            if self.is_arbiter and not self.is_genesis_peer and is_own_peer and public_key != self.validator_id:
+                pinfo = self._fbft.cluster[public_key]
+                self.notify_dashboard(public_key,assemble,pinfo[PeerAtr.network])
+                
+
             LOGGER.debug("Inform engine ADD peer=%s assemble=%s mode=%s is_arbiter=%s",public_key[:8],assemble,mode,is_arbiter)
             self._consensus_notifier.notify_peer_connected(public_key,assemble,mode)
             if public_key == self.validator_id and not self._genesis_sync:
@@ -823,15 +865,20 @@ class Gossip(object):
             peer_endpoints ([str]): A list of public uri's which the
                 validator can attempt to peer with.
         """
-        if status == GetPeersResponse.DYNPEERS:
-            LOGGER.debug("add_candidate_peer_endpoints: dynamic peers=%s",peer_endpoints)
+        if status == GetPeersResponse.DYNPEERS or status == GetPeersResponse.PEERSTAT:
+            LOGGER.debug("add_candidate_peer_endpoints: DYNAMIC peers=%s",peer_endpoints)
             for i in  range(len(peer_endpoints)):
                 if i % 2 == 0:
                     endp = peer_endpoints[i]
-                    if endp not in self._initial_peer_endpoints:
-                        self._topology.add_visible_peer(endp,peer_endpoints[i+1])
+                    if status == GetPeersResponse.DYNPEERS:
+                        if endp not in self._initial_peer_endpoints:
+                            self._topology.add_visible_peer(endp,peer_endpoints[i+1])
+                    else:
+                        self.update_peer_dashboard(endp,peer_endpoints[i+1] == 'True',cluster)
 
             return
+        
+
         LOGGER.debug("add_candidate_peer_endpoints: cluster=%s  status=%s",cluster,status)
         if cluster:
             if status == GetPeersResponse.WAITING:
