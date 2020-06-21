@@ -51,7 +51,8 @@ class PeerAtr():
     genesis    = 'genesis'
     ptype      = 'type'
     pid        = 'pid' 
-    public     = 'public'  
+    public     = 'public' 
+    dynamic    = 'dynamic' 
     KYC        = 'KYC'
     maxpeer    = 'maxpeer'
 
@@ -74,13 +75,16 @@ class FbftTopology(object):
         self._leaders  = {}    # leadres of other clusters
         self._publics  = []    # public clusters
         self._cluster = None   # own cluster
+        self._is_dynamic_cluster = False
         self._topology  = {PeerAtr.children:{}}
         self._nosync = False
 
     @property
     def nest_colour(self):
         return self._nest_colour
-
+    @property
+    def is_dynamic_cluster(self):
+        return self._is_dynamic_cluster
     @property
     def own_role(self):
         return self._own_role
@@ -640,6 +644,7 @@ class FbftTopology(object):
                     if PeerAtr.name in cluster and PeerAtr.children in cluster:
                         get_cluster_info(key,name,cluster[PeerAtr.name],cluster[PeerAtr.children])
                         if self._nest_colour is not None:
+                            self._is_dynamic_cluster = (PeerAtr.dynamic in cluster and cluster[PeerAtr.dynamic])
                             return
 
         def get_arbiters(arbiter_id,name,children):
@@ -680,6 +685,13 @@ class FbftTopology(object):
         if PeerAtr.name in topology and PeerAtr.children in topology:
             self._genesis  = topology['name'] # genesis cluster
             get_cluster_info(None,None,topology[PeerAtr.name],topology[PeerAtr.children])
+            if join_cluster :
+                jcluster = self.get_cluster_by_name(join_cluster)
+                if jcluster is None:
+                    self._is_dynamic_cluster = True
+                else:
+                    self._is_dynamic_cluster = (PeerAtr.dynamic in jcluster and jcluster[PeerAtr.dynamic])
+
         if self._nest_colour is None:
             pass
             #self._nest_colour = 'Genesis'
@@ -702,7 +714,7 @@ class FbftTopology(object):
                                     'KYCKey'  : KYCKey
 
             }
-            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s child=%s', self._arbiters, self.genesis_node[:8], len(self.publics),self.own_child_info)
+            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s child=%s dyn=%s', self._arbiters, self.genesis_node[:8], len(self.publics),self.own_child_info,self.is_dynamic_cluster)
 
 
 

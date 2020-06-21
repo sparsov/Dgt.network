@@ -168,7 +168,9 @@ class PbftOracle:
     def cluster_name(self):
         #LOGGER.debug('CLUSTER NAME: %s ~ %s\n', self._fbft.nest_colour, self._cluster_name)
         return self._fbft.nest_colour 
-
+    @property
+    def is_dynamic_cluster(self):
+        return self._fbft.is_dynamic_cluster
     @property
     def arbiters(self):
         arbs = {key : (vals[0],ConsensusNotifyPeerConnected.STATUS_UNSET,vals[1]) for key,vals in self._fbft.arbiters.items()}

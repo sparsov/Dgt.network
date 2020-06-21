@@ -1154,7 +1154,7 @@ class Gossip(object):
         if cowner is None:
             return None
         LOGGER.debug("_make_new_cluster_tnx new cluster='%s' point=%s.%s",cl_name,cowner,powner)
-        nclust = "{'type':'cluster','public':true,'name':'"+cl_name+"'}"
+        nclust = "{'type':'cluster','public':true,'dynamic':true,'name':'"+cl_name+"'}"
         param = {'oper':'cluster','cluster':cowner,'peer':powner,'list':nclust}
       
         val = json.dumps(param, sort_keys=True, indent=4)

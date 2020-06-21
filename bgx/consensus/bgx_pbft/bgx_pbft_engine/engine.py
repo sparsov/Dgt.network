@@ -808,7 +808,7 @@ class PbftEngine(Engine):
         if len(self._nest_color) == 0:
             # make list color for nests
             colors = []
-            if self._cluster_name != self._genesis:
+            if self._cluster_name != self._genesis and not self._is_dynamic_cluster :#and self._cluster_name[:3] != 'dyn':
                 colors.append(self._cluster_name)
             for cluster in self.arbiters.values():
                 if cluster[2] != self._genesis:
@@ -856,6 +856,8 @@ class PbftEngine(Engine):
 
     def cluster_update(self):
         self._cluster = self._oracle.cluster
+        self._cluster_name = self._oracle.cluster_name # own clusters name
+        self._is_dynamic_cluster = self._oracle.is_dynamic_cluster
 
     def arbiters_update(self):
         narbiters = self._oracle.arbiters
@@ -1125,7 +1127,7 @@ class PbftEngine(Engine):
         """
         self._genesis_node = self._oracle.genesis_node # genesis node of all net - we take its genesis block for all net
         self._genesis      = self._oracle.genesis      # genesis cluster name
-        self._cluster_name = self._oracle.cluster_name # own clusters name
+        #self._cluster_name = self._oracle.cluster_name # own clusters name
         #self._own_type = self._oracle.own_type
         self.arbiters_update()         # ring of arbiter  
         self.cluster_update()          # own cluster's peers
