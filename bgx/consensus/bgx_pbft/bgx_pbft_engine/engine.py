@@ -809,6 +809,7 @@ class PbftEngine(Engine):
             # make list color for nests
             colors = []
             if self._cluster_name != self._genesis and not self._is_dynamic_cluster :#and self._cluster_name[:3] != 'dyn':
+                # exclude dynamic cluster for which we have no nests
                 colors.append(self._cluster_name)
             for cluster in self.arbiters.values():
                 if cluster[2] != self._genesis:
