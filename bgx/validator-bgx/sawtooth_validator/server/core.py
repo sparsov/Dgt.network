@@ -425,6 +425,8 @@ class Validator(object):
         signal_event = threading.Event()
 
         signal.signal(signal.SIGTERM,lambda sig, fr: signal_event.set())
+        #signal.signal(signal.SIGINT,lambda sig, fr: signal_event.set())
+        
         # This is where the main thread will be during the bulk of the
         # validator's life.
         """
@@ -432,8 +434,11 @@ class Validator(object):
             pass
             LOGGER.debug("->DUMP METRICS=%s",self._metrics_registry.dump_metrics)
         """
+        
         while not signal_event.is_set():
             signal_event.wait(timeout=20)
+
+        LOGGER.debug("After while SIGNAL\n")
         """
         if self._metrics_registry:
             pass

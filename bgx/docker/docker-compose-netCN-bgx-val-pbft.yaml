@@ -221,7 +221,9 @@ services:
             --max_dag_branch 6 --scheduler parallel --peering ${PEERING} ${SEEDS} --maximum-peer-connectivity 70 \
             --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
-    stop_signal: SIGKILL
+    stop_signal: SIGTERM
+    stop_grace_period: 1s
+
 
   bgx-api:
     build:

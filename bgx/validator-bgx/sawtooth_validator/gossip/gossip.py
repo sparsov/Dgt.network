@@ -1353,7 +1353,10 @@ class Gossip(object):
                 connection on the network server socket.
         """
         public_key = self.peer_to_public_key(connection_id)
+        LOGGER.debug("Unregister peer=%s connection_id=%s\n",public_key[:8],connection_id[:8])
         if public_key:
+            net = self._network.get_connection_network(connection_id)
+            self.notify_dashboard(public_key,False,net)
             self.notify_peer_disconnected(public_key)
             self.update_federation_topology(public_key,self._peers[connection_id] if connection_id in self._peers else None,False,force=True)
 
@@ -1711,7 +1714,7 @@ class Gossip(object):
                 pass
         if self._topology:
             self._topology.stop()
-
+        LOGGER.debug("Stop gossip!!!\n")
 
 class ConnectionManager(InstrumentedThread):
     def __init__(self, gossip, network, endpoint,

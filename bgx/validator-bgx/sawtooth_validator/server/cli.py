@@ -225,7 +225,7 @@ def create_validator_config(opts):
         max_dag_branch=opts.max_dag_branch
     )
 
-
+    
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
@@ -378,10 +378,13 @@ def main(args=None):
         roles=validator_config.roles,
         metrics_registry=wrapped_registry)
 
+    
     # pylint: disable=broad-except
     try:
         if wrapped_registry :
             pass
+        
+        
             #LOGGER.info("DUMP METRICS=%s",wrapped_registry.dump_metrics)
         validator.start()
         
@@ -397,7 +400,7 @@ def main(args=None):
         LOGGER.exception(e)
         sys.exit(1)
     finally:
-        
+        LOGGER.debug("finally CLI\n")
         if metrics_reporter:
             if wrapped_registry :
                 pass
