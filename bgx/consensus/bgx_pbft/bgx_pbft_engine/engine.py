@@ -1573,8 +1573,17 @@ class PbftEngine(Engine):
         # message from others peers will be ignored
         return self.peers[peer_id].status if peer_id in self.peers else (self.arbiters[peer_id][1] if peer_id in self.arbiters else (self._leaders[peer_id] if peer_id in self._leaders else ConsensusNotifyPeerConnected.NOT_READY))
 
-    def _handle_peer_disconnected(self, notif):
-        LOGGER.debug('DisConnected peer=%s status=%s',notif[0].peer_id.hex(),notif[1])
+    def _handle_peer_disconnected(self, peer_id):
+        if peer_id:
+            pid = peer_id.hex()
+            LOGGER.debug('DisConnected peer=%s',pid[:8]) 
+            if pid in self._cluster :
+                if self.peers[pid].status != ConsensusNotifyPeerConnected.NOT_READY:
+                    self.change_peer_status(pid,ConsensusNotifyPeerConnected.NOT_READY,self.peers[pid].status)
+            elif pid in self.arbiters:
+                # one of the arbiters - mark as ready 
+                self.change_arbiter_status(pid,ConsensusNotifyPeerConnected.NOT_READY)
+            
 
     def handle_topology_update(self,pid,oper,val):
         """
@@ -1635,25 +1644,35 @@ class PbftEngine(Engine):
             return False
         return True
 
+    def change_arbiter_status(self,pid,status):
+        val = self.arbiters[pid]
+        if val[1] != status:
+            self.arbiters[pid] = (val[0],status,val[2])
+            LOGGER.debug('Connected peer with ID=%s  status=%s OUR ARBITER=%s arbiters=%s SYNC=%s\n', _short_id(pid),status,val,self.num_arbiters,self._is_sync)
+        else:
+            LOGGER.debug('Connected peer with ID=%s IS ARBITER status the same arbiters=%s SYNC=%s\n', _short_id(pid),self.num_arbiters,self._is_sync)
+
+    def change_peer_status(self,pid,stat,old_stat=None):                                                                                                                
+        # reset .num                                                                                                                                               
+        if old_stat is None:                                                                                                                                       
+            self.peers[pid] = PeerInfo(stat,0,1 if self._oracle.peer_is_leader(pid) else 0 ) # defaults=(0,)                                                       
+        else: # update already known peer                                                                                                                          
+            self.peers[pid] = self.peers[pid]._replace(status=stat,num=0)                                                                                          
+                                                                                                                                                                   
+                                                                                                                                                                   
+        if not self.is_sync and stat == ConsensusNotifyPeerConnected.OK:                                                                                           
+            #self._is_sync = True                                                                                                                                  
+            LOGGER.debug('SET OWN SYNC STATUS\n')                                                                                                                  
+        LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s arbiters=%s peers=%s', pid[:8], old_stat, stat, self.is_sync,self.num_arbiters,self.peers_info)  
+
+
+
     def _handle_peer_connected(self, notif):
         """
         Handle peer activity - conn/discon and status change
         """
         #LOGGER.debug('Connected peer status=%s',notif[1])
-        def change_peer_status(pid,stat,old_stat=None):
-            # reset .num 
-            if old_stat is None:
-                self.peers[pid] = PeerInfo(stat,0,1 if self._oracle.peer_is_leader(pid) else 0 ) # defaults=(0,)
-            else: # update already known peer
-                self.peers[pid] = self.peers[pid]._replace(status=stat,num=0)
-
-            
-            if not self.is_sync and stat == ConsensusNotifyPeerConnected.OK:
-                #self._is_sync = True
-                LOGGER.debug('SET OWN SYNC STATUS\n')
-            LOGGER.debug('Change status peer=%s status=%s->%s SYNC=%s arbiters=%s peers=%s', pid[:8], old_stat, stat, self.is_sync,self.num_arbiters,self.peers_info)
-            #LOGGER.info('Connected peer with ID=%s status=%s own cluster SYNC=%s peers=%s\n', _short_id(pid),notif[1],self.is_sync,self.peers_info)
-
+        
         pid = notif[0].peer_id.hex()
         if self.handle_topology_update(pid,notif[1],notif[3]):
             return True
@@ -1667,16 +1686,12 @@ class PbftEngine(Engine):
             elif pid in self._cluster :
                 # take only peers from own cluster topology 
                 # save status of peer
-                change_peer_status(pid,notif[1])
+                self.change_peer_status(pid,notif[1])
                 
             elif pid in self.arbiters:
                 # one of the arbiters - mark as ready 
-                val = self.arbiters[pid]
-                if val[1] != notif[1]:
-                    self.arbiters[pid] = (val[0],notif[1],val[2])
-                    LOGGER.debug('Connected peer with ID=%s  status=%s OUR ARBITER=%s arbiters=%s SYNC=%s\n', _short_id(pid),notif[1],val,self.num_arbiters,self._is_sync)
-                else:
-                    LOGGER.debug('Connected peer with ID=%s IS ARBITER status the same arbiters=%s SYNC=%s\n', _short_id(pid),self.num_arbiters,self._is_sync)
+                self.change_arbiter_status(pid,notif[1])
+                
             elif self.is_arbiter and self._oracle.peer_is_leader(pid) :
                 # this is other leaders
                 self._leaders[pid] = notif[1]
@@ -1686,7 +1701,7 @@ class PbftEngine(Engine):
 
         else: # this peer is already known
             if pid in self._cluster and self.peers[pid].status != notif[1]:
-                change_peer_status(pid,notif[1],self.peers[pid].status)
+                self.change_peer_status(pid,notif[1],self.peers[pid].status)
                 
     @property
     def branches_info(self):

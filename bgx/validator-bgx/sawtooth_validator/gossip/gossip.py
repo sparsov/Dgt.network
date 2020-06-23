@@ -532,11 +532,12 @@ class Gossip(object):
         cid = self._network.public_key_to_connection_id(self._fbft.genesis_node)
         if cid :
             # send info
-            peers_response = GetPeersResponse(status=GetPeersResponse.PEERSTAT,
+            try:
+                peers_response = GetPeersResponse(status=GetPeersResponse.PEERSTAT,
                                               cluster=network,
                                               peer_endpoints=[pkey,str(status) ]
                                               )
-            try:
+            
                 # Send a one_way message because the connection will be closed
                 # if this is a temp connection.
                 self._network.send(
@@ -544,8 +545,11 @@ class Gossip(object):
                     peers_response.SerializeToString(),
                     cid,
                     one_way=True)
+            
+            except Exception as ex:
+                LOGGER.debug("notify_dashboard except(%s)", ex)
             except ValueError:
-                LOGGER.debug("Connection disconnected: %s", connection_id)
+                LOGGER.debug("Connection disconnected: %s", cid)
 
     def notify_peer_connected(self,public_key,assemble=False,mode=ConsensusNotifyPeerConnected.NORMAL):
         """
@@ -1353,8 +1357,9 @@ class Gossip(object):
                 connection on the network server socket.
         """
         public_key = self.peer_to_public_key(connection_id)
-        LOGGER.debug("Unregister peer=%s connection_id=%s\n",public_key[:8],connection_id[:8])
+        
         if public_key:
+            LOGGER.debug("Unregister peer=%s connection_id=%s\n",public_key[:8],connection_id[:8])
             net = self._network.get_connection_network(connection_id)
             self.notify_dashboard(public_key,False,net)
             self.notify_peer_disconnected(public_key)

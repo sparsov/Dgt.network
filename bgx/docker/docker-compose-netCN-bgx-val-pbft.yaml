@@ -222,7 +222,7 @@ services:
             --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGTERM
-    stop_grace_period: 1s
+    #stop_grace_period: 600ms
 
 
   bgx-api:
