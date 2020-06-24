@@ -107,7 +107,7 @@ class StuffTransactionHandler(TransactionHandler):
         token = StuffTokenInfo(group_code = 'STUFF_token',
                              owner_key = self._signer.sign('STUFF_token'.encode()), #owner_key,
                              sign = self._public_key.as_hex(),
-                             decimals = int(value['value']),
+                             decimals = 0,
                              stuff = cbor.dumps(value)
                 )
         updated[name] = token.SerializeToString()

@@ -54,7 +54,7 @@ from sawtooth_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
 from bgt_bot_api.route_handlers import RouteHandler,DEFAULT_TIMEOUT
 from bgt_bot_api.bot_handlers import Tbot
 import cbor
-
+import yaml
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
 from sawtooth_signing import CryptoFactory,create_context
 
@@ -68,6 +68,11 @@ from sawtooth_bgt.client_cli.bgt_client import FAMILY_VERSION as BGT_FAMILY_VERS
 from sawtooth_bgt.client_cli.bgt_client import FAMILY_NAME as BGT_FAMILY_NAME
 from sawtooth_bgt.client_cli.bgt_client import _get_address as bgt_get_address
 from sawtooth_bgt.client_cli.bgt_client import _token_info as bgt_token_info
+# stuff tokens  utils
+from dgt_stuff.client_cli.stuff_client import FAMILY_VERSION as STUFF_FAMILY_VERSION
+from dgt_stuff.client_cli.stuff_client import FAMILY_NAME as STUFF_FAMILY_NAME
+from dgt_stuff.client_cli.stuff_client import _get_address as stuff_get_address
+from dgt_stuff.client_cli.stuff_client import _token_info as stuff_token_info
 
 import time
 LOGGER = logging.getLogger(__name__)
@@ -90,6 +95,9 @@ def _public2base64url(key):
 
 def user_wallet_name(user_id):
     return 'wallet_{}'.format(user_id)
+
+def user_stuff_name(val):
+    return '{}'.format(int(val))
 
 class BgxTeleBot(Tbot):
     """Contains a number of aiohttp handlers for endpoints in the Rest Api.
@@ -266,6 +274,7 @@ class BgxTeleBot(Tbot):
         for param,val in parameters.items(): 
             if val != '' :                                
                 args[param] = val
+                LOGGER.debug('ARG: %s=%s(%s)',param,val,type(val))
         return args     
                             
     async def bgt_get_state(self,wallet):
@@ -273,6 +282,53 @@ class BgxTeleBot(Tbot):
         state_address = bgt_get_address(wallet)              
         val = await self._get_state(wallet,state_address)    
         return bgt_token_info(val[wallet]) if val else None
+
+    async def stuff_get_state(self,num_stuff):                        
+        # get BGT state                                          
+        state_address = stuff_get_address(num_stuff)                  
+        val = await self._get_state(num_stuff,state_address)        
+        return stuff_token_info(val[num_stuff]) if val else None      
+
+    async def make_stuff_transaction(self,verb, name, value=None,minfo=None):
+        """
+        make bgt transaction
+        """
+        val = {                                                               
+            'Verb': verb,                                                     
+            'Name': name,                                                     
+        }   
+        if value is not None:                                                    
+            val['Value'] = value                                                                  
+                                                            
+
+        payload = cbor.dumps(val)                                             
+
+        # Construct the address                                               
+        address = stuff_get_address(name)                                     
+        inputs = [address]                                                    
+        outputs = [address]                                                   
+                                                
+        transaction = self._create_transaction(payload,inputs,outputs,family=STUFF_FAMILY_NAME,ver=STUFF_FAMILY_VERSION)
+        batch = self._create_batch([transaction])
+        batch_id = batch.header_signature #batch_list.batches[0].header_signature
+
+        # Query validator
+        error_traps = [error_handlers.BatchInvalidTrap,error_handlers.BatchQueueFullTrap]
+        validator_query = client_batch_submit_pb2.ClientBatchSubmitRequest(batches=[batch])
+        LOGGER.debug('make_stuff_transaction: _make_token_transfer send batch_id=%s',batch_id)
+
+        #with self._post_batches_validator_time.time():
+        resp = await self._query_validator(
+            Message.CLIENT_BATCH_SUBMIT_REQUEST,
+            client_batch_submit_pb2.ClientBatchSubmitResponse,
+            validator_query,
+            error_traps)
+        if minfo and ('status' in resp) and resp['status'] == 'OK':
+            LOGGER.debug('make_stuff_transaction: check result')
+            self.intent_handler(minfo._replace(batch_id=batch_id))
+        LOGGER.debug('make_stuff_transaction: done=%s',resp)
+        return batch_id
+
 
     async def intent_get_wallet(self,minfo):
         """
@@ -420,6 +476,75 @@ class BgxTeleBot(Tbot):
             await self.make_bgt_transaction('inc','wallet_'+str(minfo.user_id),3,minfo=minfo)
             
 
+    async def intent_create_stuff(self,minfo):
+        """
+        Get or create stuff for user who send this message
+        """
+        LOGGER.debug('BgxTeleBot: create stuff FOR=%s',minfo)
+        if minfo.batch_id:                                                       
+            LOGGER.debug('BgxTeleBot: CHECK=%s CREATE stuff',minfo.batch_id) 
+            batch = await self.check_batch_status(minfo.batch_id,minfo)          
+            return
+        args = self.get_args_from_request(minfo.result.parameters) if minfo.result else {'name' : minfo.user_first_name}
+        LOGGER.debug('BgxTeleBot: create stuff args=%s',args)
+        if 'number' in args:
+            new_stuff = user_stuff_name(args['number'])
+            await self.make_stuff_transaction('set',new_stuff,{'weight':100,'carbon':40,'type':'stuff','param1':'undef','param2':'undef','param3':'undef'},minfo=minfo)
+            self.send_message(minfo.chat_id, 'Создаю описание детали {} от имени {}.'.format(new_stuff,minfo.user_first_name))
+            
+        #else:
+            #self.send_message(minfo.chat_id, "Однако, номер детали не определен.")
+
+    async def intent_update_stuff(self,minfo):                                                                                       
+        """                                                                                                                          
+        Get or create stuff for user who send this message                                                                           
+        """                                                                                                                          
+        LOGGER.debug('BgxTeleBot: update stuff FOR=%s',minfo)                                                                        
+        if minfo.batch_id:                                                                                                           
+            LOGGER.debug('BgxTeleBot: CHECK=%s CREATE stuff',minfo.batch_id)                                                         
+            batch = await self.check_batch_status(minfo.batch_id,minfo)                                                              
+            return                                                                                                                   
+        args = self.get_args_from_request(minfo.result.parameters) if minfo.result else {'name' : minfo.user_first_name}             
+        LOGGER.debug('BgxTeleBot: update stuff args=%s',args)                                                                        
+        if 'number' in args:                                                                                                         
+            new_stuff = user_stuff_name(args['number']) 
+            upd = {}
+            for nm,val in args.items():
+                if nm == 'number':
+                    continue
+                if nm[:4] == 'name':
+                    nnum = 'number'+nm[4:]
+                    LOGGER.debug('upd : %s=%s',val,args[nnum] if nnum in args else 'undef')
+                    if nnum in args:
+                        upd[val] = args[nnum]
+            if upd != {}:
+                await self.make_stuff_transaction('upd',new_stuff,upd,minfo=minfo)                              
+                self.send_message(minfo.chat_id, 'Изменяю описание детали {} от имени {}.'.format(new_stuff,minfo.user_first_name))  
+            else:
+                self.send_message(minfo.chat_id, 'Не заданы новые параметры детали {}.'.format(new_stuff)) 
+   
+    async def intent_show_stuff(self,minfo):                                                                                                            
+        """                                                                                                                                                      
+        Get or create wallet check                                                                                                                               
+        """                                                                                                                                                      
+        LOGGER.debug('BgxTeleBot: show  stuff FOR=%s',minfo)                                                                                                    
+        args = self.get_args_from_request(minfo.result.parameters)                                                                                               
+        if 'number' in args : 
+            num_stuff = user_stuff_name(args['number'])                                                                                                                                     
+            try:                                                                                                                                                     
+                token = await self.stuff_get_state(num_stuff)                                                                                                             
+                LOGGER.debug('BgxTeleBot: %s=%s',num_stuff,token) 
+                if token :
+                    token = cbor.loads(token.stuff)
+
+                repl = 'Описание детали {}: \n{}.'.format(num_stuff,yaml.dump(token, default_flow_style=False)[0:-1]) if token else "К сожалению деталь {} не существует".format(num_stuff) 
+                self.send_message(minfo.chat_id,repl)
+            except Exception as ex:                                                                                                                                  
+                LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',num_stuff,ex)                                                                                                                                        
+                                                                                         
+            
+            
+                                                                                                                                             
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             
         validator_query =  client_batch_submit_pb2.ClientBatchStatusRequest(batch_ids=[batch_id])                                                    

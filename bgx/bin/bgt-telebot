@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','validator-bgx'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families','bgt_python'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families','smart_bgt_python'))
-
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families','smart_stuff'))
 from bgt_bot_api.bot_api import main
 
 if __name__ == '__main__':

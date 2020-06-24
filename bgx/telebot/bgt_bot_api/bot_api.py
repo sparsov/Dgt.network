@@ -158,6 +158,10 @@ def start_bot_api(host, port, connection, timeout, registry,client_max_size=None
     bot.add_intent_handler('smalltalk.agent.dec_wallet',bot.intent_dec_wallet)
     bot.add_intent_handler('smalltalk.agent.buy_stuff',bot.intent_buy_stuff)
     bot.add_intent_handler('smalltalk.agent.sell_stuff',bot.intent_sell_stuff)
+    # make stuff
+    bot.add_intent_handler('smalltalk.agent.create_stuff',bot.intent_create_stuff)
+    bot.add_intent_handler('smalltalk.agent.update_stuff',bot.intent_update_stuff)
+    bot.add_intent_handler('smalltalk.agent.show_stuff',bot.intent_show_stuff)
     bot.add_intent_handler('smalltalk.agent.chat_admins',bot.intent_chat_admins)
     bot.add_intent_handler('smalltalk.agent.get_users',bot.intent_get_users)
     LOGGER.info('start_bot_api for=%s', TOKEN)
