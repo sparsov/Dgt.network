@@ -80,6 +80,38 @@ services:
       "
     stop_signal: SIGKILL
 
+
+  stuff-tp:
+    build:
+      context: ../..
+      dockerfile: bgx/families/smart_stuff/Dockerfile-${DISTR}
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+        - BGX_TOP=bgx
+    image: stuff-tp-dgt:${ISOLATION_ID}
+    environment:
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - PEER_HOME=/project/peer
+    networks:
+    - network1
+    volumes:
+      - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
+    container_name: stuff-tp-dgt-${C}-${N}
+    depends_on:
+      - validator-bgx
+    command: |
+      bash -c "
+        cd bgx/families/smart_stuff;rm -f /project/peer/logs/stuff-*.log*;
+        bgxadm node ${C} bgx${N}
+        python3 setup.py clean --all
+        python3 setup.py build
+        stuff-tp -vv -C tcp://validator-bgx-${C}-${N}:${COMP}
+      "
+    stop_signal: SIGKILL
+
 #  bgx-registry-5:
 #    build:
 #      context: ../..

@@ -13,5 +13,6 @@
 		<Project File="protos.vpj"/>
 		<Project File="sdk.vpj"/>
 		<Project File="smallbank-go.vpj"/>
+		<Project File="smart-stuff.vpj"/>
 	</Projects>
 </Workspace>

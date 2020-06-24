@@ -121,6 +121,9 @@ def main(args=None):
     # Generate Smart BGT token  protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/families/smart_bgt")
     protoc(proto_dir, "bgx/families/bgt_python", "bgt_common/protobuf")
+    # Smart STUFF token protos
+    proto_dir = JOIN(TOP_DIR, "bgx/protos/families/smart_stuff")
+    protoc(proto_dir, "bgx/families/smart_stuff", "stuff_common/protobuf")
 
 
 def protoc(src_dir, base_dir, pkg, language="python"):
