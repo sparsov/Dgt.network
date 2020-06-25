@@ -99,7 +99,11 @@ class StuffTransactionHandler(TransactionHandler):
         
 
         if name in state:
-            raise InvalidTransaction('Verb is "set", but already exists: Name: {n}, Value {v}'.format(n=name,v=state[name]))
+            curr = state[name]
+            token = StuffTokenInfo()
+            token.ParseFromString(curr)
+            stuff = cbor.loads(token.stuff)
+            raise InvalidTransaction('Stuff already exists: Name: {n}, Value {v}'.format(n=name,v=stuff))
 
         updated = {k: v for k, v in state.items()}
         
@@ -121,7 +125,7 @@ class StuffTransactionHandler(TransactionHandler):
 
         if name not in state:
             raise InvalidTransaction(
-                'Verb is "inc" but name "{}" not in state'.format(name))
+                'Undefined stuff name "{}" not in state'.format(name))
 
         curr = state[name]
         token = StuffTokenInfo()
