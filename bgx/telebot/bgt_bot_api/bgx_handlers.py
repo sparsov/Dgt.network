@@ -295,7 +295,8 @@ class BgxTeleBot(Tbot):
         """
         val = {                                                               
             'Verb': verb,                                                     
-            'Name': name,                                                     
+            'Name': name, 
+            'User': minfo.user_first_name,                                                    
         }   
         if value is not None:                                                    
             val['Value'] = value                                                                  
@@ -535,9 +536,10 @@ class BgxTeleBot(Tbot):
                 token = await self.stuff_get_state(num_stuff)                                                                                                             
                 LOGGER.debug('BgxTeleBot: %s=%s',num_stuff,token) 
                 if token :
+                    user  = token.user
                     token = cbor.loads(token.stuff)
 
-                repl = 'Описание детали {}: \n{}.'.format(num_stuff,yaml.dump(token, default_flow_style=False)[0:-1]) if token else "К сожалению деталь {} не существует".format(num_stuff) 
+                repl = 'Деталь={} создано={} :\n{}.'.format(num_stuff,user,yaml.dump(token, default_flow_style=False)[0:-1]) if token else "К сожалению деталь {} не существует".format(num_stuff) 
                 self.send_message(minfo.chat_id,repl)
             except Exception as ex:                                                                                                                                  
                 LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',num_stuff,ex)                                                                                                                                        

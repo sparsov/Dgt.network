@@ -143,6 +143,10 @@ def add_set_parser(subparsers, parent_parser):
         'value',
         type=str,
         help='stuff atributes JSON')
+    parser.add_argument(
+        '--user',
+        type=str,
+        help='specify User name')
 
     parser.add_argument(
         '--url',
@@ -163,9 +167,9 @@ def add_set_parser(subparsers, parent_parser):
 
 
 def do_set(args):
-    name, value, wait = args.name, args.value, args.wait
+    name, value, wait, user = args.name, args.value, args.wait, args.user
     client = _get_client(args)
-    response = client.set(name, value, wait)
+    response = client.set(name, value, wait,user)
     print(response)
 
 
@@ -187,6 +191,10 @@ def add_upd_parser(subparsers, parent_parser):
         'value',
         type=str,
         help='specify stuff atributes to update')
+    parser.add_argument(
+        '--user',
+        type=str,
+        help='specify User name')
 
     parser.add_argument(
         '--url',
@@ -207,9 +215,9 @@ def add_upd_parser(subparsers, parent_parser):
 
 
 def do_upd(args):
-    name, value, wait = args.name, args.value, args.wait
+    name, value, wait, user = args.name, args.value, args.wait, args.user
     client = _get_client(args)
-    response = client.upd(name, value, wait)
+    response = client.upd(name, value, wait, user)
     print(response)
 
 
@@ -330,7 +338,8 @@ def do_show(args):
     value = client.show(name)
     token = StuffTokenInfo()
     token.ParseFromString(value)
-    print('{}: {}={}'.format(name,token.group_code,token.decimals))
+    stuff = cbor.loads(token.stuff)
+    print('{}: {}={} user={}'.format(name,token.group_code,stuff,token.user))
 
 
 def add_list_parser(subparsers, parent_parser):

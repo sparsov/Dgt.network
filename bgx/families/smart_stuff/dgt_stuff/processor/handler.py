@@ -29,7 +29,7 @@ from sawtooth_signing import CryptoFactory,create_context
 LOGGER = logging.getLogger(__name__)
 
 
-VALID_VERBS = 'set', 'upd', 'dec'
+VALID_VERBS = 'set', 'upd'
 
 MIN_VALUE = 0
 MAX_VALUE = 4294967295
@@ -71,30 +71,29 @@ class StuffTransactionHandler(TransactionHandler):
 
     def apply(self, transaction, context):
         LOGGER.debug('apply:....\n')
-        verb, name, value, to = _unpack_transaction(transaction)
-        LOGGER.debug('apply:verb=%s name=%s value=%s to=%s',verb, name, value, to)
-        state = _get_state_data(name,to, context)
+        verb, name, value, user = _unpack_transaction(transaction)
+        LOGGER.debug('apply:verb=%s name=%s value=%s user=%s',verb, name, value, user)
+        state = _get_state_data(name, context)
 
-        updated_state = self._do_stuff(verb, name, value, to, state)
+        updated_state = self._do_stuff(verb, name, value, user, state)
 
         _set_state_data( updated_state, context)
 
-    def _do_stuff(self,verb, name, value, to, state):
+    def _do_stuff(self,verb, name, value, user, state):
         verbs = {
             'set': self._do_set,
             'upd': self._do_upd,
-            #'dec': self._do_dec,
-            #'trans': self._do_trans,
+            
         }
         LOGGER.debug('_do_stuff request....')
         try:
-            return verbs[verb](name, value,to, state)
+            return verbs[verb](name, value,user, state)
         except KeyError:
             # This would be a programming error.
             raise InternalError('Unhandled verb: {}'.format(verb))
 
 
-    def _do_set(self,name, value, to, state):
+    def _do_set(self,name, value, user, state):
         msg = 'Setting "{n}" to {v}'.format(n=name, v=value)
         LOGGER.debug(msg)
         
@@ -103,11 +102,12 @@ class StuffTransactionHandler(TransactionHandler):
             raise InvalidTransaction('Verb is "set", but already exists: Name: {n}, Value {v}'.format(n=name,v=state[name]))
 
         updated = {k: v for k, v in state.items()}
-        #owner_key = self._context.sign('BGT_token'.encode(),self._private_key)
+        
+        
         token = StuffTokenInfo(group_code = 'STUFF_token',
-                             owner_key = self._signer.sign('STUFF_token'.encode()), #owner_key,
+                             owner_key = self._signer.sign('STUFF_token'.encode()), 
                              sign = self._public_key.as_hex(),
-                             decimals = 0,
+                             user = user,
                              stuff = cbor.dumps(value)
                 )
         updated[name] = token.SerializeToString()
@@ -115,7 +115,7 @@ class StuffTransactionHandler(TransactionHandler):
         return updated
 
 
-    def _do_upd(self,name, value, to, state):
+    def _do_upd(self,name, value, user, state):
         msg = 'Update "{n}" by {v}'.format(n=name, v=value)
         LOGGER.debug(msg)
 
@@ -140,81 +140,23 @@ class StuffTransactionHandler(TransactionHandler):
             raise InvalidTransaction('Verb is "upd", but there are not updated attributes')
         
         updated = {k: v for k, v in state.items()}
-        #token.decimals = incd
+        token.user = user
         token.stuff = cbor.dumps(stuff)
         updated[name] = token.SerializeToString() 
 
         return updated
 
-    """
-    def _do_dec(self,name, value, to, state):
-        msg = 'Decrementing "{n}" by {v}'.format(n=name, v=value)
-        LOGGER.debug(msg)
-
-        if name not in state:
-            raise InvalidTransaction(
-                'Verb is "dec" but name "{}" not in state'.format(name))
-
-        curr = state[name]
-        token = StuffTokenInfo()
-        token.ParseFromString(curr)
-        stuff = cbor.loads(token.stuff)
-        LOGGER.debug('_do_dec token[%s]=%s STUFF=%s',token.group_code,token.decimals,value,stuff)
-        decd = token.decimals - value
-        
-        
-        if decd < MIN_VALUE:
-            raise InvalidTransaction(
-                'Verb is "dec", but result would be less than {}'.format(
-                    MIN_VALUE))
-
-        updated = {k: v for k, v in state.items()}
-        token.decimals = decd
-        updated[name] = token.SerializeToString()
-
-        return updated
-
-    def _do_trans(self,vfrom, value, vto, state):
-        msg = 'transfer "{n}"->"{t}" by {v}'.format(n=vfrom,t=vto, v=value)
-        LOGGER.debug(msg)
-
-        if vfrom not in state or vto not in state:
-            raise InvalidTransaction(
-                'Verb is "trans" but vallet "{}" or vallet "{}" not in state'.format(vfrom,vto))
-
-        curr = state[vfrom]
-        token = StuffTokenInfo()
-        token.ParseFromString(curr)
-        to = state[vto]
-        token1 = StuffTokenInfo()
-        token1.ParseFromString(to)
-        LOGGER.debug('_do_tans token[%s]=%s',token.group_code,value) 
-        decd = token.decimals - value
-        if decd < MIN_VALUE:
-            raise InvalidTransaction('Verb is "trans", but result would be less than {}'.format(MIN_VALUE))
-        incd = token1.decimals + value
-        if incd >  MAX_VALUE:
-            raise InvalidTransaction('Verb is "inc", but result would be greater than {}'.format(MAX_VALUE))
-
-        updated = {k: v for k, v in state.items()}
-        token.decimals = decd
-        updated[vfrom] = token.SerializeToString()
-        token1.decimals = incd
-        updated[vto] = token1.SerializeToString() 
-
-        return updated
-   """     
+ 
 
 def _unpack_transaction(transaction):
-    verb, name, value, to = _decode_transaction(transaction)
+    verb, name, value, user = _decode_transaction(transaction)
 
     _validate_verb(verb)
     _validate_name(name)
     _validate_value(value)
-    if to is not None:
-        _validate_name(to)
+    
 
-    return verb, name, value, to
+    return verb, name, value, user
 
 
 def _decode_transaction(transaction):
@@ -235,19 +177,19 @@ def _decode_transaction(transaction):
         raise InvalidTransaction('Name is required')
 
     try:
+        user = content['User']
+    except AttributeError:
+        raise InvalidTransaction('User is required')
+
+    try:
         value = content['Value']
     except AttributeError:
         raise InvalidTransaction('Value is required')
 
     LOGGER.debug('_decode_transaction verb=%s',verb)    
-    if verb == 'trans' :
-        if 'To' not in content :
-            raise InvalidTransaction('To is required')
-        to = content['To']
-    else:
-        to = None
     
-    return verb, name, value, to
+    
+    return verb, name, value, user
 
 
 def _validate_verb(verb):
@@ -266,10 +208,9 @@ def _validate_value(value):
         raise InvalidTransaction('Value must be an dict ')
 
 
-def _get_state_data(name,to, context):
+def _get_state_data(name, context):
     states = [make_stuff_address(name)]
-    if to is not None:
-        states.append(make_stuff_address(to))
+    
     state_entries = context.get_state(states)
     try:
         states = {}

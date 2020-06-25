@@ -25,8 +25,8 @@ message StuffTokenInfo {
     string owner_key = 2;
     // owner sign
     string sign = 3;
-    // 
-    uint32 decimals = 4;
+    // creator of stuff
+    string user     = 4;
     bytes  stuff    = 5;
 
 }

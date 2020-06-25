@@ -77,15 +77,15 @@ class StuffClient:
             self._signer = CryptoFactory(
                 create_context('secp256k1')).new_signer(private_key)
 
-    def set(self, name, value, wait=None):
+    def set(self, name, value, wait=None,user='anybody'):
         #val = json.dumps(value, sort_keys=True, indent=4)
         val = json.loads(value.replace("'",'"'))
         print('set val',val,type(val),'>>>')
-        return self._send_transaction('set', name, val, to=None, wait=wait)
+        return self._send_transaction('set', name, val, to=None, wait=wait,user=user)
 
-    def upd(self, name, value, wait=None):
+    def upd(self, name, value, wait=None,user='anybody'):
         val = json.loads(value.replace("'",'"'))
-        return self._send_transaction('upd', name, val, to=None, wait=wait)
+        return self._send_transaction('upd', name, val, to=None, wait=wait,user=user)
 
     def dec(self, name, value, wait=None):
         return self._send_transaction('dec', name, value, to=None, wait=wait)
@@ -169,10 +169,11 @@ class StuffClient:
 
         return result.text
 
-    def _send_transaction(self, verb, name, value, to=None, wait=None):
+    def _send_transaction(self, verb, name, value, to=None, wait=None,user='anybody'):
         val = {
             'Verb': verb,
             'Name': name,
+            'User': user,
             'Value': value,
         }
         if to is not None:
