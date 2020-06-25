@@ -182,6 +182,7 @@ class Gossip(object):
         self._batch        = None
         self._my_ip = None
         self._extpoint = None
+        self._try_sync_net = False
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -480,8 +481,9 @@ class Gossip(object):
         try:to sync in case we are out of sync
         peer which started first - don't know all peer's endpoint because its didn't connected yet
         """
-        if not self.is_sync:
+        if not self.is_sync and not self._try_sync_net:
             LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
+            self._try_sync_net = True
             self._incomplete = False
             self._num_nosync_peer = 0
             for key,peer in self._fbft.get_topology_iter():
