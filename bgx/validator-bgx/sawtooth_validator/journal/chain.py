@@ -1409,7 +1409,7 @@ class ChainController(object):
             for block in reversed(result["new_chain"]):
                 receipts = self._make_receipts(block.execution_results)
                 # Update all chain observers
-                LOGGER.debug('Update all chain OBSERVERS: num=%s FOR BLOCK=%s.%s\n',len(self._chain_observers),new_block.block_num,nid[:8])
+                LOGGER.debug('Update all chain OBSERVERS: num=%s BLOCK=%s.%s receipts=%s\n',len(self._chain_observers),new_block.block_num,nid[:8],receipts)
                 topology_updated = 0
                 for observer in self._chain_observers:
                     if observer.chain_update(block, receipts):

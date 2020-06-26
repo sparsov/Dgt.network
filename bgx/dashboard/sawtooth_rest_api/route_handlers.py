@@ -17,6 +17,7 @@ import asyncio
 import re
 import logging
 import json
+import cbor
 import base64
 from aiohttp import web
 
@@ -66,6 +67,8 @@ from sawtooth_rest_api.protobuf.batch_pb2 import BatchHeader
 from sawtooth_rest_api.protobuf.transaction_pb2 import TransactionHeader
 from sawtooth_rest_api.protobuf import client_heads_pb2,client_topology_pb2
 """
+from dgt_stuff.client_cli.stuff_client import _token_info as stuff_token_info
+from sawtooth_bgt.client_cli.bgt_client import _token_info as bgt_token_info
 # pylint: disable=too-many-lines
 
 DEFAULT_TIMEOUT = 300
@@ -590,9 +593,30 @@ class RouteHandler:
         else:
             metadata = None
 
-        data = self._drop_id_prefixes(
-            self._drop_empty_props(response['receipts']))
+        data = self._drop_id_prefixes(self._drop_empty_props(response['receipts']))
+        try:
+            for d in data:
+                for state in d['state_changes']:
+                    if 'value' in state:
+                        val = state['value']
+                        content = cbor.loads(base64.b64decode(val))
+                        for key,v in content.items():
+                            #dv = cbor.loads(v)
+                            try:
+                                token = stuff_token_info(v)
+                                stuff = cbor.loads(token.stuff)
+                                stuff['user'] = token.user
+                            except Exception as ex1:
+                                token = bgt_token_info(v)
+                                stuff = {'group_code':token.group_code,'sign':token.sign,'decimals':token.decimals}
 
+                            #LOGGER.debug('%s=%s->%s\n',key,v,stuff)
+                            content[key] = stuff
+                        state['value'] = content
+        except Exception as ex:
+            LOGGER.debug('cant load cbor (%s)\n',ex)
+        
+        LOGGER.debug('Request for receipts data=%s\n',data)
         return self._wrap_response(request, data=data, metadata=metadata)
 
     async def fetch_peers(self, request):

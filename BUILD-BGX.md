@@ -9,6 +9,16 @@ modular and flexible platform for implementing transaction-based updates to
 shared state between untrusted parties coordinated by consensus algorithms.
 
 .
+# install befor start validator
+# git clone http://gitlab.ntrlab.ru:83/ntrlab/bgx.git
+# sudo apt install docker
+# sudo apt install docker.io
+# sudo apt install docker-compose
+# sudo usermod -aG docker dgt
+# sudo apt-get install curl
+# sudo curl -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+# sudo chmod +x /usr/local/bin/docker-compose
+
 To build the requirements to run a validator network, run this command
 $ docker-compose -f bgx/docker/docker-compose-bgx.yaml build
 # export COMPOSE_PROJECT_NAME=1 C=c1 N=1 API=8008 COMP=4104 NET=8101 CONS=5051;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml build

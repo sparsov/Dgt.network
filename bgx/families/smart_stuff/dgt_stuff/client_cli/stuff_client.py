@@ -84,8 +84,11 @@ class StuffClient:
         return self._send_transaction('set', name, val, to=None, wait=wait,user=user)
 
     def upd(self, name, value, wait=None,user='anybody'):
-        val = json.loads(value.replace("'",'"'))
-        return self._send_transaction('upd', name, val, to=None, wait=wait,user=user)
+        try:
+            val = json.loads(value.replace("'",'"'))
+            return self._send_transaction('upd', name, val, to=None, wait=wait,user=user)
+        except Exception as ex:
+            print('error: ',ex)
 
     def dec(self, name, value, wait=None):
         return self._send_transaction('dec', name, value, to=None, wait=wait)

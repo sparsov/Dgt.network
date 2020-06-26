@@ -490,7 +490,7 @@ class BgxTeleBot(Tbot):
         LOGGER.debug('BgxTeleBot: create stuff args=%s',args)
         if 'number' in args:
             new_stuff = user_stuff_name(args['number'])
-            await self.make_stuff_transaction('set',new_stuff,{'weight':100,'carbon':40,'type':'stuff','param1':'undef','param2':'undef','param3':'undef'},minfo=minfo)
+            await self.make_stuff_transaction('set',new_stuff,{'weight':100,'carbon':3,'type':'stuff','param1':'undef','param2':'undef','param3':'undef'},minfo=minfo)
             self.send_message(minfo.chat_id, 'Создаю описание детали {} от имени {}.'.format(new_stuff,minfo.user_first_name))
             
         #else:

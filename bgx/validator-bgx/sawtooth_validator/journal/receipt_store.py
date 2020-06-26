@@ -79,7 +79,9 @@ class TransactionReceiptStore(ChainObserver):
 
 
 class ClientReceiptGetRequestHandler(Handler):
-    """Handles receiving messages for getting transactionreceipts."""
+    """
+    Handles receiving messages for getting transactionreceipts.
+    """
     _msg_type = validator_pb2.Message.CLIENT_RECEIPT_GET_RESPONSE
 
     def __init__(self, txn_receipt_store):
