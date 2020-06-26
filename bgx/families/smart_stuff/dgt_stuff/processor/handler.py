@@ -107,15 +107,17 @@ class StuffTransactionHandler(TransactionHandler):
 
         updated = {k: v for k, v in state.items()}
         
-        
-        token = StuffTokenInfo(group_code = 'STUFF_token',
+        try:
+            token = StuffTokenInfo(group_code = 'STUFF_token',
                              owner_key = self._signer.sign('STUFF_token'.encode()), 
                              sign = self._public_key.as_hex(),
                              user = user,
                              stuff = cbor.dumps(value)
                 )
-        updated[name] = token.SerializeToString()
-        LOGGER.debug('_do_set updated=%s',updated)
+            updated[name] = token.SerializeToString()
+            LOGGER.debug('_do_set updated=%s',updated)
+        except Exception as ex:
+            raise InvalidTransaction('Verb is "set" error:{}'.format(ex))
         return updated
 
 
@@ -145,8 +147,11 @@ class StuffTransactionHandler(TransactionHandler):
         
         updated = {k: v for k, v in state.items()}
         token.user = user
-        token.stuff = cbor.dumps(stuff)
-        updated[name] = token.SerializeToString() 
+        try:
+            token.stuff = cbor.dumps(stuff)
+            updated[name] = token.SerializeToString() 
+        except Exception as ex:
+            raise InvalidTransaction('Verb is "upd" error:{}'.format(ex))
 
         return updated
 
