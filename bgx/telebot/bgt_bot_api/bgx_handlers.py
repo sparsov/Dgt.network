@@ -273,7 +273,9 @@ class BgxTeleBot(Tbot):
 
     async def _get_state_history(self,address,state_address):                                              
         LOGGER.debug('BgxTeleBot:_get_state_history %s',address) 
-                                          
+        def byTime_key(receipt):
+            return receipt['timestamp']
+
         error_traps = [error_handlers.InvalidAddressTrap]                                                           #     
         validator_query = ClientReceiptGetRequest(ind=ClientReceiptGetRequest.INDEX_ADDR,transaction_ids=[state_address])
         
@@ -287,10 +289,12 @@ class BgxTeleBot(Tbot):
         try:   
             #value = base64.b64decode(response['value']) 
             value = self._drop_id_prefixes(self._drop_empty_props(response['receipts']))                                                                                   
-            #LOGGER.debug('BgxRouteHandler:_get_state_history %s=%s',address,value) 
+            LOGGER.debug('BgxRouteHandler:_get_state_history %s=%s',address,type(value)) 
             result = {}
             n = 0
-            for receipt in value:
+            prev = None
+            svalue = sorted(value, key = byTime_key)
+            for receipt in svalue:
                 timestamp = receipt['timestamp']
                 dtm = datetime.fromtimestamp(timestamp)
                 for changes in receipt['state_changes']:
@@ -301,12 +305,23 @@ class BgxTeleBot(Tbot):
                     for key,v in content.items():                                                                              
                         try:                                                                                                   
                             token = stuff_token_info(v)                                                                        
-                            stuff = cbor.loads(token.stuff)                                                                    
-                            stuff['user'] = token.user                                                                         
+                            stuff = cbor.loads(token.stuff) 
+                            if prev:
+                                # compare with pevious
+                                fstuff = {}
+                                #LOGGER.debug('PREV: stuff=%s',prev)
+                                for nm,nval in stuff.items():
+                                    if nm in prev and nval != prev[nm]:
+                                        fstuff[nm] = nval
+                            else:
+                                fstuff = stuff.copy()
+                                #LOGGER.debug('FIRST: stuff=%s',fstuff)
+                            fstuff['user'] = token.user                                                                         
                         except Exception as ex1:                                                                               
-                            stuff = {}                
-                   
-                        result[dtm] = stuff
+                            fstuff = {}                
+                            stuff = {}
+                        result[dtm] = fstuff
+                        prev = stuff.copy()
                         n += 1
             LOGGER.debug('BgxRouteHandler:n=%s content=%s',n,result)
             
