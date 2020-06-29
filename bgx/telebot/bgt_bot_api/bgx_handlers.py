@@ -44,7 +44,9 @@ from sawtooth_sdk.protobuf import client_batch_submit_pb2
 from sawtooth_sdk.protobuf import client_state_pb2
 from sawtooth_sdk.protobuf import client_block_pb2
 from sawtooth_sdk.protobuf import client_batch_pb2
-from sawtooth_sdk.protobuf import client_receipt_pb2
+
+from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetRequest
+from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetResponse
 from sawtooth_sdk.protobuf import client_peers_pb2
 from sawtooth_sdk.protobuf import client_status_pb2
 from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
@@ -269,6 +271,52 @@ class BgxTeleBot(Tbot):
             result = None
         return result
 
+    async def _get_state_history(self,address,state_address):                                              
+        LOGGER.debug('BgxTeleBot:_get_state_history %s',address) 
+                                          
+        error_traps = [error_handlers.InvalidAddressTrap]                                                           #     
+        validator_query = ClientReceiptGetRequest(ind=ClientReceiptGetRequest.INDEX_ADDR,transaction_ids=[state_address])
+        
+        response = await self._query_validator(
+            Message.CLIENT_RECEIPT_GET_REQUEST,
+            ClientReceiptGetResponse,
+            validator_query,
+            error_traps)   
+                                                                               
+                                    
+        try:   
+            #value = base64.b64decode(response['value']) 
+            value = self._drop_id_prefixes(self._drop_empty_props(response['receipts']))                                                                                   
+            #LOGGER.debug('BgxRouteHandler:_get_state_history %s=%s',address,value) 
+            result = {}
+            n = 0
+            for receipt in value:
+                timestamp = receipt['timestamp']
+                dtm = datetime.fromtimestamp(timestamp)
+                for changes in receipt['state_changes']:
+                    val = changes['value']
+                    
+                    #LOGGER.debug('BgxRouteHandler:timestamp=%s receipt=%s',dtm,val)
+                    content = cbor.loads(base64.b64decode(val))                                                                
+                    for key,v in content.items():                                                                              
+                        try:                                                                                                   
+                            token = stuff_token_info(v)                                                                        
+                            stuff = cbor.loads(token.stuff)                                                                    
+                            stuff['user'] = token.user                                                                         
+                        except Exception as ex1:                                                                               
+                            stuff = {}                
+                   
+                        result[dtm] = stuff
+                        n += 1
+            LOGGER.debug('BgxRouteHandler:n=%s content=%s',n,result)
+            
+            
+        except BaseException:                                                                      
+            LOGGER.debug('BgxRouteHandler: Cant get state FOR=%s',address)                         
+            result = None                                                                          
+        return result                                                                              
+
+
     def get_args_from_request(self,parameters):
         args = {}                                         
         for param,val in parameters.items(): 
@@ -287,7 +335,14 @@ class BgxTeleBot(Tbot):
         # get BGT state                                          
         state_address = stuff_get_address(num_stuff)                  
         val = await self._get_state(num_stuff,state_address)        
-        return stuff_token_info(val[num_stuff]) if val else None      
+        return stuff_token_info(val[num_stuff]) if val else None
+        
+    async def stuff_get_state_history(self,num_stuff):                        
+        # get BGT state                                          
+        state_address = stuff_get_address(num_stuff)  
+        LOGGER.debug('get_state_history: %s=>%s',num_stuff,state_address)                
+        val = await self._get_state_history(num_stuff,state_address)        
+        return val 
 
     async def make_stuff_transaction(self,verb, name, value=None,minfo=None):
         """
@@ -544,8 +599,26 @@ class BgxTeleBot(Tbot):
             except Exception as ex:                                                                                                                                  
                 LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',num_stuff,ex)                                                                                                                                        
                                                                                          
-            
-            
+    
+    async def intent_show_stuff_history(self,minfo):                                                                                                                                                                               
+        """                                                                                                                                                                                                                
+        Get  history stuff                                                                                                                                                                                        
+        """                                                                                                                                                                                                                
+        LOGGER.debug('BgxTeleBot: show  stuff history FOR=%s',minfo)                                                                                                                                                               
+        args = self.get_args_from_request(minfo.result.parameters)                                                                                                                                                         
+        if 'number' in args :                                                                                                                                                                                              
+            num_stuff = user_stuff_name(args['number'])                                                                                                                                                                    
+            try:                                                                                                                                                                                                           
+                token = await self.stuff_get_state_history(num_stuff)                                                                                                                                                              
+                LOGGER.debug('BgxTeleBot: %s=%s',num_stuff,token)                                                                                                                                                          
+                                                                                                                                                                                                                                           
+                repl = 'История детали {}:\n{}.'.format(num_stuff,yaml.dump(token, default_flow_style=False)[0:-1]) if token else "К сожалению деталь {} не существует".format(num_stuff)                         
+                self.send_message(minfo.chat_id,repl)                                                                                                                                                                      
+            except Exception as ex:                                                                                                                                                                                        
+                LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',num_stuff,ex)                                                                                                                                     
+                
+                        
+           
                                                                                                                                              
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             

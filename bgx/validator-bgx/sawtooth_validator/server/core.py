@@ -122,7 +122,14 @@ class Validator(object):
         receipt_db_filename = os.path.join(
             data_dir, 'txn_receipts-{}.lmdb'.format(bind_network[-2:]))
         LOGGER.debug('txn receipt store file is %s', receipt_db_filename)
-        receipt_db = LMDBNoLockDatabase(receipt_db_filename, 'c')
+        #receipt_db = LMDBNoLockDatabase(receipt_db_filename, 'c')
+        receipt_db = IndexedDatabase(
+            receipt_db_filename,
+            TransactionReceiptStore.serialize_receipt,
+            TransactionReceiptStore.deserialize_receipt,
+            flag='c',dupsort=True,
+            indexes=TransactionReceiptStore.create_index_configuration())
+
         receipt_store = TransactionReceiptStore(receipt_db)
 
         # -- Setup Block Store -- #

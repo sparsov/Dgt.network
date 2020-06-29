@@ -40,7 +40,8 @@ from sawtooth_sdk.protobuf import client_batch_submit_pb2
 from sawtooth_sdk.protobuf import client_state_pb2
 from sawtooth_sdk.protobuf import client_block_pb2
 from sawtooth_sdk.protobuf import client_batch_pb2
-from sawtooth_sdk.protobuf import client_receipt_pb2
+from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetRequest
+from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetResponse
 from sawtooth_sdk.protobuf import client_peers_pb2
 from sawtooth_sdk.protobuf import client_status_pb2
 from sawtooth_sdk.protobuf import client_topology_pb2
@@ -534,6 +535,29 @@ class RouteHandler:
             data=self._expand_transaction(response['transaction']),
             metadata=self._get_metadata(request, response))
 
+    def disclose_receipt(self,data):
+        try:                                                                                                                       
+            for d in data:                                                                                                         
+                for state in d['state_changes']:                                                                                   
+                    if 'value' in state:                                                                                           
+                        val = state['value']                                                                                       
+                        content = cbor.loads(base64.b64decode(val))                                                                
+                        for key,v in content.items():                                                                              
+                            #dv = cbor.loads(v)                                                                                    
+                            try:                                                                                                   
+                                token = stuff_token_info(v)                                                                        
+                                stuff = cbor.loads(token.stuff)                                                                    
+                                stuff['user'] = token.user                                                                         
+                            except Exception as ex1:                                                                               
+                                token = bgt_token_info(v)                                                                          
+                                stuff = {'group_code':token.group_code,'sign':token.sign,'decimals':token.decimals}                
+                                                                                                                                   
+                            #LOGGER.debug('%s=%s->%s\n',key,v,stuff)                                                               
+                            content[key] = stuff                                                                                   
+                        state['value'] = content                                                                                   
+        except Exception as ex:                                                                                                    
+            LOGGER.debug('cant load cbor (%s)\n',ex)                                                                               
+
     async def list_receipts(self, request):
         """Fetches the receipts for transaction by either a POST or GET.
 
@@ -576,14 +600,13 @@ class RouteHandler:
                 raise errors.ReceiptIdQueryInvalid()
 
         # Query validator
-        validator_query = \
-            client_receipt_pb2.ClientReceiptGetRequest(
-                transaction_ids=ids)
+        LOGGER.debug('Request for receipts ids=%s\n',ids)
+        validator_query = ClientReceiptGetRequest(ind=ClientReceiptGetRequest.INDEX_TNX,transaction_ids=ids)
         self._set_wait(request, validator_query)
 
         response = await self._query_validator(
             Message.CLIENT_RECEIPT_GET_REQUEST,
-            client_receipt_pb2.ClientReceiptGetResponse,
+            ClientReceiptGetResponse,
             validator_query,
             error_traps)
 
@@ -594,27 +617,8 @@ class RouteHandler:
             metadata = None
 
         data = self._drop_id_prefixes(self._drop_empty_props(response['receipts']))
-        try:
-            for d in data:
-                for state in d['state_changes']:
-                    if 'value' in state:
-                        val = state['value']
-                        content = cbor.loads(base64.b64decode(val))
-                        for key,v in content.items():
-                            #dv = cbor.loads(v)
-                            try:
-                                token = stuff_token_info(v)
-                                stuff = cbor.loads(token.stuff)
-                                stuff['user'] = token.user
-                            except Exception as ex1:
-                                token = bgt_token_info(v)
-                                stuff = {'group_code':token.group_code,'sign':token.sign,'decimals':token.decimals}
-
-                            #LOGGER.debug('%s=%s->%s\n',key,v,stuff)
-                            content[key] = stuff
-                        state['value'] = content
-        except Exception as ex:
-            LOGGER.debug('cant load cbor (%s)\n',ex)
+        self.disclose_receipt(data)
+        
         
         LOGGER.debug('Request for receipts data=%s\n',data)
         return self._wrap_response(request, data=data, metadata=metadata)

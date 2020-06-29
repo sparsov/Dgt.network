@@ -17,6 +17,7 @@ from abc import ABCMeta
 from abc import abstractmethod
 import logging
 import queue
+import time
 from threading import RLock
 
 from sawtooth_validator.concurrent.thread import InstrumentedThread
@@ -1671,6 +1672,7 @@ class ChainController(object):
             receipt.state_changes.extend(result.state_changes)
             receipt.events.extend(result.events)
             receipt.transaction_id = result.signature
+            receipt.timestamp = int(time.time())
             receipts.append(receipt)
             #LOGGER.warning("_MAKE_RECEIPTS  tn_id=%s events=%s",result.signature,result.events)
         #LOGGER.warning("RECEIPTS  events=%s",receipts.signature)

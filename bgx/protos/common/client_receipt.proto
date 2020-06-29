@@ -23,7 +23,13 @@ import "transaction_receipt.proto";
 
 // Fetches a specific txn by its id (header_signature) from the blockchain.
 message ClientReceiptGetRequest {
-    repeated string transaction_ids = 1;
+    enum Index {
+        INDEX_TNX = 0;
+        INDEX_ADDR = 1;
+        
+    }
+    Index  ind = 1;
+    repeated string transaction_ids = 2;
 }
 
 // A response that returns the txn receipt specified by a

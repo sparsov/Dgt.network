@@ -32,6 +32,7 @@ message TransactionReceipt {
   repeated bytes data = 3;
 
   string transaction_id = 4;
+  uint32 timestamp = 5;
 }
 
 //  StateChange objects have the type of SET, which is either an insert or

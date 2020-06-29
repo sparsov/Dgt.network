@@ -81,7 +81,7 @@ class IndexedDatabase(database.Database):
             max_dbs=len(indexes) + 1,
             lock=True)
 
-        self._main_db = self._lmdb.open_db('main'.encode(),dupsort=dupsort)
+        self._main_db = self._lmdb.open_db('main'.encode(),dupsort=False) # dupfixed=dupsort
 
         self._indexes = \
             {name: self._make_index_tuple(name, index_info)
@@ -100,9 +100,7 @@ class IndexedDatabase(database.Database):
                 'Index {} must be defined as a function or a dict'.format(
                     name))
 
-        return (self._lmdb.open_db('index_{}'.format(name).encode(),
-                                   integerkey=integerkey),
-                key_fn)
+        return (self._lmdb.open_db('index_{}'.format(name).encode(),integerkey=integerkey,dupsort=self._dupsort,dupfixed=self._dupsort),key_fn)
 
     # pylint: disable=no-value-for-parameter
     def __len__(self):
@@ -278,6 +276,12 @@ class ReferenceChainCursor(database.Cursor):
     def iter_rev(self):
         return ReferenceChainCursor._wrap_iterator(
             self._lmdb_cursors[0].iterprev(keys=False),
+            self._lmdb_cursors[1:],
+            self._deserializer)
+
+    def iternext_dup(self):
+        return ReferenceChainCursor._wrap_iterator(
+            self._lmdb_cursors[0].iternext_dup(keys=False),
             self._lmdb_cursors[1:],
             self._deserializer)
 
