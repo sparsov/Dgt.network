@@ -74,6 +74,7 @@ class Tbot(object):
         self._keyboard1.row('Привет', 'Пока','Sticker')
         self._timeout = DEFAULT_TIMEOUT
         self._bgt_queue = queue.Queue()
+        self.is_pause = False
         LOGGER.info('USE proxy=%d from %d',self._proxy_pos,len(self._proxies))
         try:
             self._dflow = Dflow(self._project_id,self._session_id)
@@ -201,7 +202,9 @@ class Tbot(object):
                         repl = "{}({})".format(response,confidence) if response != '' else ''
                     else:
                         repl = 'Так, погоди, не врубаюсь!'
-                    self.send_message(message.chat.id,repl)
+                    if self.can_talk(intent):
+                        self.send_message(message.chat.id,repl)
+
                     LOGGER.info("DFLOW QUERY %s param=%s RESULT=%s",type(resp.query_result),type(resp.query_result.parameters),resp.query_result)
                     for param,val in resp.query_result.parameters.items():
                         LOGGER.info("PARAM %s='%s'(%s) ",param,val,type(val))
@@ -210,8 +213,9 @@ class Tbot(object):
                         minfo = BotMessage(message.message_id,message.chat.id,message.from_user.id,message.from_user.first_name,message.from_user.last_name,intent,confidence,resp.query_result,None)
                         self.intent_handler(minfo)
 
-                else:                                                                                                                                                                                  
-                    self.send_message(message.chat.id,'Я Вас не совсем понял {}!'.format(message.from_user.first_name))
+                else: 
+                    if not self.is_pause:
+                        self.send_message(message.chat.id,'Я Вас не совсем понял {}!'.format(message.from_user.first_name))
 
                      
         # start polling
@@ -375,6 +379,13 @@ class Tbot(object):
         
         self.send_message(minfo.chat_id, 'Посмотри: {}'.format(response))
 
+    async def intent_pause(self,minfo):
+         LOGGER.info('INTENT PAUSE chat_id=%s confidence=%s\n',minfo.chat_id,minfo.confidence)
+         self.is_pause = True
+
+    async def intent_unpause(self,minfo):
+         LOGGER.info('INTENT UNPAUSE chat_id=%s confidence=%s\n',minfo.chat_id,minfo.confidence)
+         self.is_pause = False
     @staticmethod
     def _parse_response(proto, response):
         """Parses the content from a validator response Message.
@@ -534,7 +545,8 @@ class Tbot(object):
                 for k, v in item.items()
             }
         return item
-
+    def can_talk(self,intent):
+        return not self.is_pause or (intent == "smalltalk.agent.unpause")
     async def validator_task(self):
         try:                                                                                                                 
             LOGGER.debug("validator_task:queue...")       
@@ -549,8 +561,9 @@ class Tbot(object):
     async def process_queue(self):
         try:                                                      
             request = self._bgt_queue.get(timeout=0.01)            
-            LOGGER.debug("VALIDATOR_TASK: intent=%s qsize=%s",request.intent,self._bgt_queue.qsize())    
-            await self._intent_handlers[request.intent](request)   
+            LOGGER.debug("VALIDATOR_TASK: intent=%s qsize=%s pause=%s",request.intent,self._bgt_queue.qsize(),self.is_pause)   
+            if self.can_talk(request.intent):
+                await self._intent_handlers[request.intent](request)   
         except queue.Empty:
             pass
         except  errors.ValidatorDisconnected:
