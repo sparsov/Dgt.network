@@ -98,8 +98,7 @@ class StuffClient:
 
     def list(self):
         result = self._send_request(
-            "state?address={}".format(
-                self._get_prefix()))
+            "state?address={}".format(self._get_prefix()))
 
         try:
             encoded_entries = yaml.safe_load(result)["data"]

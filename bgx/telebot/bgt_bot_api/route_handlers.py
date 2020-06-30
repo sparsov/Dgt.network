@@ -249,7 +249,7 @@ class RouteHandler:
 
         return self._wrap_response(request, data=data, metadata=metadata)
 
-    async def list_state(self, request):
+    async def list_state(self,address):
         """Fetches list of data entries, optionally filtered by address prefix.
 
         Request:
@@ -264,30 +264,32 @@ class RouteHandler:
             link: The link to this exact query, including head block
             paging: Paging info and nav, like total resources and a next link
         """
-        paging_controls = self._get_paging_controls(request)
+        #paging_controls = self._get_paging_controls(request)
         # for DAG ask head of chain for getting merkle root is incorrect way 
         # FIXME - add special method for asking real merkle root
-        head, root = await self._head_to_root(request.url.query.get('head', None))
-        LOGGER.debug('LIST_STATE STATE=%s',root[:10])
+        #head, root = await self._head_to_root(request.url.query.get('head', None))
+        LOGGER.debug('LIST_STATE STATE=%s',address)
                 
         validator_query = client_state_pb2.ClientStateListRequest(
             state_root='',#root,
-            address=request.url.query.get('address', None),
-            sorting=self._get_sorting_message(request, "default"),
-            paging=self._make_paging_message(paging_controls))
+            address=address,
+            sorting="default",
+            #paging=self._make_paging_message(paging_controls)
+            )
 
         response = await self._query_validator(
             Message.CLIENT_STATE_LIST_REQUEST,
             client_state_pb2.ClientStateListResponse,
             validator_query)
-
+        return response.get('entries', [])
+    """
         return self._wrap_paginated_response(
             request=request,
             response=response,
             controls=paging_controls,
             data=response.get('entries', []),
             head=head)
-
+    """
     async def fetch_state(self, request):
         """Fetches data from a specific address in the validator's state tree.
 

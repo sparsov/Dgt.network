@@ -73,6 +73,7 @@ from sawtooth_bgt.client_cli.bgt_client import _token_info as bgt_token_info
 # stuff tokens  utils
 from dgt_stuff.client_cli.stuff_client import FAMILY_VERSION as STUFF_FAMILY_VERSION
 from dgt_stuff.client_cli.stuff_client import FAMILY_NAME as STUFF_FAMILY_NAME
+from dgt_stuff.client_cli.stuff_client import _get_prefix as stuff_get_prefix
 from dgt_stuff.client_cli.stuff_client import _get_address as stuff_get_address
 from dgt_stuff.client_cli.stuff_client import _token_info as stuff_token_info
 
@@ -246,6 +247,40 @@ class BgxTeleBot(Tbot):
         LOGGER.debug('make_bgt_transaction: done=%s',resp)
         return batch_id
 
+    async def list_state(self,address):
+            """Fetches list of data entries, optionally filtered by address prefix.
+
+            Request:
+                query:
+                    - head: The id of the block to use as the head of the chain
+                    - address: Return entries whose addresses begin with this
+                    prefix
+
+            Response:
+                data: An array of leaf objects with address and data keys
+                head: The head used for this query (most recent if unspecified)
+                link: The link to this exact query, including head block
+                paging: Paging info and nav, like total resources and a next link
+            """
+            #paging_controls = self._get_paging_controls(request)
+            # for DAG ask head of chain for getting merkle root is incorrect way 
+            # FIXME - add special method for asking real merkle root
+            #head, root = await self._head_to_root(request.url.query.get('head', None))
+            LOGGER.debug('LIST_STATE STATE=%s',address)
+            error_traps = [error_handlers.InvalidAddressTrap]       
+            validator_query = client_state_pb2.ClientStateListRequest(
+                state_root=None,#root,
+                address=address,
+                #sorting="default",
+                #paging=self._make_paging_message(paging_controls)
+                )
+
+            response = await self._query_validator(
+                Message.CLIENT_STATE_LIST_REQUEST,
+                client_state_pb2.ClientStateListResponse,
+                validator_query,
+                error_traps)
+            return response.get('entries', [])
 
     async def _get_state(self,address,state_address):
         LOGGER.debug('BgxTeleBot:_get_state_by_addr %s',address)
@@ -632,9 +667,32 @@ class BgxTeleBot(Tbot):
             except Exception as ex:                                                                                                                                                                                        
                 LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',num_stuff,ex)                                                                                                                                     
                 
-                        
-           
-                                                                                                                                             
+    #                    
+    async def intent_show_stuff_list(self,minfo):       
+        LOGGER.debug('intent_show_stuff_list: %s',minfo)
+        try:                                                                                                                                                                                                           
+            list = await self.list_state("{}".format(stuff_get_prefix()))                                                                                                                                                              
+            #LOGGER.debug('STUFF LIST: %s',list)  
+
+            stuff_list = {}
+            for val  in list:
+                data = base64.b64decode(val['data'])
+                content = cbor.loads(data) 
+                #LOGGER.debug('STUFF : %s',content)
+                for key,v in content.items():                                                                              
+                    try:                                                                                                   
+                        token = stuff_token_info(v)                                                                        
+                        stuff = cbor.loads(token.stuff)
+                        stuff_list[key] = {'user':token.user}
+                        #LOGGER.debug('STUFF=%s : %s user=%s',key,stuff,token.user)
+                    except:
+                        pass
+            repl = 'Список деталей:\n{}.'.format(yaml.dump(stuff_list, default_flow_style=False)[0:-1])                                                                                                                                                                                                                               
+            
+            self.send_message(minfo.chat_id,repl)                                                                                                                                                                      
+        except Exception as ex:                                                                                                                                                                                        
+            LOGGER.debug('BgxTeleBot: cant list stuff(%s)',ex) 
+
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             
         validator_query =  client_batch_submit_pb2.ClientBatchStatusRequest(batch_ids=[batch_id])                                                    
