@@ -658,7 +658,11 @@ class BranchState(object):
             # reply on arbitration msg from other cluster's leader                            
             (block,peer_id) = self._engine._arbitration_msgs[block_id]     
             self.arbitration(block,peer_id,broadcast)                      
-            del self._engine._arbitration_msgs[block_id]                   
+            del self._engine._arbitration_msgs[block_id]  
+        else:
+            # save as a marker 
+            LOGGER.debug("check_arbitration: NO ARBITRATION MSG for block=%s",block_id[:8])
+            self._engine._arbitration_msgs[block_id] = broadcast 
 
 
     def reset_state(self):
@@ -1843,6 +1847,18 @@ class PbftEngine(Engine):
                     if self.peer_status(peer_id) == ConsensusNotifyPeerConnected.NOT_READY:
                         # peer ask synchronization
                         self.arbitration_sync(block,block_id,peer_id)
+                else:
+                    # may be we saved marker 
+                    marker = self._arbitration_msgs[block_id]
+              
+                    if isinstance(marker, bool) :
+                        LOGGER.debug("GET ARBITRATION MARKER=%s for block=%s",block_id[:8])
+                        # drop marker                     
+                        del self._arbitration_msgs[block_id]
+                        if block_id in self._peers_branches:
+                            branch = self._peers_branches[block_id]
+                            branch.arbitration(block,peer_id,marker) 
+                    
                 
 
         elif msg_type == PbftMessageInfo.ARBITRATION_DONE_MSG:
