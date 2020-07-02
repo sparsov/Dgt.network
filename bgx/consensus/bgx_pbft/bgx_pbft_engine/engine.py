@@ -661,8 +661,9 @@ class BranchState(object):
             del self._engine._arbitration_msgs[block_id]  
         else:
             # save as a marker 
-            LOGGER.debug("check_arbitration: NO ARBITRATION MSG for block=%s",block_id[:8])
-            self._engine._arbitration_msgs[block_id] = broadcast 
+            LOGGER.debug("check_arbitration: NO ARBITRATION MSG for block=%s is_sync=%s",block_id[:8],self.is_sync)
+            if self.is_sync:
+                self._engine._arbitration_msgs[block_id] = broadcast 
 
 
     def reset_state(self):
@@ -677,7 +678,7 @@ class BranchState(object):
         self._can_cancel = True
         self._already_send_commit = False
         self._arbiters_reply = {}
-
+        LOGGER.info('reset_state:_arbitration_msgs=%s',self._engine._arbitration_msgs)
     def __str__(self):
         return "{} (block_num:{}, {})".format(
             self.parent[:8],
