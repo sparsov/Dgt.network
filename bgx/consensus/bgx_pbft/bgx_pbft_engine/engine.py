@@ -1852,7 +1852,7 @@ class PbftEngine(Engine):
                     marker = self._arbitration_msgs[block_id]
               
                     if isinstance(marker, bool) :
-                        LOGGER.debug("GET ARBITRATION MARKER=%s for block=%s",block_id[:8])
+                        LOGGER.debug("GET ARBITRATION MARKER=%s for block=%s",marker,block_id[:8])
                         # drop marker                     
                         del self._arbitration_msgs[block_id]
                         if block_id in self._peers_branches:
