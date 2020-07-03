@@ -1398,17 +1398,17 @@ class PbftEngine(Engine):
                     if bid in self._peers_branches:
                         del self._peers_branches[bid]
                     if block.block_num == 0:
-                        branch.reset_state()
+                        branch.reset_state(bid)
                     else:
                         # FIXME -may be we should do reset?
                         LOGGER.info('=> INVALID_BLOCK: DONT DO reset \n')
                         if not self.is_sync or not branch.can_cancel:
-                            branch.reset_state()
+                            branch.reset_state(bid)
             else:
                 LOGGER.info('=> INVALID_BLOCK: external block=%s branches=%s \n',bid[:8],self.peer_branches_info)
                 if bid in self._peers_branches:
                     branch = self._peers_branches[bid]
-                    branch = self.reset_state()
+                    branch = self.reset_state(bid)
                     del self._peers_branches[bid]
             LOGGER.info('=> INVALID_BLOCK: branches=%s \n',self.peer_branches_info)
         except :
@@ -1522,7 +1522,7 @@ class PbftEngine(Engine):
                     branch._own_type= self._peers_branches[block_id].own_type
                 branch.check_arbitration(block_id)
                 branch.cancel_block(block_id) # change parent_id too 
-                branch.reset_state()    
+                branch.reset_state(block_id)    
                 self._branches[block_id] = branch
                 self._TOTAL_BLOCK += 1 
                 if block_id in self._peers_branches:
@@ -1535,7 +1535,7 @@ class PbftEngine(Engine):
                     branch = self._peers_branches[block_id]
                     branch.check_arbitration(block_id)
                     branch.cancel_block(block_id) # change parent_id too 
-                    branch.reset_state()
+                    branch.reset_state(block_id)
                     del self._peers_branches[block_id] 
                     # update _branches
                     block = self._get_block(bytes.fromhex(block_id))
