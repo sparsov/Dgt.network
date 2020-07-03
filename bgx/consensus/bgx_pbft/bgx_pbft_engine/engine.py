@@ -449,8 +449,9 @@ class BranchState(object):
                 # waiting block valid message
             return True
         else:
-            LOGGER.info('Failed consensus blk=%s branch=%s', _short_id(block.block_id.hex()),self._head_id[:8])
-            self.reset_state()
+            block_id = block.block_id.hex()
+            LOGGER.info('Failed consensus blk=%s branch=%s', _short_id(block_id),self._head_id[:8])
+            self.reset_state(block_id)
             self.fail_block(block.block_id)
             return False
     
@@ -551,7 +552,7 @@ class BranchState(object):
                     return Consensus.done
         else:
             LOGGER.info('Ignoring block=%s for BRANCH=%s', _short_id(block_id),self._head_id[:8])
-            self.reset_state()
+            self.reset_state(block_id)
             try:    
                 self.ignore_block(block.block_id)
             except exceptions.UnknownBlock:
@@ -666,9 +667,9 @@ class BranchState(object):
                 self._engine._arbitration_msgs[block_id] = broadcast 
 
 
-    def reset_state(self):
+    def reset_state(self,block_id):
         ctime = time.time()
-        LOGGER.info('reset_state: for BRANCH[%s]=%s time=%s of processing=%s\n', self._ind, self._head_id[:8],self.stime, ctime - (self.stime if self.stime else ctime))
+        LOGGER.info('reset_state: for blk=%s BRANCH[%s]=%s time=%s of processing=%s\n',block_id[:8], self._ind, self._head_id[:8],self.stime, ctime - (self.stime if self.stime else ctime))
         self._building = False   
         self._published = False  
         self._committing = False
@@ -678,6 +679,9 @@ class BranchState(object):
         self._can_cancel = True
         self._already_send_commit = False
         self._arbiters_reply = {}
+        if block_id in self._engine._arbitration_msgs:
+            del self._engine._arbitration_msgs[block_id]
+
         LOGGER.info('reset_state:_arbitration_msgs=%s',self._engine._arbitration_msgs)
     def __str__(self):
         return "{} (block_num:{}, {})".format(
