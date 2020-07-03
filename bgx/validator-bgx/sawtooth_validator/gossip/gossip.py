@@ -418,8 +418,8 @@ class Gossip(object):
                                 # use info about endpoint's networks
                                 self.send_dynamic_peers_info(endpoint,connection_id,peer_key)
                                 
-
-                            if peer_key == self._fbft.genesis_node :
+                            
+                            if peer_key == self._fbft.genesis_node or self._fbft.is_cluster_leader(peer_key):
                                 # sync with genesis peer was done - say consensus that our peer already sync 
                                 LOGGER.debug("SYNC request SET OWN STATUS sync=%s incomplete=%s\n",ack.sync,self._incomplete)
                                 if not self._incomplete:

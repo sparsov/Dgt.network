@@ -180,6 +180,12 @@ class FbftTopology(object):
                 return peer,key
         return None,None
 
+    def is_cluster_leader(self,pkey):
+        if pkey not in self.cluster:
+            return False
+        peer = self.cluster[pkey]
+        return peer[PeerAtr.role] == PeerRole.leader
+
     def change_cluster_leader(self,cname,npeer):
         """
         for Validator
