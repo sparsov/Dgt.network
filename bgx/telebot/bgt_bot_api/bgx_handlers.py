@@ -44,6 +44,7 @@ from sawtooth_sdk.protobuf import client_batch_submit_pb2
 from sawtooth_sdk.protobuf import client_state_pb2
 from sawtooth_sdk.protobuf import client_block_pb2
 from sawtooth_sdk.protobuf import client_batch_pb2
+from sawtooth_sdk.protobuf import client_topology_pb2
 
 from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetRequest
 from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetResponse
@@ -692,6 +693,33 @@ class BgxTeleBot(Tbot):
             self.send_message(minfo.chat_id,repl)                                                                                                                                                                      
         except Exception as ex:                                                                                                                                                                                        
             LOGGER.debug('BgxTeleBot: cant list stuff(%s)',ex) 
+
+
+
+
+    async def intent_show_gateway(self,minfo):
+        """Fetches the topology from the validator.
+        Request:
+
+        Response:
+            data: JSON array of net topology
+            link: The link to this exact query
+        """
+        error_traps = [error_handlers.InvalidAddressTrap]
+        response = await self._query_validator(
+            Message.CLIENT_TOPOLOGY_GET_REQUEST,
+            client_topology_pb2.ClientTopologyGetResponse,
+            client_topology_pb2.ClientTopologyGetRequest(),
+            error_traps)
+        try:
+            topology = json.loads(base64.b64decode(response['topology']))
+            LOGGER.debug('Request fetch_topology=%s',topology['Identity'])
+            repl = 'Работаю с узлом:\n{}.'.format(yaml.dump(topology['Identity'], default_flow_style=False)[0:-1])
+            self.send_message(minfo.chat_id,repl)
+        except Exception as ex:                                                                                                                                                                                        
+            LOGGER.debug('BgxTeleBot: cant load topology(%s)',ex)
+            self.send_message(minfo.chat_id,'Что то пошло не так')
+        
 
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             

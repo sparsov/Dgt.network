@@ -165,6 +165,7 @@ def start_bot_api(host, port, connection, timeout, registry,client_max_size=None
     bot.add_intent_handler("smalltalk.agent.show_stuff_history",bot.intent_show_stuff_history)
     bot.add_intent_handler("smalltalk.agent.show_stuff_list",bot.intent_show_stuff_list)
     #
+    bot.add_intent_handler("smalltalk.agent.show_gateway",bot.intent_show_gateway)
     bot.add_intent_handler("smalltalk.agent.pause",bot.intent_pause)
     bot.add_intent_handler("smalltalk.agent.unpause",bot.intent_unpause)
     bot.add_intent_handler('smalltalk.agent.chat_admins',bot.intent_chat_admins)
