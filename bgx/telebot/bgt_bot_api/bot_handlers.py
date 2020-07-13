@@ -58,7 +58,9 @@ TOKEN='1205652427:AAFr0eynwihWGyvObUA0QSjOfKMwiH3HkZs'
 PROXIES = ['82.223.120.213:1080','138.201.6.102:1080','85.10.235.14:1080','217.69.10.129:32401','217.182.230.15:4485','96.96.33.133:1080','93.157.248.106:1080','81.17.20.50:1177','217.69.10.129:32401','1.179.185.253:8080']
 
 class Tbot(object): 
-    def __init__(self,loop, connection,tdb,token=TOKEN,project_id=PROJECT_ID,session_id=SESSION_ID,proxy=PROXIES):
+    def __init__(self,loop, connection,tdb,token=TOKEN,project_id=PROJECT_ID,session_id=SESSION_ID,proxy=PROXIES,connects=None):
+        self._connects = connects
+        self._conn_n = 0
         self._tdb = tdb
         self._proxies = proxy if proxy else PROXIES
         self._project_id = project_id if project_id else PROJECT_ID
@@ -456,6 +458,17 @@ class Tbot(object):
         except SendBackoffTimeoutError:
             LOGGER.warning('Failed sending message - Backoff timed out')
             raise errors.SendBackoffTimeout()
+
+    def change_gateway(self,num):
+        
+        url = self._connects[num]
+        try:
+            self._connection.reopen(url)
+            self._conn_n = num
+        except:
+            pass
+        return self._conn_n == num
+
 
     @staticmethod
     def _check_status_errors(proto, content, error_traps=None):

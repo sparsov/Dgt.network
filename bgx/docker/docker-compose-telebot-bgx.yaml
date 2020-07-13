@@ -30,7 +30,7 @@ services:
         cd bgx/telebot
         python3 setup.py clean --all
         python3 setup.py build
-        bgt-telebot -vv  --connect tcp://validator-bgx-c1-1:4104 
+        bgt-telebot -vv  --connect tcp://validator-bgx-c1-1:4104 tcp://validator-bgx-c2-1:4204 
       "
     stop_signal: SIGKILL
 

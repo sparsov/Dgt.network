@@ -76,6 +76,7 @@ def parse_args(args):
                         default: http://localhost:8008)',
                         action='append')
     parser.add_argument('-C', '--connect',
+                        nargs="+",
                         help='specify URL to connect to a running validator')
     parser.add_argument('-t', '--timeout',
                         help='set time (in seconds) to wait for validator \
@@ -112,7 +113,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def start_bot_api(host, port, connection, timeout, registry,client_max_size=None):
+def start_bot_api(host, port, connection, timeout, registry,connects=None,client_max_size=None):
     """Builds the web app, adds route handlers, and finally starts the app.
     """
     #tele_db = LMDBNoLockDatabase(TELE_DB_FILENAME, 'c')
@@ -143,7 +144,7 @@ def start_bot_api(host, port, connection, timeout, registry,client_max_size=None
 
     loop = asyncio.get_event_loop()
     connection.open()
-    bot = BgxTeleBot(loop, connection,tele_db,TOKEN) #Tbot(loop, connection,TOKEN)
+    bot = BgxTeleBot(loop, connection,tele_db,TOKEN,connects=connects) #Tbot(loop, connection,TOKEN)
     # add handler for intention
     bot.add_intent_handler('smalltalk.greetings.hello',bot.intent_hello)
     bot.add_intent_handler('smalltalk.greetings.bye',bot.intent_bye)
@@ -166,6 +167,8 @@ def start_bot_api(host, port, connection, timeout, registry,client_max_size=None
     bot.add_intent_handler("smalltalk.agent.show_stuff_list",bot.intent_show_stuff_list)
     #
     bot.add_intent_handler("smalltalk.agent.show_gateway",bot.intent_show_gateway)
+    bot.add_intent_handler("smalltalk.agent.show_gateway_list",bot.intent_show_gateway_list)
+    bot.add_intent_handler("smalltalk.agent.set_gateway",bot.intent_set_gateway)
     bot.add_intent_handler("smalltalk.agent.pause",bot.intent_pause)
     bot.add_intent_handler("smalltalk.agent.unpause",bot.intent_unpause)
     bot.add_intent_handler('smalltalk.agent.chat_admins',bot.intent_chat_admins)
@@ -277,10 +280,10 @@ def main():
             client_max_size=opts.client_max_size)
         bot_api_config = load_bot_api_config(opts_config)
         url = None
-        if "tcp://" not in bot_api_config.connect:
-            url = "tcp://" + bot_api_config.connect
+        if "tcp://" not in bot_api_config.connect[0]:
+            url = "tcp://" + bot_api_config.connect[0]
         else:
-            url = bot_api_config.connect
+            url = bot_api_config.connect[0]
 
         connection = Connection(url)
 
@@ -333,6 +336,7 @@ def main():
             connection,
             int(bot_api_config.timeout),
             wrapped_registry,
+            connects=bot_api_config.connect,
             client_max_size=bot_api_config.client_max_size)
         # pylint: disable=broad-except
     except Exception as e:

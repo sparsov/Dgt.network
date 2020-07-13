@@ -121,9 +121,9 @@ class BgxTeleBot(Tbot):
             cancel a request and report that the validator is unavailable.
     """
 
-    def __init__(self,loop, connection,tdb,token=None,project_id=None,session_id=None,proxy=None):
+    def __init__(self,loop, connection,tdb,token=None,project_id=None,session_id=None,proxy=None,connects=None):
 
-        super().__init__(loop,connection,tdb,token,project_id,session_id,proxy)
+        super().__init__(loop,connection,tdb,token,project_id,session_id,proxy,connects)
         # BGX init
         
         self._context = create_context('secp256k1') 
@@ -720,6 +720,26 @@ class BgxTeleBot(Tbot):
             LOGGER.debug('BgxTeleBot: cant load topology(%s)',ex)
             self.send_message(minfo.chat_id,'Что то пошло не так')
         
+    async def intent_show_gateway_list(self,minfo):
+        try:
+            repl = 'Доступные шлюзы:\n{}.'.format(yaml.dump(self._connects, default_flow_style=False)[0:-1])
+            self.send_message(minfo.chat_id,repl)
+        except Exception as ex:                                                                                                                                                                                        
+            LOGGER.debug('BgxTeleBot: cant show list gate way(%s)',ex)
+    
+    async def intent_set_gateway(self,minfo):
+        LOGGER.debug('BgxTeleBot: intent_set_gateway FOR=%s',minfo)                                                                                                    
+        args = self.get_args_from_request(minfo.result.parameters)                                                                                               
+        if 'number' in args : 
+            num = int(user_stuff_name(args['number']))
+            if self._connects and len(self._connects) >= num:
+                LOGGER.debug('BgxTeleBot: gateway(%s)',self._connects[num-1])
+                if self.change_gateway(num-1) :
+                    self.send_message(minfo.chat_id,'Переключились на {}'.format(self._connects[num-1]))
+                else:
+                    self.send_message(minfo.chat_id,'Не удачное переключение на {}'.format(self._connects[num-1]))
+            else:
+                self.send_message(minfo.chat_id,'Нет такого шлюза')
 
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             
