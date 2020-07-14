@@ -153,6 +153,7 @@ def start_bot_api(host, port, connection, timeout, registry,connects=None,client
     bot.add_intent_handler('smalltalk.user.needs_advice',bot.intent_needs_advice)
     #bot.add_intent_handler('smalltalk.agent.get_wallet',bot.intent_get_wallet)
     bot.add_intent_handler('smalltalk.agent.check_wallet',bot.intent_check_wallet)
+    bot.add_intent_handler('smalltalk.agent.check_wallet_history',bot.intent_check_wallet_history)
     bot.add_intent_handler('smalltalk.agent.create_wallet',bot.intent_create_wallet)
     bot.add_intent_handler('smalltalk.agent.trans_token',bot.intent_trans_token)
     bot.add_intent_handler('smalltalk.agent.inc_wallet',bot.intent_inc_wallet)

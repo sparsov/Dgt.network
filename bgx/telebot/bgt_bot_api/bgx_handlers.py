@@ -307,7 +307,9 @@ class BgxTeleBot(Tbot):
             result = None
         return result
 
-    async def _get_state_history(self,address,state_address):                                              
+    def unfold_stuff_history(self):
+        pass
+    async def _get_state_history(self,address,state_address,family='stuff'):                                              
         LOGGER.debug('BgxTeleBot:_get_state_history %s',address) 
         def byTime_key(receipt):
             return receipt['timestamp']
@@ -325,7 +327,7 @@ class BgxTeleBot(Tbot):
         try:   
             #value = base64.b64decode(response['value']) 
             value = self._drop_id_prefixes(self._drop_empty_props(response['receipts']))                                                                                   
-            LOGGER.debug('BgxRouteHandler:_get_state_history %s=%s',address,type(value)) 
+            LOGGER.debug('BgxRouteHandler:_get_state_history %s=%s',address,value) 
             result = {}
             n = 0
             prev = None
@@ -334,30 +336,35 @@ class BgxTeleBot(Tbot):
                 timestamp = receipt['timestamp']
                 dtm = datetime.fromtimestamp(timestamp)
                 for changes in receipt['state_changes']:
-                    val = changes['value']
+                    val = base64.b64decode(changes['value'])
+                    content = cbor.loads(val)
+                    LOGGER.debug('BgxRouteHandler:timestamp=%s receipt=%s\n content=%s',dtm,val,content)
                     
-                    #LOGGER.debug('BgxRouteHandler:timestamp=%s receipt=%s',dtm,val)
-                    content = cbor.loads(base64.b64decode(val))                                                                
-                    for key,v in content.items():                                                                              
-                        try:                                                                                                   
-                            token = stuff_token_info(v)                                                                        
-                            stuff = cbor.loads(token.stuff) 
-                            if prev:
-                                # compare with pevious
-                                fstuff = {}
-                                #LOGGER.debug('PREV: stuff=%s',prev)
-                                for nm,nval in stuff.items():
-                                    if nm in prev and nval != prev[nm]:
-                                        fstuff[nm] = nval
-                            else:
-                                fstuff = stuff.copy()
-                                #LOGGER.debug('FIRST: stuff=%s',fstuff)
-                            fstuff['user'] = token.user                                                                         
-                        except Exception as ex1:                                                                               
-                            fstuff = {}                
-                            stuff = {}
-                        result[dtm] = fstuff
-                        prev = stuff.copy()
+                    for key,v in content.items():  
+                        if family == 'stuff':
+                            try:                                                                                                   
+                                token = stuff_token_info(v)                                                                        
+                                stuff = cbor.loads(token.stuff) 
+                                if prev:
+                                    # compare with pevious
+                                    fstuff = {}
+                                    #LOGGER.debug('PREV: stuff=%s',prev)
+                                    for nm,nval in stuff.items():
+                                        if nm in prev and nval != prev[nm]:
+                                            fstuff[nm] = nval
+                                else:
+                                    fstuff = stuff.copy()
+                                    #LOGGER.debug('FIRST: stuff=%s',fstuff)
+                                fstuff['user'] = token.user                                                                         
+                            except Exception as ex1:                                                                               
+                                fstuff = {}                
+                                stuff = {}
+                            result[dtm] = fstuff
+                            prev = stuff.copy()
+                        elif family == 'bgt':
+                            token = bgt_token_info(v)
+                            result[dtm] = {'amount':token.decimals}
+
                         n += 1
             LOGGER.debug('BgxRouteHandler:n=%s content=%s',n,result)
             
@@ -381,6 +388,13 @@ class BgxTeleBot(Tbot):
         state_address = bgt_get_address(wallet)              
         val = await self._get_state(wallet,state_address)    
         return bgt_token_info(val[wallet]) if val else None
+
+    async def bgt_get_state_history(self,wallet):                        
+        # get BGT state                                          
+        state_address = bgt_get_address(wallet) 
+        LOGGER.debug('get_state_history: %s=>%s',wallet,state_address)                
+        val = await self._get_state_history(wallet,state_address,family='bgt')        
+        return val 
 
     async def stuff_get_state(self,num_stuff):                        
         # get BGT state                                          
@@ -466,23 +480,30 @@ class BgxTeleBot(Tbot):
             else:
                 self.send_message(minfo.chat_id, "Однако, персона '{}' мне неизвестена.".format(args['name']))
 
+    def get_wallet_param(self,minfo):
+        args = self.get_args_from_request(minfo.result.parameters)                                           
+        if 'name' in args :                                                                                  
+            if self.is_user_with_name(args['name']):                                                         
+                user = self._tdb.get_multi([args['name']],index='name')[0]                                   
+                wallet = user_wallet_name(user[0])                                                           
+                uname = args['name']                                                                         
+            else:                                                                                            
+                self.send_message(minfo.chat_id, "К сожалению я не знаю персону '{}'.".format(args['name'])) 
+                return None,None                                                                                      
+        else:                                                                                                
+            uname = minfo.user_first_name                                                                    
+            wallet = user_wallet_name(minfo.user_id)                                                         
+        return uname,wallet
+
     async def intent_check_wallet(self,minfo):
         """
         Get or create wallet check
         """
         LOGGER.debug('BgxTeleBot: check wallet FOR=%s',minfo)
-        args = self.get_args_from_request(minfo.result.parameters)
-        if 'name' in args :
-            if self.is_user_with_name(args['name']):
-                user = self._tdb.get_multi([args['name']],index='name')[0]
-                wallet = user_wallet_name(user[0])
-                uname = args['name']
-            else:
-                self.send_message(minfo.chat_id, "К сожалению я не знаю персону '{}'.".format(args['name']))
-                return
-        else:
-            uname = minfo.user_first_name
-            wallet = user_wallet_name(minfo.user_id)    
+        uname,wallet = self.get_wallet_param(minfo)
+        if uname is None:
+            return 
+           
         try:
             token = await self.bgt_get_state(wallet)
             LOGGER.debug('BgxTeleBot: %s=%s',wallet,token)
@@ -490,7 +511,24 @@ class BgxTeleBot(Tbot):
             self.send_message(minfo.chat_id, repl)
         except Exception as ex:
             LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',wallet,ex)
-        #await self.make_bgt_transaction('show','wallet_'+str(minfo.user_id))
+            
+    async def intent_check_wallet_history(self,minfo):
+        """
+        Get wallet history
+        """
+        LOGGER.debug('BgxTeleBot: check_wallet_history FOR=%s',minfo)
+        uname,wallet = self.get_wallet_param(minfo)
+        if uname is None:
+            return 
+
+        try:
+            token = await self.bgt_get_state_history(wallet)
+            LOGGER.debug('BgxTeleBot: %s=%s',wallet,token)
+            
+            repl = 'История кошелька {}:\n{}.'.format(uname,yaml.dump(token, default_flow_style=False)[0:-1]) if token else "К сожалению у {} нет кошелька".format(uname)
+            self.send_message(minfo.chat_id, repl)
+        except Exception as ex:
+            LOGGER.debug('BgxTeleBot: cant check token into=%s (%s)',wallet,ex)
 
     async def intent_trans_token(self,minfo):
         if minfo.batch_id:                                                       
