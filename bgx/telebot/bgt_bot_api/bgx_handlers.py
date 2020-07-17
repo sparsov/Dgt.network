@@ -50,6 +50,8 @@ from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetRequest
 from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetResponse
 from sawtooth_sdk.protobuf import client_peers_pb2
 from sawtooth_sdk.protobuf import client_status_pb2
+from sawtooth_sdk.protobuf.client_peers_pb2 import  ClientPeersControlRequest,ClientPeersControlResponse
+
 from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
 from sawtooth_sdk.protobuf.batch_pb2 import Batch,BatchHeader,BatchList
 from sawtooth_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
@@ -374,6 +376,20 @@ class BgxTeleBot(Tbot):
             result = None                                                                          
         return result                                                                              
 
+    async def _peers_control(self,cname,pname,mode):
+        error_traps = [error_handlers.InvalidAddressTrap]                                                                
+        vquery = ClientPeersControlRequest(mode=mode,cluster=cname,peer=pname)
+        try:
+            response = await self._query_validator(
+                Message.CLIENT_PEERS_CONTROL_REQUEST,
+                ClientPeersControlResponse,
+                vquery,
+                error_traps)
+            LOGGER.debug('BgxRouteHandler:_peers_control response %s',response)
+            return response['info'] if response is not None else 'Service Unavailable - try again' 
+
+        except errors.ValidatorTimedOut:
+            return 'Service Unavailable'
 
     def get_args_from_request(self,parameters):
         args = {}                                         
@@ -778,6 +794,27 @@ class BgxTeleBot(Tbot):
                     self.send_message(minfo.chat_id,'Не удачное переключение на {}'.format(self._connects[num-1]))
             else:
                 self.send_message(minfo.chat_id,'Нет такого шлюза')
+
+    async def intent_peers_down(self,minfo):
+        """
+        send request for starting peer
+        """
+        LOGGER.debug('BgxTeleBot: intent_peers_down FOR=%s',minfo)                                                                                                    
+        args = self.get_args_from_request(minfo.result.parameters)                                                                                               
+        if 'number' in args and 'name' in args:
+            cname,pname = args['name'],str(int(args['number']))
+            LOGGER.debug('BgxTeleBot: STOP PEER (%s %s)',cname,pname)
+            repl = await self._peers_control(args['name'],str(int(args['number'])),ClientPeersControlRequest.DOWN)
+            self.send_message(minfo.chat_id,'Стоп узла:{} {} - {}'.format(cname,pname,repl))
+
+    async def intent_peers_up(self,minfo):
+        LOGGER.debug('BgxTeleBot: intent_peers_up FOR=%s',minfo)                                                                                                    
+        args = self.get_args_from_request(minfo.result.parameters)                                                                                               
+        if 'number' in args and 'name' in args:
+            cname,pname = args['name'],str(int(args['number']))
+            LOGGER.debug('BgxTeleBot: START PEER (%s %s)',cname,pname)
+            repl = await self._peers_control(args['name'],str(int(args['number'])),ClientPeersControlRequest.UP)
+            self.send_message(minfo.chat_id,'Запуск узла:{} {} - {}'.format(cname,pname,repl))
 
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             

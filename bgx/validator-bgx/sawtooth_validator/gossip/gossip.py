@@ -17,6 +17,7 @@ import copy
 import time
 import random
 import os
+import subprocess
 import binascii
 import json
 
@@ -89,6 +90,7 @@ _PARAM_DEFAULT_ = {
     AUTO_CLUSTER_NM      : True,
     }
 
+FIFO_PATH = '/project/peer/data/.peers_ctrl'
 
 class Gossip(object):
     def __init__(self, network,
@@ -187,6 +189,7 @@ class Gossip(object):
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
         """
+        self._peers_control_init()
         
         endpoints = os.environ.get('ENDPOINTS')
         
@@ -206,6 +209,41 @@ class Gossip(object):
             LOGGER.debug("Gossip: seeds=%s\n",self._initial_seed_endpoints)
         else:
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
+
+    def _peers_control_init(self):
+        self._pcontrol = os.environ.get('PCONTROL') == 'Y'
+        self._pfifo = None
+        if self._pcontrol:
+            LOGGER.debug("Gossip: peers control mode\n")
+                        
+            try:
+                os.mkfifo(FIFO_PATH)
+                LOGGER.debug("Gossip: CREATE FIFO %s",FIFO_PATH)
+            except Exception as ex:
+                LOGGER.debug("Gossip: CREATE FIFO=%s ERROR(%s)",FIFO_PATH,ex)
+
+            self._pfifo = open(FIFO_PATH, "w")
+            self._pfifo.write("Peer {} ready\n".format(self.validator_id[:8]))
+            self._pfifo.flush()
+
+    def peers_control(self,cname,pname,mode):
+        """
+        Start stop peer 
+        """
+        cmd = 'upCluster.sh {} {} \n'.format(cname,pname) if mode else 'downCluster.sh {} {} \n'.format(cname,pname)
+
+        LOGGER.debug("peers_control=%s",cmd)
+        if self._pcontrol and self._pfifo:
+            try:
+                self._pfifo.write(cmd)
+                self._pfifo.flush()
+                return 0,'Succefully'
+            except Exception as ex:
+                return 0,'Incorrect request({})'.format(ex)
+        else:
+            return 1,'Service unavailable(try next gateway)'
+
+        
 
     def endpoint_to_expoint(self,endpoint,my_ip,port=''):
         url = urlparse(endpoint)
@@ -1234,6 +1272,7 @@ class Gossip(object):
         
         #LOGGER.debug("get topology=%s",stopology.encode("utf-8")) 
         return stopology.encode("utf-8")
+
 
     def peer_to_public_key(self, peer):
         """Returns the public key for the associated peer."""

@@ -219,6 +219,7 @@ services:
     - ENDPOINTS=${ENDPOINTS}
     - SINGLE=${SINGLE}
     - NETWORK=${NETWORK}
+    - PCONTROL=${PCONTROL}
     volumes:
       - ../..:/project/${BGX_TOP}
       - ../../../dgt_clust/${C}/bgx${N}:/project/peer

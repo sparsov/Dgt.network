@@ -121,7 +121,10 @@ message Message {
 	// A response for topology
 	CLIENT_TOPOLOGY_GET_REQUEST = 133;
 	CLIENT_TOPOLOGY_GET_RESPONSE = 134;
-	
+	// peers control
+	CLIENT_PEERS_CONTROL_REQUEST = 135;
+        CLIENT_PEERS_CONTROL_RESPONSE = 136;
+
         // Message types for events
         CLIENT_EVENTS_SUBSCRIBE_REQUEST = 500;
         CLIENT_EVENTS_SUBSCRIBE_RESPONSE = 501;

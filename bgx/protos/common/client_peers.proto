@@ -1,4 +1,4 @@
-// Copyright 2017 Intel Corporation
+// Copyright 2020 NTRLab 
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,3 +38,24 @@ message ClientPeersGetResponse {
     Status status = 1;
     repeated string peers = 2;
 }
+// for peers control
+message ClientPeersControlRequest{
+    enum Modes {
+        UP      = 0;
+        DOWN    = 1;
+	
+    }
+    Modes  mode    = 1;
+    string cluster = 2;
+    string peer =    3;
+}
+message ClientPeersControlResponse {
+    enum Status {
+     
+        OK    = 0;
+        ERROR = 1;
+    }
+    Status status = 1;
+    string info   = 2;
+}
+

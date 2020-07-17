@@ -451,10 +451,13 @@ class Tbot(object):
                 timeout=self._timeout)
         except DisconnectError:
             LOGGER.warning('Validator disconnected while waiting for response')
-            raise errors.ValidatorDisconnected()
+            # reconnect
+            self.change_gateway(self._conn_n)
+            #raise errors.ValidatorDisconnected()
         except asyncio.TimeoutError:
             LOGGER.warning('Timed out while waiting for validator response')
-            raise errors.ValidatorTimedOut()
+            self.change_gateway(self._conn_n)
+            #raise errors.ValidatorTimedOut()
         except SendBackoffTimeoutError:
             LOGGER.warning('Failed sending message - Backoff timed out')
             raise errors.SendBackoffTimeout()

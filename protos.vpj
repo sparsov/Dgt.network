@@ -67,6 +67,7 @@
             <F N="protos/client_event.proto"/>
             <F N="bgx/protos/common/client_heads.proto"/>
             <F N="protos/client_list_control.proto"/>
+            <F N="bgx/protos/common/client_peers.proto"/>
             <F N="protos/client_peers.proto"/>
             <F N="protos/client_receipt.proto"/>
             <F N="protos/client_state.proto"/>

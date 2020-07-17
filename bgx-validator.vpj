@@ -209,6 +209,7 @@
             <F N="bgx/validator-bgx/tests/test_scheduler/data/enclosing_writer_fails.yaml"/>
             <F N="bgx/validator-bgx/MANIFEST.in"/>
             <F N="bgx/validator-bgx/nose2.cfg"/>
+            <F N="bgx/bin/peers-crtl"/>
             <F N="bgx/validator-bgx/README.md"/>
             <F N="bgx/validator-bgx/setup.cfg"/>
             <F N="bgx/validator-bgx/tests/unit_validator.yaml"/>

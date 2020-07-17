@@ -31,6 +31,7 @@ _PEERS_="91.216.211.46 validator-bgx-c2-1;91.216.211.46 validator-bgx-c3-1"
 # default value
 GENESIS="N"
 export SINGLE="N"
+export PCONTROL="N"
 export PEERING='static'
 export NETWORK='net0'
 while [ -n "$1" ]
@@ -38,6 +39,7 @@ do
 case "$1" in
 -G) GENESIS="Y";echo "Genesis mode." ;;
 -E) export SINGLE="Y";echo "External mode." ;;
+-F) export PCONTROL="Y";echo "Peers control mode." ;;
 -S) echo "Dynamic mode." 
 shift;export PEERING='dynamic';export SEEDS="--seeds $1";echo "--seed $1"
 ;;

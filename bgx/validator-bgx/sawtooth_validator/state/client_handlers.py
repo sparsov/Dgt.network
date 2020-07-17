@@ -41,6 +41,7 @@ from sawtooth_validator.protobuf import client_transaction_pb2
 from sawtooth_validator.protobuf import client_batch_submit_pb2
 from sawtooth_validator.protobuf import client_list_control_pb2
 from sawtooth_validator.protobuf.client_peers_pb2 import  ClientPeersGetRequest,ClientPeersGetResponse
+from sawtooth_validator.protobuf.client_peers_pb2 import  ClientPeersControlRequest,ClientPeersControlResponse
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.protobuf import client_heads_pb2,client_topology_pb2
@@ -1096,6 +1097,24 @@ class PeersGetRequest(_ClientRequestHandler):
         peers = self._gossip.get_peers(mode=request.status)
         endpoints = [peers[connection_id] for connection_id in peers]
         return self._wrap_response(peers=endpoints)
+
+
+class PeersControlRequest(_ClientRequestHandler):
+    def __init__(self, gossip):
+        super().__init__(
+            ClientPeersControlRequest,
+            ClientPeersControlResponse,
+            validator_pb2.Message.CLIENT_PEERS_CONTROL_RESPONSE
+        )
+        self._gossip = gossip
+
+    def _respond(self, request):
+        LOGGER.debug('PeersControlRequest:MODE=%s cluster=%s peer=%s.',request.mode,request.cluster,request.peer)
+        status,info = self._gossip.peers_control(request.cluster,request.peer,mode=request.mode == ClientPeersControlRequest.UP)
+        return self._wrap_response(status=status,info=info)
+
+
+
 
 class TopologyGetRequest(_ClientRequestHandler):
     def __init__(self, gossip):

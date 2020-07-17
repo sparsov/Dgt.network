@@ -170,6 +170,9 @@ def start_bot_api(host, port, connection, timeout, registry,connects=None,client
     bot.add_intent_handler("smalltalk.agent.show_gateway",bot.intent_show_gateway)
     bot.add_intent_handler("smalltalk.agent.show_gateway_list",bot.intent_show_gateway_list)
     bot.add_intent_handler("smalltalk.agent.set_gateway",bot.intent_set_gateway)
+    bot.add_intent_handler("smalltalk.agent.peers_down",bot.intent_peers_down)
+    bot.add_intent_handler("smalltalk.agent.peers_up",bot.intent_peers_up)
+
     bot.add_intent_handler("smalltalk.agent.pause",bot.intent_pause)
     bot.add_intent_handler("smalltalk.agent.unpause",bot.intent_unpause)
     bot.add_intent_handler('smalltalk.agent.chat_admins',bot.intent_chat_admins)
