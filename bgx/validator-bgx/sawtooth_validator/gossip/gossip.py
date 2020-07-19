@@ -238,12 +238,27 @@ class Gossip(object):
             pkey = '{}.{}'.format(cname,pname)
             if pkey not in self._peers_ctrl:
                 return 1,'Cant control peer {}'.format(pkey)
+            # get status of peer 
+            if cname[:3] != 'dyn':
+                peer,key = self._fbft.get_peer_by_name('{}{}'.format('Bgx',cname),'{}{}'.format(cname,pname))
+                if peer:
+                    LOGGER.debug("peer=%s key=%s",peer,key[:8]) #PeerAtr.node_state
+                    if mode :
+                        if PeerAtr.node_state in peer and peer[PeerAtr.node_state] == PeerSync.active:
+                            return 1,'Peer {}({}) already started'.format(pkey,key[:8])
+                    else:
+                        if PeerAtr.node_state not in peer or peer[PeerAtr.node_state] != PeerSync.active:
+                            return 1,'Peer {}({}) not started'.format(pkey,key[:8])
+                else:
+                    return 1,'Peer {} undefined in toology'.format(pkey)
+            else:
+                key = 'dynamic'
             cmd = 'upCluster.sh {} {} \n'.format(cname,pname) if mode else 'downCluster.sh {} {} \n'.format(cname,pname)
             LOGGER.debug("peers_control=%s",cmd)
             try:
                 self._pfifo.write(cmd)
                 self._pfifo.flush()
-                return 0,'Succefully'
+                return 0,'Peer={} succefully {} '.format(key[:8],'started' if mode else 'stopped')
             except Exception as ex:
                 return 0,'Incorrect request({})'.format(ex)
         else:
