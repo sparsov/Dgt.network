@@ -391,6 +391,7 @@ class BgxTeleBot(Tbot):
         except errors.ValidatorTimedOut:
             return 'Service Unavailable'
 
+    
     def get_args_from_request(self,parameters):
         args = {}                                         
         for param,val in parameters.items(): 
@@ -748,10 +749,7 @@ class BgxTeleBot(Tbot):
         except Exception as ex:                                                                                                                                                                                        
             LOGGER.debug('BgxTeleBot: cant list stuff(%s)',ex) 
 
-
-
-
-    async def intent_show_gateway(self,minfo):
+    async def _get_topology(self,minfo):
         """Fetches the topology from the validator.
         Request:
 
@@ -767,12 +765,26 @@ class BgxTeleBot(Tbot):
             error_traps)
         try:
             topology = json.loads(base64.b64decode(response['topology']))
-            LOGGER.debug('Request fetch_topology=%s',topology['Identity'])
-            repl = 'Работаю с узлом:\n{}.'.format(yaml.dump(topology['Identity'], default_flow_style=False)[0:-1])
-            self.send_message(minfo.chat_id,repl)
+            return topology
         except Exception as ex:                                                                                                                                                                                        
             LOGGER.debug('BgxTeleBot: cant load topology(%s)',ex)
             self.send_message(minfo.chat_id,'Что то пошло не так')
+            return None
+
+    async def intent_show_gateway(self,minfo):
+        """Fetches the topology from the validator.
+        Request:
+
+        Response:
+            data: JSON array of net topology
+            link: The link to this exact query
+        """
+        topology = await self._get_topology(minfo)
+        if topology:
+            LOGGER.debug('Request fetch_topology=%s',topology['Identity'])
+            repl = 'Работаю с узлом:\n{}.'.format(yaml.dump(topology['Identity'], default_flow_style=False)[0:-1])
+            self.send_message(minfo.chat_id,repl)
+        
         
     async def intent_show_gateway_list(self,minfo):
         try:
@@ -815,6 +827,13 @@ class BgxTeleBot(Tbot):
             LOGGER.debug('BgxTeleBot: START PEER (%s %s)',cname,pname)
             repl = await self._peers_control(args['name'],str(int(args['number'])),ClientPeersControlRequest.UP)
             self.send_message(minfo.chat_id,'Запуск узла:{} {} - {}'.format(cname,pname,repl))
+
+    async def intent_peers_control_list(self,minfo):
+        LOGGER.debug('BgxTeleBot: intent_peers_control_list FOR=%s',minfo)
+        topology = await self._get_topology(minfo)
+        if topology:
+            repl = 'Могу контролировать:\n{}.'.format(yaml.dump(topology['Control'], default_flow_style=False)[0:-1])
+            self.send_message(minfo.chat_id,repl)
 
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             

@@ -472,6 +472,7 @@ class Tbot(object):
             pass
         return self._conn_n == num
 
+    
 
     @staticmethod
     def _check_status_errors(proto, content, error_traps=None):

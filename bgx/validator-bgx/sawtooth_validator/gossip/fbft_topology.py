@@ -610,6 +610,8 @@ class FbftTopology(object):
                 peer[PeerAtr.network] = network
                 break
 
+    def set_peers_control(self,plist):
+        self._topology['Control'] = plist
 
     def get_topology(self,topology,validator_id,endpoint,peering_mode='static',network='net0',join_cluster=None,KYCKey='0ABD7E'):
         # get topology from string

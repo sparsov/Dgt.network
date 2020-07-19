@@ -211,10 +211,13 @@ class Gossip(object):
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
 
     def _peers_control_init(self):
-        self._pcontrol = os.environ.get('PCONTROL') == 'Y'
+        plist = os.environ.get('PCONTROL')
+        self._pcontrol = plist != ''
         self._pfifo = None
+        self._peers_ctrl = []
         if self._pcontrol:
-            LOGGER.debug("Gossip: peers control mode\n")
+            self._peers_ctrl = plist.split(',')
+            LOGGER.debug("Gossip: peers control list=%s\n",self._peers_ctrl)
                         
             try:
                 os.mkfifo(FIFO_PATH)
@@ -230,10 +233,13 @@ class Gossip(object):
         """
         Start stop peer 
         """
-        cmd = 'upCluster.sh {} {} \n'.format(cname,pname) if mode else 'downCluster.sh {} {} \n'.format(cname,pname)
-
-        LOGGER.debug("peers_control=%s",cmd)
+         
         if self._pcontrol and self._pfifo:
+            pkey = '{}.{}'.format(cname,pname)
+            if pkey not in self._peers_ctrl:
+                return 1,'Cant control peer {}'.format(pkey)
+            cmd = 'upCluster.sh {} {} \n'.format(cname,pname) if mode else 'downCluster.sh {} {} \n'.format(cname,pname)
+            LOGGER.debug("peers_control=%s",cmd)
             try:
                 self._pfifo.write(cmd)
                 self._pfifo.flush()
@@ -1234,6 +1240,7 @@ class Gossip(object):
         self._ftopology = json.loads(self._stopology)
         fbft = FbftTopology()
         fbft.get_topology(self._ftopology, self.validator_id, self.endpoint, self._peering_mode, self.network,cluster)
+        fbft.set_peers_control(self._peers_ctrl)
         with self._lock:
             self._fbft = fbft
         LOGGER.debug("RELOAD topology=%s\n",self._fbft.topology)
@@ -1252,6 +1259,7 @@ class Gossip(object):
         self._ftopology = json.loads(self._stopology)
         LOGGER.debug("LOAD topology=%s",self._ftopology) 
         self._fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode,self.network)
+        self._fbft.set_peers_control(self._peers_ctrl)
         LOGGER.debug("LOAD topology DONE SYNC=%s",self.is_sync)
         
 
