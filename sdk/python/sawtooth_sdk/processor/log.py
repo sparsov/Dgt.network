@@ -16,10 +16,18 @@
 import logging
 import logging.config
 import os
+import sys
 
 from colorlog import ColoredFormatter
 
+class LogWriter(object):
+    def __init__(self, logger, level):
+        self.logger = logger
+        self.level = level
 
+    def write(self, line):
+        if line != '\n':
+            self.logger.log(self.level, line.rstrip())
 def create_console_handler(verbose_level):
     """
     Set up the console logging for a transaction processor.
@@ -53,7 +61,7 @@ def create_console_handler(verbose_level):
     return clog
 
 
-def init_console_logging(verbose_level=2):
+def init_console_logging(verbose_level=2,capture_std_output=False):
     """
     Set up the console logging for a transaction processor.
     Args:
@@ -62,7 +70,9 @@ def init_console_logging(verbose_level=2):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     logger.addHandler(create_console_handler(verbose_level))
-
+    if capture_std_output:
+        sys.stdout = LogWriter(logging.getLogger("STDOUT"), logging.INFO)
+        sys.stderr = LogWriter(logging.getLogger("STDERR"), logging.ERROR)
 
 def log_configuration(log_config=None, log_dir=None, name=None):
     """

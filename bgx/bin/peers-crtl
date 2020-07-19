@@ -21,16 +21,18 @@ import sysconfig
 import subprocess
 import argparse
 
+import logging
 build_str = "lib.{}-{}.{}".format(sysconfig.get_platform(),sys.version_info.major, sys.version_info.minor)
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))) 
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','cli'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','validator-bgx'))
 sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
-
+sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
+from sawtooth_sdk.processor.log import init_console_logging,log_configuration
 FIFO_PATH = "/tmp/my_program.fifo"
 FIFO_DIR  = "../dgt_clust/c1/bgx1/data"
 FIFO_NM   = '.peers_ctrl'
-
+LOGGER = logging.getLogger(__name__)
 def parse_args(args):
     """Parse command line flags added to `rest_api` command.
     """
@@ -63,10 +65,10 @@ def run_cmd(peers,cmd):
     try:
         args = cmd.split(' ')
         if args[0] in ['upCluster.sh','downCluster.sh']:
-            print("ARGS {}".format(args))
+            LOGGER.info("ARGS {}".format(args))
             pkey = '{}.{}'.format(args[1],args[2])
             if pkey not in peers:
-                print("Ignore not configured peer {}".format(pkey))
+                LOGGER.info("Ignore not configured peer {}".format(pkey))
                 return
             conf = peers[pkey].split(' ')
             if args[0] == 'upCluster.sh':
@@ -82,53 +84,56 @@ def run_cmd(peers,cmd):
                              stdout=subprocess.PIPE, 
                              stderr=subprocess.STDOUT)
         stdo,stde = out.communicate()
-        print("RUN stdo={} stde={}".format(stdo,stde))
+        LOGGER.info("RUN stdo={} stde={}".format(stdo,stde))
         
     except Exception as ex:
-        print("RUN error {}".format(ex))
+        LOGGER.info("RUN error {}".format(ex))
         pass
 
 def main_wrapper():
     # read request on start peers
+    
     peers = {}
     opts = parse_args(sys.argv[1:])
+    log_configuration(log_dir="./", name="peer-ctrl")
+    init_console_logging(verbose_level=opts.verbose,capture_std_output=False)
     fifo_dir ='../dgt_clust/{}/bgx{}/data'.format(opts.clust,opts.node)
     pfifo = os.path.join(fifo_dir,FIFO_NM)
-    print('fifo',pfifo,'peers',opts.peers)
+    LOGGER.info('fifo=%s peers=%s',pfifo,opts.peers)
     if opts.peers is None:
-        print("Not defined peer's start params")
+        LOGGER.info("Not defined peer's start params")
         return
     for peer in opts.peers:
         params = peer.split(',')
         if len(params) != 2:
             continue
         peers[params[0]] = params[1]
-    print('peers',peers)
+    LOGGER.info('peers',peers)
     try:
         os.mkfifo(pfifo)
-        print("CREATE FIFO...")
+        LOGGER.info("CREATE FIFO...")
     except FileExistsError:
         pass
     except PermissionError:
-        print("CAN'T CREATE FIFO - Permission denied...")
+        LOGGER.info("CAN'T CREATE FIFO - Permission denied...")
         
     fifo = None
     try:
         fifo = open(pfifo, "r")
-        print("WAITING REQUEST...")
+        LOGGER.info("WAITING REQUEST...")
         while True:
             for line in fifo:
-                print("Получено: %s" % line)
+                LOGGER.info("Получено: %s",line)
                 run_cmd(peers,line)
 
     except KeyboardInterrupt:
-        print("PRESS ^C...")
+        LOGGER.info("PRESS ^C...")
     except FileNotFoundError:
-        print("PEER {}.{} not configured for peer's control".format(opts.clust,opts.node))
+        LOGGER.info("PEER {}.{} not configured for peer's control".format(opts.clust,opts.node))
     finally:
         if fifo:
             fifo.close()
-        print("STOP...")
+        LOGGER.info("STOP...")
     
 
 if __name__ == '__main__':
