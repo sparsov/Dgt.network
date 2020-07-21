@@ -1110,7 +1110,7 @@ class PeersControlRequest(_ClientRequestHandler):
 
     def _respond(self, request):
         LOGGER.debug('PeersControlRequest:MODE=%s cluster=%s peer=%s.',request.mode,request.cluster,request.peer)
-        status,info = self._gossip.peers_control(request.cluster,request.peer,mode=request.mode == ClientPeersControlRequest.UP)
+        status,info = self._gossip.peers_control(request.cluster,request.peer,mode=request.mode)
         return self._wrap_response(status=status,info=info)
 
 

@@ -835,6 +835,15 @@ class BgxTeleBot(Tbot):
             repl = 'Могу контролировать:\n{}.'.format(yaml.dump(topology['Control'], default_flow_style=False)[0:-1])
             self.send_message(minfo.chat_id,repl)
 
+    async def intent_peer_info(self,minfo):
+        LOGGER.debug('BgxTeleBot: intent_peer_info FOR=%s',minfo)                                                                                                    
+        args = self.get_args_from_request(minfo.result.parameters)
+        if 'cluster' in args and 'name' in args:
+            cname,pname = args['cluster'],str(int(args['name']))
+            LOGGER.debug('BgxTeleBot: intent_peer_info FOR=%s.%s',cname,pname)
+            repl = await self._peers_control(cname,pname,ClientPeersControlRequest.INFO)
+            self.send_message(minfo.chat_id,'Состояние узла:{} {} - {}'.format(cname,pname,repl))
+
     async def check_batch_status(self,batch_id,minfo):
         error_traps = [error_handlers.StatusResponseMissing]                             
         validator_query =  client_batch_submit_pb2.ClientBatchStatusRequest(batch_ids=[batch_id])                                                    

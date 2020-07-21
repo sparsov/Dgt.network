@@ -43,6 +43,7 @@ message ClientPeersControlRequest{
     enum Modes {
         UP      = 0;
         DOWN    = 1;
+	INFO    = 2;
 	
     }
     Modes  mode    = 1;

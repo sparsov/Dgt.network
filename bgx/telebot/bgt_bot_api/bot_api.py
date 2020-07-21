@@ -173,6 +173,7 @@ def start_bot_api(host, port, connection, timeout, registry,connects=None,client
     bot.add_intent_handler("smalltalk.agent.peers_down",bot.intent_peers_down)
     bot.add_intent_handler("smalltalk.agent.peers_up",bot.intent_peers_up)
     bot.add_intent_handler("smalltalk.agent.peers_control_list",bot.intent_peers_control_list)
+    bot.add_intent_handler("smalltalk.agent.peer_info",bot.intent_peer_info)
 
     bot.add_intent_handler("smalltalk.agent.pause",bot.intent_pause)
     bot.add_intent_handler("smalltalk.agent.unpause",bot.intent_unpause)
