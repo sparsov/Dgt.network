@@ -839,7 +839,7 @@ class BgxTeleBot(Tbot):
         LOGGER.debug('BgxTeleBot: intent_peer_info FOR=%s',minfo)                                                                                                    
         args = self.get_args_from_request(minfo.result.parameters)
         if 'cluster' in args and 'name' in args:
-            cname,pname = args['cluster'],str(int(args['name']))
+            cname,pname = args['cluster'],args['name']
             LOGGER.debug('BgxTeleBot: intent_peer_info FOR=%s.%s',cname,pname)
             repl = await self._peers_control(cname,pname,ClientPeersControlRequest.INFO)
             self.send_message(minfo.chat_id,'Состояние узла:{} {} - {}'.format(cname,pname,repl))
