@@ -87,7 +87,8 @@ docker-compose -f bgx/docker/docker-compose-net2-bgx-val-pbft.yaml up
 # -c <cluster name> -p <peer name> -k <key peer> -l <json with operation params>
 bgxset topology set -c Genesis -p 16 -o del -l "{'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}" --url http://bgx-api-c1-1:8008
 bgxset topology set -c Genesis -p 16 -o add -l "{'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}" --url http://bgx-api-c1-1:8008
-
+# change leader
+bgxset topology set -o lead -c Bgx2 -p 2 --url http://bgx-api-c1-1:8008
 #########################################
 
 
@@ -135,10 +136,15 @@ export COMPOSE_PROJECT_NAME=53 C=c5 N=3 API=8510 COMP=4507 NET=8503 CONS=5553;do
 export COMPOSE_PROJECT_NAME=61 C=c6 N=1 API=8608 COMP=4604 NET=8601 CONS=5651;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 export COMPOSE_PROJECT_NAME=62 C=c6 N=2 API=8609 COMP=4606 NET=8602 CONS=5652;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
-
+# start node 1 in cluster 1
+bash upCluster.sh -G 1 1 
+# stop node 1 in cluster 1
+bash downCluster.sh -G 1 1
 # telebot
 docker-compose -f bgx/docker/docker-compose-telebot-bgx.yaml up
 # sudo nmap -sT -p- ntr
+# peer ctrl
+peers-crtl -C c1 -N 1 -P "2.1,-G" "2.3,-G" "dyn.1,-G -N net0 -S tcp://validator-bgx-c1-1:8101"
 # from branch to master
 #git checkout -b dag origin/dag 
 #git merge -s ours master

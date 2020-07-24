@@ -1871,6 +1871,13 @@ class PbftEngine(Engine):
             LOGGER.debug("=>ARBITRATION_DONE for block=%s peer=%s branches=%s+%s",block_id[:8],peer_id[:8],self.branches_info,self.peer_branches_info)
             if block_id in self._peers_branches:
                 branch = self._peers_branches[block_id]
+                if block_id in self._arbitration_msgs:
+                    marker = self._arbitration_msgs[block_id]
+                    if isinstance(marker, bool) :
+                        LOGGER.debug("GET ARBITRATION MARKER=%s for block=%s",marker,block_id[:8])
+                        del self._arbitration_msgs[block_id]
+                        self._arbitration_msgs[block_id] = (block,peer_id)
+
                 branch.arbitration_done(block,peer_id)
                 
             
