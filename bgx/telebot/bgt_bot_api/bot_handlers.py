@@ -120,7 +120,7 @@ class Tbot(object):
         self._bot = bot
         keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True,True,True)
         keyboard1.row('Привет', 'Admins','Sticker','Wallet')
-
+        apihelper.delete_webhook(self._token)
         def send_message(chat_id,repl):
             try:                                              
                 if repl != '':                                
