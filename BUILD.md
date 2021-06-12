@@ -1,7 +1,7 @@
 
-![Hyperledger BGX-Sawtooth](bgx/images/logo-bgx.png)
+![Hyperledger DGT-Sawtooth](bgx/images/logo-dgt.png)
 
-Hyperledger BGX-Sawtooth Core Developer's Setup Guide
+Hyperledger DGT-Sawtooth Core Developer's Setup Guide
 =============
 
 If you are planning to contribute code to the BGX-Sawtooth project, please review
