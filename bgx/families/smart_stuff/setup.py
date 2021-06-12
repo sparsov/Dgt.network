@@ -1,4 +1,4 @@
-# Copyright 2020 NTRLab
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ setup(
     version=subprocess.check_output(
         ['../../../bin/get_version']).decode('utf-8').strip(),
     description='DGT stuff Python ',
-    author='NTRLab',
+    author='DGT NETWORK INC © Stanislav Parsov',
     url='https://github.com/hyperledger/sawtooth-core',
     packages=find_packages(),
     install_requires=[
