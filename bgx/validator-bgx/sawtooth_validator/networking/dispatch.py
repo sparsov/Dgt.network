@@ -140,7 +140,7 @@ class Dispatcher(InstrumentedThread):
             if queue_size > 10:
                 LOGGER.debug("Dispatch incoming queue size: %s", queue_size)
         else:
-            LOGGER.info("received a message of type %s from %s but have no handler for that type",get_enum_name(message.message_type),connection_id)
+            LOGGER.info("received a message of type %s(%s) from %s but have no handler for that type",get_enum_name(message.message_type),message.message_type,connection_id)
 
     def add_handler(self, message_type, handler, executor):
         if not isinstance(handler, Handler):

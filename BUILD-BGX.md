@@ -17,6 +17,7 @@ shared state between untrusted parties coordinated by consensus algorithms.
 # sudo usermod -aG docker dgt
 # sudo apt-get install curl
 # sudo curl -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+# curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 # sudo chmod +x /usr/local/bin/docker-compose
 
 To build the requirements to run a validator network, run this command
@@ -155,3 +156,5 @@ peers-crtl -C c1 -N 1 -P "2.1,-G" "2.3,-G" "dyn.1,-G -N net0 -S tcp://validator-
 # composer 
 # sudo curl -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 
+# MALI
+# http://localhost:8008/peers?mode=ok/ma/ma1/ma2

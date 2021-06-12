@@ -1,6 +1,7 @@
 <!DOCTYPE Workspace SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpw.dtd">
 <Workspace Version="10.0" VendorName="SlickEdit">
 	<Projects>
+		<Project File="../../Projects/Evraz2/back-end/back.vpj"/>
 		<Project File="bgt-telebot.vpj"/>
 		<Project File="bgt-tp.vpj"/>
 		<Project File="bgx-api.vpj"/>
@@ -10,9 +11,19 @@
 		<Project File="bgx-setting.vpj"/>
 		<Project File="bgx-validator.vpj"/>
 		<Project File="dashboard.vpj"/>
+		<Project File="../../Projects/Evraz2/evraz-api.vpj"/>
+		<Project File="../../Projects/Evraz/evraz.vpj"/>
+		<Project File="../Lua/lua-secp.vpj"/>
+		<Project File="../../Projects/Hyperledger/Lua/lua-tp.vpj"/>
+		<Project File="../../Projects/Evraz2/model.vpj"/>
+		<Project File="../../Projects/Evraz2/planner.vpj"/>
 		<Project File="protos.vpj"/>
+		<Project File="../../Projects/Evraz2/restapi.vpj"/>
 		<Project File="sdk.vpj"/>
+		<Project File="../../Projects/sio/sio.vpj"/>
 		<Project File="smallbank-go.vpj"/>
 		<Project File="smart-stuff.vpj"/>
+		<Project File="../../Projects/Elactic/new-fp-server/ssdeep.vpj"/>
+		<Project File="../../Projects/Evraz2/tcpsrv.vpj"/>
 	</Projects>
 </Workspace>

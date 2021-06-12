@@ -339,6 +339,7 @@ class _SendReceive(object):
                         (zmq_identity, msg_bytes))
                 else:
                     msg_bytes = yield from self._socket.recv()
+                    #LOGGER.exception("Received a message=%s",msg_bytes)
                     self._last_message_time = time.time()
                     self._dispatcher_queue.put_nowait((None, msg_bytes))
 

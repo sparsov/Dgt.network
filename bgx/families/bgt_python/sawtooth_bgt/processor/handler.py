@@ -55,7 +55,7 @@ class BgtTransactionHandler(TransactionHandler):
         self._signer = crypto_factory.new_signer(self._private_key)
         #self._signer = CryptoFactory(self._context).new_signer(self.private_key)
         LOGGER.debug('_do_set: public_key=%s  ',self._public_key.as_hex())
-        LOGGER.info('BgtTransactionHandler init DONE')
+        LOGGER.info('BgtTransactionHandler init DONE PREF=%s',BGT_ADDRESS_PREFIX)
 
     @property
     def family_name(self):

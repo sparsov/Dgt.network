@@ -33,7 +33,7 @@ class ProcessorRegisterHandler(Handler):
     def handle(self, connection_id, message_content):
         request = processor_pb2.TpRegisterRequest()
         request.ParseFromString(message_content)
-
+        LOGGER.info("RM='%s'",message_content)
         LOGGER.info(
             'registered transaction processor: connection_id=%s, family=%s, version=%s, namespaces=%s',
             connection_id[:8],
@@ -75,7 +75,7 @@ class ProcessorUnRegisterHandler(Handler):
                     "capabilities for connection_id %s", connection_id)
 
         self._collection.remove(processor_identity=connection_id)
-
+        LOGGER.debug('Rest registered processors=%s',self._collection)
         ack = processor_pb2.TpUnregisterResponse()
         ack.status = ack.OK
 
