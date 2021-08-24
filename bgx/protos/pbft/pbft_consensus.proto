@@ -68,6 +68,45 @@ message PbftViewChange {
   // Checkpoint mentioned in info's `seq_num`
   //repeated PbftMessage checkpoint_messages = 2;
 }
+
+// vote of peer
+message PbftSignedVote {
+  // Serialized ConsensusPeerMessage header
+  bytes header_bytes = 1;
+
+  // Signature of the serialized ConsensusPeerMessageHeader
+  bytes header_signature = 2;
+
+  // Serialized PBFT message
+  bytes message_bytes = 3;
+}
+//
+// seal of commited block
+//    Parse the PbftSeal from the bytes in the block's payload field
+//    Check that the block_id field in the seal matches the previous_id field in the block that the node is trying to commit
+//    For each vote, verify that:
+//        It is a Commit message
+//        Its block_id, seq_num, and view fields match those of the PbftSeal
+//        Its header_signature is a valid signature over header using the private key associated with the public key in the header's signer_id field.
+//        The header's content_sha512 is a valid SHA-512 hash of the vote's message_bytes.
+//        The signer was a member of the network at the time the block was voted on (the block was voted on before it was committed, so the list of peers should be taken from the block before the one the seal verifies)
+//        The signer is not the same as the consensus seal's signer (this would be a double-vote)
+//    Check that the consensus seal's signer was a member of the network at the time the block was voted on (the block was voted on before it was committed, so the signer's ID should be in the list of peers that is taken from the block before the one the seal verifies)
+//    Check that all votes are from unique peers
+//    Check that there are a total of 2f votes
+//
+message PbftSeal {
+  // Message information
+  PbftMessageInfo info = 1;
+
+  // ID of the block this seal verifies
+  bytes block_id = 2;
+
+  // A list of Commit votes to prove the block commit (must contain at least
+  // 2f votes)
+  repeated PbftSignedVote commit_votes = 3;
+}
+
 //message ConsensusRegisterResponse {
 //  enum Status {
 //    STATUS_UNSET = 0;

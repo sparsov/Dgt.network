@@ -330,11 +330,14 @@ class BranchState(object):
         self._send_to(peer_id,message,PbftMessageInfo.ARBITRATION_DONE_MSG,block.block_id) 
 
     def broadcast_arbitration_done(self,block):
+        
         # FOR OWN CLUSTER
+        # inform own cluster about arbitration done
         message = self._make_message(block,PbftMessageInfo.ARBITRATION_DONE_MSG)
         self._broadcast2cluster(message, PbftMessageInfo.ARBITRATION_DONE_MSG, block.block_id)
         if self._own_cluster:
-            # FOR RING OF ARBITERS IN CASE FINISHING OWN BLOCK 
+            # I AM LEADER - INFORM RING OF ARBITERS IN CASE FINISHING ARBITRATION OF OWN BLOCK 
+            # AT THIS POINT WE CAN MAKE SEAL OF COMMITING - and include in it own cluster VOTE and ARBITER's VOTE
             self._broadcast2arbiter(message,PbftMessageInfo.ARBITRATION_DONE_MSG,block.block_id)
                     
     def _send_checkpoint(self,block):
@@ -700,7 +703,7 @@ class PbftEngine(Engine):
         self._peers = {}
         self._arbiters = {}
         self._leaders = {} # other cluster leader's - only for arbiter
-        self._peers_branches = {}
+        self._peers_branches = {} # dict with BranchState() indexed by block id
         self._pre_prepare_msgs = {} # for aggregating blocks by summary 
         self._prepare_msgs = {}
         self._commit_msgs = {}
