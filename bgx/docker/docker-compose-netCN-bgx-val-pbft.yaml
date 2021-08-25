@@ -281,13 +281,14 @@ services:
       - ${API}:${API} 
     depends_on:
        - validator-bgx
+    # opentsdb-url-off  -- SWITCH OFF metrics
     command: |
       bash -c "
         cd bgx/rest-api;rm -f /project/peer/logs/bgx-rest-api*.log*;
         bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api -vv --connect tcp://validator-bgx-${C}-${N}:${COMP} --bind bgx-api-${C}-${N}:${API} --opentsdb-url http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
+        bgx-rest-api -vv --connect tcp://validator-bgx-${C}-${N}:${COMP} --bind bgx-api-${C}-${N}:${API} --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGKILL
 

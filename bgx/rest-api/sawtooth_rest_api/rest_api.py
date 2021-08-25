@@ -73,6 +73,11 @@ def parse_args(args):
     parser.add_argument('--opentsdb-url',
                         help='specify host and port for Open TSDB database \
                         used for metrics')
+    parser.add_argument('--opentsdb-url-off',                           
+                        help='Switch off using metrics',                
+                        type=str)                                       
+
+
     parser.add_argument('--opentsdb-db',
                         help='specify name of database for storing metrics')
     parser.add_argument('--opentsdb-username',

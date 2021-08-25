@@ -34,6 +34,8 @@ export SINGLE="N"
 export PCONTROL=""
 export PEERING='static'
 export NETWORK='net0'
+export METRIC='-off'
+
 while [ -n "$1" ]
 do
 case "$1" in
@@ -66,22 +68,22 @@ function upCluster1 {
     echo "START $node"
     case $node in
         1)
-          export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8008 COMP=4104 NET=8101 CONS=5051;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         2)
-          export COMPOSE_PROJECT_NAME=2 G=$GENESIS C=c1 N=2 API=8009 COMP=4106 NET=8102 CONS=5052;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=2 G=$GENESIS C=c1 N=2 API=8109 COMP=4106 NET=8102 CONS=5052;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         3)
-          export COMPOSE_PROJECT_NAME=3 G=$GENESIS C=c1 N=3 API=8010 COMP=4107 NET=8103 CONS=5053;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=3 G=$GENESIS C=c1 N=3 API=8110 COMP=4107 NET=8103 CONS=5053;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         4)
-          export COMPOSE_PROJECT_NAME=4 G=$GENESIS C=c1 N=4 API=8011 COMP=4108 NET=8104 CONS=5054;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=4 G=$GENESIS C=c1 N=4 API=8111 COMP=4108 NET=8104 CONS=5054;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         5)
-          export COMPOSE_PROJECT_NAME=5 G=$GENESIS C=c1 N=5 API=8012 COMP=4109 NET=8105 CONS=5055;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=5 G=$GENESIS C=c1 N=5 API=8112 COMP=4109 NET=8105 CONS=5055;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         6)
-          export COMPOSE_PROJECT_NAME=6 G=$GENESIS C=c1 N=6 API=8013 COMP=4110 NET=8106 CONS=5056;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
+          export COMPOSE_PROJECT_NAME=6 G=$GENESIS C=c1 N=6 API=8113 COMP=4110 NET=8106 CONS=5056;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
         *)
           echo "Undefined peer into cluster."

@@ -158,3 +158,4 @@ peers-crtl -C c1 -N 1 -P "2.1,-G" "2.3,-G" "dyn.1,-G -N net0 -S tcp://validator-
 
 # MALI
 # http://localhost:8008/peers?mode=ok/ma/ma1/ma2
+# NEW CLOUD SERVER ssh -p 7822 dgtca -l root
