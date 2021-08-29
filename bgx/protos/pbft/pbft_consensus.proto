@@ -69,6 +69,17 @@ message PbftViewChange {
   //repeated PbftMessage checkpoint_messages = 2;
 }
 
+// A message sent by the new primary to signify that the new view should be
+// started
+message PbftNewView {
+  // Message information
+  PbftMessageInfo info = 1;
+
+  // A list of ViewChange messages to prove this view change (must contain at
+  // least 2f messages)
+  repeated PbftSignedVote view_changes = 2;
+}
+
 // vote of peer
 message PbftSignedVote {
   // Serialized ConsensusPeerMessage header

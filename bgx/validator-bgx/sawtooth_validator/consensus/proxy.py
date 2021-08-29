@@ -202,6 +202,10 @@ class ConsensusProxy:
             raise UnknownBlock(key_error.args[0])
 
     def commit_block(self, block_id):
+        """
+        for version with seal we should receive consensus seal here
+
+        """
         LOGGER.debug("ConsensusProxy:commit_block %s",block_id.hex()[:8])
         # we can use block manager but we can get this block from _blocks_processing by id
         """

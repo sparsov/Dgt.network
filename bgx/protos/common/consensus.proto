@@ -412,6 +412,7 @@ message ConsensusCheckBlocksResponse {
 // consuming component to learn when the block commits.
 message ConsensusCommitBlockRequest {
   bytes block_id = 1;
+  // this could be consensus SEAL
 }
 
 message ConsensusCommitBlockResponse {

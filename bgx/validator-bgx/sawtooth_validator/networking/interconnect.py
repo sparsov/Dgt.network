@@ -51,6 +51,11 @@ import os
 from urllib.parse import urlparse
 import http.client
 
+ASK_MY_IP1 = "icanhazip.com" 
+ASK_MY_IP_PATH1 = "/" #"/ip"
+ASK_MY_IP = "ifconfig.me" #
+ASK_MY_IP_PATH = "/ip"
+
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=too-many-lines
@@ -714,15 +719,22 @@ class Interconnect(object):
     def set_network_mode(self,public_endpoint):
         self._network = os.environ.get('NETWORK')
         self._single = (os.environ.get('SINGLE') == 'Y')
-        LOGGER.debug("Interconnect:SINGLE=%s NETWORK=%s",self._single,self._network)
-        conn = http.client.HTTPConnection("ifconfig.me")
-        conn.request("GET", "/ip")
-        my_ip = conn.getresponse().read()
-        self._my_ip = my_ip.decode('utf-8')
-        url = urlparse(public_endpoint)
-        self._public_extpoint = "{}://{}:{}".format(url.scheme,self._my_ip,url.port)
+        LOGGER.debug("Interconnect: SINGLE=%s NETWORK=%s",self._single,self._network)
+        conn = http.client.HTTPConnection(ASK_MY_IP,timeout=8)
+        LOGGER.debug(f"Interconnect: REQUEST {ASK_MY_IP}")
+        conn.request("GET", ASK_MY_IP_PATH)
+        #LOGGER.debug(f"Interconnect: GET RESPONSE")
+        res = conn.getresponse()
+        LOGGER.debug(f"Interconnect: {ASK_MY_IP} status={res.status} reason={res.reason}")
+        if res.status == 200:
+            my_ip = res.read()
+            self._my_ip = my_ip.decode('utf-8')
+            url = urlparse(public_endpoint)
+            self._public_extpoint = "{}://{}:{}".format(url.scheme,self._my_ip,url.port)
+        else:
+            self._public_extpoint = public_endpoint
         
-        LOGGER.debug("Interconnect: MY EXTPOINT='%s'\n",self._public_extpoint)
+        LOGGER.debug("Interconnect: MY EXTPOINT='%s' proto_endpoint=%s\n",self._public_extpoint,public_endpoint)
 
     @property
     def validator_id(self):

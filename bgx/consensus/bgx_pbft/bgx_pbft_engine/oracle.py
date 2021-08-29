@@ -202,6 +202,11 @@ class PbftOracle:
     def peer_by_key(self,key):
         return self._fbft.peer_is_exist(key)
 
+    def peer_name_by_key(self,key):
+        pname = self._fbft.get_scope_peer_attr(key)
+        #LOGGER.debug(f'peer_name_by_key={key} peer={pname}')
+        return pname
+
     def get_node_type_by_id(self,vid):
         #tp = self._cluster[vid]['role'] if vid in self._nodes else 'UNDEF' 
         #LOGGER.debug('GET_NODE_TYPE_BY_ID=%s ~ %s',tp,self._fbft.cluster_peer_role_by_key(vid))

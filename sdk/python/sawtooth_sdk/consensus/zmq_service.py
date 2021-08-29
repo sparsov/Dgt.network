@@ -246,6 +246,7 @@ class ZmqService(Service):
                 'Failed with status {}'.format(status))
 
     def commit_block(self, block_id):
+        # place for SEAL
         request = consensus_pb2.ConsensusCommitBlockRequest(block_id=block_id)
 
         response_type = consensus_pb2.ConsensusCommitBlockResponse

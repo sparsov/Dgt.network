@@ -803,7 +803,7 @@ class BlockPublisher(object):
             signer_public_key=public_key)
         block_builder = BlockBuilder(block_header)
         if not consensus.initialize_block(block_builder.block_header):
-            # for proxy consensus waiting until reply fron consensus
+            # for proxy consensus waiting until reply from consensus
             # return reserved block num
             LOGGER.debug("Consensus not ready to build candidate block.")
             self._block_store.pop_block_number(block_num,self._validator_id)

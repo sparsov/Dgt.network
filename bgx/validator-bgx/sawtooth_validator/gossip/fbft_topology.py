@@ -532,6 +532,21 @@ class FbftTopology(object):
                     return peer
         return  None
 
+    def get_scope_peer_attr(self,peer_key,attr=PeerAtr.name):  
+        # get peer which is in scope of visibility for current peer                                                        
+        if self._cluster is None:                                                         
+            return 'Undef'                                                                   
+        if peer_key in self._cluster:                                                     
+            peer = self._cluster[peer_key]                                               
+        elif peer_key in self._arbiters :
+            peer =  self._arbiters[peer_key][2][peer_key]
+        else:                                                                             
+            return 'Undef'                                                       
+        return  peer[attr] if attr in peer else 'Undef'                                                                     
+
+
+
+
     def get_peer_state(self,peer_key,peer=None):
         if peer is None:
             peer = self.get_peer(peer_key)
