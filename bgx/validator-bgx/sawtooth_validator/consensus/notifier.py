@@ -32,10 +32,11 @@ class ConsensusNotifier:
     interconnect service.
     """
 
-    def __init__(self, consensus_service):
+    def __init__(self, consensus_service,signed_consensus=False):
         self._service = consensus_service
         self._registered_engines = ConcurrentSet()
         self._cluster = None
+        self._signed_consensus = signed_consensus
     """
     def set_cluster(self,cluster):
         self._cluster = cluster
@@ -172,12 +173,16 @@ class ConsensusNotifier:
             LOGGER.debug('ConsensusNotifier: CHECK BLOCK for arbitration before send message consensus engine')
         elif message_type == 'ArbitrationDone':
             LOGGER.debug('ConsensusNotifier:  ArbitrationDone send block to arbiters')
+        
+        if self._signed_consensus:
+            notify_peer_msg = consensus_pb2.ConsensusNotifyPeerMessageNew(message=message,sender_id=sender_id)
+        else:
+            notify_peer_msg = consensus_pb2.ConsensusNotifyPeerMessage(message=message,sender_id=sender_id)
 
         self._notify(
-            validator_pb2.Message.CONSENSUS_NOTIFY_PEER_MESSAGE,
-            consensus_pb2.ConsensusNotifyPeerMessage(
-                message=message,
-                sender_id=sender_id))
+                     validator_pb2.Message.CONSENSUS_NOTIFY_PEER_MESSAGE,
+                     notify_peer_msg
+                    )
 
     def notify_block_new(self, block):
         """

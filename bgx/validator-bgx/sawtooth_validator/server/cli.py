@@ -88,6 +88,12 @@ def parse_args(args):
                         action='count',
                         default=0,
                         help='enable more verbose output to stderr')
+    parser.add_argument('-sc', '--signed_consensus',                           
+                        action='count',                              
+                        default=0,                                   
+                        help='enable signed consensus mode') 
+
+
     parser.add_argument('--scheduler',
                         choices=['serial', 'parallel'],
                         help='set scheduler type: serial or parallel')
@@ -222,7 +228,8 @@ def create_validator_config(opts):
         opentsdb_password=opts.opentsdb_password,
         minimum_peer_connectivity=opts.minimum_peer_connectivity,
         maximum_peer_connectivity=opts.maximum_peer_connectivity,
-        max_dag_branch=opts.max_dag_branch
+        max_dag_branch=opts.max_dag_branch,
+        signed_consensus=opts.signed_consensus
     )
 
     
@@ -356,7 +363,7 @@ def main(args=None):
             username=validator_config.opentsdb_username,
             password=validator_config.opentsdb_password)
         metrics_reporter.start()
-
+    LOGGER.info(f"SIGNED {validator_config.signed_consensus} opts={opts.signed_consensus}")
     validator = Validator(
         bind_network,
         bind_component,
@@ -376,7 +383,8 @@ def main(args=None):
         validator_config.network_public_key,
         validator_config.network_private_key,
         roles=validator_config.roles,
-        metrics_registry=wrapped_registry)
+        metrics_registry=wrapped_registry,
+        signed_consensus=validator_config.signed_consensus)
 
     
     # pylint: disable=broad-except

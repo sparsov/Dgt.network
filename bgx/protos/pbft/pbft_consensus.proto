@@ -14,7 +14,7 @@
 // -----------------------------------------------------------------------------
 
 syntax = "proto3";
-
+import "consensus.proto";
 // --== Data Structures ==--
 
 // All information about a block that is relevant to PBFT consensus
@@ -56,8 +56,10 @@ message PbftMessage {
   // message info
   PbftMessageInfo info = 1;
 
+  // depends on PbftMessageType - content could contain : PbftBlockMessage,PbftNewView(VIEWCHANGE_MSG),PbftSeal(ARBITRATION_DONE_MSG)
+  bytes           content = 2;
   // block info 
-  PbftBlockMessage block = 2;
+  //PbftBlockMessage block = 2;
 }
 // PBFT LEADER change message
 message PbftViewChange {
@@ -73,14 +75,15 @@ message PbftViewChange {
 // started
 message PbftNewView {
   // Message information
-  PbftMessageInfo info = 1;
+  //PbftMessageInfo info = 1;
 
   // A list of ViewChange messages to prove this view change (must contain at
   // least 2f messages)
-  repeated PbftSignedVote view_changes = 2;
+  //repeated PbftSignedVote view_changes = 1;
+  repeated ConsensusPeerMessageNew view_changes = 1;
 }
 
-// vote of peer
+// vote of peer - the same ConsensusPeerMessageNew and for COMMIT_MSG and ARBITRATION_MSG use it for assemble SEAL
 message PbftSignedVote {
   // Serialized ConsensusPeerMessage header
   bytes header_bytes = 1;
@@ -106,16 +109,17 @@ message PbftSignedVote {
 //    Check that all votes are from unique peers
 //    Check that there are a total of 2f votes
 //
-message PbftSeal {
+message PbftSeal { // this is message will be PbftMessage.content for PbftMessageType.ARBITRATION_DONE_MSG
   // Message information
-  PbftMessageInfo info = 1;
+  //PbftMessageInfo info = 1;
 
   // ID of the block this seal verifies
-  bytes block_id = 2;
-
+  //bytes block_id = 1;
+  PbftBlockMessage block = 1;
   // A list of Commit votes to prove the block commit (must contain at least
-  // 2f votes)
-  repeated PbftSignedVote commit_votes = 3;
+  // 2f votes) and vote of arbiters 
+  //repeated PbftSignedVote commit_votes = 2;
+  repeated ConsensusPeerMessageNew view_changes = 2;
 }
 
 //message ConsensusRegisterResponse {

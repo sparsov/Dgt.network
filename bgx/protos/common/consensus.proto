@@ -22,10 +22,11 @@ syntax = "proto3";
 message ConsensusPeerMessageHeader {
   // Public key for the component internal to the validator that
   // signed the message
-  bytes signer_id = 1;
-
-  // The sha512 hash of the encoded message
-  bytes content_sha512 = 2;
+  // bytes signer_id = 1;
+  string signer_id = 1;
+  // The sha512 hash of the encoded ConsensusPeerMessageNew.content
+  //bytes content_sha512 = 2;
+  string content_sha512 = 2;
   // Interpretation is left to the consensus engine implementation
   string message_type = 5;
 
@@ -33,13 +34,15 @@ message ConsensusPeerMessageHeader {
   string name = 3;
   string version = 4;
 }
-// New version
+// New version of ConsensusPeerMessage is eq PbftSignedVote it means that usual commit message automatically became PbftSignedVote
 message ConsensusPeerMessageNew {
   // The serialized version of the ConsensusPeerMessageHeader
   bytes header = 1;
 
   // The signature derived from signing the header
-  bytes header_signature = 3;
+  // this signature gives possibility to check who really sent this message
+  //bytes header_signature = 3;
+  string header_signature = 3;
 
   // The opaque payload to send to other nodes
   bytes content = 2;
@@ -161,6 +164,10 @@ message ConsensusNotifyPeerMessage {
   ConsensusPeerMessage message = 1;
   bytes sender_id = 2;
 }
+message ConsensusNotifyPeerMessageNew {
+  ConsensusPeerMessageNew message = 1;
+  bytes sender_id = 2;
+}
 
 // - Blocks -
 
@@ -219,7 +226,8 @@ message ConsensusNotifyAck {}
 
 // Send a consensus message to a specific, connected peer
 message ConsensusSendToRequest {
-  ConsensusPeerMessage message = 1;
+  //ConsensusPeerMessage message = 1;
+  bytes                 message = 1;
   bytes peer_id = 2;
 }
 
@@ -238,17 +246,20 @@ message ConsensusSendToResponse {
 
 // Broadcast a consensus message to all peers
 message ConsensusBroadcastRequest {
-  ConsensusPeerMessage message = 1;
+  //ConsensusPeerMessage message = 1;
+  bytes                 message = 1;
 }
 
 // Broadcast a consensus message to all cluster
 message ConsensusBroadcastClusterRequest {
-  ConsensusPeerMessage message = 1;
+  //ConsensusPeerMessage message = 1;
+  bytes                 message = 1;
 }
 
 // Broadcast a consensus message to all arbiters
 message ConsensusBroadcastArbiterRequest {
-  ConsensusPeerMessage message = 1;
+  //ConsensusPeerMessage message = 1;
+  bytes                message = 1;
 }
 
 message ConsensusBroadcastResponse {

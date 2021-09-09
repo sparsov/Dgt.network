@@ -19,8 +19,8 @@ from collections import namedtuple
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.journal.block_wrapper import BlockStatus
-from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessage
-from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
+from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessage,ConsensusPeerMessageNew,ConsensusPeerMessageHeader
+from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftSeal
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class ConsensusProxy:
     to the appropriate components.
     """
 
-    def __init__(self, block_manager, block_publisher,chain_controller, gossip, identity_signer,settings_view_factory, state_view_factory):
+    def __init__(self, block_manager, block_publisher,chain_controller, gossip, identity_signer,settings_view_factory, state_view_factory,signed_consensus=False):
 
         self._block_manager = block_manager
         self._chain_controller = chain_controller
@@ -53,6 +53,9 @@ class ConsensusProxy:
         self._public_key = self._identity_signer.get_public_key().as_bytes()
         self._settings_view_factory = settings_view_factory
         self._state_view_factory = state_view_factory
+        self._signed_consensus = signed_consensus
+        if self._signed_consensus:
+            LOGGER.debug("ConsensusProxy: SIGNED CONSENSUS MODE")
 
     def register(self):
         """
@@ -76,6 +79,32 @@ class ConsensusProxy:
     def is_recovery(self):
         return self._chain_controller.is_recovery
 
+    def unpack_consensus_peer_message(self,message):
+        if self._signed_consensus:
+            # signed message
+            peer_message = ConsensusPeerMessageNew()
+            peer_message.ParseFromString(message)
+            header = ConsensusPeerMessageHeader()
+            header.ParseFromString(peer_message.header)
+            return header.name,header.message_type,peer_message.content
+
+        peer_message = ConsensusPeerMessage()
+        peer_message.ParseFromString(message)
+        return peer_message.name,peer_message.message_type,peer_message.content
+
+    def unpack_pbft_message(self,content):
+        payload = PbftMessage()                   
+        payload.ParseFromString(content) 
+        if payload.info.msg_type == PbftMessageInfo.ARBITRATION_DONE_MSG :
+            seal = PbftSeal()
+            seal.ParseFromString(payload.content)   
+            block = seal.block
+        else:
+            block = PbftBlockMessage()                
+            block.ParseFromString(payload.content)    
+        return block
+
+
     # Using network service
     def send_to(self, peer_id, message):
         """
@@ -84,17 +113,17 @@ class ConsensusProxy:
         we can see on this code as expanded consensus API
         """
         #LOGGER.debug("ConsensusProxy:send_to peer=%s message=%s",peer_id.hex()[:8],message)
-        peer_message = ConsensusPeerMessage()
-        peer_message.ParseFromString(message)
+        name,message_type,content = self.unpack_consensus_peer_message(message)
+        #peer_message = ConsensusPeerMessage()
+        #peer_message.ParseFromString(message)
         LOGGER.debug("ConsensusProxy:send_to peer=%s",peer_id.hex()[:8])
-        if peer_message.message_type == 'ArbitrationDone':
+        if message_type == 'ArbitrationDone':
             """
             inform peer about this block
             """
-            payload = PbftMessage()
-            payload.ParseFromString(peer_message.content)
-            block_id = payload.block.block_id.hex()
-            LOGGER.debug("Consensus '%s' ask %s from peer=%s for block=%s",peer_message.name,peer_message.message_type,peer_id.hex()[:8],block_id[:8])
+            block = self.unpack_pbft_message(content)
+            block_id = block.block_id.hex()
+            LOGGER.debug("Consensus '%s' ask %s from peer=%s for block=%s",name,message_type,peer_id.hex()[:8],block_id[:8])
             
 
         self._gossip.send_consensus_message(
@@ -108,16 +137,17 @@ class ConsensusProxy:
             public_key=self._public_key)
 
     def broadcast2arbiter(self,message):
-        peer_message = ConsensusPeerMessage()
-        peer_message.ParseFromString(message)
+        #peer_message = ConsensusPeerMessage()
+        #peer_message.ParseFromString(message)
+        name,message_type,content = self.unpack_consensus_peer_message(message)
         """
         inform peer about this block
         """
-        payload = PbftMessage()
-        payload.ParseFromString(peer_message.content)
-        block_id = payload.block.block_id.hex()
-        LOGGER.debug("broadcast2arbiter '%s' ask %s from arbiters for block=%s",peer_message.name,peer_message.message_type,block_id[:8])
-        if peer_message.message_type == 'Arbitration' : 
+
+        block = self.unpack_pbft_message(content)
+        block_id = block.block_id.hex()
+        LOGGER.debug("broadcast2arbiter '%s' ask %s from arbiters for block=%s",name,message_type,block_id[:8])
+        if message_type == 'Arbitration' : 
             try:
                 block = next(self._block_manager.get([block_id]))
                 LOGGER.debug("ARBITRATION:contains in block manager ID=%s",block.header_signature[:8])
@@ -131,13 +161,13 @@ class ConsensusProxy:
 
     def broadcast2cluster(self,message):
         # ARBITER DONE = send to cluster
-        peer_message = ConsensusPeerMessage()
-        peer_message.ParseFromString(message)
-        payload = PbftMessage()
-        payload.ParseFromString(peer_message.content)
-        block_id = payload.block.block_id.hex()
-        LOGGER.debug("broadcast2cluster '%s' ask %s from arbiters for block=%s",peer_message.name,peer_message.message_type,block_id[:8])
-        if peer_message.message_type == 'ArbitrationDone' :
+        name,message_type,content = self.unpack_consensus_peer_message(message)
+        #peer_message = ConsensusPeerMessage()
+        #peer_message.ParseFromString(message)
+        block = self.unpack_pbft_message(content)
+        block_id = block.block_id.hex()
+        LOGGER.debug("broadcast2cluster '%s' ask %s from arbiters for block=%s",name,message_type,block_id[:8])
+        if message_type == 'ArbitrationDone' :
             try:
                 block = next(self._block_manager.get([block_id]))
                 LOGGER.debug("ARBITRATION DONE: SEND BLOCK=%s TO OWN CLUSTER",block.header_signature[:8])

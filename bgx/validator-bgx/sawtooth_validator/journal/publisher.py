@@ -1102,6 +1102,7 @@ class BlockPublisher(object):
                                 mark try because consensus engine will switch branch on new head too
                                 and use the same color
                                 """
+                                # FIXME candidate could be undef
                                 self._engine_ask_candidate[chain_head.identifier] = (True,candidate.nest_colour) 
                                 break
                     # update head for DAG branch

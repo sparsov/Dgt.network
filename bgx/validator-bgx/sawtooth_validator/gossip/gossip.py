@@ -649,8 +649,10 @@ class Gossip(object):
             """
             if self.is_arbiter and not self.is_genesis_peer and is_own_peer and public_key != self.validator_id:
                 pinfo = self._fbft.cluster[public_key]
-                self.notify_dashboard(public_key,assemble,pinfo[PeerAtr.network])
-                
+                try:
+                    self.notify_dashboard(public_key,assemble,pinfo[PeerAtr.network])
+                except Exception as ex:
+                    LOGGER.debug("notify_dashboard except(%s)", ex)
 
             LOGGER.debug("Inform engine ADD peer=%s assemble=%s mode=%s is_arbiter=%s",public_key[:8],assemble,mode,is_arbiter)
             self._consensus_notifier.notify_peer_connected(public_key,assemble,mode)

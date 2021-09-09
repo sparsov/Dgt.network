@@ -242,7 +242,7 @@ services:
         bgxadm node ${C} bgx${N};bgxadm keygen;ls -l /project/peer;
         if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/validator*.log* /project/peer/logs/interc*.log* ;
         bgx keygen my_key;
-        echo 'GATEWAY=${SEEDS},PEERING=${PEERING},NETWORK=${NETWORK}'
+        echo 'GATEWAY=${SEEDS},PEERING=${PEERING},NETWORK=${NETWORK},SIGNED=${SIGNED}'
         bgxset proposal create -k /project/peer/keys/validator.priv -o dgtset.batch $$(cat /project/peer/etc/dgt.conf)
         bgxset genesis -k /project/peer/keys/validator.priv -A $$(cat /project/${BGX_TOP}/clusters/c1/bgx1/keys/validator.pub) -A $$(cat /project/peer/keys/validator.pub)
         if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
@@ -251,7 +251,7 @@ services:
             --bind component:tcp://eth0:${COMP} \
             --bind network:tcp://eth0:${NET} \
             --bind consensus:tcp://eth0:${CONS} \
-            --max_dag_branch 6 --scheduler parallel --peering ${PEERING} ${SEEDS} --maximum-peer-connectivity 70 \
+            --max_dag_branch 6 --scheduler parallel ${SIGNED} --peering ${PEERING} ${SEEDS} --maximum-peer-connectivity 70 \
             --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGTERM
@@ -321,7 +321,7 @@ services:
         bgxadm node ${C} bgx${N}
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-pbft -vv --connect tcp://validator-bgx-${C}-${N}:${CONS} --component tcp://validator-bgx-${C}-${N}:${COMP}
+        bgx-pbft -vv ${SIGNED} --connect tcp://validator-bgx-${C}-${N}:${CONS} --component tcp://validator-bgx-${C}-${N}:${COMP}
       "
     stop_signal: SIGKILL
 

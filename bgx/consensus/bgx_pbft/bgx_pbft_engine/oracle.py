@@ -78,14 +78,16 @@ class PbftOracle:
     """
     CONSENSUS_MSG = ['PrePrepare','Prepare','Commit','CheckPoint']
 
-    def __init__(self, service, component_endpoint,config_dir, data_dir, key_dir,peering_mode):
+    def __init__(self, service, component_endpoint,config_dir, data_dir, key_dir,peering_mode,signed_consensus=False):
         
         self._peering_mode = peering_mode
         self._config_dir = config_dir
         self._data_dir = data_dir
         self._service = service
-        LOGGER.debug('Stream key_dir=%s',key_dir)
+        LOGGER.debug(f'Stream key_dir={key_dir} SIGNED={signed_consensus}')
         self._signer = _load_identity_signer(key_dir, 'validator')
+        if signed_consensus:
+            self._service.set_signer(self._signer)
         #self._setting_signer = _load_identity_signer('/root/.dgt/keys', 'my_key')
         self._validator_id = self._signer.get_public_key().as_hex()
 
@@ -111,6 +113,9 @@ class PbftOracle:
         #sid = self.get_validator_id().encode()
         #sidd = sid.decode()
         #LOGGER.debug('PbftOracle:: _validator_id %s %s..%s',sid,sidd[:8],sidd[-8:])
+    def get_signer(self):
+        return self._signer
+
     def get_topology(self,cluster=None):
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
         self._fbft = FbftTopology()

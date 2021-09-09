@@ -84,7 +84,8 @@ class Validator(object):
                  network_public_key=None,
                  network_private_key=None,
                  roles=None,
-                 metrics_registry=None):
+                 metrics_registry=None,
+                 signed_consensus=False):
         """Constructs a validator instance.
 
         Args:
@@ -112,6 +113,8 @@ class Validator(object):
         """
 
         # -- Setup Global State Database and Factory -- #
+        if signed_consensus:
+            LOGGER.debug('SIGNED CONSENSUS MODE')
         global_state_db_filename = os.path.join(
             data_dir, 'merkle-{}.lmdb'.format(bind_network[-2:]))
         LOGGER.debug('global state database file is %s', global_state_db_filename)
@@ -233,7 +236,7 @@ class Validator(object):
             monitor=True,
             max_future_callback_workers=10)
 
-        consensus_notifier = ConsensusNotifier(consensus_service)
+        consensus_notifier = ConsensusNotifier(consensus_service,signed_consensus=signed_consensus)
 
         # -- Setup P2P Networking -- #
         gossip = Gossip(
@@ -358,7 +361,7 @@ class Validator(object):
             network_dispatcher, network_service, gossip, completer,
             responder, network_thread_pool, sig_pool,
             chain_controller.has_block, block_publisher.has_batch,
-            permission_verifier, block_publisher, consensus_notifier)
+            permission_verifier, block_publisher, consensus_notifier,signed_consensus=signed_consensus)
 
         component_handlers.add(
             component_dispatcher, gossip, context_manager, executor, completer,
@@ -384,7 +387,8 @@ class Validator(object):
             gossip=gossip,
             identity_signer=identity_signer,
             settings_view_factory=SettingsViewFactory(state_view_factory),
-            state_view_factory=state_view_factory)
+            state_view_factory=state_view_factory,
+            signed_consensus=signed_consensus)
 
         consensus_handlers.add(
             consensus_dispatcher,

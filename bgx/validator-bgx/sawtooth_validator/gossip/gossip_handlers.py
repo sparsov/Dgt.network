@@ -20,7 +20,7 @@ from sawtooth_validator.networking.dispatch import HandlerStatus
 from sawtooth_validator.protobuf import validator_pb2
 from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.block_pb2 import Block
-from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessage
+from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessage,ConsensusPeerMessageNew,ConsensusPeerMessageHeader
 from sawtooth_validator.protobuf.network_pb2 import GossipMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipConsensusMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipBlockResponse
@@ -340,19 +340,28 @@ class GossipBroadcastHandler(Handler):
 
 
 class GossipConsensusMessageHandler(Handler):
-    def __init__(self, notifier):
+    def __init__(self, notifier,signed_consensus=False):
         self._notifier = notifier
+        self._signed_consensus = signed_consensus
 
     def handle(self, connection_id, message_content):
         gossip_message = GossipConsensusMessage()
         gossip_message.ParseFromString(message_content)
+        if self._signed_consensus:
+            # signed message we can check here is sign  right or not
+            peer_message = ConsensusPeerMessageNew()
+            peer_message.ParseFromString(gossip_message.message)
+            header = ConsensusPeerMessageHeader()
+            header.ParseFromString(peer_message.header)
+            message_type = header.message_type
+        else:
+            peer_message = ConsensusPeerMessage()
+            peer_message.ParseFromString(gossip_message.message)
+            message_type = peer_message.message_type
 
-        peer_message = ConsensusPeerMessage()
-        peer_message.ParseFromString(gossip_message.message)
-
-        #LOGGER.debug("GossipConsensusMessageHandler:peer_message type=%s peer=%s",peer_message.message_type,gossip_message.sender_id)
+        LOGGER.debug("GossipConsensusMessageHandler:peer_message '%s' peer=%s",message_type,gossip_message.sender_id)
         self._notifier.notify_peer_message(
             message=peer_message,
             sender_id=gossip_message.sender_id,
-            message_type = peer_message.message_type)
+            message_type = message_type)
         return HandlerResult(status=HandlerStatus.PASS)

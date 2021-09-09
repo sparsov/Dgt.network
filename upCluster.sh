@@ -35,12 +35,14 @@ export PCONTROL=""
 export PEERING='static'
 export NETWORK='net0'
 export METRIC='-off'
-
+export SIGNED=""
+export SIGNED_="--signed_consensus"
 while [ -n "$1" ]
 do
 case "$1" in
 -G) GENESIS="Y";echo "Genesis mode." ;;
 -E) export SINGLE="Y";echo "External mode." ;;
+-SC) export SIGNED="--signed_consensus";echo "Signed consensus." ;;
 -C) shift;export PCONTROL=$1;echo "Peers control mode." ;;
 -S) echo "Dynamic mode." 
 shift;export PEERING='dynamic';export SEEDS="--seeds $1";echo "--seed $1"

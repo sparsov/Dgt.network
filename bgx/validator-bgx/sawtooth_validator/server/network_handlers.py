@@ -64,7 +64,8 @@ def add(
         has_batch,
         permission_verifier,
         block_publisher,
-        consensus_notifier
+        consensus_notifier,
+        signed_consensus=False
 ):
 
     # -- Basic Networking -- #
@@ -343,8 +344,15 @@ def add(
         thread_pool)
 
     # GOSSIP_CONSENSUS_MESSAGE
+    if signed_consensus :
+        dispatcher.add_handler(                                               
+            validator_pb2.Message.GOSSIP_CONSENSUS_MESSAGE,                             
+            signature_verifier.GossipConsensusMessageSignatureVerifier(),              
+            sig_pool)                                                         
+
+
     dispatcher.add_handler(
         validator_pb2.Message.GOSSIP_CONSENSUS_MESSAGE,
-        GossipConsensusMessageHandler(consensus_notifier),
+        GossipConsensusMessageHandler(consensus_notifier,signed_consensus=signed_consensus),
         thread_pool)
 

@@ -29,6 +29,8 @@ from sawtooth_validator.protobuf.batch_pb2 import Batch,BatchList
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.network_pb2 import GossipMessage
+from sawtooth_validator.protobuf.consensus_pb2 import ConsensusPeerMessageNew,ConsensusPeerMessageHeader
+from sawtooth_validator.protobuf.network_pb2 import GossipConsensusMessage
 from sawtooth_validator.protobuf.network_pb2 import GossipBlockResponse
 from sawtooth_validator.protobuf.network_pb2 import GossipBatchResponse
 from sawtooth_validator.networking.dispatch import HandlerResult
@@ -111,6 +113,26 @@ def is_valid_transaction(txn):
         return False
 
     return True
+
+
+def is_valid_consensus_msg(msg):                                                                                        
+    # validate consensus message header signature                                                                                    
+    header = ConsensusPeerMessageHeader()         
+    header.ParseFromString(msg.header)  
+                                                                                                                 
+    context = create_context('secp256k1')                                                                         
+    public_key = Secp256k1PublicKey.from_hex(header.signer_id)                                            
+    if not context.verify(msg.header_signature,                                                                 
+                          msg.header,                                                                           
+                          public_key):                                                                            
+        LOGGER.info(f"Consensus msg '{header.message_type}' failed signature validation: {msg.header_signature}")                              
+        return False                                                                                              
+    LOGGER.debug(f"GossipConsensusMessageSignatureVerifier: message '{header.message_type}' OK.")                                                                                                             
+    return True                                                                                                   
+
+
+
+
 
 
 class GossipMessageSignatureVerifier(Handler):
@@ -230,3 +252,21 @@ class BatchListSignatureVerifier(Handler):
             return make_response(response_proto.INVALID_BATCH)
 
         return HandlerResult(status=HandlerStatus.PASS)
+
+
+
+class GossipConsensusMessageSignatureVerifier(Handler):
+    def __init__(self):                                                                                                                                                 
+        LOGGER.debug("GossipConsensusMessageSignatureVerifier:init ...")                                                                                                                                 
+                                                                                                                                                                        
+    def handle(self, connection_id, message_content): 
+        # check consensus message
+        gossip_message = GossipConsensusMessage()                         
+        gossip_message.ParseFromString(message_content)                   
+        peer_message = ConsensusPeerMessageNew()                      
+        peer_message.ParseFromString(gossip_message.message) 
+        if not is_valid_consensus_msg(peer_message):
+            # should drop the message if it does not have a valid sign                                                                                              
+            return HandlerResult(status=HandlerStatus.DROP)
+
+        return HandlerResult(status=HandlerStatus.PASS)                                                                                                                 

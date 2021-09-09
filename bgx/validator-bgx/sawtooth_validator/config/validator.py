@@ -140,7 +140,7 @@ def merge_validator_config(configs):
     minimum_peer_connectivity = None
     maximum_peer_connectivity = None
     max_dag_branch = 3
-
+    signed_consensus = 0
     for config in reversed(configs):
         if config.bind_network is not None:
             bind_network = config.bind_network
@@ -180,6 +180,8 @@ def merge_validator_config(configs):
             maximum_peer_connectivity = config.maximum_peer_connectivity
         if config.max_dag_branch is not None:
             max_dag_branch = config.max_dag_branch
+        if config.signed_consensus > 0:
+            signed_consensus = config.signed_consensus
 
     return ValidatorConfig(
         bind_network=bind_network,
@@ -200,7 +202,8 @@ def merge_validator_config(configs):
         opentsdb_password=opentsdb_password,
         minimum_peer_connectivity=minimum_peer_connectivity,
         maximum_peer_connectivity=maximum_peer_connectivity,
-        max_dag_branch=max_dag_branch)
+        max_dag_branch=max_dag_branch,
+        signed_consensus=signed_consensus)
 
 
 def parse_permissions(permissions):
@@ -250,7 +253,8 @@ class ValidatorConfig:
                  opentsdb_username=None, opentsdb_password=None,
                  minimum_peer_connectivity=None,
                  maximum_peer_connectivity=None,
-                 max_dag_branch=None):
+                 max_dag_branch=None,
+                 signed_consensus=0):
 
         self._bind_network = bind_network
         self._bind_component = bind_component
@@ -271,11 +275,14 @@ class ValidatorConfig:
         self._minimum_peer_connectivity = minimum_peer_connectivity
         self._maximum_peer_connectivity = maximum_peer_connectivity
         self._max_dag_branch = max_dag_branch
+        self._signed_consensus = signed_consensus
 
     @property
     def bind_network(self):
         return self._bind_network
-
+    @property
+    def signed_consensus(self):
+        return self._signed_consensus > 0
     @property
     def bind_component(self):
         return self._bind_component

@@ -55,6 +55,13 @@ def parse_args(args):
                         action='count',
                         default=0,
                         help='Increase output sent to stderr')
+    parser.add_argument('-sc', '--signed_consensus',                  
+                        action='count',                               
+                        default=0,                                    
+                        help='enable signed consensus mode')          
+
+
+
 
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
@@ -115,7 +122,8 @@ def main(args=None):
             PbftEngine(
                 path_config=path_config,
                 component_endpoint=opts.component,
-                pbft_config=pbft_config))
+                pbft_config=pbft_config,
+                signed_consensus=opts.signed_consensus>0))
         LOGGER.debug('Start driver=%s endpoint=%s component=%s',driver,opts.connect,opts.component)
         attemps = 0
         while attemps < MAX_CONNECT_ATTEMPTS:

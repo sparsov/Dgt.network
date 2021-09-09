@@ -165,7 +165,7 @@ class ConsensusSendToHandler(ConsensusServiceHandler):
         try:
             self._proxy.send_to(
                 request.peer_id,
-                request.message.SerializeToString())
+                request.message)
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusSendTo")
             response.status = consensus_pb2.ConsensusSendToResponse.SERVICE_ERROR
@@ -184,7 +184,7 @@ class ConsensusBroadcastHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             LOGGER.debug('ConsensusBroadcastHandler: proxy.broadcast')
-            self._proxy.broadcast(request.message.SerializeToString())
+            self._proxy.broadcast(request.message) #.SerializeToString())
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusBroadcast")
             response.status =\
@@ -204,7 +204,7 @@ class ConsensusBroadcastArbiterHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             LOGGER.debug('ConsensusBroadcastArbiterHandler: proxy.broadcast2arbiter')
-            self._proxy.broadcast2arbiter(request.message.SerializeToString())
+            self._proxy.broadcast2arbiter(request.message) #.SerializeToString())
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusBroadcast arbiter")
             response.status = consensus_pb2.ConsensusBroadcastArbiterResponse.SERVICE_ERROR
@@ -223,7 +223,7 @@ class ConsensusBroadcastClusterHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             LOGGER.debug('ConsensusBroadcastClusterHandler: proxy.broadcast2cluster')
-            self._proxy.broadcast2cluster(request.message.SerializeToString())
+            self._proxy.broadcast2cluster(request.message)#.SerializeToString())
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusBroadcast cluster")
             response.status = consensus_pb2.ConsensusBroadcastClusterResponse.SERVICE_ERROR
