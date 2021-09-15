@@ -23,9 +23,12 @@ from sawtooth_sdk.consensus.engine import Engine
 from sawtooth_sdk.consensus import exceptions
 from sawtooth_sdk.protobuf.validator_pb2 import Message
 from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
+from sawtooth_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
 from bgx_pbft_engine.oracle import PbftOracle, PbftBlock,_StateViewFactoryProxy
 from bgx_pbft_engine.pending import PendingForks
-from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+#from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+#from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+#from sawtooth_validator.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
 from bgx_pbft.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
 from bgx_pbft_common.utils import _short_id
 from enum import IntEnum,Enum
@@ -183,6 +186,10 @@ class BranchState(object):
     def stime(self):
         return self._stime
 
+    @property
+    def signer_id(self):
+        return bytes.fromhex(self.validator_id)
+
     def pkey2nm(self,key):
         return self._engine.pkey2nm(key)
 
@@ -200,6 +207,26 @@ class BranchState(object):
             parent_id = self._freeze_block.previous_block_id
             self._freeze_block = None
         return block_id,parent_id
+
+    def make_own_vote(self,block):
+        commit = self._make_message(block,PbftMessageInfo.COMMIT_MSG)  
+        vote = self._service.make_consensus_peer_message(CONSENSUS_MSG[PbftMessageInfo.COMMIT_MSG], commit.SerializeToString())
+        return vote
+
+
+
+    def send_genesis_seal(self):
+        LOGGER.debug(f'SEND GENESIS SEAL FOR FIRST BLOCK={self.block_num} signer={self.signer_id}\n')
+        block = PbftBlockMessage(                    
+                    block_id  = bytes.fromhex(self._head_id),  
+                    signer_id = self.signer_id, 
+                    block_num = self.block_num, 
+                    summary   = b''   
+                )  
+                                 
+        seal = self._make_pbft_seal(block)
+        LOGGER.debug(f'SEND GENESIS SEAL={seal} FOR FIRST BLOCK\n')                                         
+        self._service.commit_block(bytes.fromhex(self._head_id),seal=seal)
 
     def _broadcast(self,payload,msg_type,block_id):
         """
@@ -272,10 +299,13 @@ class BranchState(object):
                     block_num = block.block_num,       
                     summary   = block.summary          
             )   
-        votes = [commit[1] for commit in commit_msgs.values()]                                       
+        votes = [commit[1] for commit in commit_msgs.values()]  
+        vote =  self.make_own_vote(content)
+        votes.append(vote)
+        LOGGER.debug(f"MAKE SEAL WITH {len(votes)} VOTES FOR BLOCK NUM={block.block_num}")                                     
         seal = PbftSeal(
                 block = content,
-                commit_votes = [] # votes
+                commit_votes = votes
                )
 
 
@@ -514,13 +544,13 @@ class BranchState(object):
             LOGGER.warning("cancel_block:  InvalidState\n")
             pass
     
-    def commit_block(self, block_id):
+    def commit_block(self, block_id,seal = None):
         """
         say validator that we can do commit AND SEND SEAL
         """
-        LOGGER.warning("commit_block: block_id=%s\n",_short_id(block_id.hex()))
+        LOGGER.warning("commit_block: block_id=%s seal=%s\n",_short_id(block_id.hex()),type(seal))
         self._already_send_commit =True
-        self._service.commit_block(block_id)
+        self._service.commit_block(block_id,seal=seal)
 
     def ignore_block(self, block_id):
         # send in case fork was not resolved
@@ -590,7 +620,9 @@ class BranchState(object):
                     self._wait_arbitration_done(block_id)
                     
                 else:
+                    # TODO take as seal consensus from chain_head
                     LOGGER.info('Committing block=%s for BRANCH=%s', _short_id(block_id),self._head_id[:8])
+
                     self.commit_block(block.block_id)
                     self._committing = True
                     return Consensus.done
@@ -640,8 +672,10 @@ class BranchState(object):
                         LOGGER.info('arbitration: broadcast ARBITRATION DONE for own cluster block=%s ???', self.block_num)
                         seal = self._make_pbft_seal(block,self._commit_msgs)
                         self.broadcast_arbitration_done(block,seal) # + SEAL
+                    else:
+                        seal = None
                     self._state = State.Finished
-                    self.commit_block(block.block_id)
+                    self.commit_block(block.block_id,seal)
                 else:
                     # As leader ask arbiter's ring
                     # as plink waiting arbitration done from leader
@@ -701,7 +735,8 @@ class BranchState(object):
             """                                                                                                                                                    
              for own block we have answer from all arbiter and can make commit for this block                                                                      
              in case of external cluster block - we have message from cluster which is owner of block and arbiter inform other cluster                             
-            """                                                                                                                                                    
+            """   
+            seal = None                                                                                                                                                 
             if (self._own_cluster_blk and self.is_leader) :                                                     
                 # AS Leader send ARB DONE for peers of cluster  
                 # MAKE SEAL with vote of own cluster and send it                                                                                                    
@@ -709,8 +744,8 @@ class BranchState(object):
                 seal = self._make_pbft_seal(block,self._commit_msgs)                                             
                 self.broadcast_arbitration_done(block,seal)  # + SEAL [commit + arbitration]                                                                                                           
                                                                                                                                                                    
-            LOGGER.info('arbitration_done: for block=%s state=%s', self.block_num,self._state)                                                                     
-            self.commit_block(block.block_id)                                                                                                                      
+            LOGGER.info('arbitration_done: for block=%s state=%s ', self.block_num,self._state)                                                                     
+            self.commit_block(block.block_id,seal)                                                                                                                      
         
 
 
@@ -733,11 +768,11 @@ class BranchState(object):
             """
             if (self.is_arbiter and not self._own_cluster_blk) :
                 # AS ARBITER send ARB DONE for peers of cluster 
-                LOGGER.info(f'arbitration_done: broadcast ARBITRATION DONE for own cluster block={self.block_num} seal={seal}')
+                LOGGER.info(f'arbitration_done: As ARBITER broadcast ARBITRATION DONE for own cluster block={self.block_num} seal={seal}')
                 self.broadcast_arbitration_done(block,seal) # + SEAL 
 
             LOGGER.info('arbitration_done: for block=%s state=%s', self.block_num,self._state)
-            self.commit_block(block.block_id)
+            self.commit_block(block.block_id,seal)
         else:
             # already was commited - this is dup message
             LOGGER.info('arbitration_done: for block=%s (%s) arbiters reply state=%s - dup message', self.block_num,self._num_arbiters,self._state)
@@ -929,6 +964,7 @@ class PbftEngine(Engine):
         color = self._nest_color.pop()
         LOGGER.debug('NEST COLOR=%s',color) 
         return color
+
     @property
     def genesis_id(self):
         return self._chain_head.block_id if self._chain_head else None
@@ -941,6 +977,10 @@ class PbftEngine(Engine):
     def is_dynamic_mode(self):
         return self._peering_mode == 'dynamic'
 
+    @property
+    def is_genesis_node(self):
+        return self._genesis_node == self.validator_id
+
     def pkey2nm(self,key):
         return self._oracle.peer_name_by_key(key)
 
@@ -949,10 +989,10 @@ class PbftEngine(Engine):
 
     def init_dag_nests(self):
         """
-        genesis node make nests
+        genesis peer make nests
         """
         i,num = 0,self._oracle.max_branch*(CHAIN_LEN_FOR_NESTING+1) #len(self.arbiters)*2 # CHAIN_LEN_FOR_BRANCH
-        LOGGER.debug('init_dag_nests num=%s',num)
+        LOGGER.debug('INIT DAG NESTS num=%s - ONLY GENESIS PEER',num)
         while i < num:
             self._oracle.make_nest_step(i) #self._chain_head.signer_public_key)
             i += 1
@@ -1019,18 +1059,26 @@ class PbftEngine(Engine):
             # head was updated or not commited yet
             LOGGER.debug('PbftEngine: CANT GET CHAIN HEAD for=%s',branch.hex()[:8] if branch is not None else None)
             return False
-        LOGGER.debug('PbftEngine: _initialize_block ID=%s chain_head=(%s)',_short_id(chain_head.block_id.hex()),chain_head)
+        # have got chain head block
+        bid = branch.hex() if branch is not None else chain_head.block_id.hex()
+        parent = chain_head.previous_block_id     
+        block_num = chain_head.block_num          
+        LOGGER.debug('_initialize_block ID=%s chain_head=(%s)',_short_id(bid),chain_head)
+        
         #initialize = True #self._oracle.initialize_block(chain_head)
-
-        #if initialize:
+        if branch is None and self.is_genesis_node and self._genesis_mode and self.signed_consensus:
+            # for genesis node - send seal for first block 
+            genesis_branch = self.create_branch(bid,parent,block_num)
+            self.send_genesis_seal(genesis_branch)
+        else:
+            genesis_branch = None
+        
         try:
-            bid = branch.hex() if branch is not None else chain_head.block_id.hex()
+            # ask init block
             color = self._branches[bid].nest_color if bid in self._branches else self.nest_color
             self._service.initialize_block(previous_id=chain_head.block_id,nest_colour=color)
             # for remove this branch to another point 
             #bid = branch.hex() if branch is not None else chain_head.block_id.hex()
-            parent = chain_head.previous_block_id
-            block_num = chain_head.block_num 
             if bid in self._branches:
                 #branch = self._branches[bid]
                 
@@ -1052,9 +1100,7 @@ class PbftEngine(Engine):
                 LOGGER.debug('PbftEngine: _initialize_block USE Branch[%s]=%s',branch.ind,bid[:8])
             else:
                 LOGGER.debug('PbftEngine: _initialize_block NEW Branch[%s]=%s color=%s pending=%s',self._num_branches,bid[:8],color,[pid[:8] for pid in self._pending_nest.keys()])
-                self._branches[bid] = self.create_branch(bid,parent,block_num)
-                self._branches[bid]._try_branch = self._make_branch
-                self._branches[bid].nest_color = color
+                self._branches[bid] = self.create_branch(bid,parent,block_num) if genesis_branch is None else genesis_branch
                 self.check_waiting_nest(bid)
                 
                 
@@ -1178,7 +1224,18 @@ class PbftEngine(Engine):
                 LOGGER.debug('TIMEOUT FOR BLOCK=%s state=%s\n',bid[:8],branch.state)
                 branch.ignore_by_timeout(bid)
                 #self._handle_invalid_block(bytes.fromhex(bid))
-                
+    def get_genesis_branch(self):
+        
+        for bid,branch in self._branches.items():
+            if branch.block_num == 0:
+                return branch
+
+    def send_genesis_seal(self,genesis_branch=None):
+        # make seal for genesis block and send into validator
+        
+        branch = self.get_genesis_branch() if genesis_branch is None else genesis_branch
+        if branch:
+            branch.send_genesis_seal()
 
     def _real_mode(self):
         # real mode consensus
@@ -1188,8 +1245,10 @@ class PbftEngine(Engine):
             """
             if not self._skip and self._initialize_block(branch=self.genesis_id,is_new=(self._chain_head is not None)) :  
                 # at this point we can ask settings via chain using initial chain_head state_hash 
-                if self._genesis_node == self.validator_id and self._genesis_mode:
+                if self.is_genesis_node and self._genesis_mode:
+                    # send seal for genesis block 
                     self.init_dag_nests()
+
                 self._published = True
                 #if len(self._branches) == 5:
                 #    self._published = True
@@ -1859,6 +1918,7 @@ class PbftEngine(Engine):
         else:
             block = PbftBlockMessage()
             block.ParseFromString(payload.content)
+            seal = None
 
         block_id = block.block_id.hex()
         signer_id = block.signer_id.hex()
@@ -2027,6 +2087,6 @@ class PbftEngine(Engine):
                         del self._arbitration_msgs[block_id]
                         self._arbitration_msgs[block_id] = (block,peer_id)
 
-                branch.arbitration_done(block,peer_id)
+                branch.arbitration_done(block,peer_id,seal)
                 
             

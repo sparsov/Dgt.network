@@ -374,7 +374,9 @@ class _CandidateBlock(object):
 
     def finalize_block_complete(self,consensus):
         # proxy reply
-        LOGGER.debug("_CandidateBlock::finalize_block_complete for BRANCH=%s",self._identifier[:8])
+        #self._block_builder.set_consensus(consensus)
+        LOGGER.debug(f"_CandidateBlock::finalize_block_complete for BRANCH={self._identifier[:8]} consensus={consensus}")
+        
         self._consensus.finalize_block_complete(consensus)
 
     @profile
@@ -391,6 +393,7 @@ class _CandidateBlock(object):
         In both cases the pending_batches will contain the list of batches
         that need to be added to the next Block that is built.
         """
+        
         LOGGER.debug("_CandidateBlock::finalize_block for BRANCH=%s PENDING=%s", self._identifier[:8],len(self._pending_batches))
         self._scheduler.unschedule_incomplete_batches() # can drop out some batch from block 
         #
@@ -478,6 +481,7 @@ class _CandidateBlock(object):
         After this point in case PROXY consensus we should inform consensus engine about possibility finalize block
         """
         LOGGER.debug("_CandidateBlock:: _consensus.finalize_block()-->\n")
+        # at this point we alredy shloud now seal 
         if not self._consensus.finalize_block(builder.block_header):
             LOGGER.debug("Abandoning block %s, consensus failed to finalize it", builder)
             # return all valid batches to the pending_batches list
@@ -564,6 +568,7 @@ class BlockPublisher(object):
         self._candidate_blocks = {} # all active branches - for DAG version only 
         self._candidate_block = None  # _CandidateBlock helper,
         self._chain_heads = {}
+        self._block_seals = {} # seal for commited blocks with key == block.header_signature
         self._recompute_contexts = {} # for DAG - save context for recompute merkle tree
         # the next block in potential chain
         self._block_cache = block_cache
@@ -796,11 +801,16 @@ class BlockPublisher(object):
         nest_colour = self._engine_ask_candidate[bid][1] if hasattr(consensus, 'set_publisher') else 'Genesis'
         LOGGER.debug("Get BLOCK NUM for color=%s",nest_colour)
         block_num = self._block_store.get_block_num(chain_head.block_num,self._validator_id,nest_colour)
-        LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],self.chain_heads)
+        # check SEAL from prev block
+        is_seal = chain_head.header_signature in self._block_seals
+        seal = self._block_seals[chain_head.header_signature] if is_seal else None
+        LOGGER.debug("Header for block candidate(%s:...)->(%s:%s) SEAL=(%s) heads=%s",block_num,chain_head.block_num,chain_head.header_signature[:8],seal,self.chain_heads)
         block_header = BlockHeader(
-            block_num=block_num , # ask last block number from store
-            previous_block_id=chain_head.header_signature,
-            signer_public_key=public_key)
+                           block_num=block_num , # ask last block number from store
+                           previous_block_id=chain_head.header_signature,
+                           signer_public_key=public_key,
+                           consensus=seal
+                       )
         block_builder = BlockBuilder(block_header)
         if not consensus.initialize_block(block_builder.block_header):
             # for proxy consensus waiting until reply from consensus
@@ -1357,7 +1367,7 @@ class BlockPublisher(object):
         with self._proxy_lock:
             self._blocks_summarize.append((block_header.consensus,block_header.previous_block_id)) 
             
-        LOGGER.debug('BlockPublisher: on_finalize_block parent block=%s total ready=%s',block_header.previous_block_id[:8],len(self._blocks_summarize))
+        LOGGER.debug(f'BlockPublisher: on_finalize_block parent block={block_header.previous_block_id[:8]} seal={block_header.consensus} total ready={len(self._blocks_summarize)}')
         # try to wait until proxy.finalize_block
 
     def initialize_block(self, block,nest_colour=''):
@@ -1399,8 +1409,9 @@ class BlockPublisher(object):
         """
         at this point we should continue _candidate_block.finalize_block
         """
-        bid = block_id.hex() 
-        LOGGER.debug('BlockPublisher: finalize_block consensus=%s branch=%s',consensus,bid[:8])
+        bid = block_id.hex() # this is parent id 
+        is_seal = bid in self._block_seals
+        LOGGER.debug(f'BlockPublisher: finalize_block consensus={consensus} SEAL={is_seal} branch={bid[:8]}')
         if bid in self._candidate_blocks:
             candidate = self._candidate_blocks[bid]
             LOGGER.debug('BlockPublisher: compare candidate=%s',candidate==self._candidate_block)
@@ -1410,20 +1421,29 @@ class BlockPublisher(object):
 
         # now we can send block to chain controller
         # 
-        candidate.finalize_block_complete(consensus)
+        candidate.finalize_block_complete(self._block_seals[bid] if is_seal else consensus)
         LOGGER.debug('BlockPublisher: finalize_block send reply candidate=%s',candidate is not None)
         # return parent block id 
         return bid 
+
+    def commit_block(self,block_id=None,seal=None):
+        bid = block_id.hex()
+        LOGGER.debug(f'BlockPublisher:COMMIT BLOCK={bid[:8]} seal={type(seal)}  seals={len(self._block_seals)}') 
+        if seal is not None:
+            LOGGER.debug(f'BlockPublisher:COMMIT BLOCK={bid[:8]} SEAL={seal}')
+        self._block_seals[bid] = seal # save seal                                                                    
+
 
     def cancel_block(self,branch_id=None):
         """
         cancel block only for branch 
         we can free this block into block manager
         """
-        bid = branch_id.hex() 
-        LOGGER.debug('BlockPublisher:cancel_block ASK cancel for BRANCH=%s num=%s',bid[:8],len(self._candidate_blocks))
+        bid = branch_id.hex() # THIS IS PREV BLOCK FOR CURRENT CANCELED BLOCK
+        LOGGER.debug("BlockPublisher:cancel_block ASK cancel for BRANCH='%s' candidates=%s",bid[:8],len(self._candidate_blocks))
         if bid in self._candidate_blocks:
-            LOGGER.debug('BlockPublisher:cancel_block DO cancel for BRANCH=%s',bid[:8])
+            LOGGER.debug(f'BlockPublisher:cancel_block DO cancel for BRANCH={bid[:8]}')
+            
         if self._candidate_block is not None:
             LOGGER.debug('BlockPublisher:cancel_block Stop adding batches to the current block and abandon it')
             # need new block candidate

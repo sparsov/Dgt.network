@@ -107,8 +107,8 @@ class BlockPublisher(BlockPublisherInterface):
         self._min_wait_time = settings_view.get_setting("bgx.consensus.min_wait_time", self._min_wait_time, float)
         self._max_wait_time = settings_view.get_setting("bgx.consensus.max_wait_time", self._max_wait_time, float)
         self._valid_block_publishers = settings_view.get_setting("bgx.consensus.valid_block_publishers",self._valid_block_publishers,list)
-
-        block_header.consensus = self._consensus # b"Devmode"
+        if block_header.consensus is None:
+            block_header.consensus = self._consensus # b"Devmode"
         self._start_time = time.time()
         self._wait_time = random.uniform(self._min_wait_time, self._max_wait_time)
         LOGGER.debug("PROXY:initialize_block min_wait_time=%s max_wait_time=%s",self._min_wait_time,self._max_wait_time)
@@ -159,7 +159,7 @@ class BlockPublisher(BlockPublisherInterface):
         Returns:
             True
         """
-        LOGGER.debug("PROXY:finalize_block inform external engine header=%s is_complete=%s",block_header.block_num,self._is_finalize_complete)
+        LOGGER.debug("PROXY:finalize_block inform consensus engine header=%s is_complete=%s",block_header,self._is_finalize_complete)
         self._publisher.on_finalize_block(block_header)
         self._is_finalize_complete = None
         """
@@ -277,7 +277,8 @@ class ForkResolver(ForkResolverInterface):
         # If the new fork head is not DevMode consensus, bail out.  This should
         # never happen, but we need to protect against it.
         if new_fork_head.consensus != self._consensus and new_fork_head.consensus != b"Genesis":
-            raise TypeError('New fork head {} is not a {} block'.format(new_fork_head.identifier[:8],_CONSENSUS_NAME_))
+            LOGGER.debug('New fork head {} is not a {} block'.format(new_fork_head.identifier[:8],_CONSENSUS_NAME_))
+            #raise TypeError('New fork head {} is not a {} block'.format(new_fork_head.identifier[:8],_CONSENSUS_NAME_))
 
         self._is_compare_forks = None
         _consensus_notifier.notify_block_valid(new_fork_head.identifier)

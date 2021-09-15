@@ -207,6 +207,7 @@ class Gossip(object):
 
         LOGGER.debug("Gossip: %s endpoint=%s->%s component=%s is_recovery=%s single=%s",peering_mode,endpoint,self.endpoint,self._component,self._is_recovery_func(),self.is_single)
         if self.is_dynamic:
+            # TODO check - in case url is tcp:: -use it directly in others case get real urls list from google drive using this url 
             LOGGER.debug("Gossip: seeds=%s\n",self._initial_seed_endpoints)
         else:
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)

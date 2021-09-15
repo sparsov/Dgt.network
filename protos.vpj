@@ -82,6 +82,7 @@
             <F N="protos/merkle.proto"/>
             <F N="bgx/protos/common/network.proto"/>
             <F N="protos/network.proto"/>
+            <F N="bgx/protos/common/pbft_consensus.proto"/>
             <F N="bgx/protos/pbft/pbft_consensus.proto"/>
             <F N="protos/processor.proto"/>
             <F N="protos/setting.proto"/>

@@ -65,7 +65,7 @@ class ZmqService(Service):
                          header_signature = self._signer.sign(ser_header),                
                          content = payload                                                
                 )                                                                         
-            LOGGER.debug(f"ZmqService:consensus_peer_message header={header} msg={signed_msg}") 
+            #LOGGER.debug(f"ZmqService:consensus_peer_message header={header} msg={signed_msg}") 
             return signed_msg
 
         message = consensus_pb2.ConsensusPeerMessage(         
@@ -266,9 +266,9 @@ class ZmqService(Service):
             raise exceptions.ReceiveError(
                 'Failed with status {}'.format(status))
 
-    def commit_block(self, block_id):
+    def commit_block(self, block_id,seal=None):
         # place for SEAL
-        request = consensus_pb2.ConsensusCommitBlockRequest(block_id=block_id)
+        request = consensus_pb2.ConsensusCommitBlockRequest(block_id=block_id,seal=seal.SerializeToString() if seal is not None else seal)
 
         response_type = consensus_pb2.ConsensusCommitBlockResponse
 

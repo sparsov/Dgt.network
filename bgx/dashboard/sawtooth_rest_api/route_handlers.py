@@ -1101,6 +1101,9 @@ class RouteHandler:
             raise errors.ResourceHeaderInvalid()
 
         resource['header'] = cls._message_to_dict(header)
+        if 'consensus' in resource['header']:
+            seal = resource['header']['consensus']
+            LOGGER.debug(f'EXPAND CONSENSUS SEAL: {seal}')
         return resource
 
     @staticmethod

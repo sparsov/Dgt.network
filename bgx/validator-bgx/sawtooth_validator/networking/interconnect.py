@@ -719,6 +719,7 @@ class Interconnect(object):
     def set_network_mode(self,public_endpoint):
         self._network = os.environ.get('NETWORK')
         self._single = (os.environ.get('SINGLE') == 'Y')
+        self._public_endpoint = public_endpoint
         LOGGER.debug("Interconnect: SINGLE=%s NETWORK=%s",self._single,self._network)
         conn = http.client.HTTPConnection(ASK_MY_IP,timeout=8)
         LOGGER.debug(f"Interconnect: REQUEST {ASK_MY_IP}")
@@ -732,9 +733,10 @@ class Interconnect(object):
             url = urlparse(public_endpoint)
             self._public_extpoint = "{}://{}:{}".format(url.scheme,self._my_ip,url.port)
         else:
+            # in local docker net
             self._public_extpoint = public_endpoint
         
-        LOGGER.debug("Interconnect: MY EXTPOINT='%s' proto_endpoint=%s\n",self._public_extpoint,public_endpoint)
+        LOGGER.debug("Interconnect: MY EXTPOINT='%s' local_endpoint=%s\n",self._public_extpoint,public_endpoint)
 
     @property
     def validator_id(self):
@@ -753,8 +755,9 @@ class Interconnect(object):
         return self._endpoint
 
     @property
-    def extpoint(self):
-        return self._public_extpoint
+    def extpoint(self): 
+        # for starting into local docker network
+        return self._public_extpoint if self.single else self._public_endpoint
 
     @property
     def network(self):

@@ -74,7 +74,9 @@ class BlockBuilder(object):
 
     def set_signature(self, sig):
         self._header_signature = sig
-
+    def set_consensus(self,consensus):
+        if self.block_header.consensus is None:
+            self.block_header.consensus = consensus
     def __str__(self):
         return "(N:{}, S:{}, P:{})". \
             format(self.block_header.block_num,

@@ -42,7 +42,7 @@ from bgx_pbft.consensus.pbft_key_state_store import PbftKeyStateStore
 from bgx_pbft.consensus import utils
 from bgx_pbft_common.utils import json2dict
 from bgx_pbft_common.utils import dict2json
-
+#import sawtooth_validator.protobuf.bgx_validator_registry_pb2 as vr_pb
 import bgx_pbft_common.protobuf.bgx_validator_registry_pb2 as vr_pb
 from bgx_pbft_common.validator_registry_view.validator_registry_view import ValidatorRegistryView
 from bgx_pbft_common.utils import _short_id

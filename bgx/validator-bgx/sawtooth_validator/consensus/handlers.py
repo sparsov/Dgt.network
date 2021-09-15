@@ -398,7 +398,7 @@ class ConsensusCommitBlockHandler(ConsensusServiceHandler):
     def handle_request(self, request, response):
         try:
             LOGGER.debug('ConsensusCommitBlockHandler: proxy:commit_block')
-            self._proxy.commit_block(request.block_id)
+            self._proxy.commit_block(request.block_id,request.seal)
         except UnknownBlock:
             response.status =\
                 consensus_pb2.ConsensusCommitBlockResponse.UNKNOWN_BLOCK

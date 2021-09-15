@@ -78,7 +78,9 @@ def main(args=None):
     
 
     # Generate config protos bgx setting
+    
     proto_dir = JOIN(TOP_DIR, "bgx/families/settings/protos")
+    print('protogen FROM=',proto_dir)
     protoc(proto_dir, "bgx/families/settings", "bgx_settings/protobuf")
     protoc(proto_dir, "bgx/cli", "bgx_cli/protobuf")
     #protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
@@ -95,21 +97,10 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "families/block_info/protos")
     protoc(proto_dir, "families/block_info", "sawtooth_block_info/protobuf")
 
-    # Generate dev-mode python engine  protos
-    proto_dir = JOIN(TOP_DIR, "bgx/protos/devmode")
-    protoc(proto_dir, "bgx/consensus/devmode_python", "sawtooth_bgt_common/protobuf")
-
-    # Generate PBFT python engine  protos
-    proto_dir = JOIN(TOP_DIR, "bgx/protos/pbft")
-    protoc(proto_dir, "bgx/consensus/pbft_python", "bgx_pbft_common/protobuf")
-    protoc(proto_dir, "bgx/consensus/devmode_python", "sawtooth_bgt_common/protobuf")
-    protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf")
-    # validator should know about arbitration message
-    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
-
     # Generate common protos for new validator - can change some proto from /protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/common")
     #protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf")
+    #protoc(proto_dir, "bgx/consensus/pbft_python", "bgx_pbft_common/protobuf","consensus.proto")
     protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
     protoc(proto_dir, "sdk/python", "sawtooth_sdk/protobuf")
     protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
@@ -117,14 +108,28 @@ def main(args=None):
     protoc(proto_dir, "bgx/rest-api", "sawtooth_rest_api/protobuf")
     protoc(proto_dir, "bgx/dashboard", "sawtooth_rest_api/protobuf")
     
-    
+    # Generate PBFT python engine  protos                                                   
+    proto_dir = JOIN(TOP_DIR, "bgx/protos/pbft") 
+    import_dir = JOIN(TOP_DIR, "bgx/protos/common") 
+    print('protogen FROM=',proto_dir)    
+    protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf",import_dir)                                      
+    protoc(proto_dir, "bgx/consensus/pbft_python", "bgx_pbft_common/protobuf",import_dir)              
+    protoc(proto_dir, "bgx/consensus/devmode_python", "sawtooth_bgt_common/protobuf",import_dir)       
+    #protoc(proto_dir, "bgx/consensus/bgx_pbft", "bgx_pbft_common/protobuf",import_dir)                 
+    # validator should know about arbitration message                                       
+    protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf",import_dir)                   
+
+    # Generate dev-mode python engine  protos                                            
+    proto_dir = JOIN(TOP_DIR, "bgx/protos/devmode")                                      
+    protoc(proto_dir, "bgx/consensus/devmode_python", "sawtooth_bgt_common/protobuf")    
+
     # Generate Smart BGT token  protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/families/smart_bgt")
     protoc(proto_dir, "bgx/families/bgt_python", "bgt_common/protobuf")
     # Smart STUFF token protos
     proto_dir = JOIN(TOP_DIR, "bgx/protos/families/smart_stuff")
     protoc(proto_dir, "bgx/families/smart_stuff", "stuff_common/protobuf")
-
+    print('protogen DONE !')
 
 def protoc(src_dir, base_dir, pkg, language="python"):
     if language == "python":

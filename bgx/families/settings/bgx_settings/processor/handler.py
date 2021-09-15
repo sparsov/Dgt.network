@@ -32,9 +32,10 @@ from bgx_settings.protobuf.settings_pb2 import SettingCandidate
 from bgx_settings.protobuf.settings_pb2 import SettingCandidates
 from bgx_settings.protobuf.settings_pb2 import SettingTopology
 from bgx_settings.protobuf.setting_pb2 import Setting
-from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,DGT_PING_COUNTER
 
 LOGGER = logging.getLogger(__name__)
+# DGT_PING_COUNTER - could do not all peers
 # allow to set BGX_NESTS_NAME without restriction - for doing nests
 NO_RESTRICTIONS_PARAMS = [BGX_NESTS_NAME]
 # The config namespace is special: it is not derived from a hash.
@@ -346,9 +347,18 @@ def _set_setting_value(context, key, value,extra=[],data=None):
         if key == entry.key:
             old_value = entry.value
             old_entry_index = i
+
+    
+    
+
     inform = True
     if old_entry_index is not None:
-        if setting.entries[old_entry_index].value == value:
+        curr_value = setting.entries[old_entry_index].value
+        if key == DGT_PING_COUNTER:                 
+            # special setting ping for networks 
+            #LOGGER.debug(f'DGT_PING_COUNTER:: {curr_value} + {value} {type(curr_value)}')
+            value = str(int(value) + int(curr_value))
+        if curr_value == value:
             inform = False
             LOGGER.debug('NEW VALUE THE SAME')
         setting.entries[old_entry_index].value = value

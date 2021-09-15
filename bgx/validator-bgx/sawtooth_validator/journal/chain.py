@@ -1231,6 +1231,9 @@ class ChainController(object):
             #self._undef_block(validator.previous_block_id)
             
         else:
+            if self.chain_head is not None and block_id == self.chain_head.header_signature and self.chain_head.block_num == 0:
+                # genesis block
+                return
             LOGGER.debug("ChainController:commit_block id=%s undefined\n",block_id[:8])
             raise UnknownBlock
 

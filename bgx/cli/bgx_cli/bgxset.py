@@ -48,7 +48,7 @@ from sawtooth_signing import create_context
 from sawtooth_signing import CryptoFactory
 from sawtooth_signing import ParseError
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
-from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM
+from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_PING_COUNTER
 
 DISTRIBUTION_NAME = 'bgxset'
 
@@ -361,7 +361,8 @@ def _param_show(rest_client,args):
     """
     show topology param
     """
-    fname = ('' if args.param_name[:4] == "bgx." else "bgx.") + args.param_name
+    pref = args.param_name[:4]
+    fname = ('' if pref in [ "bgx.","dgt."] else "bgx.") + args.param_name
     try:
         state_leaf = rest_client.get_leaf(_key_to_address(fname))
     except CliException:
@@ -389,7 +390,9 @@ def _param_topology(rest_client,signer,args):
         _param_show(rest_client,args)
     else:
         #set value
-        fname = ('' if args.param_name[:4] == "bgx." else "bgx.") + args.param_name
+        pref_nm = args.param_name[:4]
+        
+        fname = ('' if pref_nm in ["bgx.","dgt."]  else "bgx.") + args.param_name
         txns = [_create_propose_txn(signer, (fname,args.new))]
         batch = _create_batch(signer, txns)
 
@@ -440,6 +443,17 @@ def _do_param_topology(args):
     signer = _read_signer(args.key)
     rest_client = RestClient(args.url)
     _param_topology(rest_client,signer,args)
+
+def _do_ping_topology(args):
+    """
+     Executes the 'topology ping' subcommand.  
+    """
+    signer = _read_signer(args.key)
+    rest_client = RestClient(args.url)
+    args.param_name = DGT_PING_COUNTER
+    args.new = "1"
+    _param_topology(rest_client,signer,args)
+
 
 
 def _do_set_topology(args):
@@ -735,6 +749,8 @@ def create_parser(prog_name):
         help='change topology settings',
         description='change topology  settings. '
                     )
+
+                                                 
     topology_param_parser.add_argument(
         '-k', '--key',
         type=str,
@@ -756,6 +772,28 @@ def create_parser(prog_name):
         default='',
         type=str,
         help='identify the value of param')
+
+    topology_ping_parser = topology_parsers.add_parser(           
+        'ping',                                                   
+        help='Ping DGT network',                           
+        description='Send ping transaction into DGT network. '                  
+                    ) 
+
+    topology_ping_parser.add_argument(                                                  
+        '-k', '--key',                                                                   
+        type=str,                                                                        
+        help='specify signing key for resulting batches and initial authorized key',     
+        default='clusters/c1/bgx1/keys/validator.priv'                                   
+        )                                                                                
+    topology_ping_parser.add_argument(                                                  
+        '--url',                                                                         
+        type=str,                                                                        
+        help="identify the URL of a validator's REST API",                               
+        default='http://bgx-api-c1-1:8008')                                              
+
+
+
+
 
     return parser
 
@@ -789,6 +827,9 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None,
             _do_set_topology(args)
         elif args.topology_cmd == 'param':
             _do_param_topology(args)
+        elif args.topology_cmd == 'ping':
+            _do_ping_topology(args)
+
         else:
             raise CliException('"{}" is not a valid subcommand of "topology"'.format(args.subcommand))
     #elif args.subcommand == 'fbft':

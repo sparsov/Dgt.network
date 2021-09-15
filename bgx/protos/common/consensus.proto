@@ -424,6 +424,7 @@ message ConsensusCheckBlocksResponse {
 message ConsensusCommitBlockRequest {
   bytes block_id = 1;
   // this could be consensus SEAL
+  bytes seal = 2;
 }
 
 message ConsensusCommitBlockResponse {

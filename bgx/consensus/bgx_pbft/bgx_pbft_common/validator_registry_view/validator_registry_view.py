@@ -13,7 +13,7 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 import hashlib
-
+#from sawtooth_validator.protobuf.bgx_validator_registry_pb2 import BgxValidatorInfo
 from bgx_pbft_common.protobuf.bgx_validator_registry_pb2 import BgxValidatorInfo
 import logging
 

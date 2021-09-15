@@ -28,10 +28,10 @@ from sawtooth_validator.journal.block_cache import BlockCache
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
 from sawtooth_validator.journal.block_wrapper import BlockStatus
 from sawtooth_validator.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
-from sawtooth_validator.journal.consensus.consensus_factory import \
-    ConsensusFactory
+from sawtooth_validator.journal.consensus.consensus_factory import ConsensusFactory
 from sawtooth_validator.protobuf import genesis_pb2
 from sawtooth_validator.protobuf import block_pb2
+
 
 
 LOGGER = logging.getLogger(__name__)
@@ -49,7 +49,8 @@ class GenesisController(object):
                  data_dir,
                  config_dir,
                  chain_id_manager,
-                 batch_sender):
+                 batch_sender,
+                 signed_consensus=False):
         """Creates a GenesisController.
 
         Args:
@@ -80,6 +81,9 @@ class GenesisController(object):
         self._config_dir = config_dir
         self._chain_id_manager = chain_id_manager
         self._batch_sender = batch_sender
+        self._signed_consensus = signed_consensus
+        if self._signed_consensus:                        
+            LOGGER.debug('GENESIS SIGNED MODE.')  
 
     def requires_genesis(self):
         """
@@ -248,6 +252,8 @@ class GenesisController(object):
         """
         Returns a blocker wrapper with the basics of the block header in place
         """
+        
+        
         genesis_header = block_pb2.BlockHeader(
             block_num=0,
             previous_block_id=NULL_BLOCK_IDENTIFIER,
@@ -265,3 +271,4 @@ class GenesisController(object):
         signature = self._identity_signer.sign(header_bytes)
         block.set_signature(signature)
         return block
+    

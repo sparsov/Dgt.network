@@ -32,9 +32,9 @@ from sawtooth_sdk.protobuf.client_batch_submit_pb2 import ClientBatchSubmitRespo
 from sawtooth_sdk.protobuf.client_block_pb2 import ClientBlockGetByTransactionIdRequest
 from sawtooth_sdk.protobuf.client_block_pb2 import ClientBlockGetResponse
 from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
-from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusBlock, ConsensusNotifyPeerConnected
 from sawtooth_sdk.protobuf.validator_pb2 import Message
-
+from sawtooth_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusBlock, ConsensusNotifyPeerConnected
 
 from bgx_pbft.consensus.pbft_block_publisher import PbftBlockPublisher
 from bgx_pbft.consensus.pbft_block_verifier  import PbftBlockVerifier
@@ -45,8 +45,10 @@ from bgx_pbft.consensus.consensus_state_store import ConsensusStateStore
 from bgx_pbft.consensus.pbft_settings_view import PbftSettingsView
 from bgx_pbft.journal.block_wrapper import BlockWrapper
 
+#from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+#from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
+#from bgx_pbft_common.protobuf.consensus_pb2 import ConsensusBlock, ConsensusNotifyPeerConnected
 
-from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange
 from bgx_pbft_common.utils import _short_id
 # for nests making
 from sawtooth_settings.protobuf.settings_pb2 import SettingProposal,SettingsPayload,SettingTopology

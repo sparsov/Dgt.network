@@ -109,7 +109,8 @@ message PbftSignedVote {
 //    Check that all votes are from unique peers
 //    Check that there are a total of 2f votes
 //
-message PbftSeal { // this is message will be PbftMessage.content for PbftMessageType.ARBITRATION_DONE_MSG
+// this is message will be PbftMessage.content for PbftMessageType.ARBITRATION_DONE_MSG
+message PbftSeal { 
   // Message information
   //PbftMessageInfo info = 1;
 
@@ -118,8 +119,8 @@ message PbftSeal { // this is message will be PbftMessage.content for PbftMessag
   PbftBlockMessage block = 1;
   // A list of Commit votes to prove the block commit (must contain at least
   // 2f votes) and vote of arbiters 
-  //repeated PbftSignedVote commit_votes = 2;
-  repeated ConsensusPeerMessageNew view_changes = 2;
+  // repeated PbftSignedVote commit_votes = 2;
+  repeated ConsensusPeerMessageNew commit_votes = 2;
 }
 
 //message ConsensusRegisterResponse {

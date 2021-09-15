@@ -25,6 +25,7 @@ from enum import Enum
 LOGGER = logging.getLogger(__name__)
 TOPOLOGY_SET_NM = 'bgx.consensus.pbft.nodes'
 BGX_NESTS_NAME  = 'bgx.dag.nests'
+DGT_PING_COUNTER  = 'dgt.ping.counter'
 TOPOLOGY_GENESIS_HEX = b'Genesis'.hex()
 
 class PeerSync():
