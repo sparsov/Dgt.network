@@ -23,6 +23,7 @@ import json
 
 from urllib.parse import urlparse
 import http.client
+import requests
 
 from threading import Lock
 from functools import partial
@@ -92,6 +93,47 @@ _PARAM_DEFAULT_ = {
     }
 
 FIFO_PATH = '/project/peer/data/.peers_ctrl'
+REAL_SEED_URL_SCHEME = ['tcp']
+PUBLIC_NET_ZONE = "public"
+PRIVATE_NET_ZONE = "private"
+
+
+def download_file_from_google_drive(url):                                         
+    CHUNK_SIZE = 32768                                                                        
+    URL = "https://docs.google.com/uc?export=download"                                        
+    def get_confirm_token(response):                                                          
+        for key, value in response.cookies.items():                                           
+            if key.startswith('download_warning'):                                            
+                return value                                                                  
+                                                                                              
+        return None                                                                           
+    # get file_id from url
+    ids = url.split("/")
+    file_id = ids[5] 
+    #
+    LOGGER.debug(f"download_file_from_google_drive from {url} file_id={file_id}\n")
+    session = requests.Session()                                                              
+    try:
+        response = session.get(URL, params = { 'id' : file_id }, stream = True)                        
+        token = get_confirm_token(response)                                                       
+                                                                                                  
+        if token:                                                                                 
+            params = { 'id' : file_id, 'confirm' : token }                                             
+            response = session.get(URL, params = params, stream = True)                           
+        data = bytearray()                                                                        
+        for chunk in response.iter_content(CHUNK_SIZE):                                           
+            if chunk: # filter out keep-alive new chunks                                          
+                data += chunk                                                                     
+                                                                                                  
+        data = data.decode('utf-8') 
+        endpoints = json.loads(data) 
+    except Exception as ex:
+        LOGGER.debug(f"Gossip: cant load seed endpoint from {url} - err={ex}\n")
+        endpoints = {PRIVATE_NET_ZONE:[],PUBLIC_NET_ZONE:[]}
+
+    return endpoints
+
+
 
 class Gossip(object):
     def __init__(self, network,
@@ -208,9 +250,33 @@ class Gossip(object):
         LOGGER.debug("Gossip: %s endpoint=%s->%s component=%s is_recovery=%s single=%s",peering_mode,endpoint,self.endpoint,self._component,self._is_recovery_func(),self.is_single)
         if self.is_dynamic:
             # TODO check - in case url is tcp:: -use it directly in others case get real urls list from google drive using this url 
-            LOGGER.debug("Gossip: seeds=%s\n",self._initial_seed_endpoints)
+            LOGGER.debug("Gossip: init seeds=%s\n",self._initial_seed_endpoints)
+            self.make_real_initial_seeds(self._initial_seed_endpoints)
+
         else:
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
+
+    def make_real_initial_seeds(self,seed_endpoints,zone_access=PUBLIC_NET_ZONE):
+        # check url into seeds list 
+        real_seed_endpoints = []
+        for seed in seed_endpoints:
+            url = urlparse(seed)
+            LOGGER.debug(f"Gossip:ENDPOINT URL={url.scheme} : {url.hostname}")
+            if url.scheme in REAL_SEED_URL_SCHEME:
+                # keep this endpoint
+                real_seed_endpoints.append(seed)
+                continue
+            # google disk - "https://drive.google.com/file/d/1o6SEUvogow432pIKQEL8-EEzNBinzW9R/view?usp=sharing"
+            if url.scheme == "https" and url.hostname == "drive.google.com":
+                # get real list from disk
+                endpoints = download_file_from_google_drive(seed)
+                LOGGER.debug(f"Gossip: GOOGLE ENDPOINTS={endpoints}")
+                zone_endpoints = endpoints[zone_access]
+                real_seed_endpoints += zone_endpoints
+            else:
+                LOGGER.debug(f"Gossip: SKIP unrecognized seed url={seed}")
+        self._initial_seed_endpoints = real_seed_endpoints
+        LOGGER.debug(f"Gossip: REAL SEEDS={self._initial_seed_endpoints}")
 
     def _peers_control_init(self):
         plist = os.environ.get('PCONTROL')
@@ -561,7 +627,11 @@ class Gossip(object):
         peer which started first - don't know all peer's endpoint because its didn't connected yet
         """
         if not self.is_sync and not self._try_sync_net:
-            LOGGER.debug("TRY_TO_SYNC_WITH_NET ....\n")
+            LOGGER.debug(f"TRY_TO_SYNC_WITH_NET is dynamic={self.is_dynamic} cluster={self._join_cluster}....\n")
+            if self.is_dynamic and self._join_cluster is not None:
+                # force join cluster for PBFT engine - for recovery mode 
+                self.force_join_own_cluster()
+
             self._try_sync_net = True
             self._incomplete = False
             self._num_nosync_peer = 0
@@ -1159,7 +1229,9 @@ class Gossip(object):
             LOGGER.debug("Can't del peers from cluster %s (%s)\n",cname,err)                            
 
 
-
+    def force_join_own_cluster(self):
+        self._consensus_notifier.notify_peer_join_cluster(self.validator_id,self._join_cluster)
+        self.update_topology_params(TOPOLOGY_SET_NM,self.get_topology_cache())
 
     def update_topology(self,attributes=None):
         """
@@ -1169,9 +1241,10 @@ class Gossip(object):
         if len(attributes) == 0:
             # full update
             LOGGER.debug("JOIN CLUSTER=%s!!!\n",self._join_cluster)
+            
+            new_topology = self.reload_topology(self._join_cluster)
             self._consensus_notifier.notify_peer_join_cluster(self.validator_id,self._join_cluster)
-            self.reload_topology(self._join_cluster)
-            self.update_topology_params(TOPOLOGY_SET_NM) 
+            self.update_topology_params(TOPOLOGY_SET_NM,new_topology) 
             self.refresh_topology_peers()
         elif attributes[0].key == 'oper':
             oper = attributes[0].value
@@ -1216,9 +1289,9 @@ class Gossip(object):
             except KeyError:
                 LOGGER.debug("peer %s went away",peers[conn_id])
 
-    def update_topology_params(self,attributes=None):
+    def update_topology_params(self,attributes=None,val=None):
         LOGGER.debug("UPDATE topology params='%s' !!!\n",attributes)
-        self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes)
+        self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes,val)
 
     def _make_new_peer_tnx(self,cluster,cname,pid,KYC):
         # make batch for adding new peer into topology - gateway dynamic mode
@@ -1281,6 +1354,7 @@ class Gossip(object):
         with self._lock:
             self._fbft = fbft
         LOGGER.debug("RELOAD topology=%s\n",self._fbft.topology)
+        return self._stopology
 
     def load_topology(self):
         if self._stopology is not None :
@@ -2015,7 +2089,7 @@ class ConnectionManager(InstrumentedThread):
                 # connect with new peers in PEERING mode not TOPOLOGY  
                 # in case   we have position in topology  
             if status == GetPeersResponse.OK:
-                LOGGER.debug("JOINED to cluster success unpeered=%s candidate=%s",unpeered_candidates,self._candidate_peer_endpoints) 
+                LOGGER.debug("JOINED to cluster success unpeered=%s candidate=%s!!!\n",unpeered_candidates,self._candidate_peer_endpoints) 
                 with self._lock:
                     self._dstatus = GetPeersResponse.JOINED
                 if unpeered_candidates:
@@ -2026,7 +2100,7 @@ class ConnectionManager(InstrumentedThread):
 
             elif status == GetPeersResponse.REDIRECT :
                 # go to cluster which promise give me position into topology
-                LOGGER.debug("REDIRECT to cluster %s for position into topology",unpeered_candidates)
+                LOGGER.debug("REDIRECT to cluster %s for position into topology!\n",unpeered_candidates)
                 if len(unpeered_candidates) > 0:
                     self._redirect_seed_endpoints.append(unpeered_candidates[0])
                 if unpeered_candidates:

@@ -23,7 +23,7 @@ import sawtooth_signing as signing
 from sawtooth_signing import CryptoFactory
 from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
 
-from sawtooth_sdk.consensus.exceptions import UnknownBlock,InvalidState
+from sawtooth_sdk.consensus.exceptions import UnknownBlock,InvalidState,BlockIsProcessedNow
 from sawtooth_sdk.messaging.stream import Stream
 from sawtooth_sdk.protobuf.batch_pb2 import Batch
 from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
@@ -120,9 +120,14 @@ class PbftOracle:
 
     def get_topology(self,cluster=None):
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
-        self._fbft = FbftTopology()
-        self._fbft.get_topology(json.loads(nodes),self._validator_id,'','static',join_cluster=cluster)
-        LOGGER.debug('nodes=%s tout=%s',nodes,self._pbft_settings_view.block_timeout)
+        py_nodes = json.loads(nodes)
+        if PeerAtr.name in py_nodes:
+            LOGGER.debug(f'GOT nodes={nodes}')
+            self._fbft = FbftTopology()
+            self._fbft.get_topology(py_nodes,self._validator_id,'','static',join_cluster=cluster)
+            LOGGER.debug('nodes=%s tout=%s',nodes,self._pbft_settings_view.block_timeout)
+        else:
+            LOGGER.debug(f'IGNORE UNFILLED nodes={nodes}')
 
     def update_state_view_block(self,block_id):
         self._state_view.update_block(block_id)
@@ -192,10 +197,10 @@ class PbftOracle:
     def authorized_keys(self):
         return self._authorized_keys
 
-    def update_param(self,pname):
-        if self._pbft_settings_view.update_param(pname) :
+    def update_param(self,pname,data=None):
+        if self._pbft_settings_view.update_param(pname,data) :
             if pname == TOPOLOGY_SET_NM and self._peering_mode == 'dynamic':
-                LOGGER.debug('UPDATE TOPOLOGY\n')
+                LOGGER.debug(f'UPDATE TOPOLOGY MODE={self._peering_mode}\n')
                 
                 return True
         return False
@@ -1300,13 +1305,18 @@ class _StateViewProxy:
 
     def get(self, address):
         try:
+            #LOGGER.debug(f'_StateViewProxy: ASK STATE block={self._block_id.hex()[0:8]}\n',)
             result = self._service.get_state(
                 block_id=self._block_id,
                 addresses=[address])
             #LOGGER.debug('_StateViewProxy: ASK STATE block=%s\n',self._block_id)
         except UnknownBlock:
-            LOGGER.debug('_StateViewProxy: UnknownBlock %s\n',self._block_id)
+            LOGGER.debug('_StateViewProxy: UnknownBlock %s\n',self._block_id.hex()[0:8])
             return None
+        except BlockIsProcessedNow:
+            LOGGER.debug('_StateViewProxy: BlockIsProcessedNow %s\n',self._block_id.hex()[0:8])
+            return None
+
         return result[address]
 
     def leaves(self, prefix):

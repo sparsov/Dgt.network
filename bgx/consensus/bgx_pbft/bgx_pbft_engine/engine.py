@@ -1059,6 +1059,9 @@ class PbftEngine(Engine):
             # head was updated or not commited yet
             LOGGER.debug('PbftEngine: CANT GET CHAIN HEAD for=%s',branch.hex()[:8] if branch is not None else None)
             return False
+        except exceptions.BlockIsProcessedNow:
+            LOGGER.debug('PbftEngine: CANT GET CHAIN HEAD for=%s - BLOCK IS PROCESSED',branch.hex()[:8] if branch is not None else None)
+            return False
         # have got chain head block
         bid = branch.hex() if branch is not None else chain_head.block_id.hex()
         parent = chain_head.previous_block_id     
@@ -1762,7 +1765,7 @@ class PbftEngine(Engine):
                 self.change_arbiter_status(pid,ConsensusNotifyPeerConnected.NOT_READY)
             
 
-    def handle_topology_update(self,pid,oper,val):
+    def handle_topology_update(self,pid,oper,val,data):
         """
         topology update
         """
@@ -1806,8 +1809,8 @@ class PbftEngine(Engine):
             ret,_ = self._oracle.del_peer(pid,val)
             LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)  
         elif oper == ConsensusNotifyPeerConnected.PARAM_UPDATE:
-            LOGGER.debug('PARAM_UPDATE=%s\n',val)
-            if self._oracle.update_param(val):
+            LOGGER.debug(f'PARAM_UPDATE [{val}]={data} join={self._join_cluster}\n')
+            if self._oracle.update_param(val,data):
                 # topology was updated
                 self._oracle.get_topology(self._join_cluster)
                 self.update_topology_settings()
@@ -1854,7 +1857,7 @@ class PbftEngine(Engine):
         
         pid = notif[0].peer_id.hex()
         pnm = self.pkey2nm(pid)
-        if self.handle_topology_update(pid,notif[1],notif[3]):
+        if self.handle_topology_update(pid,notif[1],notif[3],notif[4]):
             return True
 
         if pid not in self.peers:

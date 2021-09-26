@@ -169,6 +169,7 @@ class BlockWrapper(object):
                    self.state_root_hash, self.previous_block_id)
 
     def __str__(self):
+        
         return "{} (block_num:{}, state:{}, previous_block_id:{}, signer:{}, tnx:{}, seal:{})".format(
             self.identifier[:8],
             self.block_num,
@@ -176,5 +177,5 @@ class BlockWrapper(object):
             self.previous_block_id[:8],
             self.signer_id[:8],
             self.num_transactions,
-            self.consensus,
+            self.consensus.hex()[0:8] if isinstance(self.consensus,bytes) else self.consensus,
         )

@@ -32,6 +32,8 @@ class ReceiveError(Exception):
 class UnknownBlock(Exception):
     pass
 
+class BlockIsProcessedNow(Exception):  
+    pass                        
 
 class UnknownPeer(Exception):
     pass

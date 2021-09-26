@@ -222,6 +222,7 @@ class BlockStore(MutableMapping):
         #self._free_block_nums  = [] # for DAG - list of free block number's 
         chead = self.chain_head
         if chead is not None :
+            # start in recovery mode 
             LOGGER.debug("BlockStore: check DAG database (head=%s)\n",chead)
             self.make_federation_nests()
 
@@ -257,8 +258,14 @@ class BlockStore(MutableMapping):
     @property
     def is_recovery(self):
         return self._is_recovery
+
     def get_recovery_mode(self):
-        return self._is_recovery
+        return self.is_recovery
+
+    def block_recovered(self,blk_id):
+        if self._recovery_num > 0:
+            self._recovery_num -= 1
+
     def set_nests_ready(self):
         self._is_nest_ready = True
 
@@ -279,15 +286,19 @@ class BlockStore(MutableMapping):
                 return None
             block_num = self._recover_feder_nums[feder.feder_num]
             next_num  = inc_bnum(feder.feder_num,block_num)
-            LOGGER.debug("get_recovery_block for NEST[%s]=%s BLOCK=%s->%s",feder.feder_num,nest,block_num,next_num)
+            LOGGER.debug("get_recovery_block for NEST[%s]=%s BLOCK=%s->%s recovered=%d",feder.feder_num,nest,block_num,next_num,self._recovery_num)
             return [self.get_block_by_number(block_num)]
         else:
             if self._is_recovery :
-                LOGGER.debug("get_recovery_block STOP nest_ready=%s recover=%s",self._is_nest_ready,self._recover_feder_nums)
+                LOGGER.debug("get_recovery_block STOP nest_ready=%s recover=%s recovered=%d",self._is_nest_ready,self._recover_feder_nums,self._recovery_num)
                 if len(self._recover_feder_nums) == 1:
-                    # remain only genesis block - recovery completed 
+                    # remain only genesis block - recovery completed but we should control it into chain
                     # 
-                    self._is_recovery = False
+                    if self._recovery_num == 1:
+                        self._is_recovery = False
+                        LOGGER.debug("remain only genesis block - recovery completed")
+                    else:
+                        LOGGER.debug("Remain only genesis block but not all blocks from recovery list were completed")
                     return None
                 
                 if feder.feder_num == 1:
@@ -314,7 +325,7 @@ class BlockStore(MutableMapping):
         start = timeit.default_timer()
         
         for blk in self:
-            LOGGER.debug("check BLK=%s",blk.block_num)
+            LOGGER.debug("check BLK=%s.%s",blk.block_num,blk.identifier[:8])
             num += 1
             err = ''
             if blk.block_num != 0 and blk.previous_block_id not in self:
@@ -344,10 +355,12 @@ class BlockStore(MutableMapping):
                 bad_block.append("{}.{}:{}".format(blk.block_num,blk.identifier[:8],err))
         spent = timeit.default_timer()-start
         self._recover_feder_nums  = { key : Federation.coloured_num(key,0) for key in self._max_feder_nums }
+        self._recovery_num = num
         if len(bad_block) == 0:
             bad_block.append( "correct:checked={} blks spent={}s".format(num,spent))
         else:
             bad_block.append( "bad:checked={} blks spent={}s".format(num,spent))
+
         LOGGER.debug("make_federation_nests num=%s feder=%s recover=%s spent=%s DONE\n",num,self._max_feder_nums,self._recover_feder_nums,spent)
 
 

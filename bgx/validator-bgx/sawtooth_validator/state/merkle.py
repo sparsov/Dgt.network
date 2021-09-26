@@ -136,7 +136,9 @@ class MerkleDatabase(object):
 
     def _get_by_hash(self, key_hash):
         try:
-            return _decode(self._database.get(key_hash))
+            val = self._database.get(key_hash)
+            return val if val is None else _decode(val) 
+            #return _decode(self._database.get(key_hash))
         except ValueError:   # value returned from database was None
             raise KeyError("hash {} not found in database".format(key_hash))
 
@@ -144,7 +146,8 @@ class MerkleDatabase(object):
         return self.get(address)
 
     def get(self, address):
-        return _decode(self.get_node(address).get('v'))
+        val = self.get_node(address).get('v')
+        return val if val is None else _decode(val) # _decode(self.get_node(address).get('v'))
 
     def get_node(self, address):
         return self._get_by_addr(address)
@@ -171,9 +174,7 @@ class MerkleDatabase(object):
             try:
                 node = self._get_by_hash(node['c'][token])
             except KeyError:
-                raise KeyError(
-                    "invalid address {} from root {}".format(
-                        address, self._root_hash))
+                raise KeyError(f"invalid address {address} from root {self._root_hash}")
         return node
 
     def _get_path_by_addr(self, address):

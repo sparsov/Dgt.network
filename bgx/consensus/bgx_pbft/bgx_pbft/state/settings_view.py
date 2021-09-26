@@ -71,19 +71,27 @@ class SettingsView:
             str: The value of the setting if found, default_value
             otherwise.
         """
-        try:
-            state_entry = self._state_view.get(SettingsView.setting_address(key))
-        except KeyError:
-            LOGGER.debug('Get setting return default value for (%s)',key)
-            return default_value
+        attemp = 0
+        while attemp < 1 :
+            try:
+                state_entry = self._state_view.get(SettingsView.setting_address(key))
+            except KeyError:
+                LOGGER.debug('Get setting return default value for (%s)',key)
+                return default_value
+            
 
-        if state_entry is not None:
-            setting = Setting()
-            setting.ParseFromString(state_entry)
-            for setting_entry in setting.entries:
-                if setting_entry.key == key:
-                    #LOGGER.debug('key=%s val=%s tp=%s value_type=%s',key,setting_entry.value,type(setting_entry.value),value_type)
-                    return value_type(setting_entry.value)
+            if state_entry is not None:
+                setting = Setting()
+                setting.ParseFromString(state_entry)
+                for setting_entry in setting.entries:
+                    if setting_entry.key == key:
+                        #LOGGER.debug('key=%s val=%s tp=%s value_type=%s',key,setting_entry.value,type(setting_entry.value),value_type)
+                        return value_type(setting_entry.value)
+                LOGGER.debug('Get setting undef value for (%s) - return default',key)
+                return default_value
+            else:
+                LOGGER.debug('Get setting undef value for (%s) - try again',key)
+                attemp += 1
 
         return default_value
 

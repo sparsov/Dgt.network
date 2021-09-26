@@ -142,6 +142,12 @@ export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;do
 bash upCluster.sh -G 1 1 
 # stop node 1 in cluster 1
 bash downCluster.sh -G 1 1
+# start dynamic node local start 
+# using real seed endpoint url 
+bash upCluster.sh  -G -SC  -S tcp://validator-bgx-c1-1:8101 dyn 1
+# using  seed endpoint google url
+bash upCluster.sh  -G -SC  -S "https://drive.google.com/file/d/1o6SEUvogow432pIKQEL8-EEzNBinzW9R/view?usp=sharing" dyn 1
+#########
 # telebot
 docker-compose -f bgx/docker/docker-compose-telebot-bgx.yaml up
 # sudo nmap -sT -p- ntr

@@ -152,6 +152,7 @@ message ConsensusNotifyPeerConnected {
   Status            status = 2;
   Modes             mode   = 3;  // Malicious mode
   string            info   = 4;  // in case status == ROLE_CHANGE - this is cluster name where leader changed or json
+  string            data   = 5;  // for PARAM_UPDATE could be value 
  }
 
 // An existing peer was dropped
@@ -497,6 +498,7 @@ message ConsensusBlocksGetResponse {
     NOT_READY = 4;
 
     UNKNOWN_BLOCK = 5;
+    BLOCK_IS_PROCESSED_NOW = 6;
   }
 
   Status status = 1;
@@ -520,6 +522,7 @@ message ConsensusChainHeadGetResponse {
 
     NO_CHAIN_HEAD = 5;
     TOO_MANY_BRANCH = 6;
+    BLOCK_IS_PROCESSED_NOW = 7;
   }
 
   Status status = 1;
@@ -543,6 +546,7 @@ message ConsensusSettingsGetResponse {
     NOT_READY = 4;
 
     UNKNOWN_BLOCK = 5;
+    BLOCK_IS_PROCESSED_NOW = 6;
   }
 
   Status status = 1;
@@ -566,6 +570,7 @@ message ConsensusStateGetResponse {
     NOT_READY = 4;
 
     UNKNOWN_BLOCK = 5;
+    BLOCK_IS_PROCESSED_NOW = 6;
   }
 
   Status status = 1;

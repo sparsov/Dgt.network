@@ -31,6 +31,9 @@ class UnknownBlock(Exception):
 class TooManyBranch(Exception):
     """Ask too many branch for DAG."""
 
+class BlockIsProcessedNow(Exception):  
+    pass            
+
 
 StartupInfo = namedtuple(
     'SignupInfo',
@@ -313,12 +316,16 @@ class ConsensusProxy:
 
     def state_get(self, block_id, addresses):
         '''Returns a list of address/data pairs (str, bytes)'''
-        block = self._get_blocks([block_id.hex()])[0]
+        bid = block_id.hex()
+        if self._chain_controller.is_block_processed_now(bid):
+            # state of this block is not fixed yet 
+            raise BlockIsProcessedNow()
+
+        block = self._get_blocks([bid])[0]
         block_header = BlockHeader()
         block_header.ParseFromString(block.header)
 
-        state_view = self._state_view_factory.create_view(
-            block_header.state_root_hash)
+        state_view = self._state_view_factory.create_view(block_header.state_root_hash)
 
         result = []
 
@@ -327,6 +334,9 @@ class ConsensusProxy:
             if len(address) == 70:
                 try:
                     value = state_view.get(address)
+                except Exception as err:
+                    LOGGER.debug(f"state_get: SKIP ADDRESS={address} ERROR={err}\n")
+                    continue
                 except KeyError:
                     # if the key is missing, leave it out of the response
                     continue

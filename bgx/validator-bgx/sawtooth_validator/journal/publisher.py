@@ -909,9 +909,11 @@ class BlockPublisher(object):
         if self.is_recovery:
             """
             recovery from DAG store - ask next block for nest_colour
+            maybe we need check in pending list before set recovery mode in false 
             """
             blks = self._block_store.get_recovery_block(nest_colour)
             if blks is not None:
+                # send into completer and next into chain queue
                 LOGGER.debug("RECOVERY next BLOCK=%s for nest=%s",[blk.identifier[:8] for blk in blks],nest_colour)
                 self._block_sender.recover_block(blks)
             else:  

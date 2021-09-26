@@ -18,7 +18,7 @@ import logging
 
 from google.protobuf.message import DecodeError
 
-from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch
+from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch,BlockIsProcessedNow
 
 from sawtooth_validator.protobuf import consensus_pb2
 from sawtooth_validator.protobuf import validator_pb2
@@ -529,6 +529,8 @@ class ConsensusChainHeadGetHandler(ConsensusServiceHandler):
             self._proxy.reset_max_batches_per_block()
         except UnknownBlock:
             response.status = consensus_pb2.ConsensusChainHeadGetResponse.NO_CHAIN_HEAD
+        except BlockIsProcessedNow:
+            response.status = consensus_pb2.ConsensusChainHeadGetResponse.BLOCK_IS_PROCESSED_NOW
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusChainHeadGet")
             response.status = consensus_pb2.ConsensusChainHeadGetResponse.SERVICE_ERROR
@@ -558,8 +560,7 @@ class ConsensusSettingsGetHandler(ConsensusServiceHandler):
             response.status = consensus_pb2.ConsensusSettingsGetResponse.UNKNOWN_BLOCK
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusSettingsGet")
-            response.status =\
-                consensus_pb2.ConsensusSettingsGetResponse.SERVICE_ERROR
+            response.status = consensus_pb2.ConsensusSettingsGetResponse.SERVICE_ERROR
 
 
 class ConsensusStateGetHandler(ConsensusServiceHandler):
@@ -574,6 +575,7 @@ class ConsensusStateGetHandler(ConsensusServiceHandler):
 
     def handle_request(self, request, response):
         try:
+            #LOGGER.debug('ConsensusStateGetHandler:proxy ASK STATE ENTRY')
             response.entries.extend([
                 ConsensusStateEntry(
                     address=address,
@@ -581,12 +583,13 @@ class ConsensusStateGetHandler(ConsensusServiceHandler):
                 for address, data in self._proxy.state_get(
                     request.block_id, request.addresses)
             ])
-            LOGGER.debug('ConsensusStateGetHandler:proxy ASK STATE ENTRY')
+            #LOGGER.debug('ConsensusStateGetHandler:proxy ASK STATE ENTRY DONE')
         except UnknownBlock:
-            LOGGER.debug('ConsensusStateGetHandler:proxy UNKNOWN BLOCK=%s',request.block_id.hex())
-            response.status = \
-                consensus_pb2.ConsensusStateGetResponse.UNKNOWN_BLOCK
+            LOGGER.debug('ConsensusStateGetHandler:proxy UNKNOWN BLOCK=%s',request.block_id.hex()[0:8])
+            response.status = consensus_pb2.ConsensusStateGetResponse.UNKNOWN_BLOCK
+        except BlockIsProcessedNow:
+            LOGGER.debug('ConsensusStateGetHandler:proxy BLOCK_IS_PROCESSED_NOW BLOCK=%s',request.block_id.hex()[0:8])
+            response.status = consensus_pb2.ConsensusStateGetResponse.BLOCK_IS_PROCESSED_NOW
         except Exception:  # pylint: disable=broad-except
             LOGGER.exception("ConsensusStateGet")
-            response.status =\
-                consensus_pb2.ConsensusStateGetResponse.SERVICE_ERROR
+            response.status =consensus_pb2.ConsensusStateGetResponse.SERVICE_ERROR

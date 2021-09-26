@@ -108,10 +108,15 @@ class PbftSettingsView:
 
         return value
 
-    def update_param(self,pname):
+    def update_param(self,pname,data=None):
         if pname in self._params:
-            del self._params[pname]
-            LOGGER.debug('CLEAR PARAM %s',pname)
+            if data == None:
+                del self._params[pname]
+                LOGGER.debug('CLEAR PARAM %s',pname)
+            else:
+                self._params[pname] = data             
+                LOGGER.debug('SET PARAM %s',pname) 
+
             return True
         return False
 

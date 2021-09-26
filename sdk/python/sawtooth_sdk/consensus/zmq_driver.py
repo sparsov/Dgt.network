@@ -134,7 +134,7 @@ class ZmqDriver(Driver):
             notification = consensus_pb2.ConsensusNotifyPeerConnected()
             notification.ParseFromString(message.content)
 
-            data = notification.peer_info, notification.status, notification.mode , notification.info
+            data = notification.peer_info, notification.status, notification.mode , notification.info, notification.data
 
         elif type_tag == Message.CONSENSUS_NOTIFY_PEER_DISCONNECTED:
             notification = consensus_pb2.ConsensusNotifyPeerDisconnected()

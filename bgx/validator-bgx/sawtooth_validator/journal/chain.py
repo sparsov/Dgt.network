@@ -36,7 +36,7 @@ from sawtooth_validator.metrics.wrappers import GaugeWrapper
 
 from sawtooth_validator.state.merkle import INIT_ROOT_KEY
 from sawtooth_validator.protobuf.block_pb2 import Block
-from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch
+from sawtooth_validator.consensus.proxy import UnknownBlock,TooManyBranch,BlockIsProcessedNow
 from sawtooth_validator.journal.block_store import Federation
 
 LOGGER = logging.getLogger(__name__)
@@ -690,6 +690,7 @@ class BlockValidator(object):
             # 6) Tell the journal we are done.
             LOGGER.info("_done_cb  commit_new_chain=%s block=%s\n",commit_new_chain,self._new_block.identifier[:8])
             #self._check_merkle(self._new_block.state_root_hash)
+            # into _done_cb - make receipty
             self._done_cb(commit_new_chain, self._result) # on_block_validated() 
 
             LOGGER.info("Finished new block=%s.%s validation STATE=%s\n",self._new_block.block_num,self._new_block.identifier[:8],self._new_block.state_root_hash[:10])
@@ -1042,13 +1043,18 @@ class ChainController(object):
             LOGGER.debug("ChainController: get_chain_head for=%s heads=%s",parent_id[:8],self._heads_list)
             if parent_id in self._blocks_processing:
                 LOGGER.debug("ChainController: get_chain_head for=%s WAIT BLOCK IS PROCESSED NOW!\n",parent_id[:8])
-                return None
+                #return None
+                raise BlockIsProcessedNow
             # ? try to just wait and send head into next request
             #new_head = self.get_real_head_of_branch(parent_id)
             #LOGGER.debug("ChainController: get_chain_head for=%s real head=%s",parent_id[:8],new_head)
             #return new_head
             
         return None
+
+    
+    def is_block_processed_now(self,block_id):
+        return block_id in self._blocks_processing
 
     @property
     def chain_head(self):
@@ -1065,6 +1071,8 @@ class ChainController(object):
         restore after restart node
         """
         return self._block_store.is_recovery
+    def set_block_recover(self,blk_id):
+        self._block_store.block_recovered(blk_id)
 
     def _submit_blocks_for_verification(self, blocks):
         """
@@ -1404,9 +1412,13 @@ class ChainController(object):
 
             # Submit any immediate descendant blocks for verification
             LOGGER.debug('Verify descendant blocks: %s (%s)',new_block,[block.identifier[:8] for block in descendant_blocks])
-            if not self.is_recovery and len(descendant_blocks) == 0 and len(self._blocks_pending) == 0 and self._block_sender.is_pending_head == False and not self._block_sender.is_sync:
-                LOGGER.debug('There are no descendant blocks - TRY TO SYNC WITH OTHER PEERS\n')
-                self._block_sender.try_to_sync_with_net()
+            if self.is_recovery:
+                # recovery mode - inform that block recover
+                self.set_block_recover(nid)
+            else:
+                if len(descendant_blocks) == 0 and len(self._blocks_pending) == 0 and self._block_sender.is_pending_head == False and not self._block_sender.is_sync:
+                    LOGGER.debug('There are no descendant blocks - TRY TO SYNC WITH OTHER PEERS\n')
+                    self._block_sender.try_to_sync_with_net()
 
             self._submit_blocks_for_verification(descendant_blocks)
 
@@ -1419,6 +1431,7 @@ class ChainController(object):
                     if observer.chain_update(block, receipts):
                         topology_updated += 1
                 if topology_updated > 0:
+                    LOGGER.debug(f'UPDATE TOPOLOGY BLOCK={new_block.block_num}.{nid[:8]}')
                     self._notify_on_topology_updated()
 
         if self._metrics_registry:
@@ -1528,7 +1541,7 @@ class ChainController(object):
                     if blk.block_num == prev_num:
                         # blk is predecessor of block by number
                         self._blocks_pending[blk.identifier] = [block]
-                        LOGGER.debug('For block=%s pending=[%s] by num', blk.identifier[:8],block.identifier[:8])
+                        LOGGER.debug('For block=%s.%s pending=[%s] by num',blk.block_num, blk.identifier[:8],block.identifier[:8])
                         return True
             return False
 
@@ -1552,9 +1565,10 @@ class ChainController(object):
                     LOGGER.debug('GENESIS_FEDERATION_BLOCK APPEARED!!')
                     self._is_genesis_federation_block = True 
 
+                # count all recovery block 
                 self._block_cache[block.identifier] = block
                 self._blocks_pending[block.identifier] = []
-                LOGGER.debug("Block received: id=%s", block.identifier[:8])
+                LOGGER.debug(f">> Block received: id={block.identifier[:8]} pending total={len(self._blocks_pending)}")
                 if (block.previous_block_id in self._blocks_processing or block.previous_block_id in self._blocks_pending):
                     LOGGER.debug('Block pending: id=%s', block.identifier[:8])
                     """

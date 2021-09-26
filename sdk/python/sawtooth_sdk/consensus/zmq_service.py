@@ -91,8 +91,7 @@ class ZmqService(Service):
             response_type=consensus_pb2.ConsensusSendToResponse)
 
         if response.status != consensus_pb2.ConsensusSendToResponse.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(response.status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(response.status))
 
     def broadcast_to_cluster(self, message_type, payload):
         """
@@ -108,8 +107,7 @@ class ZmqService(Service):
             response_type=consensus_pb2.ConsensusBroadcastClusterResponse)
 
         if response.status != consensus_pb2.ConsensusBroadcastClusterResponse.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(response.status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(response.status))
         
 
     def broadcast_to_arbiter(self, message_type, payload):
@@ -125,8 +123,7 @@ class ZmqService(Service):
             response_type=consensus_pb2.ConsensusBroadcastArbiterResponse)
 
         if response.status != consensus_pb2.ConsensusBroadcastArbiterResponse.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(response.status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(response.status))
         
 
     def broadcast(self, message_type, payload):
@@ -140,8 +137,7 @@ class ZmqService(Service):
             response_type=consensus_pb2.ConsensusBroadcastResponse)
 
         if response.status != consensus_pb2.ConsensusBroadcastResponse.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(response.status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(response.status))
 
     # -- Block Creation --
 
@@ -163,8 +159,7 @@ class ZmqService(Service):
         status = response.status
 
         if status == response_type.INVALID_STATE:
-            raise exceptions.InvalidState(
-                'Cannot initialize block in current state')
+            raise exceptions.InvalidState('Cannot initialize block in current state')
 
         if status == response_type.UNKNOWN_BLOCK:
             raise exceptions.UnknownBlock()
@@ -186,16 +181,13 @@ class ZmqService(Service):
         status = response.status
 
         if status == response_type.INVALID_STATE:
-            raise exceptions.InvalidState(
-                'Cannot summarize block in current state')
+            raise exceptions.InvalidState('Cannot summarize block in current state')
 
         if status == response_type.BLOCK_NOT_READY:
-            raise exceptions.BlockNotReady(
-                'Block not ready to be summarize')
+            raise exceptions.BlockNotReady('Block not ready to be summarize')
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
         return (response.summary,response.block_id)
 
@@ -212,16 +204,13 @@ class ZmqService(Service):
         status = response.status
 
         if status == response_type.INVALID_STATE:
-            raise exceptions.InvalidState(
-                'Cannot finalize block in current state')
+            raise exceptions.InvalidState('Cannot finalize block in current state')
 
         if status == response_type.BLOCK_NOT_READY:
-            raise exceptions.BlockNotReady(
-                'Block not ready to be finalized')
+            raise exceptions.BlockNotReady('Block not ready to be finalized')
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
         return response.block_id
 
@@ -238,12 +227,10 @@ class ZmqService(Service):
         status = response.status
 
         if status == response_type.INVALID_STATE:
-            raise exceptions.InvalidState(
-                'Cannot cancel block in current state')
+            raise exceptions.InvalidState('Cannot cancel block in current state')
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
     # -- Block Directives --
 
@@ -263,8 +250,7 @@ class ZmqService(Service):
             raise exceptions.UnknownBlock()
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
     def commit_block(self, block_id,seal=None):
         # place for SEAL
@@ -283,8 +269,7 @@ class ZmqService(Service):
             raise exceptions.UnknownBlock()
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
     def ignore_block(self, block_id):
         request = consensus_pb2.ConsensusIgnoreBlockRequest(block_id=block_id)
@@ -302,8 +287,7 @@ class ZmqService(Service):
             raise exceptions.UnknownBlock()
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
     def fail_block(self, block_id):
         request = consensus_pb2.ConsensusFailBlockRequest(block_id=block_id)
@@ -321,8 +305,7 @@ class ZmqService(Service):
             raise exceptions.UnknownBlock()
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
     # -- Queries --
 
@@ -342,8 +325,7 @@ class ZmqService(Service):
             raise exceptions.UnknownBlock()
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
         return {
             block.block_id: Block(block)
@@ -366,6 +348,8 @@ class ZmqService(Service):
             raise exceptions.NoChainHead()
         if status == response_type.TOO_MANY_BRANCH:
             raise exceptions.TooManyBranch()
+        if status == response_type.BLOCK_IS_PROCESSED_NOW:
+            raise exceptions.BlockIsProcessedNow()
         if status != response_type.OK:
             raise exceptions.ReceiveError('Failed with status {}'.format(status))
 
@@ -390,8 +374,7 @@ class ZmqService(Service):
             raise exceptions.UnknownBlock()
 
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError(f'Failed with status {status}')
 
         return {
             entry.key: entry.value
@@ -404,7 +387,7 @@ class ZmqService(Service):
             addresses=addresses)
 
         response_type = consensus_pb2.ConsensusStateGetResponse
-
+        #LOGGER.debug(f"ZmqService:get_state {block_id}")
         response = self._send(
             request=request,
             message_type=Message.CONSENSUS_STATE_GET_REQUEST,
@@ -414,10 +397,10 @@ class ZmqService(Service):
 
         if status == response_type.UNKNOWN_BLOCK:
             raise exceptions.UnknownBlock()
-
+        if status == response_type.BLOCK_IS_PROCESSED_NOW:   
+            raise exceptions.BlockIsProcessedNow()           
         if status != response_type.OK:
-            raise exceptions.ReceiveError(
-                'Failed with status {}'.format(status))
+            raise exceptions.ReceiveError(f'Failed with status {status}')
 
         return {
             entry.address: entry.data
