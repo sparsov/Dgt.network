@@ -19,8 +19,8 @@ import string
 import time
 import cbor
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader, \
     Transaction
 from sawtooth_validator.protobuf.batch_pb2 import BatchHeader, Batch

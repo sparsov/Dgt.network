@@ -9,12 +9,12 @@
             Name="Source Files"
             Filters="*.py"
             GUID="{20BBC0EF-9E58-440C-8523-892372D5EABB}">
-            <F N="bgx/families/settings/bgx_settings/__init__.py"/>
-            <F N="bgx/families/settings/bgx_settings/processor/__init__.py"/>
-            <F N="bgx/families/settings/bgx_settings/processor/config/__init__.py"/>
-            <F N="bgx/families/settings/bgx_settings/processor/handler.py"/>
-            <F N="bgx/families/settings/bgx_settings/processor/main.py"/>
-            <F N="bgx/families/settings/bgx_settings/processor/config/settings.py"/>
+            <F N="bgx/families/settings/dgt_settings/__init__.py"/>
+            <F N="bgx/families/settings/dgt_settings/processor/__init__.py"/>
+            <F N="bgx/families/settings/dgt_settings/processor/config/__init__.py"/>
+            <F N="bgx/families/settings/dgt_settings/processor/handler.py"/>
+            <F N="bgx/families/settings/dgt_settings/processor/main.py"/>
+            <F N="bgx/families/settings/dgt_settings/processor/config/settings.py"/>
         </Folder>
         <Folder
             Name="Other Files"

@@ -16,7 +16,7 @@ from enum import Enum
 import logging
 
 try:
-    from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
+    from dgt_sdk.protobuf.block_pb2 import BlockHeader
 except TypeError:
     from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 

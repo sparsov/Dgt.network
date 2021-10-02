@@ -37,31 +37,31 @@ from bgt_bot_api import error_handlers
 from bgt_bot_api.messaging import DisconnectError
 from bgt_bot_api.messaging import SendBackoffTimeoutError
 
-from sawtooth_sdk.protobuf.validator_pb2 import Message
-from sawtooth_sdk.protobuf import client_transaction_pb2
-from sawtooth_sdk.protobuf import client_list_control_pb2
-from sawtooth_sdk.protobuf import client_batch_submit_pb2
-from sawtooth_sdk.protobuf import client_state_pb2
-from sawtooth_sdk.protobuf import client_block_pb2
-from sawtooth_sdk.protobuf import client_batch_pb2
-from sawtooth_sdk.protobuf import client_topology_pb2
+from dgt_sdk.protobuf.validator_pb2 import Message
+from dgt_sdk.protobuf import client_transaction_pb2
+from dgt_sdk.protobuf import client_list_control_pb2
+from dgt_sdk.protobuf import client_batch_submit_pb2
+from dgt_sdk.protobuf import client_state_pb2
+from dgt_sdk.protobuf import client_block_pb2
+from dgt_sdk.protobuf import client_batch_pb2
+from dgt_sdk.protobuf import client_topology_pb2
 
-from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetRequest
-from sawtooth_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetResponse
-from sawtooth_sdk.protobuf import client_peers_pb2
-from sawtooth_sdk.protobuf import client_status_pb2
-from sawtooth_sdk.protobuf.client_peers_pb2 import  ClientPeersControlRequest,ClientPeersControlResponse
+from dgt_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetRequest
+from dgt_sdk.protobuf.client_receipt_pb2 import  ClientReceiptGetResponse
+from dgt_sdk.protobuf import client_peers_pb2
+from dgt_sdk.protobuf import client_status_pb2
+from dgt_sdk.protobuf.client_peers_pb2 import  ClientPeersControlRequest,ClientPeersControlResponse
 
-from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
-from sawtooth_sdk.protobuf.batch_pb2 import Batch,BatchHeader,BatchList
-from sawtooth_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
+from dgt_sdk.protobuf.block_pb2 import BlockHeader
+from dgt_sdk.protobuf.batch_pb2 import Batch,BatchHeader,BatchList
+from dgt_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
 
 from bgt_bot_api.route_handlers import RouteHandler,DEFAULT_TIMEOUT
 from bgt_bot_api.bot_handlers import Tbot
 import cbor
 import yaml
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
-from sawtooth_signing import CryptoFactory,create_context
+from dgt_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
+from dgt_signing import CryptoFactory,create_context
 
 from smart_bgt.processor.utils import FAMILY_NAME as SMART_BGX_FAMILY
 from smart_bgt.processor.utils import FAMILY_VER as SMART_BGX_VER

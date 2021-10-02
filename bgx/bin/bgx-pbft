@@ -24,11 +24,11 @@ build_str = "lib.{}-{}.{}".format(
     sys.version_info.major, sys.version_info.minor)
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx', 'consensus', 'bgx_pbft'))
-sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
-sys.path.insert(0, os.path.join(TOP_DIR,'families', 'settings'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','sdk', 'python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families', 'settings'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','validator-bgx'))
 
-sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','signing'))
 
 
 from bgx_pbft_engine.main import main

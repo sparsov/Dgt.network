@@ -26,8 +26,8 @@ import string
 
 import cbor
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 
 from sawtooth_sdk.protobuf import batch_pb2
 from sawtooth_sdk.protobuf import transaction_pb2

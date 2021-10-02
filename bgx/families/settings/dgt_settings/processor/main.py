@@ -21,17 +21,17 @@ import pkg_resources
 
 from colorlog import ColoredFormatter
 
-from sawtooth_sdk.processor.core import TransactionProcessor
-from sawtooth_sdk.processor.log import init_console_logging
-from sawtooth_sdk.processor.log import log_configuration
-from sawtooth_sdk.processor.config import get_log_config
-from sawtooth_sdk.processor.config import get_log_dir
-from sawtooth_sdk.processor.config import get_config_dir
-from bgx_settings.processor.handler import SettingsTransactionHandler
-from bgx_settings.processor.config.settings import SettingsConfig
-from bgx_settings.processor.config.settings import load_default_settings_config
-from bgx_settings.processor.config.settings import load_toml_settings_config
-from bgx_settings.processor.config.settings import merge_settings_config
+from dgt_sdk.processor.core import TransactionProcessor
+from dgt_sdk.processor.log import init_console_logging
+from dgt_sdk.processor.log import log_configuration
+from dgt_sdk.processor.config import get_log_config
+from dgt_sdk.processor.config import get_log_dir
+from dgt_sdk.processor.config import get_config_dir
+from dgt_settings.processor.handler import SettingsTransactionHandler
+from dgt_settings.processor.config.settings import SettingsConfig
+from dgt_settings.processor.config.settings import load_default_settings_config
+from dgt_settings.processor.config.settings import load_toml_settings_config
+from dgt_settings.processor.config.settings import merge_settings_config
 
 
 DISTRIBUTION_NAME = 'bgx-settings'

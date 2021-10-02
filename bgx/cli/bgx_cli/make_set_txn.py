@@ -88,7 +88,7 @@ def _create_propose_txn(signer, setting_key_value):
 
 
 def _create_topology_txn(signer, setting_key_value):
-    """Creates an individual topology bgx_settings transaction for the given
+    """Creates an individual topology dgt_settings transaction for the given
     key and value.
     """
     setting_key, setting_value = setting_key_value
@@ -119,7 +119,7 @@ def _create_vote_txn(signer, proposal_id, setting_key, vote_value):
 
 
 def _make_txn(signer, setting_key, payload):
-    """Creates and signs a bgx_settings transaction with with a payload.
+    """Creates and signs a dgt_settings transaction with with a payload.
     """
     serialized_payload = payload.SerializeToString()
     header = TransactionHeader(

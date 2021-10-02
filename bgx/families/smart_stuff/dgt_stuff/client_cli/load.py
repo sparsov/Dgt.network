@@ -23,7 +23,7 @@ from http.client import RemoteDisconnected
 import concurrent.futures
 from concurrent.futures import wait
 import requests
-from sawtooth_sdk.protobuf import batch_pb2
+from dgt_sdk.protobuf import batch_pb2
 
 LOGGER = logging.getLogger(__file__)
 

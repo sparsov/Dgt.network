@@ -19,19 +19,19 @@ import argparse
 import logging
 import pkg_resources
 
-from sawtooth_sdk.processor.log import init_console_logging
-from sawtooth_sdk.processor.log import log_configuration
-from sawtooth_sdk.processor.config import get_log_config
-from sawtooth_sdk.processor.config import get_log_dir
-from sawtooth_sdk.processor.config import get_config_dir
+from dgt_sdk.processor.log import init_console_logging
+from dgt_sdk.processor.log import log_configuration
+from dgt_sdk.processor.config import get_log_config
+from dgt_sdk.processor.config import get_log_dir
+from dgt_sdk.processor.config import get_config_dir
 
-from sawtooth_sdk.consensus.zmq_driver import ZmqDriver
+from dgt_sdk.consensus.zmq_driver import ZmqDriver
 from bgx_pbft_engine.engine import PbftEngine
 
 from bgx_pbft.config.path import load_path_config
 from bgx_pbft.exceptions import LocalConfigurationError
 from bgx_pbft_engine.config.pbft import PbftConfig,load_default_pbft_config,load_toml_pbft_config,merge_pbft_config
-from sawtooth_sdk.messaging.future import FutureTimeoutError
+from dgt_sdk.messaging.future import FutureTimeoutError
 DISTRIBUTION_NAME = 'bgx-pbft'
 
 LOGGER = logging.getLogger(__name__)

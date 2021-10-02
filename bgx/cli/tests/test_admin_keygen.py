@@ -19,7 +19,7 @@ import unittest
 import sys
 
 
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
 from bgx_cli.admin_command import keygen
 from bgx_cli.admin_command.config import get_key_dir

@@ -19,22 +19,22 @@ import binascii
 import time
 import json
 
-import sawtooth_signing as signing
-from sawtooth_signing import CryptoFactory
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+import dgt_signing as signing
+from dgt_signing import CryptoFactory
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
-from sawtooth_sdk.consensus.exceptions import UnknownBlock,InvalidState,BlockIsProcessedNow
-from sawtooth_sdk.messaging.stream import Stream
-from sawtooth_sdk.protobuf.batch_pb2 import Batch
-from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
-from sawtooth_sdk.protobuf.client_batch_submit_pb2 import ClientBatchSubmitRequest
-from sawtooth_sdk.protobuf.client_batch_submit_pb2 import ClientBatchSubmitResponse
-from sawtooth_sdk.protobuf.client_block_pb2 import ClientBlockGetByTransactionIdRequest
-from sawtooth_sdk.protobuf.client_block_pb2 import ClientBlockGetResponse
-from sawtooth_sdk.protobuf.block_pb2 import BlockHeader
-from sawtooth_sdk.protobuf.validator_pb2 import Message
-from sawtooth_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
-from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusBlock, ConsensusNotifyPeerConnected
+from dgt_sdk.consensus.exceptions import UnknownBlock,InvalidState,BlockIsProcessedNow
+from dgt_sdk.messaging.stream import Stream
+from dgt_sdk.protobuf.batch_pb2 import Batch
+from dgt_sdk.protobuf.batch_pb2 import BatchHeader
+from dgt_sdk.protobuf.client_batch_submit_pb2 import ClientBatchSubmitRequest
+from dgt_sdk.protobuf.client_batch_submit_pb2 import ClientBatchSubmitResponse
+from dgt_sdk.protobuf.client_block_pb2 import ClientBlockGetByTransactionIdRequest
+from dgt_sdk.protobuf.client_block_pb2 import ClientBlockGetResponse
+from dgt_sdk.protobuf.block_pb2 import BlockHeader
+from dgt_sdk.protobuf.validator_pb2 import Message
+from dgt_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+from dgt_sdk.protobuf.consensus_pb2 import ConsensusBlock, ConsensusNotifyPeerConnected
 
 from bgx_pbft.consensus.pbft_block_publisher import PbftBlockPublisher
 from bgx_pbft.consensus.pbft_block_verifier  import PbftBlockVerifier
@@ -51,12 +51,12 @@ from bgx_pbft.journal.block_wrapper import BlockWrapper
 
 from bgx_pbft_common.utils import _short_id
 # for nests making
-from sawtooth_settings.protobuf.settings_pb2 import SettingProposal,SettingsPayload,SettingTopology
+from dgt_settings.protobuf.settings_pb2 import SettingProposal,SettingsPayload,SettingTopology
 
 #from bgx_pbft_common.protobuf.settings_pb2 import SettingTopology
 from bgx_pbft_common.utils import _config_inputs,_config_outputs
 try:
-    import sawtooth_sdk.protobuf.transaction_pb2 as txn_pb
+    import dgt_sdk.protobuf.transaction_pb2 as txn_pb
 except TypeError:
     import sawtooth_validator.protobuf.transaction_pb2 as txn_pb
 
@@ -243,7 +243,7 @@ class PbftOracle:
         return  self._fbft.del_peers(self._fbft.peer_to_cluster_name(npid),list)
 
     def _make_settings_txn(self,public_key_hash, setting_key, payload):                                                            
-        """Creates and signs a bgx_settings transaction with with a payload.                                
+        """Creates and signs a dgt_settings transaction with with a payload.                                
         """                                                                                                 
         serialized_payload = payload.SerializeToString()                                                   
         header = txn_pb.TransactionHeader(                                                                         

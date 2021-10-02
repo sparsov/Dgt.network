@@ -49,8 +49,8 @@ from sawtooth_validator.protobuf import state_context_pb2
 from sawtooth_validator.protobuf import transaction_receipt_pb2
 from sawtooth_validator.protobuf import validator_pb2
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 
 from test_scheduler.yaml_scheduler_tester import create_batch
 from test_scheduler.yaml_scheduler_tester import create_transaction

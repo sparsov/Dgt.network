@@ -20,8 +20,8 @@ import hashlib
 import threading
 import time
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 
 import sawtooth_validator.protobuf.transaction_pb2 as transaction_pb2
 

@@ -26,12 +26,12 @@ from google.protobuf.json_format import MessageToDict
 from bgt_bot_api.messaging import ConnectionEvent
 from bgt_bot_api.messaging import DisconnectError
 
-from sawtooth_sdk.protobuf.validator_pb2 import Message
-from sawtooth_sdk.protobuf import client_list_control_pb2
-from sawtooth_sdk.protobuf import client_block_pb2
-from sawtooth_sdk.protobuf import client_event_pb2
-from sawtooth_sdk.protobuf import events_pb2
-from sawtooth_sdk.protobuf import transaction_receipt_pb2
+from dgt_sdk.protobuf.validator_pb2 import Message
+from dgt_sdk.protobuf import client_list_control_pb2
+from dgt_sdk.protobuf import client_block_pb2
+from dgt_sdk.protobuf import client_event_pb2
+from dgt_sdk.protobuf import events_pb2
+from dgt_sdk.protobuf import transaction_receipt_pb2
 """
 from sawtooth_rest_api.protobuf.validator_pb2 import Message
 from sawtooth_rest_api.protobuf import client_list_control_pb2

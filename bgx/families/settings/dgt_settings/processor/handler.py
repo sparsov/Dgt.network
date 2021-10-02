@@ -20,18 +20,18 @@ import json
 from functools import lru_cache
 
 
-from sawtooth_sdk.processor.handler import TransactionHandler
-from sawtooth_sdk.messaging.future import FutureTimeoutError
-from sawtooth_sdk.processor.exceptions import InvalidTransaction
-from sawtooth_sdk.processor.exceptions import InternalError
+from dgt_sdk.processor.handler import TransactionHandler
+from dgt_sdk.messaging.future import FutureTimeoutError
+from dgt_sdk.processor.exceptions import InvalidTransaction
+from dgt_sdk.processor.exceptions import InternalError
 
-from bgx_settings.protobuf.settings_pb2 import SettingsPayload
-from bgx_settings.protobuf.settings_pb2 import SettingProposal
-from bgx_settings.protobuf.settings_pb2 import SettingVote
-from bgx_settings.protobuf.settings_pb2 import SettingCandidate
-from bgx_settings.protobuf.settings_pb2 import SettingCandidates
-from bgx_settings.protobuf.settings_pb2 import SettingTopology
-from bgx_settings.protobuf.setting_pb2 import Setting
+from dgt_settings.protobuf.settings_pb2 import SettingsPayload
+from dgt_settings.protobuf.settings_pb2 import SettingProposal
+from dgt_settings.protobuf.settings_pb2 import SettingVote
+from dgt_settings.protobuf.settings_pb2 import SettingCandidate
+from dgt_settings.protobuf.settings_pb2 import SettingCandidates
+from dgt_settings.protobuf.settings_pb2 import SettingTopology
+from dgt_settings.protobuf.setting_pb2 import Setting
 from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,DGT_PING_COUNTER
 
 LOGGER = logging.getLogger(__name__)

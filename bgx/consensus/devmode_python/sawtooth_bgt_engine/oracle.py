@@ -16,9 +16,9 @@
 import logging
 import os
 
-import sawtooth_signing as signing
-from sawtooth_signing import CryptoFactory
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+import dgt_signing as signing
+from dgt_signing import CryptoFactory
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
 from sawtooth_sdk.consensus.exceptions import UnknownBlock
 from sawtooth_sdk.messaging.stream import Stream

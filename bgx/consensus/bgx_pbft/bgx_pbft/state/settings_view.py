@@ -18,7 +18,7 @@ import logging
 from functools import lru_cache
 LOGGER = logging.getLogger(__name__)
 try:
-    from sawtooth_sdk.protobuf.setting_pb2 import Setting
+    from dgt_sdk.protobuf.setting_pb2 import Setting
 except TypeError:
     from sawtooth_validator.protobuf.setting_pb2 import Setting
 

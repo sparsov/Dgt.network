@@ -22,8 +22,8 @@ import hashlib
 import random
 import string
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 
 from sawtooth_validator.database.dict_database import DictDatabase
 

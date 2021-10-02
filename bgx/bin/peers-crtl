@@ -26,8 +26,8 @@ build_str = "lib.{}-{}.{}".format(sysconfig.get_platform(),sys.version_info.majo
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))) 
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','cli'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','validator-bgx'))
-sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
-sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','signing'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','sdk', 'python'))
 from sawtooth_sdk.processor.log import init_console_logging,log_configuration
 FIFO_PATH = "/tmp/my_program.fifo"
 FIFO_DIR  = "../dgt_clust/c1/bgx1/data"

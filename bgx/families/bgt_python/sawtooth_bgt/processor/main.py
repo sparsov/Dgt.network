@@ -18,11 +18,11 @@ import argparse
 import pkg_resources
 import logging
 
-from sawtooth_sdk.processor.core import TransactionProcessor
-from sawtooth_sdk.processor.log import init_console_logging
-from sawtooth_sdk.processor.log import log_configuration
-from sawtooth_sdk.processor.config import get_log_config
-from sawtooth_sdk.processor.config import get_log_dir
+from dgt_sdk.processor.core import TransactionProcessor
+from dgt_sdk.processor.log import init_console_logging
+from dgt_sdk.processor.log import log_configuration
+from dgt_sdk.processor.config import get_log_config
+from dgt_sdk.processor.config import get_log_dir
 from sawtooth_bgt.processor.handler import BgtTransactionHandler
 
 
@@ -32,7 +32,7 @@ LOGGER = logging.getLogger(__name__)
 import asyncio
 from nats.aio.client import Client as NATS
 from nats.aio.errors import ErrConnectionClosed, ErrTimeout, ErrNoServers
-from sawtooth_sdk.protobuf.validator_pb2 import Message
+from dgt_sdk.protobuf.validator_pb2 import Message
 """
 #
 # ORIENTDB

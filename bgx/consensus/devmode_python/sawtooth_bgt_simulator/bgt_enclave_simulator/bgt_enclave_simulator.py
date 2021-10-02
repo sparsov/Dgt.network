@@ -30,10 +30,10 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from sawtooth_signing import create_context
-from sawtooth_signing import ParseError
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
-from sawtooth_signing.secp256k1 import Secp256k1PublicKey
+from dgt_signing import create_context
+from dgt_signing import ParseError
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
+from dgt_signing.secp256k1 import Secp256k1PublicKey
 
 #from sawtooth_bgt_common import sgx_structs
 

@@ -27,11 +27,11 @@ from zmq.asyncio import ZMQEventLoop
 from pyformance import MetricsRegistry
 from pyformance.reporters import InfluxReporter
 
-from sawtooth_sdk.processor.log import init_console_logging
-from sawtooth_sdk.processor.log import log_configuration
-from sawtooth_sdk.processor.config import get_log_config
-from sawtooth_sdk.processor.config import get_log_dir
-from sawtooth_sdk.processor.config import get_config_dir
+from dgt_sdk.processor.log import init_console_logging
+from dgt_sdk.processor.log import log_configuration
+from dgt_sdk.processor.config import get_log_config
+from dgt_sdk.processor.config import get_log_dir
+from dgt_sdk.processor.config import get_config_dir
 from sawtooth_rest_api.messaging import Connection
 #from sawtooth_rest_api.route_handlers import RouteHandler
 #BGX handlers

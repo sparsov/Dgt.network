@@ -21,16 +21,16 @@ import requests
 import yaml
 import cbor
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
-from sawtooth_signing import ParseError
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
+from dgt_signing import ParseError
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
-from sawtooth_sdk.protobuf.transaction_pb2 import TransactionHeader
-from sawtooth_sdk.protobuf.transaction_pb2 import Transaction
-from sawtooth_sdk.protobuf.batch_pb2 import BatchList
-from sawtooth_sdk.protobuf.batch_pb2 import BatchHeader
-from sawtooth_sdk.protobuf.batch_pb2 import Batch
+from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader
+from dgt_sdk.protobuf.transaction_pb2 import Transaction
+from dgt_sdk.protobuf.batch_pb2 import BatchList
+from dgt_sdk.protobuf.batch_pb2 import BatchHeader
+from dgt_sdk.protobuf.batch_pb2 import Batch
 from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
 
 from sawtooth_bgt.client_cli.exceptions import BgtClientException

@@ -16,8 +16,8 @@
 import logging
 import hashlib
 
-from sawtooth_signing import create_context
-from sawtooth_signing.secp256k1 import Secp256k1PublicKey
+from dgt_signing import create_context
+from dgt_signing.secp256k1 import Secp256k1PublicKey
 
 from sawtooth_validator.protobuf import client_batch_submit_pb2
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader

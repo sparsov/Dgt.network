@@ -22,8 +22,8 @@ import unittest
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 from sawtooth_validator.database.dict_database import DictDatabase
 from sawtooth_validator.protobuf.block_pb2 import Block
 from sawtooth_validator.protobuf.block_pb2 import BlockHeader

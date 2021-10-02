@@ -18,7 +18,7 @@ import sys
 
 from bgx_cli.exceptions import CliException
 from bgx_cli.admin_command.config import get_key_dir
-from sawtooth_signing import create_context
+from dgt_signing import create_context
 
 
 def add_keygen_parser(subparsers, parent_parser):

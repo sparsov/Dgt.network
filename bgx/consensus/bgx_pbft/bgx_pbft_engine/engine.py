@@ -19,11 +19,11 @@ import time
 import json
 from collections import namedtuple
 
-from sawtooth_sdk.consensus.engine import Engine
-from sawtooth_sdk.consensus import exceptions
-from sawtooth_sdk.protobuf.validator_pb2 import Message
-from sawtooth_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
-from sawtooth_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
+from dgt_sdk.consensus.engine import Engine
+from dgt_sdk.consensus import exceptions
+from dgt_sdk.protobuf.validator_pb2 import Message
+from dgt_sdk.protobuf.consensus_pb2 import ConsensusNotifyPeerConnected
+from dgt_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
 from bgx_pbft_engine.oracle import PbftOracle, PbftBlock,_StateViewFactoryProxy
 from bgx_pbft_engine.pending import PendingForks
 #from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
@@ -33,7 +33,7 @@ from bgx_pbft.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
 from bgx_pbft_common.utils import _short_id
 from enum import IntEnum,Enum
 
-from sawtooth_sdk.messaging.future import FutureTimeoutError
+from dgt_sdk.messaging.future import FutureTimeoutError
 from sawtooth_validator.gossip.fbft_topology import TOPOLOGY_GENESIS_HEX,PeerAtr
 
 LOGGER = logging.getLogger(__name__)

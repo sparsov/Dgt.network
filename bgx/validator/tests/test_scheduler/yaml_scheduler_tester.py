@@ -24,8 +24,8 @@ import time
 import uuid
 import yaml
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 
 from sawtooth_validator.database.dict_database import DictDatabase
 from sawtooth_validator.execution.scheduler import BatchExecutionResult

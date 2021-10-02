@@ -19,12 +19,12 @@ import base64
 import cbor
 
 
-from sawtooth_sdk.processor.handler import TransactionHandler
-from sawtooth_sdk.processor.exceptions import InvalidTransaction
-from sawtooth_sdk.processor.exceptions import InternalError
+from dgt_sdk.processor.handler import TransactionHandler
+from dgt_sdk.processor.exceptions import InvalidTransaction
+from dgt_sdk.processor.exceptions import InternalError
 from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
-from sawtooth_signing import CryptoFactory,create_context
+from dgt_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
+from dgt_signing import CryptoFactory,create_context
 
 LOGGER = logging.getLogger(__name__)
 

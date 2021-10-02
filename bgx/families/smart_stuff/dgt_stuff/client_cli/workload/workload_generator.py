@@ -24,7 +24,7 @@ from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures._base import CancelledError
 import requests
-from sawtooth_sdk.messaging.exceptions import WorkloadConfigurationError
+from dgt_sdk.messaging.exceptions import WorkloadConfigurationError
 
 PendingBatch = namedtuple('PendingBatch', ['id', 'url'])
 

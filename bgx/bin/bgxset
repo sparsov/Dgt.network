@@ -25,7 +25,7 @@ build_str = "lib.{}-{}.{}".format(
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))) 
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','cli'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','validator-bgx'))
-sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','signing'))
 
 from bgx_cli.bgxset import main_wrapper
 

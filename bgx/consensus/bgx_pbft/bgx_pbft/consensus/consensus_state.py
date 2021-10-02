@@ -28,7 +28,7 @@ from bgx_pbft.consensus.pbft_settings_view import PbftSettingsView
 from bgx_pbft.consensus.signup_info import SignupInfo
 
 from bgx_pbft_common.validator_registry_view.validator_registry_view import ValidatorRegistryView
-from sawtooth_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
+from dgt_sdk.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
 #from sawtooth_validator.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage,PbftViewChange,PbftSeal
 #from bgx_pbft_common.protobuf.pbft_consensus_pb2 import PbftMessage,PbftMessageInfo,PbftBlockMessage
 from bgx_pbft_common.utils import _short_id

@@ -23,15 +23,9 @@ build_str = "lib.{}-{}.{}".format(
     sysconfig.get_platform(),
     sys.version_info.major, sys.version_info.minor)
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.insert(0, os.path.join(
-    TOP_DIR,
-    'bgx','dashboard'))
-sys.path.insert(0, os.path.join(
-    TOP_DIR,
-    'sdk', 'python'))
-sys.path.insert(0, os.path.join(
-    TOP_DIR,
-    'signing'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','dashboard'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','sdk', 'python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'bgx','signing'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families','bgt_python'))
 sys.path.insert(0, os.path.join(TOP_DIR,'bgx','families','smart_stuff'))
 from sawtooth_rest_api.rest_api import main

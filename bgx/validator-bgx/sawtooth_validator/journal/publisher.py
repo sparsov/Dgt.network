@@ -40,7 +40,7 @@ from sawtooth_validator.protobuf.block_pb2 import BlockHeader
 from sawtooth_validator.protobuf.transaction_pb2 import TransactionHeader
 
 from sawtooth_validator.exceptions import NotRegisteredConsensusModule 
-from sawtooth_sdk.consensus.exceptions import BlockNotReady 
+from dgt_sdk.consensus.exceptions import BlockNotReady 
 LOGGER = logging.getLogger(__name__)
 
 import cProfile

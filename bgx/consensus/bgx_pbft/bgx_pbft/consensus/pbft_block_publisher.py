@@ -21,7 +21,7 @@ import json
 import random
 import base64
 try:
-    import sawtooth_sdk.protobuf.transaction_pb2 as txn_pb
+    import dgt_sdk.protobuf.transaction_pb2 as txn_pb
 except TypeError:
     import sawtooth_validator.protobuf.transaction_pb2 as txn_pb
 
@@ -47,8 +47,8 @@ import bgx_pbft_common.protobuf.bgx_validator_registry_pb2 as vr_pb
 from bgx_pbft_common.validator_registry_view.validator_registry_view import ValidatorRegistryView
 from bgx_pbft_common.utils import _short_id
 
-from  sawtooth_settings.protobuf.settings_pb2 import SettingProposal
-from  sawtooth_settings.protobuf.settings_pb2 import SettingsPayload
+from  dgt_settings.protobuf.settings_pb2 import SettingProposal
+from  dgt_settings.protobuf.settings_pb2 import SettingsPayload
 
 LOGGER = logging.getLogger(__name__)
 

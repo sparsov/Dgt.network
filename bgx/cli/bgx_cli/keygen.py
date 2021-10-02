@@ -20,7 +20,7 @@ import os
 import sys
 
 from bgx_cli.exceptions import CliException
-from sawtooth_signing import create_context
+from dgt_signing import create_context
 
 
 def add_keygen_parser(subparsers, parent_parser):

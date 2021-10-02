@@ -44,10 +44,10 @@ from sawtooth_validator.protobuf.setting_pb2 import Setting
 from sawtooth_validator.protobuf.batch_pb2 import BatchList
 #from bgx_cli.protobuf.batch_pb2 import BatchList
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
-from sawtooth_signing import ParseError
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
+from dgt_signing import ParseError
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
 from sawtooth_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_PING_COUNTER
 
 DISTRIBUTION_NAME = 'bgxset'
@@ -157,7 +157,7 @@ def _do_config_proposal_list(args):
 
 def _do_config_proposal_vote(args):
     """Executes the 'proposal vote' subcommand.  Given a key file, a proposal
-    id and a vote value, it generates a batch of bgx_settings transactions
+    id and a vote value, it generates a batch of dgt_settings transactions
     in a BatchList instance.  The BatchList is file or submitted to a
     validator.
     """

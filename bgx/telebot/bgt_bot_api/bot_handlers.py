@@ -38,9 +38,9 @@ from bgt_bot_api.messaging import DisconnectError
 from bgt_bot_api.messaging import SendBackoffTimeoutError
 from requests.exceptions import ConnectTimeout,ReadTimeout
 
-from sawtooth_sdk.protobuf.validator_pb2 import Message
-from sawtooth_sdk.protobuf import client_heads_pb2,client_topology_pb2
-from sawtooth_sdk.protobuf import client_peers_pb2
+from dgt_sdk.protobuf.validator_pb2 import Message
+from dgt_sdk.protobuf import client_heads_pb2,client_topology_pb2
+from dgt_sdk.protobuf import client_peers_pb2
 
 import telebot
 from telebot import apihelper

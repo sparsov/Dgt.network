@@ -18,8 +18,8 @@
 import unittest
 import os
 
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
 
 from sawtooth_validator.networking.interconnect import AuthorizationType
 from sawtooth_validator.networking.interconnect import ConnectionStatus

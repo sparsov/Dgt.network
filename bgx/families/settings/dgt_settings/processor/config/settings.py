@@ -19,7 +19,7 @@ import os
 
 import toml
 
-from sawtooth_sdk.processor.exceptions import LocalConfigurationError
+from dgt_sdk.processor.exceptions import LocalConfigurationError
 
 LOGGER = logging.getLogger(__name__)
 

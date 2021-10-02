@@ -24,17 +24,17 @@ import getpass
 from base64 import b64encode
 
 import requests
-from sawtooth_signing import create_context
-from sawtooth_signing import CryptoFactory
-from sawtooth_signing import ParseError
-from sawtooth_signing.secp256k1 import Secp256k1PrivateKey
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
+from dgt_signing import ParseError
+from dgt_signing.secp256k1 import Secp256k1PrivateKey
 from sawtooth_bgt.client_cli.workload.workload_generator import \
     WorkloadGenerator
 from sawtooth_bgt.client_cli.workload.sawtooth_workload import Workload
 from sawtooth_bgt.client_cli.create_batch import create_bgt_transaction
 from sawtooth_bgt.client_cli.create_batch import create_batch
 from sawtooth_bgt.client_cli.exceptions import BgtCliException
-from sawtooth_sdk.protobuf import batch_pb2
+from dgt_sdk.protobuf import batch_pb2
 
 LOGGER = logging.getLogger(__name__)
 
