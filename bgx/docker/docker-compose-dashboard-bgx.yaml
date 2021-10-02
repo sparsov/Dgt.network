@@ -2,7 +2,7 @@ version: '3.6'
 
 services:
 
-  bgx-dashboard:
+  dashboard-dgt:
     build:
       context: ../..
       dockerfile: bgx/dashboard/Dockerfile-${DISTR}
@@ -13,10 +13,10 @@ services:
         - BGX_TOP=bgx
     image: bgx-dashboard
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-dgt
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: bgx-dashboard
+    container_name: dashboard-dgt
     networks:
     - network1
     ports:
@@ -29,10 +29,10 @@ services:
         cd bgx/dashboard
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-dashboard -vv  --connect tcp://validator-bgx-c1-1:4104 --bind bgx-dashboard:8003
+        bgx-dashboard -vv  --connect tcp://validator-dgt-c1-1:4104 --bind dashboard-dgt:8003
       "
     stop_signal: SIGKILL
 
 networks:
   network1:
-     name: bgx1-network
+     name: dgt1-network
