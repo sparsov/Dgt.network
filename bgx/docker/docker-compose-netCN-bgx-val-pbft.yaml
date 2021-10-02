@@ -344,13 +344,13 @@ services:
 #     - ../..:/project/${BGX_TOP}
 #   container_name: devmode-python-bgx-5
 #   depends_on:
-#     - validator-bgx-5
+#     - validator-${PNM}-5
 #   command: |
 #     bash -c "
 #       cd bgx/consensus/devmode_python
 #       python3 setup.py clean --all
 #       python3 setup.py build
-#       devmode-python -vv --connect tcp://validator-bgx-5:${CONS} --component tcp://validator-bgx-5:${COMP}
+#       devmode-python -vv --connect tcp://validator-${PNM}-5:${CONS} --component tcp://validator-${PNM}-5:${COMP}
 #     "
 #   stop_signal: SIGKILL
 
