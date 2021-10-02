@@ -27,25 +27,25 @@ services:
         - https_proxy
         - no_proxy
         - BGX_TOP=bgx
-    image: bgx-settings-tp-bgx:${ISOLATION_ID}
+    image: bgx-settings-tp-${PNM}:${ISOLATION_ID}
     networks: 
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: bgx-settings-tp-bgx-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: settings-tp-${PNM}-${C}-${N}
     depends_on:
       - validator-bgx
     command: |
       bash -c "
         cd bgx/families/settings;rm -f /project/peer/logs/settings-*.log*;
-        bgxadm node ${C} bgx${N}
+        bgxadm node ${C} ${PNM}${N}
         python3 setup.py clean --all
         python3 setup.py build
-        settings-tp -vv -C tcp://validator-bgx-${C}-${N}:${COMP}
+        settings-tp -vv -C tcp://validator-${PNM}-${C}-${N}:${COMP}
       "
     stop_signal: SIGKILL
 
@@ -60,23 +60,23 @@ services:
         - BGX_TOP=bgx
     image: bgt-tp-python-bgx:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     networks:
     - network1
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: bgt-tp-python-bgx-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: bgt-tp-python-${PNM}-${C}-${N}
     depends_on:
       - validator-bgx
     command: |
       bash -c "
         cd bgx/families/bgt_python;rm -f /project/peer/logs/bgt-*.log*;
-        bgxadm node ${C} bgx${N}
+        bgxadm node ${C} ${PNM}${N}
         python3 setup.py clean --all
         python3 setup.py build
-        bgt-tp-python -vv -C tcp://validator-bgx-${C}-${N}:${COMP}
+        bgt-tp-python -vv -C tcp://validator-${PNM}-${C}-${N}:${COMP}
       "
     stop_signal: SIGKILL
 
@@ -92,23 +92,23 @@ services:
         - BGX_TOP=bgx
     image: stuff-tp-dgt:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     networks:
     - network1
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: stuff-tp-dgt-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: stuff-tp-${PNM}-${C}-${N}
     depends_on:
       - validator-bgx
     command: |
       bash -c "
         cd bgx/families/smart_stuff;rm -f /project/peer/logs/stuff-*.log*;
-        bgxadm node ${C} bgx${N}
+        bgxadm node ${C} ${PNM}${N}
         python3 setup.py clean --all
         python3 setup.py build
-        stuff-tp -vv -C tcp://validator-bgx-${C}-${N}:${COMP}
+        stuff-tp -vv -C tcp://validator-${PNM}-${C}-${N}:${COMP}
       "
     stop_signal: SIGKILL
 
@@ -185,12 +185,12 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: shell-bgx-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: shell-${PNM}-${C}-${N}
     depends_on:
       - validator-bgx
     command: |
@@ -214,7 +214,7 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     - ENDPOINTS=${ENDPOINTS}
     - SINGLE=${SINGLE}
@@ -222,8 +222,8 @@ services:
     - PCONTROL=${PCONTROL}
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: validator-bgx-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: validator-${PNM}-${C}-${N}
     expose:
       - ${COMP}
       - ${NET}
@@ -239,20 +239,20 @@ services:
         cd bgx/validator-bgx
         python3 setup.py clean --all
         python3 setup.py build
-        bgxadm node ${C} bgx${N};bgxadm keygen;ls -l /project/peer;
+        bgxadm node ${C} ${PNM}${N};bgxadm keygen;ls -l /project/peer;
         if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/validator*.log* /project/peer/logs/interc*.log* ;
         bgx keygen my_key;
         echo 'GATEWAY=${SEEDS},PEERING=${PEERING},NETWORK=${NETWORK},SIGNED=${SIGNED}'
         bgxset proposal create -k /project/peer/keys/validator.priv -o dgtset.batch $$(cat /project/peer/etc/dgt.conf)
-        bgxset genesis -k /project/peer/keys/validator.priv -A $$(cat /project/${BGX_TOP}/clusters/c1/bgx1/keys/validator.pub) -A $$(cat /project/peer/keys/validator.pub)
+        bgxset genesis -k /project/peer/keys/validator.priv -A $$(cat /project/${BGX_TOP}/clusters/c1/${PNM}1/keys/validator.pub) -A $$(cat /project/peer/keys/validator.pub)
         if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
         validator-dbgx -vv  \
-            --endpoint tcp://validator-bgx-${C}-${N}:${NET} \
+            --endpoint tcp://validator-${PNM}-${C}-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \
             --bind network:tcp://eth0:${NET} \
             --bind consensus:tcp://eth0:${CONS} \
             --max_dag_branch 6 --scheduler parallel ${SIGNED} --peering ${PEERING} ${SEEDS} --maximum-peer-connectivity 70 \
-            --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
+            --opentsdb-url-off http://stats-influxdb-${PNM}:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGTERM
     #stop_grace_period: 600ms
@@ -269,12 +269,12 @@ services:
         - BGX_TOP=bgx
     image: bgx-rest-api:${ISOLATION_ID}
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: bgx-api-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: api-${PNM}-${C}-${N}
     networks:
     - network1
     ports:
@@ -284,11 +284,11 @@ services:
     # opentsdb-url-off  -- SWITCH OFF metrics
     command: |
       bash -c "
-        cd bgx/rest-api;rm -f /project/peer/logs/bgx-rest-api*.log*;
-        bgxadm node ${C} bgx${N}
+        cd bgx/rest-api;rm -f /project/peer/logs/rest-api*.log*;
+        bgxadm node ${C} ${PNM}${N}
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-rest-api -vv --connect tcp://validator-bgx-${C}-${N}:${COMP} --bind bgx-api-${C}-${N}:${API} --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
+        bgx-rest-api -vv --connect tcp://validator-${PNM}-${C}-${N}:${COMP} --bind api-${PNM}-${C}-${N}:${API} --opentsdb-url-off http://bgx-stats-influxdb:8086 --opentsdb-db metrics --opentsdb-username lrdata --opentsdb-password pwlrdata
       "
     stop_signal: SIGKILL
 
@@ -306,22 +306,22 @@ services:
     networks:
     - network1
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/bgx${N}
+    - SAWTOOTH_HOME=/project/${BGX_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
-      - ../../../dgt_clust/${C}/bgx${N}:/project/peer
-    container_name: bgx-pbft-${C}-${N}
+      - ../../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    container_name: pbft-${PNM}-${C}-${N}
     depends_on:
       - validator-bgx
     #  - bgx-registry
     command: |
       bash -c "
         cd bgx/consensus/bgx_pbft;rm -f /project/peer/logs/pbft*.log*;
-        bgxadm node ${C} bgx${N}
+        bgxadm node ${C} ${PNM}${N}
         python3 setup.py clean --all
         python3 setup.py build
-        bgx-pbft -vv ${SIGNED} --connect tcp://validator-bgx-${C}-${N}:${CONS} --component tcp://validator-bgx-${C}-${N}:${COMP}
+        bgx-pbft -vv ${SIGNED} --connect tcp://validator-${PNM}-${C}-${N}:${CONS} --component tcp://validator-${PNM}-${C}-${N}:${COMP}
       "
     stop_signal: SIGKILL
 
@@ -357,7 +357,7 @@ services:
 
 networks:
   network1:
-     name: bgx1-network
+     name: ${PNM}1-network
 #name: bgx${N}-network
 #        driver: default
 #        config:

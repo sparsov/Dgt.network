@@ -37,6 +37,8 @@ export NETWORK='net0'
 export METRIC='-off'
 export SIGNED=""
 export SIGNED_="--signed_consensus"
+export PNM="dgt"
+
 while [ -n "$1" ]
 do
 case "$1" in

@@ -1,5 +1,5 @@
 {
-  "public": ["tcp://validator-bgx-c1-1:8101","tcp://209.124.84.6:8101"],
+  "public": ["tcp://validator-dgt-c1-1:8101","tcp://209.124.84.6:8101"],
   "private": [],
   "restapi": ["http://bgx-api:8108"]
 }

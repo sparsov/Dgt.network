@@ -26,7 +26,7 @@
 #export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml down
 mode=down
 peers="1 2 3"
-
+export PNM="dgt"
 
 if [ -z $GATEWAY ]; then 
   echo STATIC MODE;export DCONFIG='bgx_val.conf';export PEERING='static'; 
