@@ -2,7 +2,7 @@ version: '3.6'
 
 services:
 
-  bgx-telebot:
+  telebot-dgt:
     build:
       context: ../..
       dockerfile: bgx/telebot/Dockerfile-${DISTR}
@@ -13,10 +13,11 @@ services:
         - BGX_TOP=bgx
     image: bgx-telebot
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-bgx
+    - SAWTOOTH_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
-    container_name: bgx-telebot
+      - ../../../dgt_clust/c1/dgt1:/project/peer
+    container_name: telebot-dgt
     networks:
     - network1
     #ports:
@@ -26,14 +27,14 @@ services:
     command: |
       bash -c "
         bgx/bin/protogen
-        rm -f data-bgx/logs/bgt-bot*.log;
+        rm -f /project/peer/logs/bgt-bot*.log;
         cd bgx/telebot
         python3 setup.py clean --all
         python3 setup.py build
-        bgt-telebot -vv  --connect tcp://validator-bgx-c1-1:4104 tcp://validator-bgx-c2-1:4204 
+        bgt-telebot -vv  --connect tcp://validator-dgt-c1-1:4104 tcp://validator-dgt-c2-1:4204 
       "
     stop_signal: SIGKILL
 
 networks:
   network1:
-     name: bgx1-network
+     name: dgt1-network

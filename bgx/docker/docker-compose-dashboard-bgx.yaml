@@ -13,9 +13,10 @@ services:
         - BGX_TOP=bgx
     image: bgx-dashboard
     environment:
-    - SAWTOOTH_HOME=/project/${BGX_TOP}/data-dgt
+    - SAWTOOTH_HOME=/project/peer
     volumes:
       - ../..:/project/${BGX_TOP}
+      - ../../../dgt_clust/c1/dgt1:/project/peer  
     container_name: dashboard-dgt
     networks:
     - network1

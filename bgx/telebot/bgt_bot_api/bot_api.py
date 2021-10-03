@@ -55,7 +55,7 @@ LOGGER = logging.getLogger(__name__)
 #LOGGER.setLevel(logging.INFO)
 DISTRIBUTION_NAME = 'bgt-bot-api'
 TOKEN='1205652427:AAFr0eynwihWGyvObUA0QSjOfKMwiH3HkZs'
-TELE_DB_FILENAME = '../../data-bgx/data/telebot.lmdb'
+TELE_DB_FILENAME = '/project/peer/data/telebot.lmdb'
 DEFAULT_DB_SIZE= 1024*1024*4
 
 def deserialize_data(encoded):
