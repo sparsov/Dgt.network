@@ -248,7 +248,7 @@ class PbftOracle:
         serialized_payload = payload.SerializeToString()                                                   
         header = txn_pb.TransactionHeader(                                                                         
             signer_public_key=public_key_hash,                                             
-            family_name='bgx_settings', 
+            family_name='dgt_settings', 
             family_version='1.0',                                                                           
             inputs=_config_inputs(setting_key),                                                             
             outputs=_config_outputs(setting_key),                                                           

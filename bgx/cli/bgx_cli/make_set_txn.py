@@ -124,7 +124,7 @@ def _make_txn(signer, setting_key, payload):
     serialized_payload = payload.SerializeToString()
     header = TransactionHeader(
         signer_public_key=signer.get_public_key().as_hex(),
-        family_name='bgx_settings', # 'sawtooth_settings'
+        family_name='dgt_settings', 
         family_version='1.0',
         inputs=_config_inputs(setting_key),
         outputs=_config_outputs(setting_key),

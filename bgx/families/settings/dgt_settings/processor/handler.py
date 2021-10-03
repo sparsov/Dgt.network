@@ -43,12 +43,12 @@ SETTINGS_NAMESPACE = '000000'
 
 # Number of seconds to wait for state operations to succeed
 STATE_TIMEOUT_SEC = 10
-
+DGT_FAMILY_NAME = 'dgt_settings'
 
 class SettingsTransactionHandler(TransactionHandler):
     @property
     def family_name(self):
-        return 'bgx_settings'
+        return DGT_FAMILY_NAME
 
     @property
     def family_versions(self):
