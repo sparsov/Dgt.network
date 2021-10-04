@@ -71,6 +71,9 @@ function upCluster1 {
   for node in $@;do
     echo "START $node"
     case $node in
+        0)
+          export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/docker-compose-netCN-dgt-val-pbft.yaml up validator-dgt
+        ;;
         1)
           export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml $mode
         ;;
