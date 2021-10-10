@@ -21,7 +21,7 @@ shared state between untrusted parties coordinated by consensus algorithms.
 # sudo chmod +x /usr/local/bin/docker-compose
 
 To build the requirements to run a validator network, run this command
-$ docker-compose -f bgx/docker/docker-compose-bgx.yaml build
+$ bash upDgtCluster.sh  build
 # export COMPOSE_PROJECT_NAME=1 C=c1 N=1 API=8008 COMP=4104 NET=8101 CONS=5051;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml build
 Also provided is a docker-compose file which builds a full set of images
 with Sawtooth-BGX installed, and only the run-time dependencies installed.
@@ -139,14 +139,15 @@ export COMPOSE_PROJECT_NAME=61 C=c6 N=1 API=8608 COMP=4604 NET=8601 CONS=5651;do
 export COMPOSE_PROJECT_NAME=62 C=c6 N=2 API=8609 COMP=4606 NET=8602 CONS=5652;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 export COMPOSE_PROJECT_NAME=63 C=c6 N=3 API=8610 COMP=4607 NET=8603 CONS=5653;docker-compose -f bgx/docker/docker-compose-netCN-bgx-val-pbft.yaml up
 # start node 1 in cluster 1
-bash upCluster.sh -G 1 1 
+bash upDgtCluster.sh -G 1 1 
 # stop node 1 in cluster 1
-bash downCluster.sh -G 1 1
+bash downDgtCluster.sh -G 1 1
 # start dynamic node local start 
 # using real seed endpoint url 
-bash upCluster.sh  -G -SC  -S tcp://validator-bgx-c1-1:8101 dyn 1
+bash upDgtCluster.sh  -G -SC  -S tcp://validator-dgt-c1-1:8101 dyn 1
 # using  seed endpoint google url
-bash upCluster.sh  -G -SC  -S "https://drive.google.com/file/d/1o6SEUvogow432pIKQEL8-EEzNBinzW9R/view?usp=sharing" dyn 1
+bash upDgtCluster.sh -G -SC  -S "https://drive.google.com/file/d/1o6SEUvogow432pIKQEL8-EEzNBinzW9R/view?usp=sharing" dyn 1
+bash downDgtCluster.sh dyn 1
 #########
 # telebot
 docker-compose -f bgx/docker/docker-compose-telebot-bgx.yaml up
