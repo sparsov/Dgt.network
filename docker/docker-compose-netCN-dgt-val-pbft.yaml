@@ -181,13 +181,13 @@ services:
         cd validator
         python3 setup.py clean --all
         python3 setup.py build
-        dgtadm node ${C} ${PNM}${N};bgxadm keygen;ls -l /project/peer;
+        dgtadm node ${C} ${PNM}${N};dgtadm keygen;ls -l /project/peer;
         if [ ${G} == 'Y' ]; then rm -f /project/peer/data/*; else echo 'RESTART MODE'; fi; rm -f /project/peer/logs/validator*.log* /project/peer/logs/interc*.log* ;
         dgt keygen my_key;
         echo 'GATEWAY=${SEEDS},PEERING=${PEERING},NETWORK=${NETWORK},SIGNED=${SIGNED}'
         dgtset proposal create -k /project/peer/keys/validator.priv -o dgtset.batch $$(cat /project/peer/etc/dgt.conf)
         dgtset genesis -k /project/peer/keys/validator.priv -A $$(cat /project/${DGT_TOP}/clusters/c1/${PNM}1/keys/validator.pub) -A $$(cat /project/peer/keys/validator.pub)
-        if [ ${G} == 'Y' ]; then bgxadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
+        if [ ${G} == 'Y' ]; then dgtadm genesis config-genesis.batch  dgtset.batch;echo 'GENESIS MODE'; else echo 'RESTART MODE'; fi
         validator-dgt -vv  \
             --endpoint tcp://validator-${PNM}-${C}-${N}:${NET} \
             --bind component:tcp://eth0:${COMP} \
