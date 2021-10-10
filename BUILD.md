@@ -1,10 +1,10 @@
 
-![Hyperledger DGT-Sawtooth](bgx/images/logo-dgt.png)
+![Hyperledger DGT-Sawtooth](images/logo-dgt.png)
 
 Hyperledger DGT-Sawtooth Core Developer's Setup Guide
 =============
 
-If you are planning to contribute code to the BGX-Sawtooth project, please review
+If you are planning to contribute code to the DGT-Sawtooth project, please review
 the contributing guide: [CONTRIBUTING.md]
 
 Supported operating systems: Ubuntu 16.04 and macOS
