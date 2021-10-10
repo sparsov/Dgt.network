@@ -43,6 +43,7 @@ def main(args=None):
     # Generate and distribute top-level protos
     # BGX version
     # Generate common protos for new validator - can change some proto from /protos
+    print('protogen TOP_DIR=',TOP_DIR) 
     proto_dir = JOIN(TOP_DIR, "protos/common")
     protoc(proto_dir, "sdk/python", "dgt_sdk/protobuf")
     protoc(proto_dir, "validator", "dgt_validator/protobuf")
@@ -68,12 +69,12 @@ def main(args=None):
     
 
     # Generate identity protos
-    """
+    
     proto_dir = JOIN(TOP_DIR, "families/identity/protos")
-    protoc(proto_dir, "families/identity", "sawtooth_identity/protobuf")
-    protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
-    protoc(proto_dir, "bgx/cli", "bgx_cli/protobuf")
-
+    #protoc(proto_dir, "families/identity", "sawtooth_identity/protobuf")
+    #protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
+    protoc(proto_dir, "cli", "dgt_cli/protobuf")
+    """
     # Generate block info protos
     proto_dir = JOIN(TOP_DIR, "families/block_info/protos")
     protoc(proto_dir, "families/block_info", "sawtooth_block_info/protobuf")
