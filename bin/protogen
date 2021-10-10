@@ -47,6 +47,7 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "protos/common")
     protoc(proto_dir, "sdk/python", "dgt_sdk/protobuf")
     protoc(proto_dir, "validator", "dgt_validator/protobuf")
+    protoc(proto_dir, "consensus/dgt_pbft", "pbft_common/protobuf")
     protoc(proto_dir, "cli", "dgt_cli/protobuf")
     protoc(proto_dir, "rest-api", "dgt_rest_api/protobuf")
     protoc(proto_dir, "dashboard", "dgt_rest_api/protobuf")

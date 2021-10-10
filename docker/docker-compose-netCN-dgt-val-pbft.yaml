@@ -137,7 +137,7 @@ services:
       - validator-dgt
     command: |
       bash -c "
-        dgt keygen --force &&
+        dgt keygen --force ;ls -l /root/.dgt/keys &&
         tail -f /dev/null
       "
     stop_signal: SIGKILL
