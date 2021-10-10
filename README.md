@@ -1,4 +1,4 @@
-![Sawtooth=DGT](bgx/images/logo-dgt.png)
+![Sawtooth=DGT](images/logo-dgt.png)
 
 Hyperledger Sawtooth-DGT
 -------------
