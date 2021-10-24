@@ -23,7 +23,6 @@ from dgt_sdk.processor.handler import TransactionHandler
 from dgt_sdk.processor.exceptions import InvalidTransaction
 from dgt_sdk.processor.exceptions import InternalError
 from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
-from dgt_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
 from dgt_signing import CryptoFactory,create_context
 
 LOGGER = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ class BgtTransactionHandler(TransactionHandler):
     def __init__(self):
         self._context = create_context('secp256k1') 
         LOGGER.debug('_do_set: context')
-        self._private_key = Secp256k1PrivateKey.new_random()
+        self._private_key = self._context.new_random()
         LOGGER.debug('_do_set: context private_key=%s',self._private_key.as_hex())
         self._public_key = self._context.get_public_key(self._private_key)
         crypto_factory = CryptoFactory(self._context)

@@ -21,7 +21,6 @@ import json
 
 import dgt_signing as signing
 from dgt_signing import CryptoFactory
-from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
 from dgt_sdk.consensus.exceptions import UnknownBlock,InvalidState,BlockIsProcessedNow
 from dgt_sdk.messaging.stream import Stream
@@ -1396,12 +1395,13 @@ def _load_identity_signer(key_dir, key_name):
         raise Exception(
             "Could not load key file: {}".format(str(e)))
 
+    context = signing.create_context('secp256k1')
     try:
-        private_key = Secp256k1PrivateKey.from_hex(private_key_str)
+        private_key = context.from_hex(private_key_str)
     except signing.ParseError as e:
         raise Exception(
             "Invalid key in file {}: {}".format(key_path, str(e)))
 
-    context = signing.create_context('secp256k1')
+    
     crypto_factory = CryptoFactory(context)
     return crypto_factory.new_signer(private_key)

@@ -17,7 +17,7 @@ from dgt_signing.core import ParseError
 from dgt_signing.core import SigningError
 
 from dgt_signing.secp256k1 import Secp256k1Context
-
+from dgt_signing.open_crypto import OpenCryptoContext
 
 class Signer:
     """A convenient wrapper of Context and PrivateKey
@@ -78,7 +78,7 @@ class CryptoFactory:
         return Signer(self._context, private_key)
 
 
-def create_context(algorithm_name):
+def create_context(algorithm_name,backend='bitcoin'):
     """Returns an algorithm instance by name.
 
     Args:
@@ -90,7 +90,12 @@ def create_context(algorithm_name):
     Raises:
         NoSuchAlgorithmError if the algorithm is unknown
     """
-    if algorithm_name == 'secp256k1':
-        return Secp256k1Context()
+    if backend == 'bitcoin':
+        # old version
+        if algorithm_name == 'secp256k1':
+            return Secp256k1Context()
+    elif backend == 'openssl':
+        # openssl version
+        return OpenCryptoContext(algorithm=algorithm_name)
 
-    raise NoSuchAlgorithmError("no such algorithm: {}".format(algorithm_name))
+    raise NoSuchAlgorithmError(f"no such algorithm: {algorithm_name} for backend={backend}")

@@ -40,10 +40,10 @@ RUN apt-get install -y -q \
 RUN apt-get install -y -q \
     python3-cbor \
     python3-colorlog \
-    python3-secp256k1 \
+    python3-secp256k1 python3-cryptography>=1.7.1 \
     python3-toml \
-    python3-yaml
-
+    python3-yaml python3-pip
+RUN pip3 install cryptography
 ENV PATH=$PATH:/project/$DGT_TOP/bin:/project/$DGT_TOP/bgx/bin
 
 WORKDIR /project/$DGT_TOP

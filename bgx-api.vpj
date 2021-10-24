@@ -9,33 +9,20 @@
             Name="Source Files"
             Filters="*.py"
             GUID="{D35D87A6-A645-4319-F627-B8058EC851B9}">
-            <F N="bgx/rest-api/sawtooth_rest_api/__init__.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/bgx_handlers.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/config.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/error_handlers.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/exceptions.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/messaging.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/rest_api.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/route_handlers.py"/>
-            <F N="bgx/rest-api/setup.py"/>
-            <F N="bgx/rest-api/sawtooth_rest_api/state_delta_subscription_handler.py"/>
+            <F N="rest-api/dgt_rest_api/__init__.py"/>
+            <F N="rest-api/dgt_rest_api/bgx_handlers.py"/>
+            <F N="rest-api/dgt_rest_api/config.py"/>
+            <F N="rest-api/dgt_rest_api/error_handlers.py"/>
+            <F N="rest-api/dgt_rest_api/exceptions.py"/>
+            <F N="rest-api/dgt_rest_api/messaging.py"/>
+            <F N="rest-api/dgt_rest_api/rest_api.py"/>
+            <F N="rest-api/dgt_rest_api/route_handlers.py"/>
+            <F N="rest-api/dgt_rest_api/state_delta_subscription_handler.py"/>
         </Folder>
         <Folder
             Name="Other Files"
             Filters=""
-            GUID="{B1B3472C-C026-4256-176F-2FF46EBF40B1}">
-            <F N="bgx/rest-api/Dockerfile"/>
-            <F N="bgx/rest-api/Dockerfile-bionic"/>
-            <F N="bgx/rest-api/Dockerfile-installed"/>
-            <F N="bgx/rest-api/Dockerfile-installed-bionic"/>
-            <F N="bgx/rest-api/Dockerfile-installed-xenial"/>
-            <F N="bgx/rest-api/nose2.cfg"/>
-            <F N="bgx/rest-api/openapi.yaml"/>
-            <F N="bgx/rest-api/packaging/ubuntu/postinst"/>
-            <F N="bgx/rest-api/packaging/rest_api.toml.example"/>
-            <F N="bgx/rest-api/packaging/systemd/sawtooth-rest-api"/>
-            <F N="bgx/rest-api/packaging/systemd/sawtooth-rest-api.service"/>
-        </Folder>
+            GUID="{B1B3472C-C026-4256-176F-2FF46EBF40B1}"></Folder>
     </Files>
     <Config
         Name="Debug"

@@ -48,12 +48,16 @@ class Secp256k1PrivateKey(PrivateKey):
         return self._private_key
 
     @staticmethod
+    def from_wif(hex_str):
+        raise ParseError(f'Unable to parse hex private key: {hex_str}')
+
+    @staticmethod
     def from_hex(hex_str):
         try:
             priv = binascii.unhexlify(hex_str)
             return Secp256k1PrivateKey(secp256k1.PrivateKey(priv, ctx=__CTX__))
         except Exception as e:
-            raise ParseError('Unable to parse hex private key: {}'.format(e))
+            raise ParseError(f'Unable to parse hex private key={hex_str}: {e}')
 
     @staticmethod
     def new_random():
@@ -120,5 +124,17 @@ class Secp256k1Context(Context):
     def new_random_private_key(self):
         return Secp256k1PrivateKey.new_random()
 
+    def new_random(self):           
+        return Secp256k1PrivateKey.new_random() 
+
     def get_public_key(self, private_key):
         return Secp256k1PublicKey(private_key.secp256k1_private_key.pubkey)
+
+    def from_hex(self,hex_str):
+        return Secp256k1PrivateKey.from_hex(hex_str)
+
+    def from_wif(self,hex_str):
+        return Secp256k1PrivateKey.from_wif(hex_str)
+
+    def pub_from_hex(self,hex_str):
+        return Secp256k1PublicKey.from_hex(hex_str)

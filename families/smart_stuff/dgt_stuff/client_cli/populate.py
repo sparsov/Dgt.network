@@ -131,8 +131,7 @@ def generate_word_list(count):
 
 def do_populate(args):
     context = create_context('secp256k1')
-    signer = CryptoFactory(context).new_signer(
-        context.new_random_private_key())
+    signer = CryptoFactory(context).new_signer(context.new_random_private_key())
 
     words = generate_word_list(args.pool_size)
 

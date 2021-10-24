@@ -19,7 +19,7 @@ import netifaces
 
 from dgt_signing import create_context
 from dgt_signing import ParseError
-from dgt_signing.secp256k1 import Secp256k1PublicKey
+
 
 from dgt_validator.networking.dispatch import Handler
 from dgt_validator.networking.dispatch import HandlerResult
@@ -404,8 +404,7 @@ class AuthorizationChallengeSubmitHandler(Handler):
 
         context = create_context('secp256k1')
         try:
-            public_key = Secp256k1PublicKey.from_hex(
-                auth_challenge_submit.public_key)
+            public_key = context.from_hex(auth_challenge_submit.public_key)
         except ParseError:
             LOGGER.warning('Authorization Challenge Request cannot be verified. Invalid public key %s',
                            auth_challenge_submit.public_key)

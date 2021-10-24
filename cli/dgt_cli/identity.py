@@ -43,7 +43,6 @@ from dgt_cli.dgtset import setting_key_to_address
 from dgt_signing import create_context
 from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
-from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
 
 IDENTITY_NAMESPACE = '00001d'
@@ -558,12 +557,13 @@ def _read_signer(key_filename):
     except IOError as e:
         raise CliException('Unable to read key file: {}'.format(str(e)))
 
+    context = create_context('secp256k1')
     try:
-        private_key = Secp256k1PrivateKey.from_hex(signing_key)
+        private_key = context.from_hex(signing_key)
     except ParseError as e:
         raise CliException('Unable to read key in file: {}'.format(str(e)))
 
-    context = create_context('secp256k1')
+    
     crypto_factory = CryptoFactory(context)
     return crypto_factory.new_signer(private_key)
 

@@ -20,7 +20,6 @@ import hashlib
 from google.protobuf.message import DecodeError
 
 from dgt_signing import create_context
-from dgt_signing.secp256k1 import Secp256k1PublicKey
 
 from dgt_validator.protobuf import client_batch_submit_pb2
 from dgt_validator.protobuf.transaction_pb2 import TransactionHeader
@@ -49,7 +48,7 @@ def is_valid_block(block):
     header.ParseFromString(block.header)
 
     context = create_context('secp256k1')
-    public_key = Secp256k1PublicKey.from_hex(header.signer_public_key)
+    public_key = context.pub_from_hex(header.signer_public_key)
     if not context.verify(block.header_signature,
                           block.header,
                           public_key):
@@ -70,7 +69,7 @@ def is_valid_batch(batch):
     header.ParseFromString(batch.header)
 
     context = create_context('secp256k1')
-    public_key = Secp256k1PublicKey.from_hex(header.signer_public_key)
+    public_key = context.pub_from_hex(header.signer_public_key)
     if not context.verify(batch.header_signature,
                           batch.header,
                           public_key):
@@ -101,7 +100,7 @@ def is_valid_transaction(txn):
     header.ParseFromString(txn.header)
 
     context = create_context('secp256k1')
-    public_key = Secp256k1PublicKey.from_hex(header.signer_public_key)
+    public_key = context.pub_from_hex(header.signer_public_key)
     if not context.verify(txn.header_signature,txn.header,public_key):
         LOGGER.debug("transaction signature invalid for txn: %s",txn.header_signature)
         return False
@@ -121,7 +120,7 @@ def is_valid_consensus_msg(msg):
     header.ParseFromString(msg.header)  
                                                                                                                  
     context = create_context('secp256k1')                                                                         
-    public_key = Secp256k1PublicKey.from_hex(header.signer_id)                                            
+    public_key = context.pub_from_hex(header.signer_id)                                            
     if not context.verify(msg.header_signature,                                                                 
                           msg.header,                                                                           
                           public_key):                                                                            

@@ -24,7 +24,6 @@ import cbor
 from dgt_signing import create_context
 from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
-from dgt_signing.secp256k1 import Secp256k1PrivateKey
 
 from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader
 from dgt_sdk.protobuf.transaction_pb2 import Transaction
@@ -66,15 +65,14 @@ class BgtClient:
             except OSError as err:
                 raise BgtClientException(
                     'Failed to read private key: {}'.format(str(err)))
-
+            context = create_context('secp256k1')
             try:
-                private_key = Secp256k1PrivateKey.from_hex(private_key_str)
+                private_key = context.from_hex(private_key_str)
             except ParseError as e:
                 raise BgtClientException(
                     'Unable to load private key: {}'.format(str(e)))
 
-            self._signer = CryptoFactory(
-                create_context('secp256k1')).new_signer(private_key)
+            self._signer = CryptoFactory(context).new_signer(private_key)
 
     def set(self, name, value, wait=None):
         return self._send_transaction('set', name, value, to=None, wait=wait)

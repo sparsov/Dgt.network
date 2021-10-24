@@ -27,7 +27,7 @@ import requests
 from dgt_signing import create_context
 from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
-from dgt_signing.secp256k1 import Secp256k1PrivateKey
+
 from dgt_stuff.client_cli.workload.workload_generator import WorkloadGenerator
 from dgt_stuff.client_cli.workload.dgt_workload import Workload
 from dgt_stuff.client_cli.create_batch import create_stuff_transaction
@@ -97,17 +97,15 @@ class StuffWorkload(Workload):
             try:
                 with open(args.key_file, 'r') as infile:
                     signing_key = infile.read().strip()
-                private_key = Secp256k1PrivateKey.from_hex(signing_key)
+                private_key = context.from_hex(signing_key)
 
-                self._signer = crypto_factory.new_signer(
-                    private_key=private_key)
+                self._signer = crypto_factory.new_signer(private_key=private_key)
             except ParseError as pe:
                 raise StuffCliException(str(pe))
             except IOError as ioe:
                 raise StuffCliException(str(ioe))
         else:
-            self._signer = crypto_factory.new_signer(
-                context.new_random_private_key())
+            self._signer = crypto_factory.new_signer(context.new_random_private_key())
 
     def on_will_start(self):
         pass

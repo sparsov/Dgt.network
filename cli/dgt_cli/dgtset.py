@@ -47,7 +47,6 @@ from dgt_validator.protobuf.batch_pb2 import BatchList
 from dgt_signing import create_context
 from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
-from dgt_signing.secp256k1 import Secp256k1PrivateKey
 from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_PING_COUNTER
 
 DISTRIBUTION_NAME = 'bgxset'
@@ -283,12 +282,13 @@ def _read_signer(key_filename):
     except IOError as e:
         raise CliException('Unable to read key file: {}'.format(str(e)))
 
+    context = create_context('secp256k1')
     try:
-        private_key = Secp256k1PrivateKey.from_hex(signing_key)
+        private_key = context.from_hex(signing_key)
     except ParseError as e:
         raise CliException('Unable to read key in file: {}'.format(str(e)))
 
-    context = create_context('secp256k1')
+    
     crypto_factory = CryptoFactory(context)
     return crypto_factory.new_signer(private_key)
 

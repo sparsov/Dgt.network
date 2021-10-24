@@ -60,7 +60,7 @@ from bgt_bot_api.route_handlers import RouteHandler,DEFAULT_TIMEOUT
 from bgt_bot_api.bot_handlers import Tbot
 import cbor
 import yaml
-from dgt_signing.secp256k1 import Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1Context
+
 from dgt_signing import CryptoFactory,create_context
 
 from smart_bgt.processor.utils import FAMILY_NAME as SMART_BGX_FAMILY
@@ -129,7 +129,7 @@ class BgxTeleBot(Tbot):
         # BGX init
         
         self._context = create_context('secp256k1') 
-        self._private_key = Secp256k1PrivateKey.new_random()
+        self._private_key = self._context.new_random()
         self._public_key = self._context.get_public_key(self._private_key)
         self._crypto_factory = CryptoFactory(self._context)
         self._signer = self._crypto_factory.new_signer(self._private_key)

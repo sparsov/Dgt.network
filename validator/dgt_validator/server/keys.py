@@ -18,7 +18,6 @@ import os
 
 import dgt_signing as signing
 from dgt_signing import CryptoFactory
-from dgt_signing.secp256k1 import Secp256k1PrivateKey
 from dgt_validator.exceptions import LocalConfigurationError
 
 LOGGER = logging.getLogger(__name__)
@@ -52,15 +51,16 @@ def load_identity_signer(key_dir, key_name):
         raise LocalConfigurationError(
             "Could not load key file: {}".format(str(e)))
 
+    context = signing.create_context('secp256k1')
     try:
-        private_key = Secp256k1PrivateKey.from_hex(private_key_str)
+        private_key = context.from_hex(private_key_str)
     except signing.ParseError:
         try:
-            private_key = Secp256k1PrivateKey.from_wif(private_key_str)
+            private_key = context.from_wif(private_key_str)
         except signing.ParseError as e:
             raise LocalConfigurationError(
                 "Invalid key in file {}: {}".format(key_path, str(e)))
 
-    context = signing.create_context('secp256k1')
+    
     crypto_factory = CryptoFactory(context)
     return crypto_factory.new_signer(private_key)
