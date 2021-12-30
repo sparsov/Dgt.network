@@ -53,6 +53,11 @@ def add_keygen_parser(subparsers, parent_parser):
         '--force',
         help="overwrite files if they exist",
         action='store_true')
+    parser.add_argument(                 
+        '-cb', '--crypto_back',               
+        type=str,                             
+        help='Specify a crypto back',         
+        default='bitcoin')                    
 
     parser.add_argument(
         '-q',
@@ -73,7 +78,7 @@ def do_keygen(args):
         key_name = 'validator'
 
     key_dir = get_key_dir()
-
+    print(f"DO_KEYGEN : dir={key_dir}")
     if not os.path.exists(key_dir):
         raise CliException("Key directory does not exist: {}".format(key_dir))
 
@@ -90,10 +95,11 @@ def do_keygen(args):
             raise CliException(
                 'files exist, rerun with --force to overwrite existing files')
 
-    context = create_context('secp256k1')
+    context = create_context('secp256k1',backend=args.crypto_back)
 
     private_key = context.new_random_private_key()
     public_key = context.get_public_key(private_key)
+
 
     try:
         priv_exists = os.path.exists(priv_filename)

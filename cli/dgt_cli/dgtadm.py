@@ -52,8 +52,8 @@ def create_parser(prog_name):
     return parser
 
 
-def main(prog_name=os.path.basename(sys.argv[0]), args=None,
-         with_loggers=True):
+def main(prog_name=os.path.basename(sys.argv[0]), args=None,with_loggers=True):
+    print("DGTADMIN ...")
     parser = create_parser(prog_name)
     if args is None:
         args = sys.argv[1:]

@@ -120,16 +120,16 @@ class ConsensusNotifier:
                 info = list                                                                                                         
                 )                                                                                                                    
             )         
-    def notify_topology_peer(self,peer_id,list,is_new=True):
+    def notify_topology_peer(self,peer_id,list,oper=ConsensusNotifyPeerConnected.ADD_PEER):
         """                                                                                                                         
         peer add/del                                                                                                        
         """                                                                                                                         
-        LOGGER.debug('ConsensusNotifier: notify_topology_peer peer_id=%s',peer_id[:10])                                          
+        LOGGER.debug(f'ConsensusNotifier: notify_topology_peer peer_id={peer_id[:10]} oper={oper}')                                          
         self._notify(                                                                                                               
             validator_pb2.Message.CONSENSUS_NOTIFY_PEER_CONNECTED,                                                                  
             ConsensusNotifyPeerConnected(                                                                                           
                 peer_info=consensus_pb2.ConsensusPeerInfo(peer_id=bytes.fromhex(peer_id)),                                          
-                status = ConsensusNotifyPeerConnected.ADD_PEER if is_new else ConsensusNotifyPeerConnected.DEL_PEER,    
+                status = oper,    
                 mode = ConsensusNotifyPeerConnected.NORMAL,                                                                         
                 info = list                                                                                                         
                 )                                                                                                                   

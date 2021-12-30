@@ -19,15 +19,22 @@ import random
 import os
 import binascii
 import json
-
+from collections.abc import MutableMapping
 from enum import Enum
 
 LOGGER = logging.getLogger(__name__)
-TOPOLOGY_SET_NM = 'bgx.consensus.pbft.nodes'
+OLD_TOPOLOGY_SET_NM = 'bgx.consensus.pbft.nodes'
+DGT_TOPOLOGY_SET_NM = 'dgt.consensus.pbft.nodes'
+TOPOLOGY_SET_NM = DGT_TOPOLOGY_SET_NM
+DGT_TOPOLOGY_MAP_NM = 'dgt.topology.map'
+DGT_TOPOLOGY_NEST_NM = 'dgt.topology.nest'
 BGX_NESTS_NAME  = 'bgx.dag.nests'
 DGT_PING_COUNTER  = 'dgt.ping.counter'
 TOPOLOGY_GENESIS_HEX = b'Genesis'.hex()
-
+TOPO_GENESIS =  'Genesis'
+TOPO_MAP = "map"
+DGT_NET_NEST = '/project/peer/keys/dgt.net.nest'
+DGT_SELF_CERT = '/project/peer/keys/certificate.pem'
 class PeerSync():
     inactive = 'inactive'
     active   = 'active'
@@ -56,14 +63,89 @@ class PeerAtr():
     dynamic    = 'dynamic' 
     KYC        = 'KYC'
     maxpeer    = 'maxpeer'
+    segment    = 'segment'
 
+
+class PeerMaping(MutableMapping):
+    """
+    A dict like interface wrapper around the peers to guarantee,
+    objects are correctly mapped  as they are stored and
+    retrieved.
+    """
+
+    def __init__(self,nest2key=None,peers={},name='peer'):
+        self._nnest2key = nest2key if nest2key else {} # current mapping
+        self._peers = peers
+        self._name = name
+        self._su_iter = None
+
+    def __setitem__(self, key, value):
+        # key - nest ,value - key
+        #LOGGER.debug(f'SET {self._name}[{key}]') 
+        self._nnest2key[key] = value
+        self._nnest2key[value] = key
+        
+ 
+    def __getitem__(self, key):
+        #LOGGER.debug(f'GET {self._name}[{key}]')
+        if key in self._nnest2key:
+            return self._nnest2key[key]
+
+
+    def __delitem__(self, key):
+        if key in self._nnest2key:
+            # drop both key and nest
+            val = self._nnest2key[key]
+            del self._nnest2key[key]
+            del self._nnest2key[val]
+
+
+    def __contains__(self, key):
+        #LOGGER.debug(f'CONTAIN {self._name}[{key}]')
+        return key in self._nnest2key
+
+    def __iter__(self):
+        self._su_iter = self._nnest2key.__iter__()
+        return self
+
+    def __next__(self):
+        while True :
+            val = next(self._su_iter)
+            if len(val) < 8:
+                # return only nests
+                #LOGGER.debug(f'NEXT {val}') 
+                return val
+
+    def __len__(self):
+        # Required by abstract base class, but implementing is non-trivial
+        return len(self._nnest2key)
+
+    def __str__(self):
+        return str(self._nnest2key)
+
+    def __repr__(self):
+        return json.dumps(self._nnest2key)
+
+    @property
+    def nests(self):
+        keys = {}                      
+        for nest,val in self.items():  
+            keys[nest] = val  
+        return keys         
+
+    def to_json(self):
+        return json.dumps(self.nests)
+    
 
 class FbftTopology(object):
     """
     F-BFT topology 
     """
-    def __init__(self):
+    def __init__(self,topology_nest_nm=None):
         self._validator_id = None
+        self._topo_nest_nm = topology_nest_nm
+        self._abstr_topo = self._topo_nest_nm is not None and False
+        self._nnest2key = PeerMaping() # nest-> key
         self._own_role = PeerRole.plink
         self._is_arbiter = False
         self._nest_colour = None # own cluster name
@@ -72,14 +154,18 @@ class FbftTopology(object):
         self._parent = None
         self._leader = None
         self._endpoint = None
-        self._arbiters = {}    # my arbiters 
-        self._leaders  = {}    # leadres of other clusters
+        self._arbiters = {} #PeerMaping(self._nnest2key,name="ARBITERS") #{}    # my arbiters 
+        self._leaders  = {} #PeerMaping(self._nnest2key,name="LEADERS") #{}    # leadres of other clusters
         self._publics  = []    # public clusters
         self._cluster = None   # own cluster
         self._is_dynamic_cluster = False
         self._topology  = {PeerAtr.children:{}}
         self._nosync = False
-
+        
+    @property
+    def curr_topology(self):
+        self._topology[TOPO_MAP] = self._nnest2key.nests
+        return self._topology
     @property
     def nest_colour(self):
         return self._nest_colour
@@ -100,12 +186,26 @@ class FbftTopology(object):
     @property
     def cluster(self):
         return self._cluster if self._cluster else {}
+
+    def is_own_peer(self,key):         
+        nest = self.nest2key(key)      
+        return nest in self.cluster  
+     
+    def get_own_peer(self,key,cluster=None):            
+        nest = self.nest2key(key)      
+        return self.cluster[nest] if cluster is None else cluster[nest]    
+
     @property
     def own_child_info(self):
         return [peer[PeerAtr.name]+":"+pid[:8] for pid,peer in self.cluster.items()]
     @property
     def arbiters(self):
         return self._arbiters
+    def peer_is_arbiter(self,key):  
+        return key in self.arbiters 
+      
+    def get_arbiter(self,key):            
+        return self.arbiters[key]     
 
     @property
     def leaders(self):
@@ -126,15 +226,17 @@ class FbftTopology(object):
         return self._topology
 
     def cluster_peer_role_by_key(self,key):
-        return self._cluster[key][PeerAtr.role] if key in self._cluster else 'UNDEF'
+        nest = self.nest2key(key)
+        return self._cluster[nest][PeerAtr.role] if nest in self._cluster else 'UNDEF'
 
     def get_topology_iter_from(self,root):
         return self.get_topology_iter(root)
      
-    def get_topology_iter(self, root=None):
+    def get_topology_iter(self, root=None,key_mode=True):
         def iter_topology(children):
-            for key,peer in children.items():
+            for nest,peer in children.items():
                 #print("iter_topology key ",key)
+                key = self.nest2key(nest) if key_mode else nest 
                 yield key,peer
                 if isinstance(peer,dict) and PeerAtr.cluster in peer :
                     cluster = peer[PeerAtr.cluster]
@@ -147,11 +249,12 @@ class FbftTopology(object):
         return iter_topology(self._topology[PeerAtr.children] if root is None else root)
 
 
-    def get_topology_iter1(self, root=None):
+    def get_topology_iter1(self, root=None,key_mode=True):
         # search peer and its cluster
         def iter_topology(children,parent):
-            for key,peer in children.items():
+            for nest,peer in children.items():
                 #print("iter_topology key ",key)
+                key = self.nest2key(nest) if key_mode else nest
                 yield key,(peer,parent)
                 if isinstance(peer,dict) and PeerAtr.cluster in peer :
                     cluster = peer[PeerAtr.cluster]
@@ -176,9 +279,9 @@ class FbftTopology(object):
         return iter_cluster(cluster[PeerAtr.children]) if cluster else []
 
     def get_cluster_leader(self,cluster):
-        for key,peer in cluster[PeerAtr.children].items():
+        for nest,peer in cluster[PeerAtr.children].items():
             if peer[PeerAtr.role] == PeerRole.leader :
-                return peer,key
+                return peer,self.nest2key(nest)
         return None,None
 
     def is_cluster_leader(self,pkey):
@@ -194,7 +297,8 @@ class FbftTopology(object):
         n = 0
         nkey = None
         cluster = self.get_cluster_by_name(cname)
-        for key,peer in self.get_cluster_iter(cname,cluster): 
+        for nest,peer in self.get_cluster_iter(cname,cluster): 
+            key = self.nest2key(nest)
             if n == 2:
                 return True,nkey
             if peer[PeerAtr.name] == npeer:                                     
@@ -354,6 +458,7 @@ class FbftTopology(object):
     def add_new_peers(self,cname,pnew):
         """
         Add new peer into cluster cname
+        {'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}
         """
         cluster = self.get_cluster_by_name(cname)
         ret = -1
@@ -365,6 +470,8 @@ class FbftTopology(object):
         if cluster is None:
             return ret,"Undefined cluster {}".format(cname)
         children = cluster[PeerAtr.children]
+        segment = cluster[PeerAtr.segment]
+        child_num = len(children)
         #LOGGER.debug('ADD NEW PEER=%s INTO %s',peers,cname)
         for key,npeer in peers.items():
             peer = self.peer_is_exist(key)
@@ -372,7 +479,10 @@ class FbftTopology(object):
                 if ((PeerAtr.delegate in npeer and npeer[PeerAtr.delegate]) or (PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader)) and len(children) > 0:
                     return False,"New peer with key={} can't be leader or arbiter".format(key[:8])
                 else:
-                    children[key] = npeer
+                    #  SHOULD BE children[nest]
+                    nest = f"{segment}.{segment.lower()}{child_num+1}"
+                    children[nest] = npeer
+                    self._nnest2key[nest] = key
                     ret = 0
                     if cname == self.nest_colour :
                         ret += 4
@@ -380,7 +490,7 @@ class FbftTopology(object):
                             self._cluster = children 
                             LOGGER.debug("SET OWN CLUSTER LIST %s",cname)
 
-                    LOGGER.debug('ADD NEW PEER=%s : %s INTO %s(%s) child=%s',key[:8],npeer,cname,self.nest_colour,self.own_child_info)
+                    LOGGER.debug('ADD NEW PEER=%s:%s : %s INTO %s(%s) child=%s',nest,key[:8],npeer,cname,self.nest_colour,self.own_child_info)
                     
                     if PeerAtr.role in npeer and npeer[PeerAtr.role] == PeerRole.leader:
                         # add into leaders list
@@ -448,6 +558,24 @@ class FbftTopology(object):
         del ppeer[PeerAtr.cluster]
         return True,None
 
+    def set_nest_map(self,nlist):
+        LOGGER.debug(f'SET MAP : nests={nlist}')
+        try:
+            nest_list = json.loads(nlist)
+        except Exception as ex:
+            LOGGER.debug(f'SET MAP err={ex}')
+            return False,ex
+        changed = False
+        for nest,key in nest_list.items():
+            self._nnest2key[nest] = key
+            self.arbiter_nest2key(nest,key)
+            changed = True
+        return changed,None
+
+    @property
+    def nest_map2str(self):
+        return self._nnest2key.to_json()
+
     def peer_is_exist(self,peer_key):
         for key,peer in self.get_topology_iter():
             if (key == peer_key):
@@ -458,7 +586,7 @@ class FbftTopology(object):
         # get peer and it cluster by key 
         for key,peer in self.get_topology_iter1():
             if (key == peer_key):
-                return peer
+                return peer # this is (peer,parent)
         return None,None
 
     def get_position_in_public(self,max_feder_peer=7):
@@ -481,7 +609,7 @@ class FbftTopology(object):
 
     def peer_to_cluster_name(self,peer_key):
         if peer_key == TOPOLOGY_GENESIS_HEX:
-            return 'Genesis'
+            return TOPO_GENESIS
         peer = self.peer_is_exist(peer_key)
         if peer and (PeerAtr.cluster in peer) :
             cluster = peer[PeerAtr.cluster]
@@ -524,8 +652,9 @@ class FbftTopology(object):
     def get_peer(self,peer_key):
         if self._cluster is None:
             return None
-        if peer_key in self._cluster:
-            peer = self._cluster[peer_key]
+        nest = self._nnest2key[peer_key]
+        if nest in self._cluster:
+            peer = self._cluster[nest]
             return peer
         else:
             for key,peer in self.get_topology_iter():
@@ -535,12 +664,14 @@ class FbftTopology(object):
 
     def get_scope_peer_attr(self,peer_key,attr=PeerAtr.name):  
         # get peer which is in scope of visibility for current peer                                                        
-        if self._cluster is None:                                                         
-            return 'Undef'                                                                   
-        if peer_key in self._cluster:                                                     
-            peer = self._cluster[peer_key]                                               
+        if peer_key not in self._nnest2key:   
+            LOGGER.debug(f"UNDEF PEER={peer_key[0:8]} map={self._nnest2key}")                                                      
+            return 'Undef'  
+        nest = self._nnest2key[peer_key]                                                                 
+        if nest in self.cluster:                                                     
+            peer = self.cluster[nest]                                               
         elif peer_key in self._arbiters :
-            peer =  self._arbiters[peer_key][2][peer_key]
+            peer =  self._arbiters[peer_key][2][nest] 
         else:                                                                             
             return 'Undef'                                                       
         return  peer[attr] if attr in peer else 'Undef'                                                                     
@@ -562,10 +693,10 @@ class FbftTopology(object):
         return  None
 
     def get_cluster_by_name(self,cname):
-        if cname == 'Genesis':
+        if cname == TOPO_GENESIS:
             return self._topology #[PeerAtr.children]
 
-        for key,peer in self.get_topology_iter(): #self._topology): # [PeerAtr.children]
+        for nest,peer in self.get_topology_iter(): #self._topology): # [PeerAtr.children]
             if isinstance(peer,dict) and PeerAtr.cluster in peer :
                 #print('PEE',key,type(peer),peer,type(self._topology))
                 cluster = peer[PeerAtr.cluster]
@@ -575,7 +706,7 @@ class FbftTopology(object):
         return None
 
     def get_cluster_owner(self,cname):
-        if cname == 'Genesis':
+        if cname == TOPO_GENESIS:
             return TOPOLOGY_GENESIS_HEX
 
         for key,peer in self.get_topology_iter(): #self._topology): # [PeerAtr.children]
@@ -587,6 +718,15 @@ class FbftTopology(object):
                     return key
         return None
 
+    def nest2cluster(self,nest_nm):                                                                                    
+                                                                                                                          
+        for nest,peer_par in self.get_topology_iter1(key_mode=False): 
+            if nest == nest_nm :  
+                parent = peer_par[1]                                                      
+                
+                if PeerAtr.name in parent and PeerAtr.children in parent:            
+                    return parent[PeerAtr.name],parent                                                                                            
+        return None,None                                                                                                       
 
     def get_cluster_arbiter(self,cname):
         cluster = self.get_cluster_by_name(cname)
@@ -629,10 +769,53 @@ class FbftTopology(object):
     def set_peers_control(self,plist):
         self._topology['Control'] = plist
 
+    def arbiter_nest2key(self,nest,key):
+        if nest in self._arbiters:                         
+            # change nest on key                           
+            info = self._arbiters[nest]                    
+            self._arbiters[key] = info                     
+            del self._arbiters[nest]                       
+            LOGGER.debug(f"CHANGE ARBITER KEY={nest}")     
+
+    def load_topo_map(self,topo_map):
+        # should be loaded before get_topology
+        try:
+            if isinstance(topo_map,dict):
+                map_dict = topo_map
+            else:
+                map_dict = json.loads(topo_map)
+        except Exception as ex:
+            LOGGER.debug(f"CANT LOAD TOPO MAP {topo_map} {ex}")
+            return 
+        for nest,key in map_dict.items():
+            self._nnest2key[nest] = key
+            self.arbiter_nest2key(nest,key)
+            
+
+        LOGGER.debug(f"NEW MAP={self.nest_map2str} ME={self._validator_id[0:8]}")
+
+    def is_own_topo_nest(self,key):
+        return key == self._validator_id #self._topo_nest_nm == nest if self._abstr_topo else nest == self._validator_id
+    def nest2key(self,nest):
+        return self._nnest2key[nest] if nest in self._nnest2key else nest
+
+    @property
+    def arbiters_info(self):
+        return [(key[0:8],val[1]) for key,val in self._arbiters.items()]
     def get_topology(self,topology,validator_id,endpoint,peering_mode='static',network='net0',join_cluster=None,KYCKey='0ABD7E'):
         # get topology from string
+        def prepare_topology(children):
+            for key,peer in children.items():
+                if PeerAtr.cluster in peer:                                                              
+                    cluster = peer[PeerAtr.cluster]                                                      
+                    if PeerAtr.children in cluster:                          
+                        cluster[PeerAtr.children] = prepare_topology(cluster[PeerAtr.children]) 
+                        
+            return  PeerMaping(self._nnest2key,children,name="CHILDS")    
+
 
         def get_cluster_info(arbiter_id,parent_name,name,children):
+            #LOGGER.debug(f'CLUSTER {name} TRY TO JOIN={join_cluster}')
             if join_cluster is not None and join_cluster == name:
                 # dynamic  mode - join this cluster
                 if arbiter_id is not None:
@@ -642,11 +825,14 @@ class FbftTopology(object):
                 self._parent     = arbiter_id
                 self._own_role   = PeerRole.plink
                 self._is_arbiter = False
-                LOGGER.debug('JOIN NEST=%s',name)
-                return
-            for key,peer in children.items():
+                LOGGER.debug('JOIN OWN NEST=%s',name)
+                #return
+            for nest,peer in children.items():
                 #LOGGER.debug('[%s]:child=%s val=%s',name,key[:8],val)
-                if key == self._validator_id:
+                key = self.nest2key(nest)
+                #LOGGER.debug(f'[{key[:8]}]:child={name} nest={nest}')
+                if self.is_own_topo_nest(key):
+                    # use instead _validator_id topology_nest_nm
                     if arbiter_id is not None:
                         self._arbiters[arbiter_id] = ('arbiter',parent_name)
                     self._nest_colour = name
@@ -660,7 +846,7 @@ class FbftTopology(object):
                     peer[PeerAtr.endpoint] = endpoint
                     peer[PeerAtr.node_state] = PeerSync.active
                     peer[PeerAtr.network] = network
-                    LOGGER.debug('Found own NEST=%s validator_id=%s',name,self._validator_id)
+                    LOGGER.debug(f'Found own NEST={name} ARBITER={self._is_arbiter} ROLE={self._own_role} validator_id={nest}.{self._validator_id}')
                     return
 
                 if PeerAtr.cluster in peer:
@@ -669,11 +855,14 @@ class FbftTopology(object):
                         get_cluster_info(key,name,cluster[PeerAtr.name],cluster[PeerAtr.children])
                         if self._nest_colour is not None:
                             self._is_dynamic_cluster = (PeerAtr.dynamic in cluster and cluster[PeerAtr.dynamic])
+                            LOGGER.debug(f'STOP CYCLE NEST={self._nest_colour}')
                             return
 
         def get_arbiters(arbiter_id,name,children):
             # make ring of arbiter - add only arbiter from other cluster
-            for key,peer in children.items():
+            for nest,peer in children.items():
+                # key is nest
+                key = self.nest2key(nest)
                 if self._nest_colour != name:
                     # check only other cluster and add delegate
                     if PeerAtr.delegate in peer and peer[PeerAtr.delegate]:
@@ -696,19 +885,26 @@ class FbftTopology(object):
                         get_arbiters(key,cluster[PeerAtr.name],cluster[PeerAtr.children])
 
         #topology = json.loads(stopology)
-        # join_cluster - for dymanic mode
-        if join_cluster and self._nest_colour is None:
-            self._nest_colour = join_cluster
+        
+        
+        #if join_cluster and self._nest_colour is None:
+            # join_cluster - for dymanic mode
+        #    self._nest_colour = join_cluster
 
         self._validator_id = validator_id
         self._endpoint = endpoint
-        self._topology = topology if topology != {} else {PeerAtr.children:{}}
+        self._topology = topology if topology != {} else {PeerAtr.children:{},TOPO_MAP: {}}
+        if TOPO_MAP in self._topology:     
+            self.load_topo_map(self._topology[TOPO_MAP]) 
+
         #LOGGER.debug('get_topology=%s',self._topology)
         topology['topology'] = peering_mode
         topology['sync'] = not self._nosync
         if PeerAtr.name in topology and PeerAtr.children in topology:
             self._genesis  = topology['name'] # genesis cluster
+            #topology[PeerAtr.children] = prepare_topology(topology[PeerAtr.children])
             get_cluster_info(None,None,topology[PeerAtr.name],topology[PeerAtr.children])
+            LOGGER.debug(f'FIND CLUSTER {join_cluster} DONE')
             if join_cluster :
                 jcluster = self.get_cluster_by_name(join_cluster)
                 if jcluster is None:
@@ -718,27 +914,28 @@ class FbftTopology(object):
 
         if self._nest_colour is None:
             pass
-            #self._nest_colour = 'Genesis'
+            #self._nest_colour = TOPO_GENESIS
         else:
             # get arbiters
             get_arbiters(None,topology[PeerAtr.name],topology[PeerAtr.children])
+            LOGGER.debug(f'CLUSTER = {self.cluster}')
             for key,peer in self.cluster.items():
                 if peer[PeerAtr.role] == PeerRole.leader:
                     self._leader = key
                     break
             # add Identity
             topology['Network'] = 'DGT TEST network'
-            topology['Identity'] = {'PubKey': self._validator_id,
-                                    'IP' : self._endpoint,
-                                    'Network' : network,
-                                    'Cluster' : self._nest_colour,
-                                    'Genesis' : self._genesis_node,
-                                    'Leader'  : self._leader if self._leader else 'UNDEF',
-                                    'Parent'  : self._parent if self._parent else 'UNDEF',
-                                    'KYCKey'  : KYCKey
+            topology['Identity'] = {'PubKey'     : self._validator_id,
+                                    'IP'         : self._endpoint,
+                                    'Network'    : network,
+                                    'Cluster'    : self._nest_colour,
+                                    TOPO_GENESIS : self._genesis_node,
+                                    'Leader'     : self._leader if self._leader else 'UNDEF',
+                                    'Parent'     : self._parent if self._parent else 'UNDEF',
+                                    'KYCKey'     : KYCKey
 
             }
-            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s child=%s dyn=%s', self._arbiters, self.genesis_node[:8], len(self.publics),self.own_child_info,self.is_dynamic_cluster)
+            LOGGER.debug('Arbiters RING=%s\n GENESIS=%s PUBLICS=%s child=%s dyn=%s', self.arbiters_info, self.genesis_node[:8], len(self.publics),self.own_child_info,self.is_dynamic_cluster)
 
 
 

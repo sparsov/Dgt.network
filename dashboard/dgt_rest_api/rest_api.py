@@ -77,6 +77,14 @@ def parse_args(args):
                         type=str)                                       
     parser.add_argument('--opentsdb-db',
                         help='specify name of database for storing metrics')
+    parser.add_argument(                  
+        '-cb', '--crypto_back',           
+        type=str,                         
+        help='Specify a crypto back',     
+        default='bitcoin')                
+
+
+
 
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version

@@ -32,7 +32,7 @@ from dgt_cli.protobuf.settings_pb2 import SettingTopology
 
 from dgt_validator.protobuf.transaction_pb2 import TransactionHeader,Transaction
 from dgt_validator.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
-
+from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_MAP_NM
 #from dgt_cli.protobuf.transaction_pb2 import TransactionHeader,Transaction
 #from dgt_cli.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
 
@@ -147,6 +147,7 @@ def _config_inputs(key):
         _key_to_address('sawtooth.settings.vote.proposals'),
         _key_to_address('sawtooth.settings.vote.authorized_keys'),
         _key_to_address('sawtooth.settings.vote.approval_threshold'),
+        #_key_to_address(DGT_TOPOLOGY_MAP_NM),
         _key_to_address(key)
     ]
 
@@ -157,6 +158,7 @@ def _config_outputs(key):
     """
     return [
         _key_to_address('sawtooth.settings.vote.proposals'),
+        #_key_to_address(DGT_TOPOLOGY_MAP_NM),
         _key_to_address(key)
     ]
 

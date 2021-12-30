@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.join(TOP_DIR,'consensus','pbft'))
 sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
 sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
 sys.path.insert(0, os.path.join(TOP_DIR,'cli'))
+sys.path.insert(0, os.path.join(TOP_DIR,'families','x509_cert'))
 
 from dgt_validator.server.cli import main
 

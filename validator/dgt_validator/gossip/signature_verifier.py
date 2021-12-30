@@ -73,8 +73,7 @@ def is_valid_batch(batch):
     if not context.verify(batch.header_signature,
                           batch.header,
                           public_key):
-        LOGGER.debug("batch failed signature validation: %s",
-                     batch.header_signature)
+        LOGGER.debug("batch failed signature validation: %s",batch.header_signature)
         return False
 
     # validate all transactions in batch
@@ -85,10 +84,7 @@ def is_valid_batch(batch):
         txn_header = TransactionHeader()
         txn_header.ParseFromString(txn.header)
         if txn_header.batcher_public_key != header.signer_public_key:
-            LOGGER.debug("txn batcher public_key does not match signer"
-                         "public_key for batch: %s txn: %s",
-                         batch.header_signature,
-                         txn.header_signature)
+            LOGGER.debug("txn batcher public_key does not match signer public_key for batch: %s txn: %s",batch.header_signature,txn.header_signature)
             return False
 
     return True

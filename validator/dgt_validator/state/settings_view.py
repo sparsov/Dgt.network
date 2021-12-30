@@ -12,17 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
-
+import logging
 import hashlib
+import cbor
 from functools import lru_cache
 
 from dgt_validator.protobuf.setting_pb2 import Setting
-
+#from dgt_validator.protobuf.x509_cert_pb2 import X509CertInfo
+from cert_common.protobuf.x509_cert_pb2 import X509CertInfo
+XCERT_FAMILY_NAME = 'xcert'
 
 CONFIG_STATE_NAMESPACE = '000000'
 _MAX_KEY_PARTS = 4
 _ADDRESS_PART_SIZE = 16
 
+LOGGER = logging.getLogger(__name__)
 
 def _short_hash(byte_str):
     return hashlib.sha256(byte_str).hexdigest()[:_ADDRESS_PART_SIZE]
@@ -133,6 +137,53 @@ class SettingsView(object):
         addr_parts.extend([_EMPTY_PART] * (_MAX_KEY_PARTS - len(addr_parts)))
 
         return CONFIG_STATE_NAMESPACE + ''.join(addr_parts)
+
+    @staticmethod               
+    def xcert_address(key): 
+        #
+        #
+        def _sha512(data):                           
+            return hashlib.sha512(data).hexdigest()  
+
+        def _get_prefix():                                                
+            return _sha512(XCERT_FAMILY_NAME.encode('utf-8'))[0:6]              
+                                                                          
+        def _get_address(key):                                           
+            prefix = _get_prefix()                                        
+            xcert_address = _sha512(key.encode('utf-8'))[64:]             
+            return prefix + xcert_address 
+        return  _get_address(key)                                
+
+
+    def get_xcert(self, key, default_value=None):               
+        """Get the xcert stored at the given key.                               
+                                                                                  
+        Args:                                                                     
+            key (str): the setting key                                            
+            default_value (str, optional): The default value, if none is          
+                found. Defaults to None.                                          
+        Returns:                                                                      
+            str: The value of the setting if found, default_value                     
+            otherwise.                                                                
+        """                                                                           
+        try:                                                                          
+            xcert_entry = self._state_view.get(SettingsView.xcert_address(key))     
+        except KeyError:                                                              
+            return default_value                                                      
+                                                                                      
+        if xcert_entry is not None:                                                   
+            xcert_info = X509CertInfo()
+            val = cbor.loads(xcert_entry)  
+            try:
+                xcert_info.ParseFromString(val[key])   
+                return xcert_info.xcert 
+            except  Exception as ex:
+                LOGGER.debug(f"Cant load X509CertInfo={xcert_entry} val={val}-({ex})")
+                return xcert_entry
+
+        return default_value                                                          
+        
+          
 
 
 class SettingsViewFactory(object):

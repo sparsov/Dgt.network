@@ -16,6 +16,14 @@
 from abc import ABCMeta
 from abc import abstractmethod
 
+X509_COUNTRY_NAME           = "COUNTRY_NAME"   
+X509_STATE_OR_PROVINCE_NAME = "STATE_OR_PROVINCE_NAME"   
+X509_LOCALITY_NAME          = "LOCALITY_NAME"   
+X509_ORGANIZATION_NAME      = "ORGANIZATION_NAME"   
+X509_COMMON_NAME            = "COMMON_NAME"   
+X509_DNS_NAME               = "DNS_NAME"   
+
+
 
 class NoSuchAlgorithmError(Exception):
     """Thrown when trying to create an algorithm which does not exist.

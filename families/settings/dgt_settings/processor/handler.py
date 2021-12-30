@@ -32,7 +32,7 @@ from dgt_settings.protobuf.settings_pb2 import SettingCandidate
 from dgt_settings.protobuf.settings_pb2 import SettingCandidates
 from dgt_settings.protobuf.settings_pb2 import SettingTopology
 from dgt_settings.protobuf.setting_pb2 import Setting
-from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,DGT_PING_COUNTER
+from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,DGT_PING_COUNTER,DGT_TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM,TOPO_MAP
 
 LOGGER = logging.getLogger(__name__)
 # DGT_PING_COUNTER - could do not all peers
@@ -46,6 +46,9 @@ STATE_TIMEOUT_SEC = 10
 DGT_FAMILY_NAME = 'dgt_settings'
 
 class SettingsTransactionHandler(TransactionHandler):
+    def __init__(self):
+        self._fbft = None
+
     @property
     def family_name(self):
         return DGT_FAMILY_NAME
@@ -68,7 +71,7 @@ class SettingsTransactionHandler(TransactionHandler):
         setting_proposal = SettingProposal()
         setting_proposal.ParseFromString(settings_payload.data)
 
-        auth_keys = _get_auth_keys(context)
+        auth_keys = self._get_auth_keys(context)
         LOGGER.debug("AUTH_KEYS=%s batcher_public_key=%s",auth_keys,txn_header.batcher_public_key)
         if auth_keys and public_key not in auth_keys and setting_proposal.setting not in NO_RESTRICTIONS_PARAMS:
             raise InvalidTransaction('{} is not authorized to change settings'.format(public_key))
@@ -93,7 +96,7 @@ class SettingsTransactionHandler(TransactionHandler):
 
         proposal_id = hashlib.sha256(setting_proposal_data).hexdigest()
 
-        approval_threshold = _get_approval_threshold(context)
+        approval_threshold = self._get_approval_threshold(context)
 
         _validate_setting(auth_keys,
                           setting_proposal.setting,
@@ -119,10 +122,10 @@ class SettingsTransactionHandler(TransactionHandler):
             )
 
             LOGGER.debug('Proposal made to set %s to %s',setting_proposal.setting,setting_proposal.value)
-            _save_setting_candidates(context, setting_candidates)
+            self._save_setting_candidates(context, setting_candidates)
         else:
             LOGGER.debug('Proposal set %s to %s',setting_proposal.setting,setting_proposal.value)
-            _set_setting_value(context,setting_proposal.setting,setting_proposal.value)
+            self._set_setting_value(context,[(setting_proposal.setting,setting_proposal.value)])
 
 
     def _apply_topology(self, auth_keys, public_key,setting_topology_data, context):
@@ -131,19 +134,27 @@ class SettingsTransactionHandler(TransactionHandler):
         """
         setting_topology = SettingTopology()
         setting_topology.ParseFromString(setting_topology_data)
-        value = _get_setting_value(context, setting_topology.setting, '')
+        #value = _get_setting_value(context, setting_topology.setting, '')
+        values = self._get_settings_value(context,[(setting_topology.setting, '')]) #,(DGT_TOPOLOGY_MAP_NM, '')
+        LOGGER.debug(f'Topology: settings={values}')
         try:
-            topology = json.loads(value.replace("'",'"'))
+            topology = json.loads(values[0].replace("'",'"'))
             update = json.loads(setting_topology.value)
+            #tmap = json.loads(values[1])
         except ValueError as e:
             raise InvalidTransaction("Can't apply topology operation ({})".format('Invalid json: '+ str(e)))
 
+
         extra = []
+        values = []
         if 'oper' in update:
             oper = update['oper']
             extra.append(('oper',oper))
+            LOGGER.debug(f'FbftTopology: init for OPER={oper}')
             fbft = FbftTopology()
-            fbft.get_topology(topology,'','','static')
+            #fbft.load_topo_map(tmap)                   
+            fbft.get_topology(topology,'','','static') 
+            #fbft.get_topology(topology,'','','static')
             if oper == 'lead' or oper == 'arbiter' :
                 # change current leader or arbiter 
                 if ('cluster' in update and 'peer' in update) or 'pid' in update:
@@ -173,6 +184,9 @@ class SettingsTransactionHandler(TransactionHandler):
                         
                     if changed == -1:
                         raise InvalidTransaction("Can't do '{}' into cluster='{}' ({})".format(oper,cname,err))
+                    
+
+                    #values.append((DGT_TOPOLOGY_MAP_NM,fbft.nest_map2str))
                     extra.append(('cluster',cname))
                     extra.append(('list',plist))
                 else:
@@ -199,19 +213,41 @@ class SettingsTransactionHandler(TransactionHandler):
                     extra.append(('peer',npeer))
                 else:
                     raise InvalidTransaction("Undefined params for 'cluster' operation")
+            elif oper == 'map':
+                # set mapping for peer into DGT NET 
+                # nest ; pub key or certificate key
+                if ('list' in update) :
+                    nlist = update['list']
+                    changed,err = fbft.set_nest_map(nlist)
+                    if not changed:
+                        raise InvalidTransaction(f"Cant do MAP set ({err})")
+                    extra.append(('list',nlist))  
+                    
+                else:
+                    raise InvalidTransaction(f"Undefined params for 'map' operation update={update}")
+                """
+                values.append((DGT_TOPOLOGY_MAP_NM,fbft.nest_map2str))
+                self._set_setting_value(context,values,extra=extra)
+                return
+                """
             else:
                 # add peer into cluster
                 raise InvalidTransaction("Undefined operation '{}'".format(oper))
 
         else:
             raise InvalidTransaction('Undefined SET operation')
+        try:
+            
+            nvalue = json.dumps(fbft.curr_topology)
+            values.append((setting_topology.setting,nvalue))
+        except Exception as ex:
+            raise InvalidTransaction(f'Cant convert result {ex}')
 
-        nvalue = json.dumps(topology)
         #LOGGER.debug('TOPOLOGY value=%s set %s to %s',nvalue,setting_topology.setting,update)
         _validate_setting(auth_keys,setting_topology.setting,setting_topology.value)
 
         LOGGER.debug('TOPOLOGY SET %s TO %s',setting_topology.setting,nvalue)
-        _set_setting_value(context,setting_topology.setting,nvalue,extra=extra) #setting_topology.value)
+        self._set_setting_value(context,values,extra=extra) #setting_topology.value)
 
     def _apply_vote(self, public_key,
                     settings_vote_data, authorized_keys, context):
@@ -219,7 +255,7 @@ class SettingsTransactionHandler(TransactionHandler):
         settings_vote.ParseFromString(settings_vote_data)
         proposal_id = settings_vote.proposal_id
 
-        setting_candidates = _get_setting_candidates(context)
+        setting_candidates = self._get_setting_candidates(context)
         candidate = _first(
             setting_candidates.candidates,
             lambda candidate: candidate.proposal_id == proposal_id)
@@ -230,13 +266,12 @@ class SettingsTransactionHandler(TransactionHandler):
 
         candidate_index = _index_of(setting_candidates.candidates, candidate)
 
-        approval_threshold = _get_approval_threshold(context)
+        approval_threshold = self._get_approval_threshold(context)
 
         vote_record = _first(candidate.votes,
                              lambda record: record.public_key == public_key)
         if vote_record is not None:
-            raise InvalidTransaction(
-                '{} has already voted'.format(public_key))
+            raise InvalidTransaction('{} has already voted'.format(public_key))
 
         candidate.votes.add(
             public_key=public_key,
@@ -251,48 +286,134 @@ class SettingsTransactionHandler(TransactionHandler):
                 rejected_count += 1
 
         if accepted_count >= approval_threshold:
-            _set_setting_value(context,
-                               candidate.proposal.setting,
-                               candidate.proposal.value)
+            self._set_setting_value(context,[(candidate.proposal.setting,candidate.proposal.value)])
             del setting_candidates.candidates[candidate_index]
-        elif rejected_count >= approval_threshold or \
-                (rejected_count + accepted_count) == len(authorized_keys):
-            LOGGER.debug('Proposal for %s was rejected',
-                         candidate.proposal.setting)
+
+        elif rejected_count >= approval_threshold or (rejected_count + accepted_count) == len(authorized_keys):
+            LOGGER.debug('Proposal for %s was rejected',candidate.proposal.setting)
             del setting_candidates.candidates[candidate_index]
+
         else:
-            LOGGER.debug('Vote recorded for %s',
-                         candidate.proposal.setting)
+            LOGGER.debug('Vote recorded for %s',candidate.proposal.setting)
 
-        _save_setting_candidates(context, setting_candidates)
+        self._save_setting_candidates(context, setting_candidates)
+
+    def load_topology(self,value):
+        try:
+            topology = json.loads(value)             
+            self._fbft.get_topology(topology,'AA.aa1','','static') 
+            LOGGER.debug('LOAD TOPOLOGY DONE ') 
+
+        except Exception as ex:
+            LOGGER.debug(f'Cant load topology ({ex})')
+
+    def _set_setting_value(self,context, values,extra=[],data=None):  
+        states = {}
+        for val in values:
+            key,value = val[0],val[1]
+            address = _make_settings_key(key)                                                                                                                    
+            setting = _get_setting_entry(context, address)                                                                                                       
+                                                                                                                                                             
+            old_value = None                                                                                                                                     
+            old_entry_index = None                                                                                                                               
+            for i, entry in enumerate(setting.entries):                                                                                                          
+                LOGGER.debug('SET_SETTING_VALUE: [%s]=%s context=%s', i,entry.key,type(context))                                                                 
+                if key == entry.key:                                                                                                                             
+                    old_value = entry.value                                                                                                                      
+                    old_entry_index = i                                                                                                                          
+                                                                                                                                                             
+                                                                                                                                                             
+            inform = True                                                                                                                                        
+            if old_entry_index is not None:                                                                                                                      
+                curr_value = setting.entries[old_entry_index].value                                                                                              
+                if key == DGT_PING_COUNTER:                                                                                                                      
+                    # special setting ping for networks                                                                                                          
+                    # LOGGER.debug(f'DGT_PING_COUNTER:: {curr_value} + {value} {type(curr_value)}')                                                               
+                    value = str(int(value) + int(curr_value))                                                                                                    
+                if curr_value == value:                                                                                                                          
+                    inform = False                                                                                                                               
+                    LOGGER.debug('NEW VALUE THE SAME')                                                                                                           
+                setting.entries[old_entry_index].value = value                                                                                                   
+            else:                                                                                                                                                
+                setting.entries.add(key=key, value=value)                                                                                                        
+            
+            # add state
+            states[address] = setting.SerializeToString()                                                                                                                                               
+
+            
+        number = len(states)
+        try:                                                                                                                                                 
+            addresses = list(context.set_state(states,timeout=STATE_TIMEOUT_SEC))                                            
+                                                                                                                                                             
+        except FutureTimeoutError:                                                                                                                           
+            LOGGER.warning('Timeout occured on context.set_state([%s, <value>])', [addr for addr in states.keys()])                                                                   
+            raise InternalError('Unable to set {}'.format([val[0] for val in values]))                                                                                              
+                                                                                                                                                             
+        if len(addresses) != number:                                                                                                                              
+            LOGGER.warning('Failed to save value on address %s', [addr for addr in states.keys()])                                                                                    
+            raise InternalError('Unable to save config value {}'.format([val[0] for val in values]))                                                                                
+        
+        # add events into context                                                                                                                            
+        if inform:                                                                                                                                           
+            context.add_event(                                                                                                                               
+                event_type="settings/update",                                                                                                                
+                attributes=[("updated", key)]+extra,                                                                                                         
+                data=data                                                                                                                                    
+            )                                                                                                                                                
+                                                                                                                                                             
+    def _save_setting_candidates(self,context, setting_candidates):                                
+        self._set_setting_value(context,                                                           
+                           [('sawtooth.settings.vote.proposals',base64.b64encode(setting_candidates.SerializeToString()))]           
+                           )                                                                  
+                                                                                              
+
+    def _get_setting_candidates(self,context):                                                            
+        value = self._get_setting_value(context, 'sawtooth.settings.vote.proposals')                      
+        if not value:                                                                                
+            return SettingCandidates(candidates={})                                                  
+                                                                                                     
+        setting_candidates = SettingCandidates()                                                     
+        setting_candidates.ParseFromString(base64.b64decode(value))                                  
+        return setting_candidates                                                                    
+
+    def _get_setting_value(self,context, key, default_value=None):                
+        address = _make_settings_key(key)                                    
+        setting = _get_setting_entry(context, address)                       
+        for entry in setting.entries:                                        
+            if key == entry.key:                                             
+                return entry.value                                           
+                                                                             
+        return default_value  
+                                                       
+    def _get_settings_value(self,context, item_list): 
+        def get_setting(settings,key):
+            for entry in settings.entries:                                                    
+                if key == entry.key:                                                         
+                    return entry.value
+            return None
+
+        address = []
+        for item in item_list:
+            address.append(_make_settings_key(item[0]))                                                
+        settings = _get_settings_entry(context, address)  
+        values = []  
+        for item in item_list:
+            val = get_setting(settings,item[0]) 
+            values.append(val if val is not None else item[1])
+                                                                                         
+        return values                                                             
+        
+                                                                                 
+    def _get_approval_threshold(self,context):                                
+        return int(self._get_setting_value(context, 'sawtooth.settings.vote.approval_threshold', 1))    
+
+    def _get_auth_keys(self,context):                                          
+        value = self._get_setting_value(context, 'sawtooth.settings.vote.authorized_keys', '')        
+        return _split_ignore_empties(value)                               
 
 
-def _get_setting_candidates(context):
-    value = _get_setting_value(context, 'sawtooth.settings.vote.proposals')
-    if not value:
-        return SettingCandidates(candidates={})
-
-    setting_candidates = SettingCandidates()
-    setting_candidates.ParseFromString(base64.b64decode(value))
-    return setting_candidates
 
 
-def _save_setting_candidates(context, setting_candidates):
-    _set_setting_value(context,
-                       'sawtooth.settings.vote.proposals',
-                       base64.b64encode(
-                           setting_candidates.SerializeToString()))
-
-
-def _get_approval_threshold(context):
-    return int(_get_setting_value(
-        context, 'sawtooth.settings.vote.approval_threshold', 1))
-
-
-def _get_auth_keys(context):
-    value = _get_setting_value(
-        context, 'sawtooth.settings.vote.authorized_keys', '')
-    return _split_ignore_empties(value)
 
 
 def _split_ignore_empties(value):
@@ -326,65 +447,6 @@ def _validate_setting(auth_keys, setting, value):
             'Setting sawtooth.settings.vote.proposals is read-only')
 
 
-def _get_setting_value(context, key, default_value=None):
-    address = _make_settings_key(key)
-    setting = _get_setting_entry(context, address)
-    for entry in setting.entries:
-        if key == entry.key:
-            return entry.value
-
-    return default_value
-
-
-def _set_setting_value(context, key, value,extra=[],data=None):
-    address = _make_settings_key(key)
-    setting = _get_setting_entry(context, address)
-
-    old_value = None
-    old_entry_index = None
-    for i, entry in enumerate(setting.entries):
-        LOGGER.debug('SET_SETTING_VALUE: [%s]=%s context=%s', i,entry.key,type(context))
-        if key == entry.key:
-            old_value = entry.value
-            old_entry_index = i
-
-    
-    
-
-    inform = True
-    if old_entry_index is not None:
-        curr_value = setting.entries[old_entry_index].value
-        if key == DGT_PING_COUNTER:                 
-            # special setting ping for networks 
-            #LOGGER.debug(f'DGT_PING_COUNTER:: {curr_value} + {value} {type(curr_value)}')
-            value = str(int(value) + int(curr_value))
-        if curr_value == value:
-            inform = False
-            LOGGER.debug('NEW VALUE THE SAME')
-        setting.entries[old_entry_index].value = value
-    else:
-        setting.entries.add(key=key, value=value)
-
-    try:
-        addresses = list(context.set_state(
-            {address: setting.SerializeToString()},
-            timeout=STATE_TIMEOUT_SEC))
-    except FutureTimeoutError:
-        LOGGER.warning('Timeout occured on context.set_state([%s, <value>])', address)
-        raise InternalError('Unable to set {}'.format(key))
-
-    if len(addresses) != 1:
-        LOGGER.warning('Failed to save value on address %s', address)
-        raise InternalError('Unable to save config value {}'.format(key))
-    if setting != 'sawtooth.settings.vote.proposals':
-        LOGGER.info('Setting setting %s changed from %s to %s',key, old_value, value)
-    # add events into context
-    if inform:
-        context.add_event(
-            event_type="settings/update",
-            attributes=[("updated", key)]+extra,
-            data=data
-        )
 
 
 def _get_setting_entry(context, address):
@@ -401,6 +463,23 @@ def _get_setting_entry(context, address):
 
     return setting
 
+def _get_settings_entry(context, address):                                                      
+    settings = Setting()                                                                        
+                                                                                               
+    try:                                                                                       
+        entries_list = context.get_state(address, timeout=STATE_TIMEOUT_SEC)                 
+    except FutureTimeoutError:                                                                 
+        LOGGER.warning(f'Timeout occured on context.get_state({address})' )                  
+        raise InternalError('Unable to get {}'.format(address))                                
+     
+    for entry in entries_list:
+        set = Setting()
+        set.ParseFromString(entry.data)
+        settings.entries.add(key=set.entries[0].key, value=set.entries[0].value) 
+        
+                                                                                                   
+    return settings                                                                             
+
 
 def _to_hash(value):
     return hashlib.sha256(value.encode()).hexdigest()
@@ -412,6 +491,7 @@ def _first(a_list, pred):
 
 def _index_of(iterable, obj):
     return next((i for i, x in enumerate(iterable) if x == obj), -1)
+
 
 
 _MAX_KEY_PARTS = 4

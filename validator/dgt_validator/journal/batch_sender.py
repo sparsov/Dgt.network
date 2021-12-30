@@ -55,6 +55,6 @@ class BroadcastBatchSender(BatchSender):
         for DAG - send batches after branch was selected
         and use cluster info - send only our cluster peer
         """
-        exclude = self._gossip.get_exclude(self._topology.cluster) if self._topology.cluster else None
+        exclude = self._gossip.get_exclude(check_own_peer=True) #self._topology.is_own_peer if self._topology.cluster else None
 
         self._gossip.broadcast_batches(batches,exclude=exclude)

@@ -962,7 +962,7 @@ class PbftEngine(Engine):
             self._nest_color.append(self._genesis)
             LOGGER.debug('NEW NEST COLORS=%s',self._nest_color)
         color = self._nest_color.pop()
-        LOGGER.debug('NEST COLOR=%s',color) 
+        LOGGER.debug('FIRST NEST COLOR=%s',color) 
         return color
 
     @property
@@ -985,7 +985,7 @@ class PbftEngine(Engine):
         return self._oracle.peer_name_by_key(key)
 
     def belonge_cluster(self,peer_id):
-        return peer_id in self._cluster
+        return self._oracle.is_own_peer(peer_id)
 
     def init_dag_nests(self):
         """
@@ -1314,7 +1314,7 @@ class PbftEngine(Engine):
                 self._is_sync = False
             else:
                 LOGGER.debug("Undefined place into topology for=%s (Update bgx/etc/bgx_val.conf)", self._validator_id)
-            LOGGER.debug("Genesis=%s(%s) Node=%s arbiters=%s",self._genesis,self._genesis_node[:8],self.arbiters_info)
+            LOGGER.debug("Genesis=%s(%s) Node=%s arbiters=%s",self._genesis,self._genesis_node[:8],self._validator_id[:8],self.arbiters_info)
         else:
             LOGGER.debug("Genesis=%s(%s) Node=%s %s in cluster=%s nodes=%s arbiters=%s(%s)",self._genesis,self._genesis_node[:8],self._validator_id[:8],self.own_type,self._cluster_name,[key[:8] for key in self._cluster.keys()],
                      self.arbiters_info,self.is_ready_arbiter
@@ -1757,7 +1757,7 @@ class PbftEngine(Engine):
         if peer_id:
             pid = peer_id.hex()
             LOGGER.debug('DisConnected peer=%s.%s',self.pkey2nm(pid),pid[:8]) 
-            if pid in self._cluster :
+            if self._oracle.is_own_peer(pid) :
                 if self.peers[pid].status != ConsensusNotifyPeerConnected.NOT_READY:
                     self.change_peer_status(pid,ConsensusNotifyPeerConnected.NOT_READY,self.peers[pid].status)
             elif pid in self.arbiters:
@@ -1794,8 +1794,8 @@ class PbftEngine(Engine):
             ret,_ = self._oracle.del_cluster(pid)                                                                                                     
             LOGGER.debug('DEL CLUSTER PEER=%s ret=%s\n',pid[:8],ret)  
         elif oper == ConsensusNotifyPeerConnected.ADD_PEER:
-            ret,_ = self._oracle.add_peer(pid,val)
-            LOGGER.debug('ADD PEER=%s %s ret=%s\n',pid,val,ret)
+            ret,err_info = self._oracle.add_peer(pid,val)
+            LOGGER.debug('ADD PEER=%s %s ret=%s(%s)\n',pid,val,ret,err_info)
             if ret > 0:
                 if (ret & 0b001) > 0:
                     LOGGER.debug('arbiters_update ')
@@ -1804,23 +1804,32 @@ class PbftEngine(Engine):
                     LOGGER.debug('cluster_update ')
                     self.cluster_update()
             #own cluster update 
-
+        elif oper == ConsensusNotifyPeerConnected.SET_NEST:
+            ret,err = self._oracle.map_topo_nest(val)
+            LOGGER.debug(f'MAP NEST={val}  ret={ret} err={err}')
+            if ret == True:
+                self.update_topology_settings()
+            
         elif oper == ConsensusNotifyPeerConnected.DEL_PEER:
             ret,_ = self._oracle.del_peer(pid,val)
-            LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)  
+            LOGGER.debug('DEL PEER=%s %s ret=%s\n',pid[:8],val,ret)
+
         elif oper == ConsensusNotifyPeerConnected.PARAM_UPDATE:
             LOGGER.debug(f'PARAM_UPDATE [{val}]={data} join={self._join_cluster}\n')
             if self._oracle.update_param(val,data):
                 # topology was updated
+                is_not_joined = self._cluster_name is None
                 self._oracle.get_topology(self._join_cluster)
                 self.update_topology_settings()
-                self._nest_color = []
-                self.nest_color
+                if is_not_joined:
+                    self._nest_color = []
+                #self.nest_color
 
         elif oper == ConsensusNotifyPeerConnected.JOIN_CLUSTER:
             LOGGER.debug('JOIN_CLUSTER=%s\n',val)
             self._join_cluster = val
         else:
+            LOGGER.debug(f'UNDEF OPERATION {oper}\n')
             return False
         return True
 
@@ -1866,7 +1875,7 @@ class PbftEngine(Engine):
                 LOGGER.debug('Change OWN SYNC STATUS=%s MODE=%s->%s SYNC=%s arbiters=%s\n', notif[1],self._mode,notif[2],self._is_sync,self.num_arbiters) 
                 if self._mode != notif[2] :
                     self._mode = notif[2]
-            elif pid in self._cluster :
+            elif self._oracle.is_own_peer(pid):
                 # take only peers from own cluster topology 
                 # save status of peer
                 self.change_peer_status(pid,notif[1])
@@ -1883,7 +1892,7 @@ class PbftEngine(Engine):
                 LOGGER.debug('Connected peer with ID=%s.%s(Ignore - not in our cluster and not arbiter)\n',pnm, _short_id(pid))
 
         else: # this peer is already known
-            if pid in self._cluster and self.peers[pid].status != notif[1]:
+            if self._oracle.is_own_peer(pid) and self.peers[pid].status != notif[1]:
                 self.change_peer_status(pid,notif[1],self.peers[pid].status)
                 
     @property

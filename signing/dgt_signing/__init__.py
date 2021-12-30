@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
+import os
 from dgt_signing.core import NoSuchAlgorithmError
 from dgt_signing.core import ParseError
 from dgt_signing.core import SigningError
@@ -19,6 +20,18 @@ from dgt_signing.core import SigningError
 from dgt_signing.secp256k1 import Secp256k1Context
 from dgt_signing.open_crypto import OpenCryptoContext
 
+DGT_CRYPTO_NM = 'dgt.crypto'
+DGT_CRYPTO_ALG_NM = 'dgt.crypto.alg'
+
+
+
+
+
+
+
+
+
+CRYPTO_BACK = os.environ.get('CRYPTO_BACK')
 class Signer:
     """A convenient wrapper of Context and PrivateKey
     """
@@ -43,6 +56,17 @@ class Signer:
             SigningError: if any error occurs during the signing process
         """
         return self._context.sign(message, self._private_key)
+
+    @property
+    def private_key(self):
+        return self._private_key
+
+    @property
+    def context(self):
+        return self._context
+
+    def verify(self, signature, message, public):
+        return self._context.verify(signature,message,public)
 
     def get_public_key(self):
         """Return the public key for this Signer instance.
@@ -90,6 +114,8 @@ def create_context(algorithm_name,backend='bitcoin'):
     Raises:
         NoSuchAlgorithmError if the algorithm is unknown
     """
+    if CRYPTO_BACK != '':
+        backend = CRYPTO_BACK
     if backend == 'bitcoin':
         # old version
         if algorithm_name == 'secp256k1':

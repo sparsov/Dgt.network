@@ -54,7 +54,7 @@ class BroadcastBlockSender(BlockSender):
         use from publisher for sending new block to peers 
         send only own cluster's peer
         """
-        exclude = self._gossip.get_exclude(self._topology.cluster) if self._topology.cluster else None
+        exclude = self._gossip.get_exclude(check_own_peer=True) #self._topology.is_own_peer if self._topology.cluster else None
 
         self._gossip.broadcast_block(block,exclude=exclude)
         self._completer.add_block(block)
@@ -86,9 +86,9 @@ class BroadcastBlockSender(BlockSender):
         we know about arbiters from topology
         """
         if arbiter:
-            exclude = self._gossip.get_exclude(self._topology.arbiters) if self._topology.arbiters else None
+            exclude = self._gossip.get_exclude(check_own_peer=False) #self._topology.is_arbiter if self._topology.arbiters else None
         else:
-            exclude = self._gossip.get_exclude(self._topology.cluster) if self._topology.cluster else None
+            exclude = self._gossip.get_exclude(check_own_peer=True) #self._topology.is_own_peer) if self._topology.cluster else None
         self._gossip.broadcast_block(block,exclude=exclude)
         
 

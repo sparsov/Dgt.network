@@ -20,7 +20,7 @@ import os
 import sys
 
 from dgt_cli.exceptions import CliException
-from dgt_signing import create_context
+from dgt_signing import create_context,CryptoFactory,ParseError
 
 
 def add_keygen_parser(subparsers, parent_parser):
@@ -53,6 +53,12 @@ def add_keygen_parser(subparsers, parent_parser):
         '--quiet',
         help="do not display output",
         action='store_true')
+    parser.add_argument(                 
+        '-cb', '--crypto_back',               
+        type=str,                             
+        help='Specify a crypto back',         
+        default='bitcoin')  
+
 
 
 def do_keygen(args):
@@ -88,14 +94,18 @@ def do_keygen(args):
             raise CliException(
                 'files exist, rerun with --force to overwrite existing files')
 
-    context = create_context('secp256k1')
+    create_new_key(priv_filename,pub_filename,quiet=args.quiet)
+
+def create_new_key(priv_filename,pub_filename,quiet=True,backend='bitcoin'):
+
+    context = create_context('secp256k1',backend=backend)
     private_key = context.new_random_private_key()
     public_key = context.get_public_key(private_key)
 
     try:
         priv_exists = os.path.exists(priv_filename)
         with open(priv_filename, 'w') as priv_fd:
-            if not args.quiet:
+            if not quiet:
                 if priv_exists:
                     print('overwriting file: {}'.format(priv_filename))
                 else:
@@ -107,7 +117,7 @@ def do_keygen(args):
 
         pub_exists = os.path.exists(pub_filename)
         with open(pub_filename, 'w') as pub_fd:
-            if not args.quiet:
+            if not quiet:
                 if pub_exists:
                     print('overwriting file: {}'.format(pub_filename))
                 else:
@@ -119,3 +129,46 @@ def do_keygen(args):
 
     except IOError as ioe:
         raise CliException('IOError: {}'.format(str(ioe)))
+
+
+
+def _read_signer(key_filename,backend='bitcoin'):
+    """Reads the given file as a hex key.
+
+    Args:
+        key_filename: The filename where the key is stored. If None,
+            defaults to the default key for the current user.
+
+    Returns:
+        Signer: the signer
+
+    Raises:
+        CliException: If unable to read the file.
+    """
+    filename = key_filename
+    if filename is None:
+        filename = os.path.join(os.path.expanduser('~'),
+                                '.dgt',
+                                'keys',
+                                getpass.getuser() + '.priv')
+
+    try:
+        with open(filename, 'r') as key_file:
+            signing_key = key_file.read().strip()
+    except IOError as e:
+        raise CliException('_read_signer:Unable to read key file: {}'.format(str(e)))
+
+    context = create_context('secp256k1',backend=backend)
+    try:
+        private_key = context.from_hex(signing_key)
+    except ParseError as e:
+        raise CliException(f'Unable to read /{crypto}/ key in file={filename}: {e}')
+
+
+    crypto_factory = CryptoFactory(context)
+    return crypto_factory.new_signer(private_key)
+
+
+
+
+

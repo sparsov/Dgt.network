@@ -130,10 +130,10 @@ message ConsensusRegisterResponse {
 // A new peer was added
 message ConsensusNotifyPeerConnected {
    enum Status {
-    OK           = 0;
-    NOT_READY    = 1; // for peers connected after point of assemble
-    STATUS_UNSET = 2;
-    ROLE_CHANGE  = 3;
+    OK             = 0;
+    NOT_READY      = 1; // for peers connected after point of assemble
+    STATUS_UNSET   = 2;
+    ROLE_CHANGE    = 3;
     ARBITER_CHANGE = 4;
     ADD_CLUSTER    = 5;
     DEL_CLUSTER    = 6;
@@ -141,6 +141,7 @@ message ConsensusNotifyPeerConnected {
     DEL_PEER       = 8;
     PARAM_UPDATE   = 9;
     JOIN_CLUSTER   = 10;
+    SET_NEST       = 11;
   }
   enum Modes {
     NORMAL     = 0;

@@ -17,5 +17,6 @@
 		<Project File="protos.vpj"/>
 		<Project File="smallbank-go.vpj"/>
 		<Project File="smart-stuff.vpj"/>
+		<Project File="xcert.vpj"/>
 	</Projects>
 </Workspace>

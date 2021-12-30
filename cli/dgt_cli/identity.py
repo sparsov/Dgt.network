@@ -561,7 +561,7 @@ def _read_signer(key_filename):
     try:
         private_key = context.from_hex(signing_key)
     except ParseError as e:
-        raise CliException('Unable to read key in file: {}'.format(str(e)))
+        raise CliException('Identity::Unable to read key in file: {}'.format(str(e)))
 
     
     crypto_factory = CryptoFactory(context)

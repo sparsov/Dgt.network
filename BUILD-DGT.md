@@ -32,7 +32,7 @@ To run a full validator node from the local source.
 $ docker-compose -f bgx/docker/docker-compose-net-bgx.yaml up
 
 For running shell-bgx run next bash cmd .
-$ docker exec -it shell-bgx-c1-1 bash
+$ docker exec -it shell-dgt-c1-1 bash
 For list created tokens run into shell-bgx. 
 $ smart-bgt list  --url http://bgx-api:8108
 bgt list  --url http://bgx-api:8108
@@ -87,6 +87,7 @@ docker-compose -f bgx/docker/docker-compose-net2-bgx-val-pbft.yaml up
 
 # topology set operations: del, add, cluster, cdel,
 # -c <cluster name> -p <peer name> -k <key peer> -l <json with operation params>
+dgtset  topology set -c Genesis -p 16 -o map -l '{"AA.aa2":"12345"}' --url http://api-dgt-c1-1:8108
 bgxset topology set -c Genesis -p 16 -o del -l "{'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}" --url http://bgx-api-c1-1:8008
 bgxset topology set -c Genesis -p 16 -o add -l "{'024642f5a5214ebc6f8a5e3a189f1bc4d2e877b486bb7362d23837afd19e6ac1e0':{'role':'plink','type':'peer','name':'16'}}" --url http://bgx-api-c1-1:8008
 # change leader
@@ -167,3 +168,11 @@ peers-crtl -C c1 -N 1 -P "2.1,-G" "2.3,-G" "dyn.1,-G -N net0 -S tcp://validator-
 # MALI
 # http://localhost:8008/peers?mode=ok/ma/ma1/ma2
 # NEW CLOUD SERVER ssh -p 7822 dgtca -l root
+#
+# xcert
+xcert set /project/bgx/etc/certificate.json --user /root/.dgt/keys/root.priv
+xcert list 
+xcert show <pub key>
+xcert set /project/bgx/etc/certificate.json --user /project/bgx/clusters/c3/dgt1/keys/validator.priv.openssl
+xcert set /project/bgx/etc/certificate.json --before 5 --user /project/bgx/clusters/c3/dgt1/keys/validator.priv.openssl
+bash upDgtDashboard.sh -CB openssl

@@ -15,6 +15,7 @@
 import logging
 import copy
 import time
+import datetime
 import random
 import os
 import subprocess
@@ -49,8 +50,9 @@ from dgt_validator.protobuf.client_peers_pb2 import  ClientPeersControlRequest
 from dgt_validator.exceptions import PeeringException
 from dgt_validator.networking.interconnect import get_enum_name
 # FBFT topology
-from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM
+from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM,TOPO_GENESIS,DGT_NET_NEST,DGT_SELF_CERT
 from dgt_cli.make_set_txn import _create_batch,_create_topology_txn
+from x509_cert.client_cli.create_batch import create_xcert_txn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +98,16 @@ FIFO_PATH = '/project/peer/data/.peers_ctrl'
 REAL_SEED_URL_SCHEME = ['tcp']
 PUBLIC_NET_ZONE = "public"
 PRIVATE_NET_ZONE = "private"
+DYN_NEST = "DYN"
 
+def load_peer_config_file(fname=DGT_NET_NEST):
+    try:                                                    
+        with open(fname, 'r') as file:                 
+            val_str = file.read().strip()             
+    except IOError as e:                                    
+        print(f"Could not load file: {e}")             
+        return None 
+    return val_str                                        
 
 def download_file_from_google_drive(url):                                         
     CHUNK_SIZE = 32768                                                                        
@@ -208,9 +219,11 @@ class Gossip(object):
         self._signer = self._network.signer # for sign transaction
 
         # feder topology
+        self._is_private = True # by default
+        self._own_topo_nest = self.get_own_topology_nest()    # get own topology nest
         self._settings = {}                    # DAG settings
         self._is_federations_assembled = False # point of assemble
-        self._fbft = FbftTopology()            # F-BFT topology
+        self._fbft = FbftTopology(self._own_topo_nest)            # F-BFT topology
         self._stopology = None                 # string 
         self._ftopology = None                 # json 
         self._nosync    = True #False                # need sync with other net 
@@ -222,12 +235,14 @@ class Gossip(object):
         self._is_send_block_request = False
         self._malicious = ConsensusNotifyPeerConnected.NORMAL 
         self._unsync_peers = {}                # list unsync  peers
+        self._notvalid_peers = {}               # list unsync  peers
         self._add_batch = None
         self._join_cluster = None
         self._batch        = None
         self._my_ip = None
         self._extpoint = None
         self._try_sync_net = False
+        
         """
         initial_peer_endpoints - peers from own cluster
         also we should know own atrbiter
@@ -249,12 +264,28 @@ class Gossip(object):
 
         LOGGER.debug("Gossip: %s endpoint=%s->%s component=%s is_recovery=%s single=%s",peering_mode,endpoint,self.endpoint,self._component,self._is_recovery_func(),self.is_single)
         if self.is_dynamic:
-            # TODO check - in case url is tcp:: -use it directly in others case get real urls list from google drive using this url 
-            LOGGER.debug("Gossip: init seeds=%s\n",self._initial_seed_endpoints)
-            self.make_real_initial_seeds(self._initial_seed_endpoints)
+            # TODO check - in case url is tcp:: -use it directly in others case get real urls list from google drive using this url
+            # it could be peer for private zone and for public 
+             
+            if self._own_topo_nest == DYN_NEST:
+                zone = PUBLIC_NET_ZONE
+                self._is_private = False
+            else:
+                zone =  PRIVATE_NET_ZONE
+            LOGGER.debug(f"Gossip: DYNAMIC zone={zone} init seeds={self._initial_seed_endpoints}\n")
+            self.make_real_initial_seeds(self._initial_seed_endpoints,zone_access=zone)
 
         else:
             LOGGER.debug("Gossip: peers=%s\n",self._initial_peer_endpoints)
+
+    def get_own_topology_nest(self):
+        # load from config /peer/etc/dgt.net.nest
+        nest = load_peer_config_file()
+        LOGGER.debug(f"Gossip: OWN NEST={nest}\n")
+        if self._peering_mode == 'static':
+            return DYN_NEST if nest is None else nest
+        else:
+            return DYN_NEST if nest is None else nest
 
     def make_real_initial_seeds(self,seed_endpoints,zone_access=PUBLIC_NET_ZONE):
         # check url into seeds list 
@@ -301,13 +332,13 @@ class Gossip(object):
         """
         Start stop peer 
         """
-
+        PREF_CLUST = 'Dgt' # 'Bgx'
         pkey = '{}.{}'.format(cname,pname)
         if mode == ClientPeersControlRequest.INFO:
             # send status peer
             if cname.isdigit() and pname.isdigit():
                 pname = '{}{}'.format(cname,pname)
-                cname = '{}{}'.format('Bgx',cname) if cname != '1' else 'Genesis'
+                cname = '{}{}'.format(PREF_CLUST,cname) if cname != '1' else TOPO_GENESIS
                 
             LOGGER.debug("peers_control INFO =%s.%s",cname,pname)
             peer,key = self._fbft.get_peer_by_name(cname,pname)
@@ -326,7 +357,7 @@ class Gossip(object):
                 return 1,'Cant control peer {}'.format(pkey)
             # get status of peer 
             if cname[:3] != 'dyn':
-                peer,key = self._fbft.get_peer_by_name('{}{}'.format('Bgx',cname),'{}{}'.format(cname,pname))
+                peer,key = self._fbft.get_peer_by_name('{}{}'.format(PREF_CLUST,cname),'{}{}'.format(cname,pname))
                 if peer:
                     LOGGER.debug("peer=%s key=%s",peer,key[:8]) #PeerAtr.node_state
                     if mode == ClientPeersControlRequest.UP :
@@ -452,6 +483,7 @@ class Gossip(object):
     @property
     def join_cluster(self):
         return None
+
     @property
     def KYC(self):
         return None
@@ -478,6 +510,15 @@ class Gossip(object):
     def max_feder_peer(self):
         return int(self.get_fbft_setting(MAX_FEDER_PEER_NM))
 
+    def get_join_cluster(self):
+        # set cluster for entering into SEED segment
+        if self._own_topo_nest != DYN_NEST:
+            # find nest description 
+            # get own certificate 
+            self_cert = load_peer_config_file(fname=DGT_SELF_CERT) if self._is_private else None
+            return f"{self._own_topo_nest}:",self_cert
+        return None,None
+        
     def set_add_batch(self,add_batch):
         self._add_batch = add_batch
 
@@ -488,17 +529,23 @@ class Gossip(object):
         self._fbft = topology
         LOGGER.debug("set cluster=%s arbiters=%s",self._fbft.cluster,self._fbft.arbiters)
 
-    def get_exclude(self,cluster = None):
+    def get_exclude(self,check_own_peer = True):
         # get list of peers not from our cluster or arbiters ring
         #LOGGER.debug("get_exclude peers=%s",self._peers)
         exclude = []
-        if cluster is None:
-            cluster = self._fbft.cluster
+
+        check_peer = self._fbft.is_own_peer if check_own_peer else self._fbft.peer_is_arbiter
         with self._lock:
             for peer in self._peers.keys() :
                 public_key = self._network.connection_id_to_public_key(peer)
-                if public_key not in cluster:
+                if public_key is None:
+                    LOGGER.debug(f"SKIP CONNECT PEER={peer}")
+                    continue
+                if not check_peer(public_key):
+                    LOGGER.debug(f"EXCLUDE={public_key[0:8]}")
                     exclude.append(peer)
+                else:
+                    LOGGER.debug(f"INFORM PEER={public_key[0:8]}")
         #LOGGER.debug("get_exclude exclude=%s",[self._peers[cid] for cid in exclude])
         return None if len(exclude) == 0 else exclude
 
@@ -658,12 +705,15 @@ class Gossip(object):
 
                 for endpoint,stime in self._unsync_peers.items():
                     if (ctime - stime) > SYNC_CHECK_TOUT:
-                        LOGGER.debug("TRY SYNC WITH peer=%s\n",endpoint)
-                        self.sync_to_peer_with_endpoint(endpoint)
+                        if endpoint not in self._notvalid_peers:
+                            LOGGER.debug("TRY SYNC WITH peer=%s\n",endpoint)
+                            self.sync_to_peer_with_endpoint(endpoint)
+                        else:
+                            LOGGER.debug(f"PEER={endpoint} NOT VALID NOT SYNC\n")
 
     def peer_is_visible_for_me(self,public_key):
-        is_arbiter = public_key in self._fbft.arbiters
-        return public_key in self._fbft.cluster or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key))
+        is_arbiter = self._fbft.peer_is_arbiter(public_key)
+        return self._fbft.is_own_peer(public_key) or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key))
 
     def update_peer_dashboard(self,pkey,status,network):
         """
@@ -706,8 +756,8 @@ class Gossip(object):
         """
         Use topology for restrict peer notification
         """
-        is_arbiter = public_key in self._fbft.arbiters
-        is_own_peer = public_key in self._fbft.cluster
+        is_arbiter = self._fbft.peer_is_arbiter(public_key)
+        is_own_peer = self._fbft.is_own_peer(public_key)
         
         if is_own_peer or is_arbiter or (self._fbft.is_arbiter and self._fbft.peer_is_leader(public_key)):
             """
@@ -719,7 +769,7 @@ class Gossip(object):
             so we should inform consensus later 
             """
             if self.is_arbiter and not self.is_genesis_peer and is_own_peer and public_key != self.validator_id:
-                pinfo = self._fbft.cluster[public_key]
+                pinfo = self._fbft.get_own_peer(public_key)
                 try:
                     self.notify_dashboard(public_key,assemble,pinfo[PeerAtr.network])
                 except Exception as ex:
@@ -740,7 +790,7 @@ class Gossip(object):
         """
         Use topology for restrict peer notification
         """
-        if public_key in self._fbft.cluster or public_key in self._fbft.arbiters:
+        if self._fbft.is_own_peer(public_key) or public_key in self._fbft.arbiters:
             # own cluster or arbiters
             LOGGER.debug("Inform engine DEL peer=%s",public_key[:8])
             self._consensus_notifier.notify_peer_disconnected(public_key)
@@ -788,7 +838,7 @@ class Gossip(object):
             pid = self._network.connection_id_to_public_key(cid)                                                                             
             if is_own:                                                                                                                       
                 # for own cluster peer send only other cluster peers                                                                         
-                if pid not in self._fbft.cluster:                                                                                            
+                if not self._fbft.is_own_peer(pid):                                                                                            
                     continue                                                                                                                 
             else:                                                                                                                            
                 # it could be leader or arbiter - send other known arbiters  
@@ -820,7 +870,7 @@ class Gossip(object):
         # for static peer send info about dynamic peers
         # inform static peer about registred dynamic                                                                                          
         # use info about endpoint's networks   
-        is_own=pkey in self._fbft.cluster  
+        is_own = self._fbft.is_own_peer(pkey)  
         is_arb = pkey in self._fbft.arbiters
         dyn_endpoints = self.get_dynamic_peers_info(endpoint,connection_id,is_own,is_arb)                                                                                                                    
                           
@@ -854,15 +904,20 @@ class Gossip(object):
         
     
         for key,arbiter in self._fbft.arbiters.items():
-            arb = arbiter[2][key] 
+            #arb = arbiter[2][key] 
+            arb = self._fbft.get_own_peer(key,cluster=arbiter[2])
             LOGGER.debug("info_for_leader arbiter: %s.%s active=%s network=%s", key[:8],arb[PeerAtr.name],PeerAtr.endpoint in arb,network)
             if PeerAtr.endpoint in arb:
                 endpoint = arb[PeerAtr.endpoint]
                 net = self._network.endpoint_to_network(endpoint)
-                real_endpoint = arb[PeerAtr.intpoint if network == net else PeerAtr.extpoint]
-                peer_endpoints.append(real_endpoint)
-                peer_endpoints.append(net)
-                LOGGER.debug("add active peer=%s %s(%s) into info list endp=%s", key[:8],endpoint,net,real_endpoint)
+                try:
+                    real_endpoint = arb[PeerAtr.intpoint if network == net else PeerAtr.extpoint]
+                    peer_endpoints.append(real_endpoint)
+                    peer_endpoints.append(net)
+                    LOGGER.debug("add active peer=%s %s(%s) into info list endp=%s", key[:8],endpoint,net,real_endpoint)
+                except Exception as ex:
+                    LOGGER.debug("Cant add active peer=%s %s(%s) into info list (%s)", key[:8],endpoint,net,ex)
+
         return peer_endpoints
 
     def send_fbft_peers(self, connection_id,pid,endpoint,cluster=None,KYC=None,network='net0',pbatch=None):
@@ -900,20 +955,55 @@ class Gossip(object):
                             status = GetPeersResponse.WAITING
                     else:
                         LOGGER.debug("There are no space into PUBLIC CLUSTER!")
-                        
-                
+                else:
+                    batch = self.add_peer_batch(parent,cname,pid,KYC)                  
+                    LOGGER.debug("batch add peer=%s",batch.header_signature)               
+                    self._add_batch(batch,('',0,0))  
+                    LOGGER.debug("Undefined new peer=%s cluster=%s\n", pid[:8],cname)                                  
             else:
-                # cluster name should be set
+                # cluster name should be set and certificate should be registred
                 cname = None
-            if cname:
-                batch = self.add_peer_batch(parent,cname,pid,KYC)
-                LOGGER.debug("batch add peer=%s",batch.header_signature)
-                self._add_batch(batch,('',0,0))
+                if cluster is not None:
+                    url = cluster.split(':')
+                    if url[0] != '':
+                        # update map 
+                        xcert = self.get_xcert_cache(pid)
+                        cert_oper = 'set'
+                        if xcert and not self.is_xcert_valid(xcert,pid):
+                            # TRY TO UPDATE OLD CERT 
+                            LOGGER.debug(f"OLD CERT NOT VALID - UPDATE XCERT {xcert.not_valid_after}\n")
+                            xcert = None
+                            self._settings_cache.invalidate(pid)
+                            cert_oper = 'upd'
+                             
+                        is_valid = self.check_xcert(KYC,pid) if xcert is None else True
+                        
+                        if is_valid:
+                            # KYC correct or already registred cert 
+                            if endpoint in self._notvalid_peers:
+                                del self._notvalid_peers[endpoint]
+                            LOGGER.debug(f"UPDATE MAP={url[0]} XCERT={xcert}\n")
+                            batch = self.add_nest_batch(url[0],pid,KYC,xcert=(xcert==None),oper=cert_oper)
+                            self._add_batch(batch,('',0,0))  
+                            cname,parent = self._fbft.nest2cluster(url[0])
+                            LOGGER.debug(f"Add peer={pid[:8]} into MAP={url[0]} clust={cname}\n") 
+                        else:
+                            status = GetPeersResponse.NOT_VALID_CERT
 
-            LOGGER.debug("Undefined new peer=%s cluster=%s\n", pid[:8],cname)
+            
         else:
+            status = GetPeersResponse.OK
+            if KYC is not None:
+                xcert = self.get_xcert_cache(pid)
+                if xcert:
+                    if not self.is_xcert_valid(xcert,pid):
+                        status = GetPeersResponse.NOT_VALID_CERT
+                    
+                else:
+                    LOGGER.debug(f"New peer={pid[:8]} UNDEF XCERT")
+                    status = GetPeersResponse.NOT_VALID_CERT
+
             cname = parent[PeerAtr.name]
-            status = GetPeersResponse.OK 
             LOGGER.debug("New peer=%s(%s) cluster=%s(%s) (%s)\n",endpoint, pid[:8],cname,self._fbft.nest_colour,peer)
             
 
@@ -964,6 +1054,7 @@ class Gossip(object):
                 if cname is not None:
                     
                     leader,key = self._fbft.get_cluster_leader(parent)
+                    LOGGER.debug("CLUSTER=%s LEADER KEY=(%s)\n", cname,key)
                     if leader :
                         if key == pid :
                             # send info about known leader and arbiters
@@ -978,7 +1069,7 @@ class Gossip(object):
                             status = GetPeersResponse.REDIRECT 
                         else:
                             status = GetPeersResponse.PENDING
-                            LOGGER.debug("LEADER=%s of CLUSTER=%s NOT READY PENDING\n",leader is not None,cname)
+                            LOGGER.debug("LEADER=%s of CLUSTER=%s KEY=%s NOT READY PENDING\n",leader is not None,cname,key)
                             self.add_me_into_peer_info(peer_endpoints,network)
                             #peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
 
@@ -990,11 +1081,17 @@ class Gossip(object):
                         #peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
                 else:
                     #
-                    if status != GetPeersResponse.NOSPACE:
+                    if status not in [GetPeersResponse.NOSPACE,GetPeersResponse.NOT_VALID_CERT]: # GetPeersResponse.NOT_VALID_CERT
                         # wait place into new cluster and ask me
-                        LOGGER.debug("WAIT PLACE INTO CLUSTER=%s\n", cname)
+                        LOGGER.debug(f"WAIT PLACE INTO CLUSTER={cname} network={network}\n")
                         self.add_me_into_peer_info(peer_endpoints,network)
                         #peer_endpoints.append(self.extpoint if network != self.network else self._endpoint)
+                    else:
+                        LOGGER.debug("CANT JOIN PEER=%s WITH NET - %s\n",endpoint,"NOSPACE" if status == GetPeersResponse.NOSPACE else "NOT_VALID_CERT")
+                        if endpoint not in self._notvalid_peers:
+                            #
+                            LOGGER.debug(f"ADD PEER={endpoint} INTO NOT VALID")
+                            self._notvalid_peers[endpoint] = True 
             
                 
             LOGGER.debug("Send peers cluster=%s status=%s ENDPOINTS: %s\n",cname,status, peer_endpoints) 
@@ -1068,7 +1165,7 @@ class Gossip(object):
         with self._lock:
             peer_keys = [self._network.connection_id_to_public_key(cid) for cid in self._peers]
         for key  in set(peer_keys):
-            if key in self._fbft.cluster or key in self._fbft.arbiters: #FIXME check arbiters is None or not
+            if self._fbft.is_own_peer(key) or key in self._fbft.arbiters: #FIXME check arbiters is None or not
                 return True
         return False
         #return max(peer_keys, key = lambda pk: 1 if pk in self._fbft.cluster or pk in self._fbft.arbiters  else 0) > 0
@@ -1223,15 +1320,33 @@ class Gossip(object):
         """                                                                                             
         changed,err = self._fbft.del_peers(cname,list)                                              
         if changed:                                                                                     
-            self._consensus_notifier.notify_topology_peer(self._fbft.get_cluster_owner(cname),list,False)     
+            self._consensus_notifier.notify_topology_peer(self._fbft.get_cluster_owner(cname),list,oper=ConsensusNotifyPeerConnected.DEL_PEER)     
             LOGGER.debug("DEL peers into cluster %s DONE\n",cname)                                      
         else:                                                                                           
             LOGGER.debug("Can't del peers from cluster %s (%s)\n",cname,err)                            
+
+    def map_topo_nest(self,nlist):                                                                          
+        """                                                                                                 
+        set map for nest                                                                                            
+        """                                                                                                 
+        changed,err = self._fbft.set_nest_map(nlist)                                                  
+        if changed :                                                                                   
+            
+            self._consensus_notifier.notify_topology_peer(self.validator_id,nlist,oper=ConsensusNotifyPeerConnected.SET_NEST)        
+            LOGGER.debug("SET MAP TOPO NEST %s DONE\n",nlist)                                          
+        else:                                                                                               
+            LOGGER.debug("Can't add peers into cluster %s (%s)\n",nlist,err)                                
 
 
     def force_join_own_cluster(self):
         self._consensus_notifier.notify_peer_join_cluster(self.validator_id,self._join_cluster)
         self.update_topology_params(TOPOLOGY_SET_NM,self.get_topology_cache())
+
+    def update_topology_map(self,nlist=None):
+        
+        LOGGER.debug(f"UPDATE topology MAP={nlist}!!!\n")
+        if nlist:
+            self.map_topo_nest(nlist)
 
     def update_topology(self,attributes=None):
         """
@@ -1240,11 +1355,15 @@ class Gossip(object):
         LOGGER.debug("UPDATE topology attributes=%s!!!\n",attributes)
         if len(attributes) == 0:
             # full update
-            LOGGER.debug("JOIN CLUSTER=%s!!!\n",self._join_cluster)
+            topo_map = self.get_topology_map()
+            LOGGER.debug(f"JOIN CLUSTER={self._join_cluster} MAP={topo_map}!!!\n")
             
             new_topology = self.reload_topology(self._join_cluster)
+            #self._consensus_notifier.notify_topology_peer(self.validator_id,topo_map,oper=ConsensusNotifyPeerConnected.SET_NEST)
             self._consensus_notifier.notify_peer_join_cluster(self.validator_id,self._join_cluster)
+            #self.update_topology_params(DGT_TOPOLOGY_MAP_NM,topo_map)
             self.update_topology_params(TOPOLOGY_SET_NM,new_topology) 
+            
             self.refresh_topology_peers()
         elif attributes[0].key == 'oper':
             oper = attributes[0].value
@@ -1271,6 +1390,9 @@ class Gossip(object):
                         self.add_peer(attributes[1].value,attributes[2].value)
                     else:
                         self.del_peer(attributes[1].value,attributes[2].value)
+            elif oper == 'map':
+                if attributes[1].key == 'list':
+                    self.update_topology_map(attributes[1].value)
             else:
                 LOGGER.debug("UPDATE topology OPERATION=%s not implemented!\n",oper)
 
@@ -1292,6 +1414,19 @@ class Gossip(object):
     def update_topology_params(self,attributes=None,val=None):
         LOGGER.debug("UPDATE topology params='%s' !!!\n",attributes)
         self._consensus_notifier.notify_peer_param_update(self.validator_id,attributes,val)
+
+    def _make_new_nest_tnx(self,nest,pid,KYC):                                                                              
+        # make batch for adding new nest's key into topology - gateway dynamic mode                                                        
+        nest_val = '{"'+nest+'":"'+str(pid)+'"}'               
+        param = {'oper':'map','cluster':"Genesis",'list':nest_val}                                                                          
+                                                                                                                                     
+        val = json.dumps(param, sort_keys=True, indent=4)                                                                            
+        return _create_topology_txn(self._signer, (TOPOLOGY_SET_NM,val))                                                             
+
+
+    def _make_peer_xcert_tnx(self,pid,KYC,oper):
+        LOGGER.debug(f"ADD XCERT={pid[0:8]} FOR JOIN WITH PRIVATE NET OP={oper}")
+        return create_xcert_txn(self._signer,pid,KYC,oper)
 
     def _make_new_peer_tnx(self,cluster,cname,pid,KYC):
         # make batch for adding new peer into topology - gateway dynamic mode
@@ -1323,9 +1458,22 @@ class Gossip(object):
 
     def add_peer_batch(self,cluster,cname,pid,KYC):
         # make batch for adding new peer into topology - gateway dynamic mode
-        txns = [self._make_new_peer_tnx(cluster,cname,pid,KYC)]
+        txns = []
+
+        txns.append(self._make_new_peer_tnx(cluster,cname,pid,KYC))
         batch = _create_batch(self._signer, txns)
         return batch
+
+    def add_nest_batch(self,nest,pid,KYC,xcert=False,oper='set'):                                    
+        # make batch for adding new peer into topology - gateway dynamic mode   
+        txns = [] 
+        if xcert:
+            # add cert 
+            txns.append(self._make_peer_xcert_tnx(pid,KYC,oper))
+          
+        txns.append(self._make_new_nest_tnx(nest,pid,KYC))                        
+        batch = _create_batch(self._signer, txns)                                      
+        return batch                                                                   
 
     def add_public_cluster_batch(self,pid,KYC):
         # make batch for adding new public cluster and peer into this cluster - gateway dynamic mode
@@ -1345,12 +1493,53 @@ class Gossip(object):
             ).replace("'",'"')
         return topology 
 
-    def reload_topology(self,cluster):
-        self._stopology = self.get_topology_cache()
-        self._ftopology = json.loads(self._stopology)
-        fbft = FbftTopology()
-        fbft.get_topology(self._ftopology, self.validator_id, self.endpoint, self._peering_mode, self.network,cluster)
+    def get_xcert_cache(self,key):
+        xcert_pem = self._settings_cache.get_xcert(             
+                key,                                 
+                self._current_root_func(),                       
+                default_value=None                               
+            ) 
+        xcert = self._signer.context.load_x509_certificate(xcert_pem)  if  xcert_pem is not None else None                             
+        return xcert     
+                                         
+    def is_xcert_valid(self,xcert,pid):
+        curr = datetime.datetime.now()
+        valid = curr > xcert.not_valid_before and curr < xcert.not_valid_after
+        LOGGER.debug(f"New peer={pid[:8]} CHECK XCERT={xcert} VALID={valid} {xcert.not_valid_before}->{xcert.not_valid_after} PUB={xcert.public_key()}")
+        return valid
+
+    def check_xcert(self,xcert_pem,pid):
+        xcert = self._signer.context.load_x509_certificate(xcert_pem.encode('utf-8'))
+        LOGGER.debug(f"CHECK XCERT={xcert} peer={pid[:8]} ")
+        return self.is_xcert_valid(xcert,pid)
+
+    def get_topology_map(self):                          
+        topo_map = self._settings_cache.get_setting(       
+                DGT_TOPOLOGY_MAP_NM,                           
+                self._current_root_func(),                 
+                default_value='{}'                         
+            )                            
+        return topo_map                                    
+
+    def load_full_topology(self,fbft,inherit_map={},cluster=None):
+        self._stopology = self.get_topology_cache()     
+        self._ftopology = json.loads(self._stopology) 
+        """  
+        self._topo_map  = self.get_topology_map() 
+        if inherit_map != {}:
+            fbft.load_topo_map(inherit_map)
+        fbft.load_topo_map(self._topo_map)
+        """
+        fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode,self.network,cluster)
         fbft.set_peers_control(self._peers_ctrl)
+         
+             
+    def reload_topology(self,cluster):
+        # this for dynamic peer -  topology nest we can take from map using self.validator_id
+        fbft = FbftTopology()
+        inherit_map = self._fbft.nest_map2str if self._fbft is not None else {}
+        self.load_full_topology(fbft,inherit_map,cluster)
+
         with self._lock:
             self._fbft = fbft
         LOGGER.debug("RELOAD topology=%s\n",self._fbft.topology)
@@ -1361,16 +1550,13 @@ class Gossip(object):
             LOGGER.debug("LOAD topology - already loaded\n")
             return
         LOGGER.debug("LOAD topology ...\n")
-        self._stopology = self.get_topology_cache()
+        self.load_full_topology(self._fbft)
         
         self._settings_cache.add_handler(TOPOLOGY_SET_NM,self.update_topology)
+        #self._settings_cache.add_handler(DGT_TOPOLOGY_MAP_NM,self.update_topology_map)
         self._settings_cache.add_handler("bgx.fbft.",self.update_topology_params)
         self._settings_cache.add_handler("bgx.consensus.",self.update_topology_params)
-
-        self._ftopology = json.loads(self._stopology)
-        LOGGER.debug("LOAD topology=%s",self._ftopology) 
-        self._fbft.get_topology(self._ftopology,self.validator_id,self.endpoint,self._peering_mode,self.network)
-        self._fbft.set_peers_control(self._peers_ctrl)
+        
         LOGGER.debug("LOAD topology DONE SYNC=%s",self.is_sync)
         
 
@@ -1764,7 +1950,7 @@ class Gossip(object):
 
     def broadcast_arbiter_consensus_message(self, message, public_key):
         # make exclude
-        exclude = self.get_exclude(self._fbft.arbiters) if self._fbft.arbiters else None
+        exclude = self.get_exclude(check_own_peer=False) #self._fbft.is_arbiter) if self._fbft.arbiters else None
         LOGGER.debug('Gossip: broadcast_arbiter_consensus_message exclude=%s',exclude)
         self.broadcast(
             GossipConsensusMessage(
@@ -1775,7 +1961,7 @@ class Gossip(object):
 
     def broadcast_cluster_consensus_message(self, message, public_key):
         # make exclude
-        exclude = self.get_exclude(self._fbft.cluster) if self._fbft.cluster else None
+        exclude = self.get_exclude(check_own_peer=True) #self._fbft.is_own_peer if self._fbft.cluster else None
         LOGGER.debug('Gossip: broadcast_cluster_consensus_message exclude=%s',exclude)
         self.broadcast(
             GossipConsensusMessage(
@@ -2055,7 +2241,7 @@ class ConnectionManager(InstrumentedThread):
         self._refresh_peer_list(self._gossip.get_peers())                                                              
         peers = self._gossip.get_peers()                                                                               
         peer_count = len(peers)                                                                                        
-        if self._dstatus != GetPeersResponse.JOINED and self._dstatus != GetPeersResponse.NOSPACE :                                                                               
+        if self._dstatus not in [GetPeersResponse.JOINED,GetPeersResponse.NOSPACE,GetPeersResponse.NOT_VALID_CERT] :                                                                               
             LOGGER.debug("Number of peers (%s) below minimum peer threshold (%s). Doing topology search status=%s.",peer_count,self._min_peers,self._dstatus)                                                                                       
             if self._dstatus not in [GetPeersResponse.OK,GetPeersResponse.PENDING,GetPeersResponse.WAITING,GetPeersResponse.REDIRECT]:                                                                                                           
                 self._reset_candidate_peer_endpoints()                                                                     
@@ -2119,7 +2305,7 @@ class ConnectionManager(InstrumentedThread):
                     LOGGER.debug("Continue WAITING temps=%s",self._temp_endpoints)
                     self._get_peers_of_endpoints(peers,self._candidate_peer_endpoints)
         else:
-            if self._dstatus != GetPeersResponse.NOSPACE:
+            if self._dstatus not in [GetPeersResponse.NOSPACE,GetPeersResponse.NOT_VALID_CERT]:  
                 if not self.is_federations_assembled and not self._gossip._is_recovery_func():
                     LOGGER.debug("JOINED:ready ask head peers=%s redirect=%s.",self._gossip.peers_info,self._redirect_seed_endpoints)
                     self._gossip.dyn_switch_on_federations(self._redirect_seed_endpoints[0] if self._redirect_seed_endpoints != [] else None)
@@ -2127,8 +2313,9 @@ class ConnectionManager(InstrumentedThread):
                     self._gossip.check_unsync_peer()
             else:
                 if self._err_msg is None:
-                    LOGGER.debug("CAN't JOIN WITH NETWORK - NO SPACE\n")
-                    self._err_msg = "NO SPACE INTO NET"
+                    self._err_msg = "NO SPACE INTO NET" if self._dstatus == GetPeersResponse.NOSPACE else "NOT VALID CERT"
+                    LOGGER.debug(f"CAN't JOIN WITH NETWORK - {self._err_msg}\n")
+                    
             
                 
 
@@ -2333,14 +2520,20 @@ class ConnectionManager(InstrumentedThread):
             for connection_id in closed_connections:
                 del self._connection_statuses[connection_id]
 
-    def make_peers_request(self):
+    def make_peers_request(self,cluster=None,KYC=None):
         """
         request for position into topology
         """
+        if cluster is None:
+            cluster = self._gossip.join_cluster
+        if KYC is None:
+            KYC = self._gossip.KYC
+
+        LOGGER.debug(f"MAKE PEER REQUEST:cluster={cluster}, KYC={KYC} endpoint={self._gossip.endpoint}")
         peers_request = GetPeersRequest(peer_id=bytes.fromhex(self._gossip.validator_id),
                                             endpoint = self._gossip.endpoint , 
-                                            cluster = self._gossip.join_cluster,
-                                            KYC = self._gossip.KYC,
+                                            cluster = cluster,
+                                            KYC = KYC,
                                             network = self._gossip.network,
                                             batch = self._gossip._batch
                                             )
@@ -2350,7 +2543,10 @@ class ConnectionManager(InstrumentedThread):
         """
         for dynamical topology -
         """
-        get_peers_request = self.make_peers_request()
+        LOGGER.debug("gossip:_GET_PEERS_OF_PEERS!!!")
+        cluster,KYC = self._gossip.get_join_cluster()
+        get_peers_request = self.make_peers_request(cluster=cluster,KYC=KYC)
+        
 
         for conn_id in peers:
             try:
@@ -2367,7 +2563,10 @@ class ConnectionManager(InstrumentedThread):
         for dynamical topology - use initial list of endpoints and send connection request to it
         in this case endpoints are list of gateway into federation net 
         """
-        get_peers_request = self.make_peers_request()
+        LOGGER.debug("gossip:_GET_PEERS_OF_ENDPOINTS!!!")
+        cluster,KYC = self._gossip.get_join_cluster()
+        get_peers_request = self.make_peers_request(cluster=cluster,KYC=KYC)
+
 
         LOGGER.debug("gossip:_get_peers_of_endpoints endpoints=%d ",len(endpoints))
         for endpoint in endpoints:
@@ -2576,7 +2775,8 @@ class ConnectionManager(InstrumentedThread):
         LOGGER.debug("Connection to %s succeeded for TOPOLOGY request",connection_id[:8])
 
         self._connection_statuses[connection_id] = PeerStatus.TEMP
-        get_peers_request = self.make_peers_request()
+        cluster,KYC = self._gossip.get_join_cluster()
+        get_peers_request = self.make_peers_request(cluster=cluster,KYC=KYC)
 
         def callback(request, result):
             # request, result are ignored, but required by the callback
@@ -2589,5 +2789,6 @@ class ConnectionManager(InstrumentedThread):
                 get_peers_request.SerializeToString(),
                 connection_id,
                 callback=callback)
+            LOGGER.debug("Send  to %s  TOPOLOGY request:GOSSIP_GET_PEERS_REQUEST",connection_id[:8])
         except ValueError:
             LOGGER.debug("Connection disconnected: %s", connection_id)

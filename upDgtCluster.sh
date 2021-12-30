@@ -38,7 +38,13 @@ export METRIC='-off'
 export SIGNED=""
 export SIGNED_="--signed_consensus"
 export PNM="dgt"
-
+export CRYPTO_BACK="bitcoin"
+declare -A segments=(
+    [c11]='AA.aa1'
+    [c12]='AA.aa2'
+    [c13]='AA.aa3'
+)
+echo seg ${segments['c11']}
 while [ -n "$1" ]
 do
 case "$1" in
@@ -50,6 +56,7 @@ case "$1" in
 shift;export PEERING='dynamic';export SEEDS="--seeds $1";echo "--seed $1"
 ;;
 -P) shift; export ENDPORT=$1 ;;
+-CB) shift; export CRYPTO_BACK=$1 ;;
 -N) shift; export NETWORK=$1 ;;
 --) shift;break ;;
 *) break ;;

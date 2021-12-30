@@ -15,9 +15,9 @@
 
 import math
 import logging
-
+from dgt_signing import DGT_CRYPTO_NM,DGT_CRYPTO_ALG_NM
 from pbft.state.settings_view import SettingsView
-from dgt_validator.gossip.fbft_topology import TOPOLOGY_SET_NM
+from dgt_validator.gossip.fbft_topology import TOPOLOGY_SET_NM,DGT_TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM
 LOGGER = logging.getLogger(__name__)
 
 
@@ -28,6 +28,7 @@ class PbftSettingsView:
     """
     _NODE_ = 'plink' 
     _NODES_ = "{\"0281e398fc978e8d36d6b2244c71e140f3ee464cb4c0371a193bb0a5c6574810ba\": \"leader\",\"028c7e06db3af50a9958390e3e29f166b1cf6198586acf37cde46c8ea54e4a79ef\": \"plink\"}"
+    _TOPO_MAP_ = {}
     _MAX_LOG_SIZE_ = 1000
     _BLOCK_DURATION_ = 200
     _CHECKPOINT_PERIOD_ = 100
@@ -35,7 +36,7 @@ class PbftSettingsView:
     _DAG_STEP_ = 3
     _IS_PBFT_FULL_ = False
     _IS_LEADER_SHIFT_ = False
-    _BLOCK_TIMEOUT_ = 0.5
+    _BLOCK_TIMEOUT_ = 6.5
     _MAX_BRANCH_ = 6
     _MAX_FEDER_PEER_ = 6
     BLOCK_TIMEOUT = 'bgx.consensus.block_timeout'
@@ -44,6 +45,8 @@ class PbftSettingsView:
     PBFT_FULL    = 'bgx.consensus.pbft.full'
     MAX_BRANCH = 'bgx.dag.max_branch'
     DAG_STEP = 'bgx.dag.step'
+    DGT_CRYPTO = DGT_CRYPTO_NM
+    DGT_CRYPTO_ALG = DGT_CRYPTO_ALG_NM
 
     def __init__(self, state_view):
         """Initialize a PbftSettingsView object.
@@ -93,8 +96,7 @@ class PbftSettingsView:
         """
 
         try:
-            value = \
-                self._settings_view.get_setting(
+            value = self._settings_view.get_setting(
                     key=name,
                     default_value=default_value,
                     value_type=value_type)
@@ -199,6 +201,20 @@ class PbftSettingsView:
                     validate_function=lambda value: value)
 
         return self._node
+    @property
+    def dgt_crypto(self):
+        if PbftSettingsView.DGT_CRYPTO not in self._params:                                       
+            #self._settings_view.get_setting.cache_clear()                            
+            #self._settings_view.get_setting.cache_info()                             
+            self._params[PbftSettingsView.DGT_CRYPTO] = self._get_config_setting(                 
+                    name=PbftSettingsView.DGT_CRYPTO,                                             
+                    value_type=str,                                                   
+                    default_value="bitcoin",                           
+                    validate_function=lambda value: value)                            
+                                                                                      
+        return self._params[PbftSettingsView.DGT_CRYPTO]                                          
+
+
 
     @property
     def pbft_nodes(self):
@@ -214,6 +230,41 @@ class PbftSettingsView:
                     validate_function=lambda value: value)
 
         return self._params[TOPOLOGY_SET_NM]
+
+    @property                                                                         
+    def topology_map(self):                                                             
+        """Return nodes list.                                                         
+        """                                                                           
+        if DGT_TOPOLOGY_MAP_NM not in self._params:                                       
+            #self._settings_view.get_setting.cache_clear()                            
+            #self._settings_view.get_setting.cache_info()                             
+            self._params[DGT_TOPOLOGY_MAP_NM] = self._get_config_setting(                 
+                    name=DGT_TOPOLOGY_MAP_NM,                                             
+                    value_type=str,                                                   
+                    default_value=PbftSettingsView._TOPO_MAP_,                           
+                    validate_function=lambda value: value)                            
+                                                                                      
+        return self._params[DGT_TOPOLOGY_MAP_NM]                                          
+
+
+
+    @property                                                                   
+    def dgt_pbft_nodes(self):                                                       
+        """Return nodes list.                                                   
+        """                                                                     
+        if DGT_TOPOLOGY_SET_NM not in self._params:                                 
+            #self._settings_view.get_setting.cache_clear()                      
+            #self._settings_view.get_setting.cache_info()                       
+            self._params[DGT_TOPOLOGY_SET_NM] = self._get_config_setting(           
+                    name=DGT_TOPOLOGY_SET_NM,                                       
+                    value_type=str,                                             
+                    default_value=PbftSettingsView._NODES_,                     
+                    validate_function=lambda value: value)                      
+                                                                                
+        return self._params[DGT_TOPOLOGY_SET_NM]                                    
+
+
+
 
     @property
     def dag_step(self):
@@ -298,7 +349,11 @@ class PbftSettingsView:
                     validate_function=lambda value: value)
             self._params[PbftSettingsView.BLOCK_TIMEOUT] = val
             LOGGER.debug('block_timeout  new=%s',val)
-        return self._params[PbftSettingsView.BLOCK_TIMEOUT] 
+        try:
+            return float(self._params[PbftSettingsView.BLOCK_TIMEOUT])
+        except Exception as e: 
+            self._params[PbftSettingsView.BLOCK_TIMEOUT] = PbftSettingsView._BLOCK_TIMEOUT_
+            return PbftSettingsView._BLOCK_TIMEOUT_
 
     @property
     def signup_commit_maximum_delay(self):

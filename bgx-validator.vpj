@@ -111,13 +111,13 @@
             Name="Other Files"
             Filters=""
             GUID="{CA4EAC50-E37A-4926-BB8F-A4FCE36D45A8}">
-            <F N="bgx/etc/bgx_val.conf"/>
-            <F N="bgx/etc/bgx_val.conf.36"/>
-            <F N="bgx/etc/bgx_val.conf.7"/>
-            <F N="bgx/etc/bgx_val.conf.aws"/>
-            <F N="bgx/etc/bgx_val.conf.tsk"/>
             <F N="BUILD-BGX.md"/>
             <F N="cleancluster.sh"/>
+            <F N="etc/dgt.conf.dyn"/>
+            <F N="etc/dgt.conf.static"/>
+            <F N="etc/dgt.net.dyn"/>
+            <F N="etc/dgt.net.static"/>
+            <F N="etc/entry_points.json"/>
             <F N="bgx/bin/peers-crtl"/>
         </Folder>
     </Files>

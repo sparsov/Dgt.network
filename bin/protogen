@@ -88,6 +88,11 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "protos/families/smart_stuff")
     protoc(proto_dir, "families/smart_stuff", "stuff_common/protobuf")
 
+    # X509 CERT protos                                          
+    proto_dir = JOIN(TOP_DIR, "protos/families/x509_cert")            
+    protoc(proto_dir, "families/x509_cert", "cert_common/protobuf")  
+    protoc(proto_dir, "validator", "dgt_validator/protobuf")
+
     print('protogen DONE !')
 
 def protoc(src_dir, base_dir, pkg, language="python"):

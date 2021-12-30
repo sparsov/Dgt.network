@@ -37,7 +37,7 @@ def _key_to_address(key):
 
     return SETTINGS_NAMESPACE + ''.join(_short_hash(x) for x in key_parts)
 
-def _config_inputs(key):
+def _config_inputs(key,nmap):
     """Creates the list of inputs for a sawtooth_settings transaction, for a
     given setting key.
     """
@@ -45,16 +45,18 @@ def _config_inputs(key):
         _key_to_address('sawtooth.settings.vote.proposals'),
         _key_to_address('sawtooth.settings.vote.authorized_keys'),
         _key_to_address('sawtooth.settings.vote.approval_threshold'),
+        #_key_to_address(nmap),
         _key_to_address(key)
     ]
 
 
-def _config_outputs(key):
+def _config_outputs(key,nmap):
     """Creates the list of outputs for a sawtooth_settings transaction, for a
     given setting key.
     """
     return [
         _key_to_address('sawtooth.settings.vote.proposals'),
+        #_key_to_address(nmap),
         _key_to_address(key)
     ]
 

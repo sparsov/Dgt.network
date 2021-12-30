@@ -59,7 +59,7 @@ try:
 except TypeError:
     import dgt_validator.protobuf.transaction_pb2 as txn_pb
 
-from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,TOPOLOGY_SET_NM
+from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,BGX_NESTS_NAME,TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM
 
 import hashlib
 import random
@@ -85,6 +85,7 @@ class PbftOracle:
         self._config_dir = config_dir
         self._data_dir = data_dir
         self._service = service
+        self._fbft = None
         LOGGER.debug(f'Stream key_dir={key_dir} SIGNED={signed_consensus}')
         self._signer = _load_identity_signer(key_dir, 'validator')
         if signed_consensus:
@@ -109,6 +110,9 @@ class PbftOracle:
         self._authorized_keys = self._pbft_settings_view.authorized_keys
         LOGGER.debug("authorized_keys=%s\n",self._authorized_keys)
         #LOGGER.debug("pbft_settings_view DAG_STEP=%s NODES=%s",self.dag_step,nodes)
+        dgt_crypto = self._pbft_settings_view.dgt_crypto
+        dgt_nodes = self._pbft_settings_view.dgt_pbft_nodes
+        LOGGER.debug(f'DGT CRYPTO={dgt_crypto} \nNODES = {dgt_nodes}')
         self.get_topology()
         self._canceled = False
         #sid = self.get_validator_id().encode()
@@ -119,12 +123,14 @@ class PbftOracle:
 
     def get_topology(self,cluster=None):
         nodes = self._pbft_settings_view.pbft_nodes.replace("'",'"')
+        topo_map = self._pbft_settings_view.topology_map
         py_nodes = json.loads(nodes)
         if PeerAtr.name in py_nodes:
-            LOGGER.debug(f'GOT nodes={nodes}')
+            
+            LOGGER.debug(f'TRY TO JOIN={cluster}')
             self._fbft = FbftTopology()
             self._fbft.get_topology(py_nodes,self._validator_id,'','static',join_cluster=cluster)
-            LOGGER.debug('nodes=%s tout=%s',nodes,self._pbft_settings_view.block_timeout)
+            LOGGER.debug(f'nodes={nodes} tout={self._pbft_settings_view.block_timeout} MAP={self._fbft.nest_map2str}')
         else:
             LOGGER.debug(f'IGNORE UNFILLED nodes={nodes}')
 
@@ -158,6 +164,9 @@ class PbftOracle:
     def cluster(self):
         #LOGGER.debug('CLUSTER: %s ~ %s\n', self._fbft.cluster, self._cluster)
         return self._fbft.cluster if self._fbft.cluster else {}
+
+    def is_own_peer(self,key):
+        return self._fbft.is_own_peer(key)
 
     @property
     def genesis(self):
@@ -198,8 +207,11 @@ class PbftOracle:
 
     def update_param(self,pname,data=None):
         if self._pbft_settings_view.update_param(pname,data) :
-            if pname == TOPOLOGY_SET_NM and self._peering_mode == 'dynamic':
-                LOGGER.debug(f'UPDATE TOPOLOGY MODE={self._peering_mode}\n')
+            if  self._peering_mode == 'dynamic':
+                if pname == TOPOLOGY_SET_NM:
+                    LOGGER.debug(f'UPDATE TOPOLOGY MODE={self._peering_mode}\n')
+                elif pname == DGT_TOPOLOGY_MAP_NM:
+                    LOGGER.debug(f'UPDATE TOPOLOGY MAP MODE={self._peering_mode}\n')
                 
                 return True
         return False
@@ -240,6 +252,9 @@ class PbftOracle:
 
     def del_peer(self,npid,list):
         return  self._fbft.del_peers(self._fbft.peer_to_cluster_name(npid),list)
+    def map_topo_nest(self,list):
+        LOGGER.debug(f'UPDATE MAPPING={self._fbft.nest_map2str}')
+        return  self._fbft.set_nest_map(list)
 
     def _make_settings_txn(self,public_key_hash, setting_key, payload):                                                            
         """Creates and signs a dgt_settings transaction with with a payload.                                
@@ -249,8 +264,8 @@ class PbftOracle:
             signer_public_key=public_key_hash,                                             
             family_name='dgt_settings', 
             family_version='1.0',                                                                           
-            inputs=_config_inputs(setting_key),                                                             
-            outputs=_config_outputs(setting_key),                                                           
+            inputs=_config_inputs(setting_key,DGT_TOPOLOGY_MAP_NM),                                                             
+            outputs=_config_outputs(setting_key,DGT_TOPOLOGY_MAP_NM),                                                           
             dependencies=[],                                                                                
             payload_sha512=hashlib.sha512(serialized_payload).hexdigest(),                                  
             batcher_public_key=public_key_hash,
@@ -1342,18 +1357,29 @@ class _BatchPublisherProxy:
 
     def send(self, transactions):
         txn_signatures = [txn.header_signature for txn in transactions]
-
+        pub_key = self.identity_signer.get_public_key()
+        signer_public_key = pub_key.as_hex()
         header = BatchHeader(
-            signer_public_key=self.identity_signer.get_public_key().as_hex(),
+            signer_public_key=signer_public_key,
             transaction_ids=txn_signatures
         ).SerializeToString()
 
         signature = self.identity_signer.sign(header)
-
+        """
+        if False:
+            ret = self.identity_signer.verify(signature, header, pub_key)
+            LOGGER.debug(f'VERIFY: signature={ret}')
+        """
         batch = Batch(
             header=header,
             transactions=transactions,
             header_signature=signature,timestamp=int(time.time()))
+
+        """
+        if False:
+            # try to check
+            self.is_valid_batch(batch,signer_public_key)
+        """
 
         future = self._stream.send(
             message_type=Message.CLIENT_BATCH_SUBMIT_REQUEST,
@@ -1367,6 +1393,15 @@ class _BatchPublisherProxy:
         if response.status != ClientBatchSubmitResponse.OK:
             LOGGER.warning("Submitting batch failed with status %s", response)
 
+    def is_valid_batch(self,batch,signer_public_key):                                                              
+        # validate batch signature                                                          
+        header = BatchHeader()                                                              
+        header.ParseFromString(batch.header)                                                
+                                                                                            
+        context = signing.create_context('secp256k1')                                               
+        public_key = context.pub_from_hex(signer_public_key)                         
+        if not context.verify(batch.header_signature,header,public_key):                                                  
+            LOGGER.debug("batch failed signature validation: %s",batch.header_signature)    
 
 def _load_identity_signer(key_dir, key_name):
     """Loads a private key from the key directory, based on a validator's

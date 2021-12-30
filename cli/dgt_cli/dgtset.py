@@ -27,6 +27,7 @@ import random
 import yaml
 import time
 import pkg_resources
+from os.path import exists
 from colorlog import ColoredFormatter
 
 from dgt_cli.exceptions import CliException
@@ -47,9 +48,16 @@ from dgt_validator.protobuf.batch_pb2 import BatchList
 from dgt_signing import create_context
 from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
-from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_PING_COUNTER
+from dgt_validator.gossip.fbft_topology import (PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_PING_COUNTER,
+                                                DGT_TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM,DGT_TOPOLOGY_NEST_NM,TOPO_MAP,DGT_NET_NEST
+                                                )
 
 DISTRIBUTION_NAME = 'bgxset'
+VALIDATOR_PKEY = '/project/peer/keys/validator.priv'
+VALIDATOR_PUB_KEY = '/project/peer/keys/validator.pub'
+PROJ_DGT = '/project/bgx'
+MAP_NET_FNM = f"{PROJ_DGT}/etc/dgt.net.map"
+STATIC_MAP = "static_map"
 
 _MIN_PRINT_WIDTH = 15
 
@@ -68,10 +76,65 @@ def add_config_parser(subparsers, parent_parser):
                     'and to view, create, and vote on existing proposals.'
     )
 
-    config_parsers = parser.add_subparsers(title="subcommands",
-                                           dest="subcommand")
+    config_parsers = parser.add_subparsers(title="subcommands",dest="subcommand")
     config_parsers.required = True
 
+def get_mapping_file(fnm=MAP_NET_FNM):
+    with open(fnm,"r") as map_file:                                                           
+        try:                                                                                          
+            map_data =  map_file.read()                                                               
+            mapping = json.loads(map_data)                                                            
+            return mapping                                                                               
+        except Exception as ex:                                                                       
+            print(f"CANT GET MAPPING FOR NET FROM={MAP_NET_FNM} ({ex})")                 
+            return None                                                                               
+
+def get_pub_key(fpub):
+    try:                                                   
+        with open(fpub, 'r') as key_file:                  
+            pub_key_str = key_file.read().strip() 
+            return pub_key_str         
+    except IOError as e:                                   
+        print(f"Could not load key file: {e}")             
+        return None                                        
+
+
+def get_net_map(fname,fpub,crypto):
+
+    print(f"MAKE NET MAP key={fpub}...")
+    pub_key_str = get_pub_key(fpub)
+    if pub_key_str is None:
+        return None
+
+    try:                                                   
+        with open(fname, 'r') as nest_file:                  
+            nest_str = nest_file.read().strip()          
+    except IOError as e:                                   
+        print(f"Could not load nest file: {e}") 
+        return None  
+
+    fmap = {
+             nest_str : pub_key_str,
+  
+           }
+    # add static peer into map 
+    mapping = get_mapping_file()
+    if mapping:
+        static_nests = {}
+        for nm in mapping[STATIC_MAP]:
+            clust = nm.split('.')
+            nest = mapping[clust[0]][clust[1]]
+            static_nests[nest] = clust
+        if nest_str in static_nests:
+            # add nest into first mapping
+            for nest,clust in static_nests.items():
+                key_file = f"{PROJ_DGT}/clusters/{clust[0]}/{clust[1]}/keys/validator.pub.{crypto}"
+                pkey = get_pub_key(key_file)
+                if pkey and  nest not in fmap:
+                    fmap[nest] = pkey
+
+    print(f"MAP={fmap}")
+    return fmap
 
 def _do_config_proposal_create(args):
     """Executes the 'proposal create' subcommand.  Given a key file, and a
@@ -80,8 +143,31 @@ def _do_config_proposal_create(args):
     file or submitted to a validator, depending on the supplied CLI arguments.
     """
     settings = [s.split('=', 1) for s in args.setting]
+    #print(f"settings = {settings}")
+    settings.append((args.crypto_name,args.crypto_back))
+    first_map = get_net_map(args.topology_nest,args.pub_key,args.crypto_back)
+    #if first_map:
+    #    settings.append((args.topology_map_name,json.dumps(first_map)))
 
-    signer = _read_signer(args.key)
+    print(f"Dgt net = {args.net_set_name}={args.net}")
+    if exists(args.net):
+        
+        with open(args.net,"r") as file_to_load: 
+            try:
+                net_data =  file_to_load.read()                                
+                data = json.loads(net_data)
+                data[TOPO_MAP] = first_map 
+                # add map into topology
+                settings.append((args.net_set_name,json.dumps(data))) 
+                print(f"Load Dgt net from {args.net}")
+            except Exception as ex:
+                print(f"Cant load {args.net} - {ex}")
+                pass
+    else:
+        print(f"file {args.net} not exists")
+    
+    
+    signer = _read_signer(args.key,args.crypto_back)
 
     txns = [_create_propose_txn(signer, setting)
             for setting in settings]
@@ -95,8 +181,8 @@ def _do_config_proposal_create(args):
             with open(args.output, 'wb') as batch_file:
                 batch_file.write(batch_list.SerializeToString())
         except IOError as e:
-            raise CliException(
-                'Unable to write to batch file: {}'.format(str(e)))
+            raise CliException('Unable to write to batch file: {}'.format(str(e)))
+
     elif args.url is not None:
         rest_client = RestClient(args.url)
         rest_client.send_batches(batch_list)
@@ -115,8 +201,7 @@ def _do_config_proposal_list(args):
         # Check to see if the first public key matches the given public key
         # (if it is not None).  This public key belongs to the user that
         # created it.
-        has_pub_key = (not public_key
-                       or candidate.votes[0].public_key == public_key)
+        has_pub_key = (not public_key or candidate.votes[0].public_key == public_key)
         has_prefix = candidate.proposal.setting.startswith(prefix)
         return has_prefix and has_pub_key
 
@@ -160,7 +245,7 @@ def _do_config_proposal_vote(args):
     in a BatchList instance.  The BatchList is file or submitted to a
     validator.
     """
-    signer = _read_signer(args.key)
+    signer = _read_signer(args.key,args.crypto_back)
     rest_client = RestClient(args.url)
 
     proposals = _get_proposals(rest_client)
@@ -192,11 +277,23 @@ def _do_config_proposal_vote(args):
 
 
 def _do_config_genesis(args):
-    signer = _read_signer(args.key)
+    signer = _read_signer(args.key,args.crypto_back)
     public_key = signer.get_public_key().as_hex()
 
-    authorized_keys = args.authorized_key if args.authorized_key else \
-        [public_key]
+    authorized_keys = args.authorized_key if args.authorized_key else [public_key]
+    if args.authorized_key:
+        authorized_keys = []
+        for fname in args.authorized_key:
+            try:                                                                  
+                with open(fname, 'r') as key_file:                             
+                    priv_key = key_file.read().strip()  
+                    authorized_keys.append(priv_key)
+            except IOError as e:                                                  
+                pass
+        print(f"authorized_key ={authorized_keys}")
+    else:
+        authorized_keys = [public_key]
+
     if public_key not in authorized_keys:
         authorized_keys.append(public_key)
 
@@ -256,7 +353,7 @@ def _get_proposals(rest_client):
     return config_candidates
 
 
-def _read_signer(key_filename):
+def _read_signer(key_filename,crypto='bitcoin'):
     """Reads the given file as a hex key.
 
     Args:
@@ -280,13 +377,13 @@ def _read_signer(key_filename):
         with open(filename, 'r') as key_file:
             signing_key = key_file.read().strip()
     except IOError as e:
-        raise CliException('Unable to read key file: {}'.format(str(e)))
+        raise CliException('_read_signer:Unable to read key file: {}'.format(str(e)))
 
-    context = create_context('secp256k1')
+    context = create_context('secp256k1',backend=crypto)
     try:
         private_key = context.from_hex(signing_key)
     except ParseError as e:
-        raise CliException('Unable to read key in file: {}'.format(str(e)))
+        raise CliException(f'Unable to read /{crypto}/ key in file={filename}: {e}')
 
     
     crypto_factory = CryptoFactory(context)
@@ -547,8 +644,8 @@ def create_parser(prog_name):
     genesis_parser.add_argument(
         '-k', '--key',
         type=str,
-        help='specify signing key for resulting batches '
-             'and initial authorized key')
+        help='specify signing key for resulting batches and initial authorized key',
+        default=VALIDATOR_PKEY)
 
     genesis_parser.add_argument(
         '-o', '--output',
@@ -567,6 +664,12 @@ def create_parser(prog_name):
         action='append',
         help='specify a public key for the user authorized to submit '
              'config transactions')
+
+    genesis_parser.add_argument(                
+        '-cb', '--crypto_back',              
+        type=str,                            
+        help='Specify a crypto back',        
+        default='bitcoin')                   
 
     # The following parser is for the `proposal` subcommand group. These
     # commands allow the user to create proposals which may be applied
@@ -594,7 +697,49 @@ def create_parser(prog_name):
     prop_parser.add_argument(
         '-k', '--key',
         type=str,
-        help='specify a signing key for the resulting batches')
+        help='specify a signing key for the resulting batches',
+        default=VALIDATOR_PKEY
+        )
+    prop_parser.add_argument(                                                 
+        '-pk', '--pub_key',                                                        
+        type=str,                                                             
+        help='specify a publish key for this peer',               
+        default=VALIDATOR_PUB_KEY                                                
+        )                                                                     
+    prop_parser.add_argument(                                   
+        '-n', '--net',                                          
+        type=str,                                               
+        help='Specify a topology json file',
+        default='/project/peer/etc/dgt.net') 
+    prop_parser.add_argument(                      
+        '-nsn', '--net_set_name',                             
+        type=str,                                  
+        help='Specify a topology setting',       
+        default=DGT_TOPOLOGY_SET_NM)
+    prop_parser.add_argument(                      
+        '-cb', '--crypto_back',                             
+        type=str,                                  
+        help='Specify a crypto back',       
+        default='bitcoin')
+    prop_parser.add_argument(                 
+        '-cn', '--crypto_name',               
+        type=str,                             
+        help='Specify a crypto setting',    
+        default='dgt.crypto')  
+    prop_parser.add_argument(                                     
+        '-tnv', '--topology_nest',                     
+        type=str,                                  
+        help='Specify file with network nest for peer',              
+        default=DGT_NET_NEST)                         
+    prop_parser.add_argument(                      
+        '-tmn', '--topology_map_name',                    
+        type=str,                                  
+        help='Specify a network map name',           
+        default=DGT_TOPOLOGY_MAP_NM)                      
+
+
+
+
 
     prop_target_group = prop_parser.add_mutually_exclusive_group()
     prop_target_group.add_argument(
@@ -661,7 +806,9 @@ def create_parser(prog_name):
     vote_parser.add_argument(
         '-k', '--key',
         type=str,
-        help='specify a signing key for the resulting transaction batch')
+        help='specify a signing key for the resulting transaction batch',
+        default=VALIDATOR_PKEY
+        )
 
     vote_parser.add_argument(
         'proposal_id',
@@ -726,7 +873,7 @@ def create_parser(prog_name):
         '-k', '--key',
         type=str,
         help='specify signing key for resulting batches and initial authorized key',
-        default='clusters/c1/bgx1/keys/validator.priv'
+        default=VALIDATOR_PKEY
         )
     topology_set_parser.add_argument(
         '-i', '--pid',
@@ -755,7 +902,7 @@ def create_parser(prog_name):
         '-k', '--key',
         type=str,
         help='specify signing key for resulting batches and initial authorized key',
-        default='clusters/c1/bgx1/keys/validator.priv'
+        default=VALIDATOR_PKEY
         )
     topology_param_parser.add_argument(
         '--url',
@@ -783,7 +930,7 @@ def create_parser(prog_name):
         '-k', '--key',                                                                   
         type=str,                                                                        
         help='specify signing key for resulting batches and initial authorized key',     
-        default='clusters/c1/bgx1/keys/validator.priv'                                   
+        default=VALIDATOR_PKEY                                   
         )                                                                                
     topology_ping_parser.add_argument(                                                  
         '--url',                                                                         
@@ -798,8 +945,7 @@ def create_parser(prog_name):
     return parser
 
 
-def main(prog_name=os.path.basename(sys.argv[0]), args=None,
-         with_loggers=True):
+def main(prog_name=os.path.basename(sys.argv[0]), args=None,with_loggers=True):
     parser = create_parser(prog_name)
     if args is None:
         args = sys.argv[1:]

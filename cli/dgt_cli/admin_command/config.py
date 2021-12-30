@@ -35,13 +35,13 @@ def _get_config_dir():
     return '/etc/sawtooth'
 
 
-def _get_dir(toml_config_setting, sawtooth_home_dir, windows_dir, default_dir):
+def _get_dir(toml_config_setting, dgt_home_dir, windows_dir, default_dir):
     """Determines the directory path based on configuration.
 
     Arguments:
         toml_config_setting (str): The name of the config setting related
             to the directory which will appear in path.toml.
-        sawtooth_home_dir (str): The directory under the SAWTOOTH_HOME
+        dgt_home_dir (str): The directory under the SAWTOOTH_HOME
             environment variable.  For example, for 'data' if the data
             directory is $SAWTOOTH_HOME/data.
         windows_dir (str): The windows path relative to the computed base
@@ -60,9 +60,9 @@ def _get_dir(toml_config_setting, sawtooth_home_dir, windows_dir, default_dir):
             return toml_config[toml_config_setting]
 
     if 'PEER_HOME' in os.environ:
-        return os.path.join(os.environ['PEER_HOME'], sawtooth_home_dir)
+        return os.path.join(os.environ['PEER_HOME'], dgt_home_dir)
     elif 'SAWTOOTH_HOME' in os.environ:
-        return os.path.join(os.environ['SAWTOOTH_HOME'], sawtooth_home_dir)
+        return os.path.join(os.environ['SAWTOOTH_HOME'], dgt_home_dir)
 
     if os.name == 'nt':
         base_dir = \
@@ -76,7 +76,7 @@ def get_data_dir():
     """Returns the configured data directory."""
     return _get_dir(
         toml_config_setting='data_dir',
-        sawtooth_home_dir='data',
+        dgt_home_dir='data',
         windows_dir='data',
         default_dir='/var/lib/sawtooth')
 
@@ -85,6 +85,6 @@ def get_key_dir():
     """Returns the configured key directory."""
     return _get_dir(
         toml_config_setting='key_dir',
-        sawtooth_home_dir='keys',
+        dgt_home_dir='keys',
         windows_dir=os.path.join('conf', 'keys'),
         default_dir='/etc/sawtooth/keys')

@@ -54,7 +54,7 @@ class SettingsObserver(ChainObserver):
             if event.event_type == "settings/update":
                 updated = event.attributes[0].value
                 if  updated not in values:
-                    if updated == 'bgx.consensus.pbft.nodes':
+                    if updated == 'bgx.consensus.pbft.nodes' or updated == 'dgt.topology.map':
                         topology_update = True
                     values[updated] = True
                     self._handle_txn_commit(event,updated)
@@ -92,6 +92,10 @@ class SettingsCache():
         self._cache = {}
         self._handlers = {}
 
+    @property
+    def settings_view_factory(self):
+        return self._settings_view_factory
+
     def __len__(self):
         return len(self._cache)
 
@@ -104,8 +108,7 @@ class SettingsCache():
     def __iter__(self):
         return iter(self._cache)
 
-    def get_setting(self, key, state_root, from_state=False,
-                    default_value=None):
+    def get_setting(self, key, state_root, from_state=False,default_value=None):
         if from_state:
             self.update_view(state_root)
             value = self._settings_view.get_setting(key)
@@ -120,6 +123,17 @@ class SettingsCache():
             return default_value
         return value
 
+    def get_xcert(self, key, state_root, from_state=False,default_value=None):
+        value = self._cache.get(key)                                
+        if value is None:                                           
+            self.update_view(state_root)                            
+            value = self._settings_view.get_xcert(key)            
+            self._cache[key] = value                                
+        if value is None:                                           
+            return default_value                                    
+        return value                                                
+
+
     def forked(self):
         self._cache = {}
 
@@ -131,7 +145,7 @@ class SettingsCache():
             LOGGER.debug("ADD HANDLER: '%s'\n",item)
             self._handlers[item] = handler
              
-    def invalidate(self, item,attributes):
+    def invalidate(self, item,attributes=None):
         """
         cache invalidate or call registered handler 
         """

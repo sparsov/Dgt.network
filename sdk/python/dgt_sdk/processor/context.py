@@ -59,10 +59,9 @@ class Context:
             request.SerializeToString()).result(timeout).content
         response = state_context_pb2.TpStateGetResponse()
         response.ParseFromString(response_string)
-        if response.status == \
-                state_context_pb2.TpStateGetResponse.AUTHORIZATION_ERROR:
-            raise AuthorizationException(
-                'Tried to get unauthorized address: {}'.format(addresses))
+        if response.status == state_context_pb2.TpStateGetResponse.AUTHORIZATION_ERROR:
+            raise AuthorizationException('Tried to get unauthorized address: {}'.format(addresses))
+
         entries = response.entries if response is not None else []
         results = [e for e in entries if len(e.data) != 0]
         return results
