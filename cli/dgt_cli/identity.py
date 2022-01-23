@@ -1,4 +1,4 @@
-# Copyright 2020 DGT NETWORK INC 
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -111,7 +111,7 @@ def add_identity_parser(subparsers, parent_parser):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     create_parser.add_argument(
         '--wait',
@@ -142,7 +142,7 @@ def add_identity_parser(subparsers, parent_parser):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     list_parser.add_argument(
         '--format',
@@ -194,7 +194,7 @@ def add_identity_parser(subparsers, parent_parser):
         '--url',
         type=str,
         help="the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     create_parser.add_argument(
         'name',
@@ -216,7 +216,7 @@ def add_identity_parser(subparsers, parent_parser):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     list_parser.add_argument(
         '--format',

@@ -1,4 +1,4 @@
-# Copyright DGT NETWORK INC  2019
+# Copyright DGT NETWORK INC © Stanislav Parsov  2019
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -884,7 +884,7 @@ class ChainController(object):
         get max dag from chain
         
         state_view = self._state_view_factory.create_view()
-        self._max_dag_branch = settings_view.get_setting('bgx.dag.max_branch', default_value=MAX_DAG_BRANCH)
+        self._max_dag_branch = settings_view.get_setting('dgt.dag.max_branch', default_value=MAX_DAG_BRANCH)
         LOGGER.info("Chain MAX_DAG_BRANCH=%s",self._max_dag_branch)
         """
         # we use thread for each peer and for each head

@@ -1,4 +1,4 @@
-# Copyright 2020 DGT NETWORK INC 
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ from dgt_cli.network_command.peers import add_peers_parser
 from dgt_cli.network_command.peers import do_peers
 
 
-DISTRIBUTION_NAME = 'bgxnet'
+DISTRIBUTION_NAME = 'dgtnet'
 
 
 def create_parser(prog_name):
@@ -141,7 +141,7 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(
         '-V', '--version',
         action='version',
-        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth) version {}')
+        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth-DGT) version {}')
         .format(version),
         help='display version information')
 

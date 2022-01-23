@@ -1,4 +1,4 @@
-# Copyright 2017 DGT NETWORK INC 
+# Copyright 2017 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class SettingsObserver(ChainObserver):
             if event.event_type == "settings/update":
                 updated = event.attributes[0].value
                 if  updated not in values:
-                    if updated == 'bgx.consensus.pbft.nodes' or updated == 'dgt.topology.map':
+                    if updated == 'dgt.consensus.pbft.nodes' or updated == 'dgt.topology.map':
                         topology_update = True
                     values[updated] = True
                     self._handle_txn_commit(event,updated)

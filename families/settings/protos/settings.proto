@@ -105,7 +105,7 @@ message SettingCandidates {
 //
 // This message proposes a change in a topology setting value.
 message SettingTopology {
-    // The setting key.  E.g. bgx.config.authorization_type
+    // The setting key.  E.g. dgt.config.authorization_type
     string setting = 1;
 
     // The setting value. E.g. 'ballot'

@@ -1,4 +1,4 @@
-# Copyright 2020 DGT NETWORK INC 
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,10 +52,11 @@ from dgt_validator.gossip.fbft_topology import (PeerSync,PeerRole,PeerAtr,FbftTo
                                                 DGT_TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM,DGT_TOPOLOGY_NEST_NM,TOPO_MAP,DGT_NET_NEST
                                                 )
 
-DISTRIBUTION_NAME = 'bgxset'
+DGT_TOP = os.environ.get('DGT_TOP')
+DISTRIBUTION_NAME = 'dgtset'
 VALIDATOR_PKEY = '/project/peer/keys/validator.priv'
 VALIDATOR_PUB_KEY = '/project/peer/keys/validator.pub'
-PROJ_DGT = '/project/bgx'
+PROJ_DGT = f'/project/{DGT_TOP}'
 MAP_NET_FNM = f"{PROJ_DGT}/etc/dgt.net.map"
 STATIC_MAP = "static_map"
 
@@ -261,8 +262,7 @@ def _do_config_proposal_vote(args):
 
     for vote_record in proposal.votes:
         if vote_record.public_key == signer.get_public_key().as_hex():
-            raise CliException(
-                'A vote has already been recorded with this signing key')
+            raise CliException('A vote has already been recorded with this signing key')
 
     txn = _create_vote_txn(
         signer,
@@ -459,7 +459,7 @@ def _param_show(rest_client,args):
     show topology param
     """
     pref = args.param_name[:4]
-    fname = ('' if pref in [ "bgx.","dgt."] else "bgx.") + args.param_name
+    fname = ('' if pref in [ "dgt.","dgt."] else "dgt.") + args.param_name
     try:
         state_leaf = rest_client.get_leaf(_key_to_address(fname))
     except CliException:
@@ -489,7 +489,7 @@ def _param_topology(rest_client,signer,args):
         #set value
         pref_nm = args.param_name[:4]
         
-        fname = ('' if pref_nm in ["bgx.","dgt."]  else "bgx.") + args.param_name
+        fname = ('' if pref_nm in ["dgt.","dgt."]  else "dgt.") + args.param_name
         txns = [_create_propose_txn(signer, (fname,args.new))]
         batch = _create_batch(signer, txns)
 
@@ -613,7 +613,7 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(
         '-V', '--version',
         action='version',
-        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth-BGX) version {}')
+        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth-DGT) version {}')
         .format(version),
         help='display version information')
 
@@ -638,7 +638,7 @@ def create_parser(prog_name):
         'genesis',
         help='Creates a genesis batch file of settings transactions',
         description='Creates a Batch of settings proposals that can be '
-                    'consumed by "bgxadm genesis" and used '
+                    'consumed by "dgtadm genesis" and used '
                     'during genesis block construction.'
     )
     genesis_parser.add_argument(
@@ -751,7 +751,7 @@ def create_parser(prog_name):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     prop_parser.add_argument(
         'setting',
@@ -771,7 +771,7 @@ def create_parser(prog_name):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     proposal_list_parser.add_argument(
         '--public-key',
@@ -795,13 +795,13 @@ def create_parser(prog_name):
         'vote',
         help='Votes for specific setting change proposals',
         description='Votes for a specific settings change proposal. Use '
-                    '"bgxset proposal list" to find the proposal id.')
+                    '"dgtset proposal list" to find the proposal id.')
 
     vote_parser.add_argument(
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
 
     vote_parser.add_argument(
         '-k', '--key',
@@ -850,7 +850,7 @@ def create_parser(prog_name):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
     # SET 
     topology_set_parser = topology_parsers.add_parser(
         'set',
@@ -889,7 +889,7 @@ def create_parser(prog_name):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://localhost:8008')
+        default='http://api-dgt-c1-1:8108')
     # PARAM
     topology_param_parser = topology_parsers.add_parser(
         'param',
@@ -908,7 +908,7 @@ def create_parser(prog_name):
         '--url',
         type=str,
         help="identify the URL of a validator's REST API",
-        default='http://bgx-api-c1-1:8008')
+        default='http://api-dgt-c1-1:8108')
     topology_param_parser.add_argument(
         'param_name',
         type=str,
@@ -936,7 +936,7 @@ def create_parser(prog_name):
         '--url',                                                                         
         type=str,                                                                        
         help="identify the URL of a validator's REST API",                               
-        default='http://bgx-api-c1-1:8008')                                              
+        default='http://api-dgt-c1-1:8108')                                              
 
 
 

@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 Intel Corporation
+# Copyright 2016, 2017 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ DISTRIBUTION_NAME = 'x509-cert'
 
 DEFAULT_URL = 'http://127.0.0.1:8008'
 
-
+DGT_TOP = os.environ.get('DGT_TOP')
+XCERT_PROTO_FILE = f"/project/{DGT_TOP}/etc/certificate.json"
 def create_console_handler(verbose_level):
     clog = logging.StreamHandler()
     formatter = ColoredFormatter(
@@ -93,7 +94,7 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(
         '-V', '--version',
         action='version',
-        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth) version {}')
+        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth-DGT) version {}')
         .format(version),
         help='display version information')
 
@@ -135,13 +136,13 @@ def add_set_parser(subparsers, parent_parser):
         '--user',                       
         type=str,
         default="/project/peer/keys/validator.priv",                       
-        help='specify User private key')       
+        help='specify User private key for signing certificate')       
 
 
     parser.add_argument(
         'value',
         type=str,
-        default="/project/bgx/etc/certificate.json",
+        default=XCERT_PROTO_FILE,
         help='xcert atributes JSON')
 
     parser.add_argument(
@@ -197,7 +198,7 @@ def add_upd_parser(subparsers, parent_parser):
     parser.add_argument(
         'value',
         type=str,
-        default="/project/bgx/etc/certificate.json",
+        default=XCERT_PROTO_FILE,
         help='specify xcert atributes to update')
     parser.add_argument(
         '--user',
@@ -225,7 +226,7 @@ def add_upd_parser(subparsers, parent_parser):
     parser.add_argument(                            
         '-cb', '--crypto_back',                     
         type=str,                                   
-        help='Specify a crypto back',               
+        help='Specify a crypto back openssl/bitcoin',               
         default='bitcoin')
     parser.add_argument(                                   
         '--before',                                       
@@ -254,7 +255,7 @@ def add_show_parser(subparsers, parent_parser):
         'show',
         parents=[parent_parser],
         description=message,
-        help='Displays the specified x509 certificate')
+        help='Display the specified by user public key x509 certificate')
 
     parser.add_argument(
         'name',
@@ -302,7 +303,7 @@ def add_list_parser(subparsers, parent_parser):
         'list',
         parents=[parent_parser],
         description=message,
-        help='Displays all bgt values')
+        help='Displays all X509 certificates')
 
     parser.add_argument(
         '--url',
@@ -318,7 +319,7 @@ def add_list_parser(subparsers, parent_parser):
     parser.add_argument(                   
         '-cb', '--crypto_back',            
         type=str,                          
-        help='Specify a crypto back',      
+        help='Specify a crypto back openssl/bitcoin',      
         default='bitcoin')                 
 
 

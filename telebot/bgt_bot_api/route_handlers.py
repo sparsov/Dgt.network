@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 Intel Corporation
+# Copyright 2016, 2017 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1122,7 +1122,7 @@ class RouteHandler:
         """Confirms a header_signature is 128 hex characters, raising an
         ApiError if not.
         """
-        if not re.fullmatch('[0-9a-f]{128}', resource_id):
+        if not re.fullmatch('[0-9a-f]{,148}', resource_id): #'[0-9a-f]{128}'
             raise errors.InvalidResourceId(resource_id)
 
     @staticmethod

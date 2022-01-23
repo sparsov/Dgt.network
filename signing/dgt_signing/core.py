@@ -1,4 +1,4 @@
-# Copyright 2016, 2017 Intel Corporation
+# Copyright 2016, 2017 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@ X509_STATE_OR_PROVINCE_NAME = "STATE_OR_PROVINCE_NAME"
 X509_LOCALITY_NAME          = "LOCALITY_NAME"   
 X509_ORGANIZATION_NAME      = "ORGANIZATION_NAME"   
 X509_COMMON_NAME            = "COMMON_NAME"   
-X509_DNS_NAME               = "DNS_NAME"   
-
+X509_DNS_NAME               = "DNS_NAME"
+X509_EMAIL_ADDRESS          = "EMAIL_ADDRESS" 
+X509_PSEUDONYM              = "PSEUDONYM"     
 
 
 class NoSuchAlgorithmError(Exception):

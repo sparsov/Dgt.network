@@ -1,4 +1,4 @@
-# Copyright 2020 DGT NETWORK INC 
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ from dgt_cli.head import do_dag
 from dgt_cli.cli_config import load_cli_config
 
 
-DISTRIBUTION_NAME = 'bgx-cli'
+DISTRIBUTION_NAME = 'dgt-cli'
 
 
 def create_console_handler(verbose_level):
@@ -101,7 +101,7 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(
         '-V', '--version',
         action='version',
-        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth) version {}')
+        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth-DGT) version {}')
         .format(version),
         help='display version information')
 
@@ -112,7 +112,7 @@ def create_parser(prog_name):
     parent_parser = create_parent_parser(prog_name)
 
     parser = argparse.ArgumentParser(
-        description='Provides subcommands to configure, manage, and use Sawtooth components.',parents=[parent_parser],
+        description='Provides subcommands to configure, manage, and use Dgt components.',parents=[parent_parser],
         )
 
     subparsers = parser.add_subparsers(title='subcommands', dest='command')

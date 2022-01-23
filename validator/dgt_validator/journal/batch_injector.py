@@ -1,4 +1,4 @@
-# Copyright 2019 DGT NETWORK INC  
+# Copyright 2019 DGT NETWORK INC © Stanislav Parsov  
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ class DefaultBatchInjectorFactory:
             self._block_store[block_id].state_root_hash)
         settings_view = SettingsView(state_view)
         batch_injector_setting = settings_view.get_setting(
-            "bgx.validator.batch_injectors")
+            "dgt.validator.batch_injectors")
         return [] if not batch_injector_setting \
             else batch_injector_setting.split(',')
 

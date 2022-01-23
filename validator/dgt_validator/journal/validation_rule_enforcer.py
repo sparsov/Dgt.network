@@ -1,4 +1,4 @@
-# Copyright 2017 DGT NETWORK INC 
+# Copyright 2017 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ class ValidationRuleEnforcer(object):
         settings_view = self._settings_view_factory.create_settings_view(
             state_root)
         rules = settings_view.get_setting(
-            "bgx.validator.block_validation_rules")
+            "dgt.validator.block_validation_rules")
         if rules is None:
             return True
 

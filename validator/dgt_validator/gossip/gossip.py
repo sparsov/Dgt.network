@@ -1,4 +1,4 @@
-# Copyright 2019 DGT NETWORK INC 
+# Copyright 2019 DGT NETWORK INC © Stanislav Parsov 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,10 +83,10 @@ MAXIMUM_STATIC_RETRY_FREQUENCY = 3600
 MAXIMUM_STATIC_RETRIES = 24
 
 TIME_TO_LIVE = 3
-TIME_TO_LIVE_NM       = "bgx.gossip.time_to_live"
-MAX_PUBLIC_CLUSTER_NM = 'bgx.fbft.max_public_cluster'
-AUTO_CLUSTER_NM       = 'bgx.fbft.auto_cluster'
-MAX_FEDER_PEER_NM     = 'bgx.fbft.max_feder_peer'
+TIME_TO_LIVE_NM       = "dgt.gossip.time_to_live"
+MAX_PUBLIC_CLUSTER_NM = 'dgt.fbft.max_public_cluster'
+AUTO_CLUSTER_NM       = 'dgt.fbft.auto_cluster'
+MAX_FEDER_PEER_NM     = 'dgt.fbft.max_feder_peer'
 _PARAM_DEFAULT_ = {
     TIME_TO_LIVE_NM      : 3,
     MAX_PUBLIC_CLUSTER_NM: 2,
@@ -332,7 +332,7 @@ class Gossip(object):
         """
         Start stop peer 
         """
-        PREF_CLUST = 'Dgt' # 'Bgx'
+        PREF_CLUST = 'Dgt' # 
         pkey = '{}.{}'.format(cname,pname)
         if mode == ClientPeersControlRequest.INFO:
             # send status peer
@@ -1554,8 +1554,8 @@ class Gossip(object):
         
         self._settings_cache.add_handler(TOPOLOGY_SET_NM,self.update_topology)
         #self._settings_cache.add_handler(DGT_TOPOLOGY_MAP_NM,self.update_topology_map)
-        self._settings_cache.add_handler("bgx.fbft.",self.update_topology_params)
-        self._settings_cache.add_handler("bgx.consensus.",self.update_topology_params)
+        self._settings_cache.add_handler("dgt.fbft.",self.update_topology_params)
+        self._settings_cache.add_handler("dgt.consensus.",self.update_topology_params)
         
         LOGGER.debug("LOAD topology DONE SYNC=%s",self.is_sync)
         
@@ -2359,7 +2359,7 @@ class ConnectionManager(InstrumentedThread):
                 if connection_id is not None:
                     if connection_id in self._connection_statuses:
                         # Endpoint is already a Peer
-                        #if endpoint == 'tcp://validator-bgx-c2-7:8207':
+                        #if endpoint == 'tcp://validator-dgt-c2-7:8207':
                         #    LOGGER.debug("retry_static_peering:Endpoint %s is already a Peer",endpoint)
                         if self._connection_statuses[connection_id] == PeerStatus.PEER:
                             # reset static peering info
@@ -2369,7 +2369,7 @@ class ConnectionManager(InstrumentedThread):
                                     retry_threshold=INITIAL_RETRY_FREQUENCY,
                                     count=0)
                             continue
-                #if endpoint == 'tcp://validator-bgx-c2-7:8207':
+                #if endpoint == 'tcp://validator-dgt-c2-7:8207':
                 #    LOGGER.debug("retry_static_peering:KeyError for %s threshold=%s",str(time.time() - static_peer_info.time),static_peer_info.retry_threshold)
                 if (time.time() - static_peer_info.time) > static_peer_info.retry_threshold:
                     #LOGGER.debug("Endpoint has not completed authorization in %s seconds: %s(%s)",static_peer_info.retry_threshold,endpoint,connection_id)
