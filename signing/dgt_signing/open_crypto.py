@@ -23,7 +23,9 @@ from dgt_signing.core import ParseError
 from dgt_signing.core import PrivateKey
 from dgt_signing.core import PublicKey
 from dgt_signing.core import Context
-from dgt_signing.core import X509_COUNTRY_NAME,X509_STATE_OR_PROVINCE_NAME,X509_LOCALITY_NAME,X509_ORGANIZATION_NAME,X509_COMMON_NAME,X509_DNS_NAME, X509_EMAIL_ADDRESS,X509_PSEUDONYM            
+from dgt_signing.core import (X509_COUNTRY_NAME,X509_STATE_OR_PROVINCE_NAME,X509_LOCALITY_NAME,X509_ORGANIZATION_NAME,
+                              X509_COMMON_NAME,X509_DNS_NAME, X509_EMAIL_ADDRESS,X509_PSEUDONYM, X509_USER_ID,X509_JURISDICTION_COUNTRY_NAME,X509_BUSINESS_CATEGORY
+                              )           
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -40,13 +42,16 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 # ecdsa-sha2-SECP256K1
 
-x509_attr_map = { X509_COUNTRY_NAME           : NameOID.COUNTRY_NAME,
-                  X509_STATE_OR_PROVINCE_NAME : NameOID.STATE_OR_PROVINCE_NAME,
-                  X509_LOCALITY_NAME          : NameOID.LOCALITY_NAME,
-                  X509_ORGANIZATION_NAME      : NameOID.ORGANIZATION_NAME,
-                  X509_COMMON_NAME            : NameOID.COMMON_NAME,
-                  X509_EMAIL_ADDRESS          : NameOID.EMAIL_ADDRESS,
-                  X509_PSEUDONYM              : NameOID.PSEUDONYM    
+x509_attr_map = { X509_COUNTRY_NAME              : NameOID.COUNTRY_NAME,
+                  X509_STATE_OR_PROVINCE_NAME    : NameOID.STATE_OR_PROVINCE_NAME,
+                  X509_LOCALITY_NAME             : NameOID.LOCALITY_NAME,
+                  X509_ORGANIZATION_NAME         : NameOID.ORGANIZATION_NAME,
+                  X509_COMMON_NAME               : NameOID.COMMON_NAME,
+                  X509_EMAIL_ADDRESS             : NameOID.EMAIL_ADDRESS,
+                  X509_PSEUDONYM                 : NameOID.PSEUDONYM,
+                  X509_USER_ID                   : NameOID.USER_ID,    
+                  X509_JURISDICTION_COUNTRY_NAME : NameOID.JURISDICTION_COUNTRY_NAME,
+                  X509_BUSINESS_CATEGORY         : NameOID.BUSINESS_CATEGORY
 
                   }
 
