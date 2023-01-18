@@ -1,4 +1,4 @@
-# Copyright 2019 NTRLab
+# Copyright 2016 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
-
-FROM grafana/grafana
-#RUN apt-get update && \
-#    apt-get install -y \
-#        curl && \
-#    rm -rf /var/lib/apt/lists/*
-
-COPY bgx/docker/grafana/dashboards /etc/grafana/dashboards
-COPY bgx/docker/grafana/datasources /etc/grafana/datasources
-COPY bgx/docker/grafana/grafana.ini /etc/grafana
-
-WORKDIR /app
-COPY bgx/docker/grafana/grafana_entrypoint.sh ./
-#RUN chown -R root:root /etc/grafana && chmod -R a+r /etc/grafana
-#RUN ls -l /etc/grafana
-#RUN chmod u+x grafana_entrypoint.sh
-
-ENTRYPOINT ["/app/grafana_entrypoint.sh"]

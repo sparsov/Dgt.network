@@ -30,7 +30,7 @@ $ docker-compose -f bgx/docker/docker-compose-installed-bgx.yaml build validator
 
 To run a full validator node from the local source.
 $ docker-compose -f bgx/docker/docker-compose-net-bgx.yaml up
-
+# docker system prune
 For running shell-bgx run next bash cmd .
 $ docker exec -it shell-dgt-c1-1 bash
 For list created tokens run into shell-bgx. 

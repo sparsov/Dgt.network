@@ -321,3 +321,9 @@ class NotEnoughFunds(_ApiError):
     status_code = 400
     title = "Not enough funds in user's wallet"
     message = ''
+
+class VaultNotReady(_ApiError):                                                   
+    api_code = 93                                                                     
+    status_code = 400                                                                 
+    title = 'Vault Not Ready'                                                     
+    message = ('The Vault is not yet ready to be queried. Try your request again later.')                           

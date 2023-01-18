@@ -27,8 +27,8 @@ from dgt_cli.admin_command.genesis import add_genesis_parser
 from dgt_cli.admin_command.genesis import do_genesis
 from dgt_cli.admin_command.keygen import add_keygen_parser
 from dgt_cli.admin_command.keygen import do_keygen
-from dgt_cli.admin_command.node import add_node_parser
-from dgt_cli.admin_command.node import do_node
+from dgt_cli.admin_command.node import add_node_parser,add_notary_parser
+from dgt_cli.admin_command.node import do_node,do_notary
 
 
 DISTRIBUTION_NAME = 'dgtadm'
@@ -48,6 +48,7 @@ def create_parser(prog_name):
     add_genesis_parser(subparsers, parent_parser)
     add_keygen_parser(subparsers, parent_parser)
     add_node_parser(subparsers, parent_parser)
+    add_notary_parser(subparsers, parent_parser)
 
     return parser
 
@@ -72,6 +73,8 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None,with_loggers=True):
         do_keygen(args)
     elif args.subcommand == 'node':
         do_node(args)
+    elif args.subcommand == 'notary':
+        do_notary(args)
         
     else:
         raise CliException('Invalid command: {}'.format(args.subcommand))

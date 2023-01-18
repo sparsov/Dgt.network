@@ -17,9 +17,12 @@ import os
 from dgt_cli.admin_command.config import get_data_dir
 from dgt_cli.exceptions import CliException
 
-from dgt_cli.protobuf.batch_pb2 import BatchList
-from dgt_cli.protobuf.genesis_pb2 import GenesisData
-from dgt_cli.protobuf.transaction_pb2 import TransactionHeader
+from dgt_sdk.protobuf.batch_pb2 import BatchList
+from dgt_sdk.protobuf.genesis_pb2 import GenesisData
+from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader  
+#from dgt_cli.protobuf.batch_pb2 import BatchList
+#from dgt_cli.protobuf.genesis_pb2 import GenesisData
+#from dgt_cli.protobuf.transaction_pb2 import TransactionHeader
 
 
 def add_genesis_parser(subparsers, parent_parser):

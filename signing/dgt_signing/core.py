@@ -27,7 +27,7 @@ X509_PSEUDONYM              = "PSEUDONYM"
 X509_USER_ID                = "USER_ID"
 X509_JURISDICTION_COUNTRY_NAME   = "JURISDICTION_COUNTRY_NAME"
 X509_BUSINESS_CATEGORY      = "BUSINESS_CATEGORY"
-
+X509_SERIAL_NUMBER          = "SERIAL_NUMBER"
 
 class NoSuchAlgorithmError(Exception):
     """Thrown when trying to create an algorithm which does not exist.

@@ -129,7 +129,7 @@ def get_log_dir():
         toml_config_setting='log_dir',
         sawtooth_home_dir='logs',
         windows_dir='logs',
-        default_dir='/var/log/sawtooth')
+        default_dir='/project/peer/logs')
 
 
 def get_log_config(filename=None):

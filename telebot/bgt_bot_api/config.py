@@ -87,6 +87,8 @@ def merge_bot_api_config(configs):
     opentsdb_username = None
     opentsdb_password = None
     client_max_size = None
+    vault_on,vault_url,bot_token,user_notary,lead_addr = None,None,None,None,None
+    bot_on = 0
 
     for config in reversed(configs):
         if config.bind is not None:
@@ -105,7 +107,19 @@ def merge_bot_api_config(configs):
             opentsdb_password = config.opentsdb_password
         if config.client_max_size is not None:
             client_max_size = config.client_max_size
-
+        if config.vault_on  is not None:
+            vault_on = config.vault_on
+        if config.vault_url  is not None: 
+            vault_url = config.vault_url   
+        if config.bot_on  is not None and config.bot_on != 0:    
+            bot_on = config.bot_on     
+        if config.bot_token  is not None:  
+            bot_token = config.bot_token 
+        if config.user_notary  is not None:  
+            user_notary = config.user_notary   
+        if config.lead_addr  is not None:         
+            lead_addr = config.lead_addr  
+              
     return BotApiConfig(
         bind=bind,
         connect=connect,
@@ -114,7 +128,10 @@ def merge_bot_api_config(configs):
         opentsdb_db=opentsdb_db,
         opentsdb_username=opentsdb_username,
         opentsdb_password=opentsdb_password,
-        client_max_size=client_max_size)
+        client_max_size=client_max_size,
+        vault_on=vault_on,vault_url=vault_url,bot_token=bot_token,user_notary=user_notary,
+        bot_on=bot_on,lead_addr=lead_addr
+        )
 
 
 class BotApiConfig:
@@ -127,7 +144,14 @@ class BotApiConfig:
             opentsdb_db=None,
             opentsdb_username=None,
             opentsdb_password=None,
-            client_max_size=None):
+            client_max_size=None,
+            vault_on=0,
+            vault_url=None,
+            bot_token=None,
+            user_notary=None,
+            bot_on=0,
+            lead_addr=None
+            ):
         self._bind = bind
         self._connect = connect
         self._timeout = timeout
@@ -136,6 +160,12 @@ class BotApiConfig:
         self._opentsdb_username = opentsdb_username
         self._opentsdb_password = opentsdb_password
         self._client_max_size = client_max_size
+        self._vault_on = vault_on > 0
+        self._vault_url=vault_url
+        self._bot_token = bot_token
+        self._user_notary = user_notary
+        self._bot_on = bot_on
+        self._lead_addr = lead_addr
 
     @property
     def bind(self):
@@ -165,9 +195,30 @@ class BotApiConfig:
     def opentsdb_password(self):
         return self._opentsdb_password
 
+    @property                     
+    def vault_on(self):        
+        return self._vault_on 
+    
+    @property                  
+    def bot_token(self):        
+        return self._bot_token  
+    @property                  
+    def vault_url(self):        
+        return self._vault_url
+    @property                  
+    def lead_addr(self):          
+        return self._lead_addr 
+    @property                   
+    def bot_on(self):         
+        return self._bot_on   
+
+
     @property
     def client_max_size(self):
         return self._client_max_size
+    @property                         
+    def user_notary(self):        
+        return self._user_notary 
 
     def __repr__(self):
         # skip opentsdb_db password

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2020 NTRLab
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ build_str = "lib.{}-{}.{}".format(
 TOP_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) 
 sys.path.insert(0, os.path.join(TOP_DIR,'cli'))
 sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
-
+sys.path.insert(0, os.path.join(TOP_DIR,'families', 'x509_cert'))
+sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
 from dgt_cli.dgtadm import main_wrapper
 
 if __name__ == '__main__':

@@ -26,7 +26,11 @@ import re
 import logging
 import json
 import base64
+import requests
+import time
 from collections import namedtuple
+
+from threading import Thread,RLock
 
 from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
 
@@ -56,6 +60,47 @@ SESSION_ID = '123456789'
 language_code = 'ru'
 TOKEN='1205652427:AAFr0eynwihWGyvObUA0QSjOfKMwiH3HkZs'
 PROXIES = ['82.223.120.213:1080','138.201.6.102:1080','85.10.235.14:1080','217.69.10.129:32401','217.182.230.15:4485','96.96.33.133:1080','93.157.248.106:1080','81.17.20.50:1177','217.69.10.129:32401','1.179.185.253:8080']
+PULL_TIMEOUT = 0.005
+
+class _CmdHandlerThread(Thread):
+    def __init__(self, cmd_run, cmd_queue,check_cmd_frequency):
+        super().__init__(name='_CmdHandlerThread')
+        self._cmd_run = cmd_run
+        self._cmd_queue = cmd_queue
+        self._check_cmd_frequency = check_cmd_frequency
+        self._exit = False
+
+    def run(self):
+        try:
+            # make sure we don't check to publish the block
+            # to frequently.
+            #next_check_publish_block_time = time.time() + self._check_publish_block_frequency
+            LOGGER.debug("_CmdHandlerThread: ...")
+            while True:
+                try:
+                    cmd = self._cmd_queue.get(timeout=self._check_cmd_frequency)
+                    self._cmd_run.on_cmd_received(cmd)
+
+                except queue.Empty:
+                    # If getting a batch times out, just try again.
+                    pass
+
+                #if next_check_publish_block_time < time.time():
+                #    self._block_publisher.on_check_publish_block()
+                #    next_check_publish_block_time = time.time() + self._check_publish_block_frequency
+                if self._exit:
+                    return
+        # pylint: disable=broad-except
+        except Exception as exc:
+            LOGGER.exception(exc)
+            LOGGER.critical("_CmdHandlerThread thread exited with error.")
+
+    def stop(self):
+        self._exit = True
+
+
+
+
 
 class Tbot(object): 
     def __init__(self,loop, connection,tdb,token=TOKEN,project_id=PROJECT_ID,session_id=SESSION_ID,proxy=PROXIES,connects=None):
@@ -66,6 +111,7 @@ class Tbot(object):
         self._project_id = project_id if project_id else PROJECT_ID
         self._session_id = session_id if session_id else SESSION_ID
         self._proxy_pos = 1
+        self._use_proxy = False
         self.set_proxy()
         self._connection = connection
         self._loop = loop
@@ -75,35 +121,87 @@ class Tbot(object):
         self._keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True,True)
         self._keyboard1.row('Привет', 'Пока','Sticker')
         self._timeout = DEFAULT_TIMEOUT
+        self._check_cmd_frequency = 100
         self._bgt_queue = queue.Queue()
+        self._last_msg_time = None
+        self._lock = RLock()
         self.is_pause = False
         LOGGER.info('USE proxy=%d from %d',self._proxy_pos,len(self._proxies))
         try:
-            self._dflow = Dflow(self._project_id,self._session_id)
-            LOGGER.info('DFLOW OK')
+            self._dflow = Dflow(self._project_id,self._session_id,lang=language_code)
+            LOGGER.info(f'DFLOW OK')
         except Exception as e:
             LOGGER.info('DFLOW error %s',e)
             self._dflow = None
 
+        
+
+    def start_cmd(self):                                                                  
+        self._cmd_thread = _CmdHandlerThread(                                    
+            cmd_run=self,                                                     
+            cmd_queue=self._bgt_queue,                                            
+            check_cmd_frequency=self._check_cmd_frequency)        
+        LOGGER.debug("CMD: start _CmdHandlerThread")                        
+                                                                                      
+        self._cmd_thread.start()                                                
+                                                                                      
+    def stop_cmd(self):                                                                   
+        if self._cmd_thread is not None:                                        
+            self._cmd_thread.stop()                                             
+            self._cmd_thread = None                                             
+
+    def on_cmd_received(self, request):                                                             
+        """                                                                                         
+        A new batch is received, send it for validation                                             
+        :param batch: the new pending batch                                                         
+        :return: None                                                                               
+        """                                                                                         
+        LOGGER.debug("On CMD={}".format(request))
+        with self._lock:                                                                            
+            LOGGER.debug("DO CMD...")      
+            try:                                                                                                                   
+                LOGGER.debug("VALIDATOR_TASK: intent=%{} qsize={}".format(request.intent,self._bgt_queue.qsize()))   
+                if self.can_talk(request.intent):
+                    LOGGER.debug("DO _intent_handlers {}...".format(request.intent)) 
+                    #self.send_message(request.chat_id, "Выполнить '{}'.".format(request.intent))                                                                                
+                    self._intent_handlers[request.intent](request)                                                           
+            except Exception as ex:                                                                                                    
+                LOGGER.debug("CMD HANDLER ERR {}".format(ex))                                                                                                              
+
+
+
+
     def set_proxy(self):
         proxy = self._proxies[self._proxy_pos]
-        #apihelper.proxy = {'https': 'socks5://{}'.format(proxy)}
+        if self._use_proxy:
+            apihelper.proxy = {'https': 'socks5://{}'.format(proxy)}
         self._proxy_pos += 1
         self._proxy_pos = self._proxy_pos % len(self._proxies)
         LOGGER.info("NEXT proxy %d",self._proxy_pos)
 
-    def send_message(self,chat_id,repl):
+    def send_message(self,chat_id,repl,reply_markup=None):
         n = 3
         while n > 0:
             try:                                              
-                if repl != '':                                
+                if repl != '':  
+                    ctime = time.time()   
+                    if self._last_msg_time :
+                        off = ctime - self._last_msg_time
+                    else:
+                        off = 100
+                    self._last_msg_time = ctime
+                    LOGGER.info('Try to send off={} message[{}]=/{}/'.format(off,chat_id,repl))
                     self._bot.send_message(chat_id,repl) 
+                     
                 return   
             except ReadTimeout:           
                 LOGGER.info('Cant send message err=Timeout') 
             except  Exception as ex:
-                LOGGER.info('Cant send message err=%s',ex)
-            n += 1
+                LOGGER.info('Cant send message attemp={} err={}'.format(n,ex))
+                err = str(ex)
+                if err.find('Too Many Requests') > 0:
+                    time.sleep(1)
+            n -= 1
         
     def send_sticker(self,chat_id,sticker):
         try:                                              
@@ -120,7 +218,15 @@ class Tbot(object):
         self._bot = bot
         keyboard1 = telebot.types.ReplyKeyboardMarkup(True, True,True,True)
         keyboard1.row('Привет', 'Admins','Sticker','Wallet')
-        apihelper.delete_webhook(self._token)
+        try:
+            apihelper.delete_webhook(self._token)
+        except requests.exceptions.ConnectionError as ex:
+            LOGGER.info(f'Cant del webhook err={ex}')
+        except Exception as ex:
+             LOGGER.info(f'Cant del webhook err={ex}')
+        #
+        self.start_cmd()
+
         def send_message(chat_id,repl):
             try:                                              
                 if repl != '':                                
@@ -128,9 +234,14 @@ class Tbot(object):
             except ReadTimeout:           
                 LOGGER.info('Cant send message err=Timeout')  
 
-        @bot.message_handler(commands=['start'])
+        @bot.message_handler(commands=['start','Start'])
         def start_message(message):
-            self.send_message(message.chat.id, 'Привет {}, ты написал мне /start'.format(message.from_user.first_name),reply_markup=keyboard1)
+            LOGGER.info(f"START MSG={message}")
+            self.send_message(message.chat.id, f'Привет {message.from_user.first_name}, ты написал мне /start',reply_markup=keyboard1)
+        @bot.message_handler(commands=['help','Help'])                                                                                        
+        def start_message(message):                                                                                                     
+            LOGGER.info(f"HELP MSG={message}")                                                                                         
+            self.send_message(message.chat.id, f'Справка :\n Создать сертификат - создать новый.\n Изменить сертификат - изменить существующий.\n Сертификат - показать сертификат если он есть.',reply_markup=keyboard1)  
 
         @bot.message_handler(commands=['info'])                                                               
         def info_message(message):                                                                            
@@ -154,6 +265,7 @@ class Tbot(object):
 
         @bot.message_handler(content_types=['text'])
         def send_text(message):
+            LOGGER.info(f'TEXT={message.text} type={type(message)}')
             self.check_user(message.from_user)
             if message.text == 'Привет1' or message.text == 'привет1':                                                                                                                                   
                 self.send_message(message.chat.id, 'Привет, мой {} {}'.format('создатель' if message.from_user.first_name == 'Stan' else 'господин',message.from_user.first_name),reply_to_message_id=0)
@@ -174,7 +286,7 @@ class Tbot(object):
                 #                                                                                                                                                                             
             elif message.text == 'Sticker':
                 try:
-                    self.send_message("@sticker", '@sticker :)')
+                    self.send_message(message.chat.id,"@sticker", '@sticker :)')
                 except Exception as ex:
                     LOGGER.info("cant send message %s",ex)
             elif message.text == 'Пока1' or message.text == 'пока1':                                                                                                                                     
@@ -192,11 +304,14 @@ class Tbot(object):
                     self.send_message(message.chat.id, 'Смотри {}, {}'.format(message.from_user.first_name,e))                                                                                          
                 # get chat info                                                                                                                                                                        
             else : #elif message.text[0] ==  '?':  
-                if message.text == 'Привет':
-                    LOGGER.info("message=%s",message)                                                                                                                                                      
+                #if message.text == 'Привет':
+                #    LOGGER.info("message=%s",message)
+
+                LOGGER.info(f"DFLOW try to recognize=/{message.text}/")                                                                                                                                                      
                 resp = self._dflow.detect_intent_text(message.text,language_code) if self._dflow else None                                                                                                                           
-                
+                LOGGER.info(f"DFLOW REST={resp}")
                 if resp:   
+                    #LOGGER.info(f"DFLOW REST={resp}")
                     response = resp.query_result.fulfillment_text  
                     confidence = round(resp.query_result.intent_detection_confidence,2)
                     intent = resp.query_result.intent.display_name 
@@ -240,22 +355,29 @@ class Tbot(object):
             if self._attemp > len(self._proxies):
                 self._stop = True
             self._attemp += 1
-
+        def change_timeout():
+            if self._timeout < 3:
+                self._timeout += 1
 
         while not self._stop:
-            await self.process_queue()
+            #await self.process_queue()
             try:
                 updates = self._bot.get_updates(offset=(self._bot.last_update_id+1),timeout=self._timeout) #get_me() # Execute an API call
                 self._attemp = 0
             except ConnectTimeout:
                 LOGGER.info('Get updates ConnectTimeout')
-                if self._timeout < 6:
-                    self._timeout += 1
-                shift_proxy()
+                #change_timeout()
+                if self._use_proxy:
+                    shift_proxy()
                 updates = None 
+            except ReadTimeout:
+                change_timeout()
+                LOGGER.info('Get updates ReadTimeout new val={}'.format(self._timeout))
+                updates = None
             except Exception as ex  :
                 LOGGER.info('Get updates except=%s',ex)
-                shift_proxy()
+                if self._use_proxy:
+                    shift_proxy()
                 updates = None
 
             # Do some other operations...
@@ -263,10 +385,11 @@ class Tbot(object):
             if updates:
                 LOGGER.info('UPDATE={}'.format(len(updates)))
                 self.check_member_add_left(updates)
-                try:
-                    self._bot.process_new_updates(updates)
-                except Exception as ex  :
-                    LOGGER.info('Process updates except=%s',ex)
+                with self._lock:
+                    try:
+                        self._bot.process_new_updates(updates)
+                    except Exception as ex  :
+                        LOGGER.info('Process updates except=%s',ex)
 
                 LOGGER.info('last update=%s qsize=%s',self._bot.last_update_id,self._bgt_queue.qsize())
                 #self._bot.get_updates(offset=(self._bot.last_update_id+1),timeout=0.1)
@@ -291,21 +414,32 @@ class Tbot(object):
     def check_member_add_left(self,updates):
         # for update in updates:'new_chat_member': None, 'new_chat_members': None, 'left_chat_member'
         for update in updates:
-            if update.message.new_chat_member is not None:
-                # new_chat_member {'id': 1205652427, 'is_bot': True, 'first_name': 'Mongoose', 'username': 'Shiva64_bot', 'last_name': None, 'language_code': None}
-                if self.check_user(update.message.new_chat_member):
-                    # make new wallet
-                    new_chat_member = update.message.new_chat_member
-                    LOGGER.info('new_chat_member7 %s',new_chat_member)
-                    minfo = BotMessage(update.message.message_id,update.message.chat.id,new_chat_member.id,new_chat_member.first_name,new_chat_member.last_name,'smalltalk.agent.create_wallet',1.0,None,None)
-                    self.intent_handler(minfo)
-            if update.message.new_chat_members is not None:
-                #new_chat_members [<telebot.types.User object at 0x7fd4b19e2d68>]
-                LOGGER.info('new_chat_members %s',update.message.new_chat_members)
-            if update.message.left_chat_member is not None:
-                left_chat_member = update.message.left_chat_member 
-                LOGGER.info('del left_chat_member %s from DB',left_chat_member)
-                self._tdb.delete(str(left_chat_member.id))
+            try:
+
+                if update.message is not None:
+                    if update.message.new_chat_member is not None:
+                        # new_chat_member {'id': 1205652427, 'is_bot': True, 'first_name': 'Mongoose', 'username': 'Shiva64_bot', 'last_name': None, 'language_code': None}
+                        if self.check_user(update.message.new_chat_member):
+                            # make new wallet
+                            new_chat_member = update.message.new_chat_member
+                            LOGGER.info('new_chat_member7 %s',new_chat_member)
+                            minfo = BotMessage(update.message.message_id,update.message.chat.id,new_chat_member.id,new_chat_member.first_name,new_chat_member.last_name,'smalltalk.agent.create_wallet',1.0,None,None)
+                            self.intent_handler(minfo)
+                    if update.message.new_chat_members is not None:
+                        #new_chat_members [<telebot.types.User object at 0x7fd4b19e2d68>]
+                        LOGGER.info('new_chat_members %s',update.message.new_chat_members)
+                    if update.message.left_chat_member is not None:
+                        left_chat_member = update.message.left_chat_member 
+                        LOGGER.info('del left_chat_member %s from DB',left_chat_member)
+                        self._tdb.delete(str(left_chat_member.id))
+                else:
+                    if 'my_chat_member' in update:
+                        mchat_mem = update['my_chat_member']
+                        if 'new_chat_member' in mchat_mem:
+                            LOGGER.info('NEW_CHAT_MEMBER {}\n'.format(mchat_mem['new_chat_member']))
+
+            except Exception as ex:
+                LOGGER.info('CHECK_MEMBER_ADD_LEFT error - {}\n'.format(update))
 
     def add_intent_handler(self,intent_name,intent_handler):
         """
@@ -318,7 +452,7 @@ class Tbot(object):
         self._bgt_queue.put(minfo)
         LOGGER.info('RUN HANDLER FOR=%s size=%s',minfo.intent,self._bgt_queue.qsize())
     
-    async def intent_hello(self,minfo):
+    def intent_hello(self,minfo):
         """
         Reply on hello
         """ 
@@ -339,7 +473,7 @@ class Tbot(object):
         except Exception as ex:                                                                                                                                                                               
             LOGGER.info("Cant pin message %s",ex)                                                                                                                                
 
-    async def intent_bye(self,minfo):
+    def intent_bye(self,minfo):
         self.send_message(minfo.chat_id, 'Заходи еще {}'.format('создатель' if minfo.user_first_name == 'Stan' else 'господин')) 
 
     async def intent_help(self,minfo):
@@ -351,7 +485,7 @@ class Tbot(object):
         self.send_message(minfo.chat_id, 'Посмотри: {}'.format(response))
         LOGGER.info('response HELP=%s\n',response)
         
-    async def intent_chat_admins(self,minfo):
+    def intent_chat_admins(self,minfo):
         #self._bot.send_message(minfo.chat_id, 'Посмотрю : {}'.format(response))
         try:
             repl = self._bot.get_chat_administrators(minfo.chat_id)
@@ -360,7 +494,7 @@ class Tbot(object):
             #{"ok":false,"error_code":400,"description":"Bad Request:                                                                                                                                                                         
             LOGGER.info("cant get admins %s",ex)
 
-    async def intent_get_users(self,minfo):
+    def intent_get_users(self,minfo):
         users = ''
         with self._tdb.cursor(index='name') as curs:
             #values = list(curs.iter())
@@ -369,7 +503,7 @@ class Tbot(object):
                     users += val['name']+','
         self.send_message(minfo.chat_id, 'Я знаю вот кого : {}'.format(users))        
 
-    async def intent_hold_on(self,minfo):
+    def intent_hold_on(self,minfo):
         LOGGER.info('INTENT HOLD ON chat_id=%s confidence=%s\n',minfo.chat_id,minfo.confidence)
 
     async def intent_needs_advice(self,minfo):
@@ -381,11 +515,11 @@ class Tbot(object):
         
         self.send_message(minfo.chat_id, 'Посмотри: {}'.format(response))
 
-    async def intent_pause(self,minfo):
+    def intent_pause(self,minfo):
          LOGGER.info('INTENT PAUSE chat_id=%s confidence=%s\n',minfo.chat_id,minfo.confidence)
          self.is_pause = True
 
-    async def intent_unpause(self,minfo):
+    def intent_unpause(self,minfo):
          LOGGER.info('INTENT UNPAUSE chat_id=%s confidence=%s\n',minfo.chat_id,minfo.confidence)
          self.is_pause = False
     @staticmethod
@@ -562,22 +696,16 @@ class Tbot(object):
                 for k, v in item.items()
             }
         return item
+
     def can_talk(self,intent):
         return not self.is_pause or (intent == "smalltalk.agent.unpause")
-    async def validator_task(self):
-        try:                                                                                                                 
-            LOGGER.debug("validator_task:queue...")       
-            while True:  
-                await self.process_queue()                                                                                                    
-                                                                                                                     
-        # pylint: disable=broad-except                                                                                       
-        except Exception as exc:                                                                                             
-            LOGGER.exception(exc)                                                                                            
-            LOGGER.critical("validator_task thread exited with error.")                                                      
+
 
     async def process_queue(self):
-        try:                                                      
-            request = self._bgt_queue.get(timeout=0.01)            
+        # not work
+        try:     
+            LOGGER.debug("VALIDATOR_TASK: waiting request")                                                 
+            request = self._bgt_queue.get(timeout=PULL_TIMEOUT)            
             LOGGER.debug("VALIDATOR_TASK: intent=%s qsize=%s pause=%s",request.intent,self._bgt_queue.qsize(),self.is_pause)   
             if self.can_talk(request.intent):
                 await self._intent_handlers[request.intent](request)   
@@ -585,7 +713,7 @@ class Tbot(object):
             pass
         except  errors.ValidatorDisconnected:
             LOGGER.debug("VALIDATOR Disconnected")
-            self.send_message(request.chat_id, 'Похоже BGT временно не доступен (:')
+            self.send_message(request.chat_id, 'Похоже DGT временно не доступен (:')
         except KeyError as key:
             LOGGER.debug("VALIDATOR_TASK: ignore=%s (no handler %s)",request.intent,key)
             #LOGGER.debug("VALIDATOR_TASK:queue=%s EMPTY",self._bgt_queue.qsize())
@@ -605,7 +733,7 @@ class Tbot(object):
             LOGGER.info('STOP BOT')
         
         
-        self._pool = ThreadPoolExecutor(max_workers=2) #ProcessPoolExecutor(max_workers=2)
+        #self._pool = ThreadPoolExecutor(max_workers=2) #ProcessPoolExecutor(max_workers=2)
         self._start_bot()
         #self._pool = ProcessPoolExecutor(max_workers=2)
         #self._pool.submit(self._start_bot())
@@ -634,4 +762,22 @@ sticker_message {'content_type': 'sticker', 'message_id': 1725, 'from_user': {'i
 
 +++++++++++++++++++++++++++++++++=
 {'message_id': 1798, 'from': {'id': 456125525, 'is_bot': False, 'first_name': 'Stan', 'last_name': 'P', 'username': 'Thou_shalt', 'language_code': 'ru'}, 'chat': {'id': 456125525, 'first_name': 'Stan', 'last_name': 'P', 'username': 'Thou_shalt', 'type': 'private'}, 'date': 1587914988, 'sticker': {'width': 512, 'height': 512, 'emoji': '👍', 'set_name': 'TheVirus', 'is_animated': True, 'thumb': {'file_id': 'AAMCAgADGQEAAgcGXqWo7KbDR7NPdeq-Ish0T_k2e2wAAsIBAAJWnb0KmXhIgEI4bZB6wdWRLgADAQAHbQADeiIAAhkE', 'file_unique_id': 'AQADesHVkS4AA3oiAAI', 'file_size': 6186, 'width': 128, 'height': 128}, 'file_id': 'CAACAgIAAxkBAAIHBl6lqOymw0ezT3XqviLIdE_5NntsAALCAQACVp29Cpl4SIBCOG2QGQQ', 'file_unique_id': 'AgADwgEAAladvQo', 'file_size': 7420}}
+# text message
+{'content_type': 'text', 'id': 6477, 'message_id': 6477, 
+'from_user': {'id': 456125525, 'is_bot': False, 'first_name': 'Stan', 'username': 'Thou_shalt', 'last_name': 'P', 'language_code': 'ru', 'can_join_groups': None, 'can_read_all_group_messages': None, 'supports_inline_queries': None},
+ 'date': 1648815620, 
+'chat': {'id': 456125525, 'type': 'private', 'title': None, 'username': 'Thou_shalt', 'first_name': 'Stan', 'last_name': 'P', 'photo': None, 'bio': None, 'has_private_forwards': None, 'description': None, 'invite_link': None, 'pinned_message': None, 'permissions': None, 'slow_mode_delay': None, 'message_auto_delete_time': None, 'has_protected_content': None, 'sticker_set_name': None, 'can_set_sticker_set': None, 'linked_chat_id': None, 'location': None},
+'sender_chat': None, 'forward_from': None, 'forward_from_chat': None, 'forward_from_message_id': None, 'forward_signature': None, 'forward_sender_name': None, 'forward_date': None, 'is_automatic_forward': None, 'reply_to_message': None, 'via_bot': None, 'edit_date': None, 'has_protected_content': None, 'media_group_id': None, 'author_signature': None, 'text': 'Привет', 'entities': None, 'caption_entities': None, 'audio': None, 'document': None, 'photo': None, 'sticker': None, 'video': None, 'video_note': None, 'voice': None, 'caption': None, 'contact': None, 'location': None, 'venue': None, 'animation': None, 'dice': None, 'new_chat_member': None, 'new_chat_members': None, 'left_chat_member': None, 'new_chat_title': None, 'new_chat_photo': None, 'delete_chat_photo': None, 'group_chat_created': None, 'supergroup_chat_created': None, 'channel_chat_created': None, 'migrate_to_chat_id': None, 'migrate_from_chat_id': None, 'pinned_message': None, 'invoice': None, 'successful_payment': None, 'connected_website': None, 'reply_markup': None,
+'json': {'message_id': 6477,
+         'from': {'id': 456125525, 'is_bot': False, 'first_name': 'Stan', 'last_name': 'P', 'username': 'Thou_shalt', 'language_code': 'ru'},
+         'chat': {'id': 456125525, 'first_name': 'Stan', 'last_name': 'P', 'username': 'Thou_shalt', 'type': 'private'},
+         'date': 1648815620,
+         'text': 'Привет'
+}}
+CHECK_MEMBER_ADD_LEFT error -
+ {'update_id': 133693656, 'message': None, 'edited_message': None, 'channel_post': None, 'edited_channel_post': None,
+ 'inline_query': None, 'chosen_inline_result': None, 'callback_query': None, 'shipping_query': None, 'pre_checkout_query': None, 'poll': None, 'poll_answer': None,
+ 'my_chat_member': {'chat': <telebot.types.Chat object at 0x7f3148d4fb38>, 'from_user': <telebot.types.User object at 0x7f3148d99358>, 'date': 1652858256, 
+'old_chat_member': <telebot.types.ChatMember object at 0x7f3148d990b8>,
+ 'new_chat_member': <telebot.types.ChatMember object at 0x7f3148d99048>, 'invite_link': None}, 'chat_member': None, 'chat_join_request': None}
 """

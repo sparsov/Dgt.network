@@ -35,6 +35,14 @@ TOPO_GENESIS =  'Genesis'
 TOPO_MAP = "map"
 DGT_NET_NEST = '/project/peer/keys/dgt.net.nest'
 DGT_SELF_CERT = '/project/peer/keys/certificate.pem'
+DGT_KYC_DID = '/project/peer/keys/kyc.txt'
+
+def IS_DID(val):
+    return val.startswith('did:')
+
+def GET_DID_UID(val):                  
+    return val.split(':')[3] 
+
 class PeerSync():
     inactive = 'inactive'
     active   = 'active'

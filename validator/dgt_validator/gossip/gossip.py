@@ -50,7 +50,10 @@ from dgt_validator.protobuf.client_peers_pb2 import  ClientPeersControlRequest
 from dgt_validator.exceptions import PeeringException
 from dgt_validator.networking.interconnect import get_enum_name
 # FBFT topology
-from dgt_validator.gossip.fbft_topology import PeerSync,PeerRole,PeerAtr,FbftTopology,TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM,TOPO_GENESIS,DGT_NET_NEST,DGT_SELF_CERT
+from dgt_validator.gossip.fbft_topology import (PeerSync,PeerRole,PeerAtr,FbftTopology,
+                                                TOPOLOGY_SET_NM,DGT_TOPOLOGY_MAP_NM,TOPO_GENESIS,DGT_NET_NEST,
+                                                DGT_SELF_CERT,DGT_KYC_DID,IS_DID,GET_DID_UID
+                                                )
 from dgt_cli.make_set_txn import _create_batch,_create_topology_txn
 from x509_cert.client_cli.create_batch import create_xcert_txn
 
@@ -83,7 +86,7 @@ MAXIMUM_STATIC_RETRY_FREQUENCY = 3600
 MAXIMUM_STATIC_RETRIES = 24
 
 TIME_TO_LIVE = 3
-TIME_TO_LIVE_NM       = "dgt.gossip.time_to_live"
+TIME_TO_LIVE_NM       = "dgt.net.time_to_live"
 MAX_PUBLIC_CLUSTER_NM = 'dgt.fbft.max_public_cluster'
 AUTO_CLUSTER_NM       = 'dgt.fbft.auto_cluster'
 MAX_FEDER_PEER_NM     = 'dgt.fbft.max_feder_peer'
@@ -515,7 +518,8 @@ class Gossip(object):
         if self._own_topo_nest != DYN_NEST:
             # find nest description 
             # get own certificate 
-            self_cert = load_peer_config_file(fname=DGT_SELF_CERT) if self._is_private else None
+
+            self_cert = load_peer_config_file(fname= DGT_KYC_DID if os.path.isfile(DGT_KYC_DID) else DGT_SELF_CERT) if self._is_private else None
             return f"{self._own_topo_nest}:",self_cert
         return None,None
         
@@ -967,7 +971,7 @@ class Gossip(object):
                     url = cluster.split(':')
                     if url[0] != '':
                         # update map 
-                        xcert = self.get_xcert_cache(pid)
+                        xcert = self.get_xcert_cache(KYC,pid)
                         cert_oper = 'set'
                         if xcert and not self.is_xcert_valid(xcert,pid):
                             # TRY TO UPDATE OLD CERT 
@@ -994,13 +998,13 @@ class Gossip(object):
         else:
             status = GetPeersResponse.OK
             if KYC is not None:
-                xcert = self.get_xcert_cache(pid)
+                xcert = self.get_xcert_cache(KYC,pid)
                 if xcert:
                     if not self.is_xcert_valid(xcert,pid):
                         status = GetPeersResponse.NOT_VALID_CERT
                     
                 else:
-                    LOGGER.debug(f"New peer={pid[:8]} UNDEF XCERT")
+                    LOGGER.debug(f"New peer={pid[:8]} UNDEF XCERT !!!!\n")
                     status = GetPeersResponse.NOT_VALID_CERT
 
             cname = parent[PeerAtr.name]
@@ -1156,7 +1160,9 @@ class Gossip(object):
             self.notify_peer_connected(self.validator_id,assemble=True,mode=mode)
 
         with self._lock:
-            return copy.copy(self._peers)
+            curr_peer =  copy.copy(self._peers)
+        curr_peer["own"] = self.endpoint
+        return curr_peer
 
     def is_peers(self):
         """
@@ -1419,7 +1425,7 @@ class Gossip(object):
         # make batch for adding new nest's key into topology - gateway dynamic mode                                                        
         nest_val = '{"'+nest+'":"'+str(pid)+'"}'               
         param = {'oper':'map','cluster':"Genesis",'list':nest_val}                                                                          
-                                                                                                                                     
+        LOGGER.debug("ADD NEST={} PID={} FOR JOIN WITH PRIVATE NET".format(nest_val,pid[0:8]))                                                                                                                            
         val = json.dumps(param, sort_keys=True, indent=4)                                                                            
         return _create_topology_txn(self._signer, (TOPOLOGY_SET_NM,val))                                                             
 
@@ -1469,7 +1475,10 @@ class Gossip(object):
         txns = [] 
         if xcert:
             # add cert 
-            txns.append(self._make_peer_xcert_tnx(pid,KYC,oper))
+            if IS_DID(KYC):
+                LOGGER.debug("CANT ADD XCERT AUTOMATICALY IN NOTARY MODE KYC='%s' !!!\n",KYC)
+            else:
+                txns.append(self._make_peer_xcert_tnx(pid,KYC,oper))
           
         txns.append(self._make_new_nest_tnx(nest,pid,KYC))                        
         batch = _create_batch(self._signer, txns)                                      
@@ -1493,7 +1502,11 @@ class Gossip(object):
             ).replace("'",'"')
         return topology 
 
-    def get_xcert_cache(self,key):
+    def get_xcert_cache(self,KYC,pid):
+        if IS_DID(KYC):
+            key = GET_DID_UID(KYC)
+        else:
+            key = pid
         xcert_pem = self._settings_cache.get_xcert(             
                 key,                                 
                 self._current_root_func(),                       
@@ -1509,9 +1522,14 @@ class Gossip(object):
         return valid
 
     def check_xcert(self,xcert_pem,pid):
-        xcert = self._signer.context.load_x509_certificate(xcert_pem.encode('utf-8'))
-        LOGGER.debug(f"CHECK XCERT={xcert} peer={pid[:8]} ")
-        return self.is_xcert_valid(xcert,pid)
+        # startswith
+        if IS_DID(xcert_pem):
+            # 
+            return True
+        else:
+            xcert = self._signer.context.load_x509_certificate(xcert_pem.encode('utf-8'))
+            LOGGER.debug(f"CHECK XCERT={xcert} peer={pid[:8]} ")
+            return self.is_xcert_valid(xcert,pid)
 
     def get_topology_map(self):                          
         topo_map = self._settings_cache.get_setting(       

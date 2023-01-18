@@ -15,6 +15,10 @@
 
 import asyncio
 import re
+import os
+from subprocess import Popen,PIPE,STDOUT
+import io
+import time
 import logging
 import json
 import base64
@@ -124,6 +128,7 @@ class RouteHandler:
         self._connection = connection
         self._timeout = timeout
         if metrics_registry:
+            LOGGER.debug('USE  metrics_registry')
             self._post_batches_count = CounterWrapper(
                 metrics_registry.counter('post_batches_count'))
             self._post_batches_error = CounterWrapper(
@@ -162,7 +167,7 @@ class RouteHandler:
         """
         timer_ctx = self._post_batches_total_time.time()
         self._post_batches_count.inc()
-
+        LOGGER.debug('submit_batches..')
         # Parse request
         if request.headers['Content-Type'] != 'application/octet-stream':
             LOGGER.debug(
@@ -692,6 +697,51 @@ class RouteHandler:
             request,
             data=json.loads(topology),
             metadata=self._get_metadata(request, response))
+
+    async def fetch_dag_graph(self, request):                                   
+        """Fetches the dag graph from the validator.                            
+        Request:                                                               
+                                                                               
+        Response:                                                              
+            data: GV                                    
+            link: The link to this exact query                                 
+        """ 
+        format = request.url.query.get('format', '.gv')                                                                   
+        LOGGER.debug('Request fetch_dag_graph ')                               
+        response = await self._query_validator(                                
+            Message.CLIENT_GRAPH_GET_REQUEST,                               
+            client_heads_pb2.DagGraphGetResponse,                     
+            client_heads_pb2.DagGraphGetRequest(format=format))                    
+        #graph = base64.b64decode(response['graph'])                      
+        #LOGGER.debug('Request fetch_dag_graph=%s',graph)
+        LOGGER.debug(f'Request graph={format} DONE ')
+        if format == '.gv':
+            return web.Response(                 
+                status=200,                   
+                content_type='text', 
+                text=response['graph']
+            ) 
+        # convert responce in .gv format into asked format
+        bnm = time.time()
+        gv_fnm = f"/tmp/{bnm}.gv"
+        gv = open(gv_fnm, 'w')      
+        gv.write(response['graph']) 
+        gv.close()
+        #target_fnm = f"/tmp/{bnm}.{format}"
+        conv_cmd = f"dot -T{format} {gv_fnm} " #> {target_fnm}" 
+        LOGGER.debug(f'Convert graph {conv_cmd}')
+        target = io.BytesIO() #open(target_fnm, 'wb')
+        #cmd = ["ls","-l","/tmp/*.gv"]
+        cmd_dot = ["dot",f"-T{format}",gv_fnm]
+        with Popen(cmd_dot, stdout=PIPE) as proc:
+            target.write(proc.stdout.read())
+        #target.close()
+        os.remove(gv_fnm)
+        #ret = os.popen(conv_cmd,mode="w") 
+        LOGGER.debug(f'Convert graph DONE')
+        return web.Response(body=target.getvalue(), content_type=f'image/{format}')
+        #resp = web.FileResponse(target_fnm)  
+        #return resp          
 
 
     async def fetch_status(self, request):

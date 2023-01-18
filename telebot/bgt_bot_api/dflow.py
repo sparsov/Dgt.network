@@ -13,20 +13,36 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 import logging
-import dialogflow_v2 as dialogflow
+try:
+    import dialogflow_v2 as dialogflow
+    vers_old = True 
+except Exception as ex:
+    from google.cloud import dialogflow_v2 as dialogflow
+    vers_old = False
+
 LOGGER = logging.getLogger(__name__)
 
 class Dflow(object):
-    def __init__(self, project_id,session_id):
+    def __init__(self, project_id,session_id,lang="ru"):
+        self._lang = lang
+        #if vers_old:
         self.session_client = dialogflow.SessionsClient() 
         self.session = self.session_client.session_path(project_id, session_id)
+        #else:
+
+
         LOGGER.info('Session path:%s',self.session)
+        #self.detect_intent_text("Как дела",self._lang)
         
 
     def detect_intent_text(self,text,language_code):
-        text_input = dialogflow.types.TextInput(text=text, language_code=language_code)
-        query_input = dialogflow.types.QueryInput(text=text_input)
+        
+        
         try:
+            text_input = dialogflow.types.TextInput(text=text, language_code=language_code)       
+            query_input = dialogflow.types.QueryInput(text=text_input)                            
+
+            LOGGER.info('try detect query={query_input}')
             response = self.session_client.detect_intent(session=self.session, query_input=query_input)
             LOGGER.info('{} {}'.format('=' * 20,language_code))                                                                    
             LOGGER.info('Query text: %s',response.query_result.query_text)                   

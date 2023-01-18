@@ -52,9 +52,13 @@ RUN apt-get install -y -q \
     python3-cbor
 
 RUN pip3  install pytelegrambotapi
-RUN pip3 install dialogflow
+#RUN pip3 install dialogflow
+RUN pip3 install google-cloud-dialogflow
 RUN pip3 install pysocks
-
+RUN pip3 install hvac             
+RUN pip3 install "hvac[parser]"
+RUN pip3 install pysha3  
+				  
 RUN mkdir /var/log/dgt
 
 ENV PATH=$PATH:/project/$DGT_TOP/bin:/project/$DGT_TOP/bgx/bin

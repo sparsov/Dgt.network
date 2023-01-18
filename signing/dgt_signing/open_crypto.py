@@ -24,7 +24,7 @@ from dgt_signing.core import PrivateKey
 from dgt_signing.core import PublicKey
 from dgt_signing.core import Context
 from dgt_signing.core import (X509_COUNTRY_NAME,X509_STATE_OR_PROVINCE_NAME,X509_LOCALITY_NAME,X509_ORGANIZATION_NAME,
-                              X509_COMMON_NAME,X509_DNS_NAME, X509_EMAIL_ADDRESS,X509_PSEUDONYM, X509_USER_ID,X509_JURISDICTION_COUNTRY_NAME,X509_BUSINESS_CATEGORY
+                              X509_COMMON_NAME,X509_DNS_NAME, X509_EMAIL_ADDRESS,X509_PSEUDONYM, X509_USER_ID,X509_JURISDICTION_COUNTRY_NAME,X509_BUSINESS_CATEGORY,X509_SERIAL_NUMBER
                               )           
 
 from cryptography.hazmat.primitives import hashes
@@ -51,9 +51,10 @@ x509_attr_map = { X509_COUNTRY_NAME              : NameOID.COUNTRY_NAME,
                   X509_PSEUDONYM                 : NameOID.PSEUDONYM,
                   X509_USER_ID                   : NameOID.USER_ID,    
                   X509_JURISDICTION_COUNTRY_NAME : NameOID.JURISDICTION_COUNTRY_NAME,
-                  X509_BUSINESS_CATEGORY         : NameOID.BUSINESS_CATEGORY
-
+                  X509_BUSINESS_CATEGORY         : NameOID.BUSINESS_CATEGORY,
+                  X509_SERIAL_NUMBER             : NameOID.SERIAL_NUMBER
                   }
+
 
 
 
@@ -78,7 +79,7 @@ class OpenCryptoPrivateKey(PrivateKey):
             format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption()
             )
-        logging.info(f"OpenCryptoPrivateKey: priv={self._serialized_private} hex={self.as_hex()}")
+        #logging.info(f"OpenCryptoPrivateKey: priv={self._serialized_private} hex={self.as_hex()}")
     def get_algorithm_name(self):
         return self._ctx.algorithm
 
@@ -103,7 +104,7 @@ class OpenCryptoPublicKey(PublicKey):
             encoding=serialization.Encoding.DER,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
-        logging.info(f"OpenCryptoPublicKey: pub={self._serialized_public} hex={self.as_hex()}")
+        #logging.info(f"OpenCryptoPublicKey: pub={self._serialized_public} hex={self.as_hex()}")
     @property
     def public_key(self):
         return self._public_key
@@ -132,7 +133,7 @@ class OpenCryptoContext(Context):
         else:
             self._algorithm = "secp256k1"
             self._ctx  = ec.SECP256K1()
-        logging.info(f"OpenCryptoContext: CRYPTO_BACK={backend} algorithm={self._algorithm}")
+        #logging.info(f"OpenCryptoContext: CRYPTO_BACK={self._backend} algorithm={self._algorithm}")
 
     @property
     def algorithm(self):
@@ -175,7 +176,7 @@ class OpenCryptoContext(Context):
     def from_hex(self,hex_str):
         try:                                                                    
             serialized_private = binascii.unhexlify(hex_str) 
-            logging.info(f"OpenCryptoContext.from_hex: hex={hex_str} serialized={serialized_private}")
+            #logging.info(f"OpenCryptoContext.from_hex: hex={hex_str} serialized={serialized_private}")
             priv_key = load_der_private_key(serialized_private,None,backend= self._backend)                                 
             return OpenCryptoPrivateKey(self,priv_key)                                       
         except Exception as e:                                                  
@@ -200,6 +201,8 @@ class OpenCryptoContext(Context):
             if attr in x509_attr_map:
                 rattr = x509_attr_map[attr]
                 attribures.append(x509.NameAttribute(rattr,val))
+            else:
+                logging.info(f"create_x509_certificate: SKIP ATTR={attr}")
 
         subject = issuer = x509.Name(attribures)  
         tmnow = datetime.datetime.utcnow()
@@ -234,12 +237,12 @@ class OpenCryptoContext(Context):
         cert_pem = cert.public_bytes(serialization.Encoding.PEM)
 
         logging.info(f"create_x509_certificate: CERT={cert_pem}")
-        print(f"create_x509_certificate: CERT={cert_pem}")
+        #print(f"create_x509_certificate: CERT={cert_pem}")
         public_key = cert.public_key()                                            
         if isinstance(public_key, ec.EllipticCurvePublicKey):                   
             # Do something EC specific                                            
             logging.info(f"create_x509_certificate: KEY=EllipticCurvePublicKey") 
-            print("create_x509_certificate: KEY=EllipticCurvePublicKey") 
+            #print("create_x509_certificate: KEY=EllipticCurvePublicKey") 
         
         return cert_pem 
     
@@ -247,4 +250,45 @@ class OpenCryptoContext(Context):
         xcert = x509.load_pem_x509_certificate(cert_pem,backend= self._backend)
         #print(f"load_x509_certificate: SERIAL={xcert.serial_number} cert={xcert}")
         return xcert
+    def get_xcert_attributes(self,xcert,attr):
+        if attr in x509_attr_map:
+            oid = x509_attr_map[attr]
+            val = xcert.subject.get_attributes_for_oid(oid)
+            #print(f"aval={aval.value} oid={type(aval.value)}")
+            return val[0].value if val != [] else None
+        else:
+            return None
+    def xcert_to_dict(self,xcert,exclude=[]): 
+        cdict = {}                        
+        for attr in x509_attr_map: 
+            if attr in exclude:
+                continue
+            oid = x509_attr_map[attr]                                  
+            val = xcert.subject.get_attributes_for_oid(oid) 
+            cdict[attr] = val[0].value if val != [] else None         
+        return cdict
+                                                                       
 
+
+    def get_pub_key(self,xcert):
+        public_key = xcert.public_key()
+        return OpenCryptoPublicKey(self,public_key).as_hex()
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+                                              
+    
+    
+    
+    
+    
+    
+    
+    

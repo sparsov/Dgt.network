@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2019 NTRLab
+# Copyright 2019 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ TOP_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
 def main(args=None):
+    print('PROTOGEN ->')
     if args is None:
         args = sys.argv[1:]
 
@@ -65,6 +66,7 @@ def main(args=None):
     print('protogen FROM=',proto_dir)
     protoc(proto_dir, "families/settings", "dgt_settings/protobuf")
     protoc(proto_dir, "cli", "dgt_cli/protobuf")
+    protoc(proto_dir, "sdk/python", "dgt_sdk/protobuf")
     #protoc(proto_dir, "bgx/validator-bgx", "sawtooth_validator/protobuf")
     protoc(proto_dir, "consensus/dgt_pbft", "pbft_common/protobuf")
     
@@ -75,6 +77,8 @@ def main(args=None):
     #protoc(proto_dir, "families/identity", "sawtooth_identity/protobuf")
     #protoc(proto_dir, "cli", "sawtooth_cli/protobuf")
     protoc(proto_dir, "cli", "dgt_cli/protobuf")
+    protoc(proto_dir, "sdk/python", "dgt_sdk/protobuf")
+
     """
     # Generate block info protos
     proto_dir = JOIN(TOP_DIR, "families/block_info/protos")
@@ -92,6 +96,10 @@ def main(args=None):
     proto_dir = JOIN(TOP_DIR, "protos/families/x509_cert")            
     protoc(proto_dir, "families/x509_cert", "cert_common/protobuf")  
     protoc(proto_dir, "validator", "dgt_validator/protobuf")
+
+    # DEC DGT
+    proto_dir = JOIN(TOP_DIR, "protos/families/dec_dgt")          
+    protoc(proto_dir, "families/dec_dgt", "dec_common/protobuf") 
 
     print('protogen DONE !')
 

@@ -20,3 +20,8 @@ class XcertCliException(Exception):
 
 class XcertClientException(Exception):
     pass
+
+class XcertClientKeyfileException(Exception):  
+    pass                                
+class VaultNotReady(Exception):                                                            
+    pass

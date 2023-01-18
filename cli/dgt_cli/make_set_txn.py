@@ -22,11 +22,11 @@ import sys
 import random
 import time
 
-from dgt_cli.protobuf.settings_pb2 import SettingsPayload
-from dgt_cli.protobuf.settings_pb2 import SettingProposal
-from dgt_cli.protobuf.settings_pb2 import SettingVote
-from dgt_cli.protobuf.settings_pb2 import SettingCandidates
-from dgt_cli.protobuf.settings_pb2 import SettingTopology
+from dgt_sdk.protobuf.settings_pb2 import SettingsPayload
+from dgt_sdk.protobuf.settings_pb2 import SettingProposal
+from dgt_sdk.protobuf.settings_pb2 import SettingVote
+from dgt_sdk.protobuf.settings_pb2 import SettingCandidates
+from dgt_sdk.protobuf.settings_pb2 import SettingTopology
 #from dgt_cli.protobuf.setting_pb2 import Setting
 #from dgt_validator.protobuf.setting_pb2 import Setting
 

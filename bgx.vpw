@@ -10,10 +10,12 @@
 		<Project File="bgx-setting.vpj"/>
 		<Project File="bgx-validator.vpj"/>
 		<Project File="dashboard.vpj"/>
+		<Project File="dec.vpj"/>
 		<Project File="dgt-sdk.vpj"/>
 		<Project File="dgt_sign.vpj"/>
 		<Project File="../Lua/lua-secp.vpj"/>
 		<Project File="../../Projects/Hyperledger/Lua/lua-tp.vpj"/>
+		<Project File="notary-api.vpj"/>
 		<Project File="protos.vpj"/>
 		<Project File="smallbank-go.vpj"/>
 		<Project File="smart-stuff.vpj"/>

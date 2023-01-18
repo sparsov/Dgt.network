@@ -28,11 +28,11 @@ from dgt_cli.exceptions import CliException
 from dgt_cli.rest_client import RestClient
 from dgt_cli import tty
 
-from dgt_cli.protobuf.identities_pb2 import IdentityPayload
-from dgt_cli.protobuf.identity_pb2 import Policy
-from dgt_cli.protobuf.identity_pb2 import PolicyList
-from dgt_cli.protobuf.identity_pb2 import Role
-from dgt_cli.protobuf.identity_pb2 import RoleList
+from dgt_sdk.protobuf.identities_pb2 import IdentityPayload
+from dgt_sdk.protobuf.identity_pb2 import Policy
+from dgt_sdk.protobuf.identity_pb2 import PolicyList
+from dgt_sdk.protobuf.identity_pb2 import Role
+from dgt_sdk.protobuf.identity_pb2 import RoleList
 from dgt_validator.protobuf.transaction_pb2 import TransactionHeader,Transaction
 from dgt_validator.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
 #from dgt_cli.protobuf.transaction_pb2 import TransactionHeader,Transaction

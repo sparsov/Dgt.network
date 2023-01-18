@@ -25,11 +25,13 @@ from dgt_signing.core import PrivateKey
 from dgt_signing.core import PublicKey
 from dgt_signing.core import Context
 import logging
-
-__CONTEXTBASE__ = secp256k1.Base(ctx=None, flags=secp256k1.ALL_FLAGS)
-__CTX__ = __CONTEXTBASE__.ctx
-__PK__ = secp256k1.PublicKey(ctx=__CTX__)  # Cache object to use as factory
-
+try:
+    __CONTEXTBASE__ = secp256k1.Base(ctx=None, flags=secp256k1.ALL_FLAGS)
+    __CTX__ = __CONTEXTBASE__.ctx
+    __PK__ = secp256k1.PublicKey(ctx=__CTX__)  # Cache object to use as factory
+except Exception as ex:
+    __CTX__ = None
+    __PK__  = None
 
 class Secp256k1PrivateKey(PrivateKey):
     def __init__(self, secp256k1_private_key):

@@ -21,6 +21,7 @@ import base64
 import hashlib
 import random
 import time
+import os
 from datetime import datetime
 
 from aiohttp import web
@@ -80,11 +81,41 @@ from dgt_stuff.client_cli.stuff_client import _get_prefix as stuff_get_prefix
 from dgt_stuff.client_cli.stuff_client import _get_address as stuff_get_address
 from dgt_stuff.client_cli.stuff_client import _token_info as stuff_token_info
 
+# XCERT
+from cert_common.protobuf.x509_cert_pb2 import X509CertInfo
+from x509_cert.client_cli.xcert_client import _get_prefix as xcert_get_prefix
+from x509_cert.client_cli.xcert_client import _get_address as xcert_get_address
+from x509_cert.client_cli.xcert_client import FAMILY_VERSION as XCERT_FAMILY_VERSION 
+from x509_cert.client_cli.xcert_client import FAMILY_NAME as XCERT_FAMILY_NAME 
+
 import time
 LOGGER = logging.getLogger(__name__)
 
 TRANSACTION_FEE = 0.1
 STICKERS_ID = ['CAACAgIAAxkBAAIF9F6kUJ5Lw5OiQqid_RPttTSTvyImAAJKAAMNttIZMbmooT7Bxh4ZBA','CAACAgIAAxkBAAIG616lU-vcYirYCwwrLrKX73-uepyZAALCAQACVp29Cpl4SIBCOG2QGQQ','CAACAgIAAxkBAAIG7V6lVKbCn5BTkYWohNhS5Vj_R9KCAAIwAAMoD2oU-59-sQY3MgUZBA','CAACAgIAAxkBAAIG716lVPjDYPkfXtomRWoPLTBOYTjSAAIaAQACMNSdEfnuBojG8jcjGQQ']
+
+XCERT_PROTO = {
+    "COUNTRY_NAME"              : "CA",      
+    "STATE_OR_PROVINCE_NAME"    : "ONTARIO", 
+    "LOCALITY_NAME"             : "BARRIE", 
+    "ORGANIZATION_NAME"         : "YOUR ORGANIZATION NAME" ,
+    "COMMON_NAME"               : "NODE SAMPLE", 
+    "DNS_NAME"                  : "dgt.world", 
+    "EMAIL_ADDRESS"             : "adminmail@mail.com",
+    "PSEUDONYM"                 : "dgt00000000000000000",
+    "JURISDICTION_COUNTRY_NAME" : "CA",
+    "BUSINESS_CATEGORY"         : "YOUR BUSINESS CATEGORY",
+    "USER_ID"                   : "000000000000000001"
+}
+DID_ATTR = 'did'
+UID_ATTR = 'uid'
+CID_ATTR = 'chat_id'
+UFN_ATTR = 'user_first_name'
+OPR_ATTR = 'oper'
+EMAIL_ATTR = 'email'
+ADDRESS_ATTR = 'address'
+XCERT_ATTR = 'xcert'
+COUNTRY_ATTR = 'country'
 
 def _sha512(data):
     return hashlib.sha512(data).hexdigest()
@@ -123,17 +154,96 @@ class BgxTeleBot(Tbot):
             cancel a request and report that the validator is unavailable.
     """
 
-    def __init__(self,loop, connection,tdb,token=None,project_id=None,session_id=None,proxy=None,connects=None):
+    def __init__(self,loop, connection,tdb,token=None,project_id=None,session_id=None,proxy=None,connects=None,vault=None,conf=None):
 
         super().__init__(loop,connection,tdb,token,project_id,session_id,proxy,connects)
         # DGT init
         
-        self._context = create_context('secp256k1') 
-        self._private_key = self._context.new_random()
-        self._public_key = self._context.get_public_key(self._private_key)
-        self._crypto_factory = CryptoFactory(self._context)
-        self._signer = self._crypto_factory.new_signer(self._private_key)
-        LOGGER.debug('DgtTeleBot: _signer PUBLIC_KEY=%s',self._public_key.as_hex()[:8])
+        self._vault = vault
+
+        home_dir = os.environ['PEER_HOME'] if 'PEER_HOME' in os.environ else "/project/peer"
+        kdir = f'{home_dir}/keys'
+        self._signer = self._load_identity_signer(kdir,'notary') 
+        self._user_notary = conf.user_notary
+        self._approve_q = {}
+        LOGGER.debug(f'DgtTeleBot: from={kdir} _signer PUBLIC_KEY={self._public_key.as_hex()[:8]} NOTARY={self._user_notary}')
+        #self.make_xcert(XCERT_PROTO,{})
+
+    def _load_identity_signer(self,key_dir, key_name):                                                                
+        """Loads a private key from the key directory, based on a validator's                                    
+        identity.                                                                                                
+                                                                                                                 
+        Args:                                                                                                    
+            key_dir (str): The path to the key directory.                                                        
+            key_name (str): The name of the key to load.                                                         
+                                                                                                                 
+        Returns:                                                                                                 
+            Signer: the cryptographic signer for the key                                                         
+        """                                                                                                      
+        key_path = os.path.join(key_dir, '{}.priv'.format(key_name))                                             
+                                                                                                                 
+        if not os.path.exists(key_path):                                                                         
+            raise Exception("No such signing key file: {}".format(key_path))                                     
+        if not os.access(key_path, os.R_OK):                                                                     
+            raise Exception(                                                                                     
+                "Key file is not readable: {}".format(key_path))                                                 
+                                                                                                                 
+        LOGGER.info('Loading signing key: %s', key_path)                                                         
+        try:                                                                                                     
+            with open(key_path, 'r') as key_file:                                                                
+                private_key_str = key_file.read().strip()                                                        
+        except IOError as e:                                                                                     
+            raise Exception(                                                                                     
+                "Could not load key file: {}".format(str(e)))                                                    
+                                                                                                                 
+        context = create_context('secp256k1')                                                            
+        try:                                                                                                     
+            private_key = context.from_hex(private_key_str)                                                      
+        except signing.ParseError as e:                                                                          
+            raise Exception(                                                                                     
+                "Invalid key in file {}: {}".format(key_path, str(e)))  
+                                                 
+        self._private_key = private_key                      
+        self._public_key = context.get_public_key(self._private_key)
+        self._context =  context                                                                                                        
+        crypto_factory = CryptoFactory(context)                                                                  
+        return crypto_factory.new_signer(private_key)                                                            
+
+    def get_user_did(self,uid):
+        did = f"did:notary:{self._public_key.as_hex()[:8]}:{uid}"
+        return did
+
+    def make_xcert_prof(self,proto_xcert,info):
+        proto = proto_xcert.copy()     
+        if EMAIL_ATTR in info:                                
+            proto["EMAIL_ADDRESS"] = info[EMAIL_ATTR]         
+        if DID_ATTR in info:                                  
+            proto["USER_ID"] = str(info[DID_ATTR])            
+                                                              
+        if ADDRESS_ATTR  in info:                             
+            proto["LOCALITY_NAME"] = info[ADDRESS_ATTR]       
+        if COUNTRY_ATTR in info:                              
+            proto["COUNTRY_NAME"] = info[COUNTRY_ATTR]        
+        return proto
+
+
+
+    def make_xcert(self,proto,info,after=10,before=0):
+
+        proto = self.make_xcert_prof(proto,info)
+        cert = self._signer.context.create_x509_certificate(proto,self._signer.private_key,after=after,before=before)        
+        pubkey = self._signer.get_public_key().as_hex() 
+        token = X509CertInfo(                      
+                         owner_key = pubkey,        
+                         xcert = cert             
+            )                                      
+        ser_cert = token.SerializeToString().hex() 
+
+        info[XCERT_ATTR] = cert.hex()                                      
+        LOGGER.info(f'XCERT {cert} PUB={pubkey}') 
+        return cert,pubkey
+
+
 
     def _create_batch(self, transactions):
         """
@@ -244,9 +354,11 @@ class BgxTeleBot(Tbot):
             client_batch_submit_pb2.ClientBatchSubmitResponse,
             validator_query,
             error_traps)
-        if minfo and ('status' in resp) and resp['status'] == 'OK':
+        if minfo and resp is not None and ('status' in resp) and resp['status'] == 'OK':
             LOGGER.debug('make_bgt_transaction: check result')
             self.intent_handler(minfo._replace(batch_id=batch_id))
+        else:
+            return None
         LOGGER.debug('make_bgt_transaction: done=%s',resp)
         return batch_id
 
@@ -461,9 +573,11 @@ class BgxTeleBot(Tbot):
             client_batch_submit_pb2.ClientBatchSubmitResponse,
             validator_query,
             error_traps)
-        if minfo and ('status' in resp) and resp['status'] == 'OK':
+        if minfo and resp is not None and ('status' in resp) and resp['status'] == 'OK':
             LOGGER.debug('make_stuff_transaction: check result')
             self.intent_handler(minfo._replace(batch_id=batch_id))
+        else:
+            return None
         LOGGER.debug('make_stuff_transaction: done=%s',resp)
         return batch_id
 
@@ -651,8 +765,11 @@ class BgxTeleBot(Tbot):
         LOGGER.debug('DgtTeleBot: create stuff args=%s',args)
         if 'number' in args:
             new_stuff = user_stuff_name(args['number'])
-            await self.make_stuff_transaction('set',new_stuff,{'weight':100,'carbon':3,'type':'stuff','param1':'undef','param2':'undef','param3':'undef'},minfo=minfo)
-            self.send_message(minfo.chat_id, 'Создаю описание детали {} от имени {}.'.format(new_stuff,minfo.user_first_name))
+            bid = await self.make_stuff_transaction('set',new_stuff,{'weight':100,'carbon':3,'type':'stuff','param1':'undef','param2':'undef','param3':'undef'},minfo=minfo)
+            if bid is None:
+                self.send_message(minfo.chat_id, f'Не смог выполнить запрос создания детали {new_stuff}.')
+            else:
+                self.send_message(minfo.chat_id, f'Создаю описание детали {new_stuff} от имени {minfo.user_first_name}.')
             
         #else:
             #self.send_message(minfo.chat_id, "Однако, номер детали не определен.")
@@ -748,6 +865,164 @@ class BgxTeleBot(Tbot):
             self.send_message(minfo.chat_id,repl)                                                                                                                                                                      
         except Exception as ex:                                                                                                                                                                                        
             LOGGER.debug('DgtTeleBot: cant list stuff(%s)',ex) 
+
+
+    async def make_xcert_transaction(self,verb, name, value=None,minfo=None):                                            
+        """                                                                                                              
+        make xcert transaction                                                                                             
+        """                                                                                                              
+        val = {                                                                                             
+            'Verb': verb,     #  'set' 'upd'                                                                             
+            'Owner': name,                                                                                  
+            'Value': value,                                                                                 
+        }                                                                                                   
+        payload = cbor.dumps(val)                                                                                        
+                                                                                                                         
+        # Construct the address                                                                                          
+        address = xcert_get_address(name)    # pubkey                                                                             
+        inputs = [address]                                                                                               
+        outputs = [address]                                                                                              
+                                                                                                                         
+        transaction = self._create_transaction(payload,inputs,outputs,family=XCERT_FAMILY_NAME,ver=XCERT_FAMILY_VERSION) 
+        batch = self._create_batch([transaction])                                                                        
+        batch_id = batch.header_signature #batch_list.batches[0].header_signature                                        
+
+        # Query validator                                                                                     
+        error_traps = [error_handlers.BatchInvalidTrap,error_handlers.BatchQueueFullTrap]                     
+        validator_query = client_batch_submit_pb2.ClientBatchSubmitRequest(batches=[batch])                   
+        LOGGER.debug('make_xcert_transaction:  send batch_id=%s',batch_id)                
+                                                                                                              
+        #with self._post_batches_validator_time.time():                                                       
+        resp = await self._query_validator(                                                                   
+            Message.CLIENT_BATCH_SUBMIT_REQUEST,                                                              
+            client_batch_submit_pb2.ClientBatchSubmitResponse,                                                
+            validator_query,                                                                                  
+            error_traps)                                                                                      
+        if minfo and resp is not None and ('status' in resp) and resp['status'] == 'OK':                      
+            LOGGER.debug('make_xcert_transaction: check result')                                              
+            
+        else:                                                                                                 
+            return None                                                                                       
+
+
+
+
+    def intent_create_xcert(self,minfo):                                                                                                                                        
+        """                                                                                                                                                                           
+        Get or create xcert for user who send this message                                                                                                                            
+        """   
+        self.create_xcert(minfo,force=False)    
+                                                                                                                                                                            
+    def intent_update_xcert(self,minfo):                        
+        """                                                           
+        Get or update xcert for user who send this message            
+        """                                                           
+        self.create_xcert(minfo,force=True)                     
+
+
+    def create_xcert(self,minfo,force=False):                                                                                                          
+        """                                                                                                                                             
+        Get or create/update xcert for user who send this message                                                                                                                            
+        """                                                                                                                                                                           
+        LOGGER.debug(f'DgtTeleBot: create/update xcert FOR={minfo}')                                                                                                                         
+        if minfo.batch_id:                                                                                                                                                            
+            LOGGER.debug('DgtTeleBot: CHECK=%s CREATE/UPDATE xcert',minfo.batch_id)                                                                                                          
+            #batch = await self.check_batch_status(minfo.batch_id,minfo)                                                                                                               
+            return                                                                                                                                                                    
+        args = self.get_args_from_request(minfo.result.parameters) if minfo.result else {EMAIL_ATTR : f"{minfo.user_first_name}@mail.ru"}                                                              
+        LOGGER.debug(f'DgtTeleBot: char={minfo.chat_id} notary={self._user_notary} create xcert args={args}')                                                                                                                         
+        if EMAIL_ATTR in args and ADDRESS_ATTR in args : # and COUNTRY_ATTR in args:                                                                                 
+            email = args[EMAIL_ATTR]                                                                                                                       
+            if self._vault is not None:      
+                did = self.get_user_did(minfo.user_id)                                                                                                           
+                 
+                try:
+                    data = self._vault.get_xcert(uid=minfo.user_id)
+                    if data and not force :    
+                        if XCERT_ATTR in data['data']:       
+                            del data['data'][XCERT_ATTR] 
+                                                                                                                                               
+                        self.send_message(minfo.chat_id, f'Сертификат существует KYC={did} XCERT={data} ')                                        
+                        return                                                                                                                              
+                    else:                                                                                                                                   
+                        # create cert  
+                        #self.send_message(minfo.chat_id, f'СUFN_ATTRертификат не существует')
+                        args[DID_ATTR] = did
+                        args[UID_ATTR] = minfo.user_id
+                        args[CID_ATTR] = minfo.chat_id
+                        args[UFN_ATTR] = minfo.user_first_name
+                        args[OPR_ATTR] = 'set' if not force else 'upd'
+                        #cert,_ = self.make_xcert(XCERT_PROTO,args)  
+                        if self._user_notary is not None:
+                            # ask real notary about this cert 
+                            self.send_message(minfo.chat_id, f'Требуется проверка сертификата для {minfo.user_first_name} uid={minfo.user_id} info={args}.') 
+                            self._approve_q[minfo.user_id] = args.copy()
+                        else: 
+                            # do it right now
+                            #cert,_ = self.make_xcert(XCERT_PROTO,args)
+                            proto = self.make_xcert_prof(XCERT_PROTO,args)
+                            kyc = self._vault.create_xcert(proto,uid=minfo.user_id)                                                                              
+                            if kyc is not None:                                                                                                                 
+                                self.send_message(minfo.chat_id, f'Успешно {"изменен" if data else "создан"} сертификат доступа для {minfo.user_first_name} KYC={kyc}.')  
+                                #await self.make_xcert_transaction('crt',str(minfo.user_id),cert,minfo)                 
+                            else:                                                                                                                               
+                                self.send_message(minfo.chat_id, f'Не смог выполнить запрос создания сертификата для {minfo.user_first_name}.')  
+                except errors.VaultNotReady  :
+                    self.send_message(minfo.chat_id, f'Нет доступа к хранилищу секретов.')
+                                                                                                                                                        
+            else:                                                                                                                                       
+                self.send_message(minfo.chat_id, f'Нет доступа к BD секретов')                                                                                  
+                return                                                                                                                                      
+
+    def intent_show_xcert(self,minfo):                                                                                                                          
+        """                                                                                                                                                             
+        Get or show xcert for user who send this message                                                                                                              
+        """                                                                                                                                                             
+        LOGGER.debug(f'DgtTeleBot: show xcert FOR={minfo}')                                                                                                           
+        if self._vault is not None:   
+            try:
+                data = self._vault.get_xcert(uid=minfo.user_id)                                                                                                         
+                if data :  
+                    kyc = data['data'][DID_ATTR] if DID_ATTR in data['data'] else minfo.user_id   
+                    if XCERT_ATTR in data['data']:
+                        del data['data'][XCERT_ATTR]
+                    self.send_message(minfo.chat_id, f'Ваш сертификат KYC={kyc} XCERT={data} ')                                                                            
+                else:                                                                                                                                                   
+                    # create cert
+                    self.send_message(minfo.chat_id, f'Ваш сертификат еще не существует') 
+            except errors.VaultNotReady  :                                              
+                self.send_message(minfo.chat_id, f'Нет доступа к хранилищу секретов.')  
+
+
+        else:
+            self.send_message(minfo.chat_id, f'Нет доступа к хранилищу секретов.') 
+                
+    def intent_approve_xcert(self,minfo):
+        args = self.get_args_from_request(minfo.result.parameters) if minfo.result else {}       
+        LOGGER.debug(f'DgtTeleBot: approve xcert args={args} {self._approve_q}')                                                                                   
+                                                                                                                                                
+        if UID_ATTR in args: 
+            uid = int(args[UID_ATTR])                                                            
+            
+            if uid in self._approve_q:
+                req = self._approve_q.pop(uid)
+                chat_id = req[CID_ATTR]
+                user_first_name = req[UFN_ATTR]
+                self.send_message(chat_id, f'{user_first_name} Ваш запрос на сертификат одобрен')
+
+                oper = req[OPR_ATTR]
+                did = req[DID_ATTR]
+                #cert,_ = self.make_xcert(XCERT_PROTO,req)
+                proto = self.make_xcert_prof(XCERT_PROTO,req)                                                                                                           
+                kyc = self._vault.create_xcert(proto,uid=req[UID_ATTR])                                                                                               
+                if kyc is not None:                                                                                                                                  
+                    self.send_message(chat_id, f'Успешно создан сертификат доступа для {user_first_name} KYC={kyc}.')         
+                    #await self.make_xcert_transaction(oper,str(did),cert)                                                             
+                else:                                                                                                                                                
+                    self.send_message(chat_id, f'Не смог выполнить запрос создания сертификата для {user_first_name}.') 
+            else:
+                self.send_message(minfo.chat_id, f'Отсутствует запрос  сертификата от={uid}')
+
 
     async def _get_topology(self,minfo):
         """Fetches the topology from the validator.
@@ -960,13 +1235,13 @@ class BgxTeleBot(Tbot):
             data = self._drop_id_prefixes(
                 self._drop_empty_props(response['batch_statuses']))
 
-            LOGGER.debug('CLIENT_BATCH_STATUS_REQUEST:metadata:%s', metadata)
-            LOGGER.debug('CLIENT_BATCH_STATUS_REQUEST:data:%s', data)
+            LOGGER.debug(f'CLIENT_BATCH_STATUS_REQUEST:metadata:{metadata} data={data}')
+            
             batch = data[0]
             if batch['status'] != pending_status:
                 status = batch['status']
                 break
-            time.sleep(5)
+            time.sleep(2)
 
 
         # Build response envelope
@@ -1048,7 +1323,7 @@ class BgxTeleBot(Tbot):
         """
         get wallet balance
         """
-        address = request.match_info.get('address', '')
+        address = request.match_info.get(ADDRESS_ATTR, '')
         LOGGER.debug('DgtRouteHandler: get_wallet address=%s type=%s',address,type(address))
         address =  _base64url2public(address)
 

@@ -29,6 +29,9 @@ services:
     environment:
     - DGT_HOME=/project/peer
     - DGT_TOP=${DGT_TOP}
+    - CRYPTO_BACK=${CRYPTO_BACK}
+    - VAULT_TOKEN=${VAULT_TOKEN}
+    - VAULT_URL=${VAULT_URL}
     volumes:
       - ..:/project/${DGT_TOP}
       - ../../dgt_clust/c1/dgt1:/project/peer
@@ -46,7 +49,7 @@ services:
         cd telebot
         python3 setup.py clean --all
         python3 setup.py build
-        dgt-telebot -vv  --connect tcp://validator-dgt-c1-1:4104 tcp://validator-dgt-c2-1:4204 
+        dgt-telebot -vv  --connect tcp://validator-dgt-c1-1:4104 tcp://validator-dgt-c2-1:4204 --vault-token ${VAULT_TOKEN} --vault-url ${VAULT_URL} --vault-on
       "
     stop_signal: SIGKILL
 

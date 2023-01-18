@@ -4,9 +4,9 @@ services:
   influxdb:
     build:
       context: ./
-      dockerfile: bgx/docker/grafana/bgx-stats-influxdb
+      dockerfile: docker/grafana/dgt-stats-influxdb
     image: influxdb
-    container_name: bgx-stats-influxdb
+    container_name: stats-influxdb-dgt
     networks:
     - network1
     ports:
@@ -20,17 +20,17 @@ services:
   grafana:
     build:
       context: ./
-      dockerfile: bgx/docker/grafana/bgx-stats-grafana
-    image: bgx-stats-grafana
-    container_name: bgx-stats-grafana
+      dockerfile: docker/grafana/dgt-stats-grafana
+    image: stats-grafana-dgt
+    container_name: stats-grafana-dgt
     networks:
     - network1
     ports:
       - 3000:3000
     user : "1000"
     volumes:
-      - ./bgx/grafana:/var/lib/grafana
-      - ./bgx/etc/grafana:/etc/grafana
+#      - /var/lib/grafana:/var/lib/grafana
+      - ./etc/grafana:/etc/grafana
     depends_on:
       - influxdb
     command: |
@@ -42,5 +42,5 @@ services:
 
 networks:
   network1:
-     name: bgx1-network
+     name: dgt1-network
 

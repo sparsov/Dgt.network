@@ -6,4 +6,4 @@ docker run -d -p 8086:8086 \
     -e INFLUXDB_ADMIN_PASSWORD="pwadmin" \
     -e INFLUXDB_USER="lrdata" \
     -e INFLUXDB_USER_PASSWORD="pwlrdata" \
-    --name bgx-stats-influxdb influxdb
+    --name stats-influxdb-dgt influxdb

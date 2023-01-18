@@ -119,6 +119,7 @@
             <F N="protos/common/identity.proto"/>
             <F N="protos/common/merkle.proto"/>
             <F N="protos/common/network.proto"/>
+            <F N="protos/common/notary.proto"/>
             <F N="protos/common/pbft_consensus.proto"/>
             <F N="protos/common/processor.proto"/>
             <F N="protos/common/setting.proto"/>

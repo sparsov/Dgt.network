@@ -139,6 +139,7 @@ def start_rest_api(host, port, connection, timeout, registry,
     # ADD DGT handlers
     app.router.add_get('/dag', handler.list_dag)
     app.router.add_get('/dag/{head_id}', handler.fetch_dag)
+    app.router.add_get('/graph', handler.fetch_dag_graph)
     app.router.add_get('/topology', handler.fetch_topology)
     #ADD TP FAMILY handlers
     app.router.add_get('/tx_families', handler.tx_families)                           
@@ -255,7 +256,7 @@ def main():
                 registry=registry,
                 reporting_interval=10,
                 database=rest_api_config.opentsdb_db,
-                prefix="bgx_rest_api",
+                prefix="dgt_rest_api",
                 port=db_port,
                 protocol=proto,
                 server=db_server,
