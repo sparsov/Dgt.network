@@ -514,6 +514,23 @@ class DecClient:
         else:                                                                                       
             print('Set  passkey argument')                                           
 
+    def tips(self,args,wait=None):
+        tips = self.get_tips(args.name,args.cmd,args.did)       
+        info = {DEC_TIPS_OP: tips}                                                                                   
+        return info  
+                                                                                   
+    def get_tips(self,tname,cmd,did):                                                         
+        token = self.get_object(DEC_EMISSION_GRP,did,ANY_EMISSION_KEY.format(tname))
+        tips = 0.0  
+        if token.group_code == tname :                                                     
+            dec = cbor.loads(token.dec)                                                        
+            if DEC_TIPS_OP in dec:                                                             
+                val = dec[DEC_TIPS_OP][DATTR_VAL]                                              
+                if cmd in val:
+                    tips = val[cmd]                  
+            
+        return tips                                                                            
+
 
     #                            
     # emission cmd parts End
@@ -722,7 +739,7 @@ class DecClient:
             if key not in TARGET_VISIBLE_ATTR:
                 target[key] = key_to_dgt_addr(val,pref="")
         if args.invoice > 0:                                                                 
-            target[DEC_INVOICE_OP] = {DEC_CUSTOMER_KEY : None,DEC_TARGET_PRICE :args.price} 
+            target[DEC_INVOICE_OP] = {DEC_CUSTOMER_KEY : None, DEC_TARGET_PRICE :args.price} 
         return target
 
     def target_info(self,args,signer=None):
@@ -733,9 +750,11 @@ class DecClient:
         
         info[DEC_TARGET_OP] = target                        
         #info[DEC_EMITTER] = signer.get_public_key().as_hex()              
-        info[DEC_TMSTAMP] = tcurr  
+        info[DEC_TMSTAMP] = tcurr 
+        info[DEC_TIPS_OP] = args.tips 
         taddr = target[DEC_TARGET_ADDR] 
-        
+ 
+
         if args.did:                                                            
             # refer to DID owner  
             info[DEC_DID_VAL] = args.did  
@@ -745,15 +764,22 @@ class DecClient:
         opts = {
                  DEC_CMD_OPTS   : info,
                  DEC_TRANS_OPTS : { DEC_CMD    : DEC_TARGET_OP,
-                                    DEC_CMD_ARG: (taddr,DEC_TARGET_GRP,args.did)
+                                    DEC_CMD_ARG: (taddr,DEC_TARGET_GRP,args.did),
+                                    DEC_CMD_DIN : [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)]
                                   }
-                }                                      
+                } 
+        
+        if args.tips > 0.0:                                   
+            opts[DEC_TRANS_OPTS][DEC_CMD_TO] = [(target[DEC_OWNER],DEC_WALLET_GRP,args.did)]
+                                             
         return opts
 
     def target(self,args,wait=5):
           
         info = self.target_info(args) 
-        if  args.check > 0:            
+        if  args.check > 0: 
+            tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)  
+            info[DEC_CMD_OPTS][DEC_TIPS_OP] = tips         
             return info[DEC_CMD_OPTS]  
 
         topts = info[DEC_TRANS_OPTS] 
@@ -1018,6 +1044,7 @@ class DecClient:
                 address_to = self._get_full_addr(tval[0],tval[1],tval[2]) if isinstance(tval,tuple) else self._get_address(tval)
                 inputs.append(address_to)                                                                                                             
                 outputs.append(address_to) 
+                print("TO",tval[0],address_to)
         dinputs = []                                                                                                            
         if din is not None:                                                                                                                       
             for ain in (din if isinstance(din,list) else [din]):                                                                                                                   

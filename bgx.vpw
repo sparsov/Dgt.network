@@ -1,24 +1,24 @@
 <!DOCTYPE Workspace SYSTEM "http://www.slickedit.com/dtd/vse/10.0/vpw.dtd">
-<Workspace Version="10.0" VendorName="SlickEdit">
-	<Projects>
-		<Project File="bgt-telebot.vpj"/>
-		<Project File="bgt-tp.vpj"/>
-		<Project File="bgx-api.vpj"/>
-		<Project File="bgx-cli.vpj"/>
-		<Project File="bgx-docker.vpj"/>
-		<Project File="bgx-pbft.vpj"/>
-		<Project File="bgx-setting.vpj"/>
-		<Project File="bgx-validator.vpj"/>
-		<Project File="dashboard.vpj"/>
-		<Project File="dec.vpj"/>
-		<Project File="dgt-sdk.vpj"/>
-		<Project File="dgt_sign.vpj"/>
-		<Project File="../Lua/lua-secp.vpj"/>
-		<Project File="../../Projects/Hyperledger/Lua/lua-tp.vpj"/>
-		<Project File="notary-api.vpj"/>
-		<Project File="protos.vpj"/>
-		<Project File="smallbank-go.vpj"/>
-		<Project File="smart-stuff.vpj"/>
-		<Project File="xcert.vpj"/>
-	</Projects>
+<Workspace Version="10.0" VendorName="SlickEdit" VCSProject="Git:">
+    <Projects>
+        <Project File="bgt-telebot.vpj"/>
+        <Project File="bgt-tp.vpj"/>
+        <Project File="bgx-api.vpj"/>
+        <Project File="bgx-cli.vpj"/>
+        <Project File="bgx-docker.vpj"/>
+        <Project File="bgx-pbft.vpj"/>
+        <Project File="bgx-setting.vpj"/>
+        <Project File="bgx-validator.vpj"/>
+        <Project File="dashboard.vpj"/>
+        <Project File="dec.vpj"/>
+        <Project File="dgt-sdk.vpj"/>
+        <Project File="dgt_sign.vpj"/>
+        <Project File="../Lua/lua-secp.vpj"/>
+        <Project File="../../Projects/Hyperledger/Lua/lua-tp.vpj"/>
+        <Project File="notary-api.vpj"/>
+        <Project File="protos.vpj"/>
+        <Project File="smallbank-go.vpj"/>
+        <Project File="smart-stuff.vpj"/>
+        <Project File="xcert.vpj"/>
+    </Projects>
 </Workspace>
