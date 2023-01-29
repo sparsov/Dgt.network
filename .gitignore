@@ -185,3 +185,4 @@ sawtooth/rest_api/sawtooth_rest_api/protobuf/
 sdk/python/dgt_sdk/protobuf/
 notary-api/dgt_notary_api/__pycache__/
 families/settings/dgt_settings/protobuf/
+families/dec_dgt/dec_common/
