@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+
+# Copyright 2016 DGT NETWORK INC © Stanislav Parsov
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ------------------------------------------------------------------------------
+
+import os
+import sys
+import sysconfig
+
+build_str = "lib.{}-{}.{}".format(
+    sysconfig.get_platform(),
+    sys.version_info.major, sys.version_info.minor)
+TOP_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
+
+sys.path.insert(0, os.path.join(TOP_DIR,'families', 'bgt_python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
+
+from dgt_bgt.client_cli.bgt_cli import main_wrapper
+
+
+from dgt_signing import create_context
+from dgt_signing import CryptoFactory
+from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader
+from dgt_sdk.protobuf.transaction_pb2 import Transaction
+from dgt_sdk.protobuf.transaction_pb2 import TransactionList
+from dgt_sdk.protobuf.batch_pb2 import BatchList
+from dgt_sdk.protobuf.batch_pb2 import BatchHeader
+from dgt_sdk.protobuf.batch_pb2 import Batch
+import cbor
+from hashlib import sha512
+import random
+import time
+import requests
+
+
+IP = '127.0.0.1' 
+IP_ = 'api-dgt-c1-1'
+url = f'{IP}:8108'
+
+def _sha512(data):
+    return sha512(data).hexdigest()
+
+
+def get_prefix():
+    return _sha512('bgt'.encode('utf-8'))[0:6]
+
+def get_address(name):
+    prefix = get_prefix()
+    game_address = _sha512(name.encode('utf-8'))[64:]
+    return prefix + game_address
+
+def send_request(suffix, data=None, content_type=None, name=None):
+  url = f'{IP}:8108'
+  if url.startswith("http://"):
+      url = "{}/{}".format(url, suffix)
+  else:
+      url = "http://{}/{}".format(url, suffix)
+
+  headers = {}
+  print(url)
+  if content_type is not None:
+      headers['Content-Type'] = content_type
+
+  if data is not None:
+      result = requests.post(url, headers=headers, data=data)
+      
+
+  return result.text
+
+
+#Creating a Pivate Key and Signer
+context=create_context('secp256k1',backend='openssl')
+PK=context.new_random_private_key()
+signer=CryptoFactory(context).new_signer(PK)
+
+#Creating the Payload, has to be Name then Value and then Verb
+payload = {
+          'Name': "MISHARKWALLET",
+          'Value': 10,
+          'Verb': 'inc'
+      }
+payload_bytes = cbor.dumps(payload);
+
+#Transaction Header
+address=get_address("MISHARKWALLET");
+transaction_header_bytes=TransactionHeader(
+    batcher_public_key =signer.get_public_key().as_hex(), #We are both the batcher and the signer
+    dependencies=[],
+    family_name="bgt",
+    family_version="1.0",
+    inputs=[address],
+    nonce=hex(random.randint(0, 2**64)),
+    outputs=[address],
+    payload_sha512=_sha512(payload_bytes),
+    signer_public_key= signer.get_public_key().as_hex()
+    ).SerializeToString()
+
+signature = signer.sign(transaction_header_bytes)
+# Transaction 
+txn=Transaction(
+    header=transaction_header_bytes,
+    payload=payload_bytes,
+    header_signature=signature
+)
+
+#Batch
+txns=[txn]
+batch_header_bytes=BatchHeader(
+    signer_public_key=signer.get_public_key().as_hex(),
+    transaction_ids=[txn.header_signature for txn in txns]
+).SerializeToString()
+
+
+batch_signature = signer.sign(batch_header_bytes)
+
+batch = Batch(
+    header=batch_header_bytes,
+    header_signature=batch_signature,
+    transactions=txns,
+    timestamp=int(time.time())
+)
+batch_list_bytes = BatchList(batches=[batch]).SerializeToString()
+
+send_request(
+            "batches", batch_list_bytes,
+            'application/octet-stream',
+        ) 
+
+

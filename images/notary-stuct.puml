@@ -1,0 +1,42 @@
+@startuml
+!theme vibrant
+rectangle "Нотариусы" <<Описание>> {
+usecase "Нотариусы" as Notary1
+
+
+frame Foo1 {
+cloud Foo2
+}
+note left of Foo1 #aqua
+This is displayed
+left of Alice.
+end note
+Foo1-->Foo5
+Foo3-->Foo7
+
+cloud Foo3 {
+frame Foo4 {
+[Frame 4]
+cloud Foo22{
+[Frame 41]
+
+}
+}
+}
+database Foo5 {
+storage Foo6
+}
+storage Foo7 {
+rectangle Rec1 as "прямоуг" {
+}
+storage Foo8
+
+}
+Rec1-->Foo8
+Foo5-->Foo7
+frame frame1 as "Fra" {
+file file8
+}
+
+}
+@enduml
