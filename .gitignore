@@ -187,3 +187,7 @@ notary-api/dgt_notary_api/__pycache__/
 families/settings/dgt_settings/protobuf/
 families/dec_dgt/dec_common/
 cli/dgt_cli/protobuf/
+bgx/cli/bgx_cli/protobuf/
+bgx/families/settings/dgt_settings/protobuf/
+bgx/families/settings/bgx_settings/protobuf/
+bgx/sdk/python/dgt_sdk/protobuf/
