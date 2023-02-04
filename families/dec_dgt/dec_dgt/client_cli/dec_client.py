@@ -23,7 +23,7 @@ import cbor
 import json
 
 from dgt_signing import create_context
-from dgt_signing import CryptoFactory,key_to_dgt_addr
+from dgt_signing import CryptoFactory,key_to_dgt_addr,DGT_ADDR_PREF
 from dgt_signing import ParseError
 from dgt_signing import test_eth_list
 from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader
@@ -131,6 +131,9 @@ class DecClient:
             print('Unable to load private key: {} use param is key'.format(str(e)))
             return vkey  
 
+    def key_to_addr(self,vkey):
+        pub_key = self.get_pub_key(vkey)
+        return pub_key if pub_key.startswith(DGT_ADDR_PREF) else key_to_dgt_addr(pub_key) 
 
     def get_random_addr(self):
         priv_key = self._context.new_random_private_key()
@@ -510,10 +513,10 @@ class DecClient:
             info[DATTR_VAL]   = args.value                                       
             print('PROTO',info) 
             to =  (ANY_EMISSION_KEY.format(args.name),DEC_EMISSION_GRP,DEFAULT_DID)
-            pubkey = self.get_pub_key(args.pubkey)
+            waddr = self.key_to_addr(args.pubkey)
             info[DEC_EMITTER] = self._signer.get_public_key().as_hex() 
             info[DEC_TMSTAMP] = time.time()                                                                   
-            return self._send_transaction(DEC_FAUCET_OP, (key_to_dgt_addr(pubkey),DEC_WALLET_GRP,DEFAULT_DID), info, to=to, wait=wait if wait else TRANS_TOUT)  
+            return self._send_transaction(DEC_FAUCET_OP, (waddr,DEC_WALLET_GRP,DEFAULT_DID), info, to=to, wait=wait if wait else TRANS_TOUT)  
         else:                                                                                       
             print('Set  passkey argument')                                           
 
@@ -605,9 +608,10 @@ class DecClient:
 
         info[DEC_EMITTER] = self._signer.get_public_key().as_hex()
         info[DEC_TMSTAMP] = time.time()
-        addr = (args.name,DEC_EMISSION_GRP if args.name == DEC_EMISSION_KEY else DEC_WALLET_GRP,args.did)
-        
-        return self._send_transaction(DEC_SEND_OP, addr, info, to=(args.to,DEC_WALLET_GRP,args.did), wait=wait if wait else TRANS_TOUT,din=din)  
+        faddr = args.name if args.name == DEC_EMISSION_KEY else self.key_to_addr(args.name)
+        addr = (faddr,DEC_EMISSION_GRP if args.name == DEC_EMISSION_KEY else DEC_WALLET_GRP,args.did)
+        taddr = self.key_to_addr(args.to)
+        return self._send_transaction(DEC_SEND_OP, addr, info, to=(taddr,DEC_WALLET_GRP,args.did), wait=wait if wait else TRANS_TOUT,din=din)  
 
     def pay(self,args,wait=None,control=False):
         info = self.pay_info(args)    
@@ -658,8 +662,9 @@ class DecClient:
         #if args.did:                                                       
         #    pay_opts[DEC_DID_VAL] = args.did                                   
         #daddr = self._get_full_addr(args.to,tp_space=DEC_WALLET_GRP,owner=args.didto) 
-        #eaddr = self._get_full_addr(DEC_EMISSION_KEY,tp_space=DEC_EMISSION_GRP,owner=DEFAULT_DID)                                                                  
-        to = [(args.to,DEC_WALLET_GRP,args.didto)]                                                     
+        #eaddr = self._get_full_addr(DEC_EMISSION_KEY,tp_space=DEC_EMISSION_GRP,owner=DEFAULT_DID)
+        taddr = self.key_to_addr(args.to)                                                                  
+        to = [(taddr,DEC_WALLET_GRP,args.didto)]                                                     
         din = [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)]                                           
         if args.target :                                                   
             # target with invoice 
@@ -682,11 +687,11 @@ class DecClient:
         if args.did:                                                                
             # refer to DID owner                                                    
             info[DEC_DID_VAL] = args.did 
-        #addr = self._get_full_addr(args.name,tp_space=DEC_WALLET_GRP,owner=args.did)                                              
+        faddr = self.key_to_addr(args.name)                                              
         opts = {                                                                    
                  DEC_CMD_OPTS   : info,                                             
                  DEC_TRANS_OPTS : { DEC_CMD    : DEC_PAY_OP,                     
-                                    DEC_CMD_ARG: (args.name,DEC_WALLET_GRP,args.did) ,
+                                    DEC_CMD_ARG: (faddr,DEC_WALLET_GRP,args.did) ,
                                     DEC_CMD_TO : to,
                                     DEC_CMD_DIN: din                    
                                   }                                                 
