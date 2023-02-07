@@ -525,17 +525,27 @@ class DecClient:
         info = {DEC_TIPS_OP: tips}                                                                                   
         return info  
                                                                                    
-    def get_tips(self,tname,cmd,did):                                                         
-        token = self.get_object(DEC_EMISSION_GRP,did,ANY_EMISSION_KEY.format(tname))
+    def get_tips(self,tname,cmd,did):  
+        result = self._send_request("gates")
+        try:
+            gates = yaml.safe_load(result)['data']
+        except Exception as ex:
+            gates = {}
+        
+        
         tips = 0.0  
-        if token.group_code == tname :                                                     
-            dec = cbor.loads(token.dec)                                                        
-            if DEC_TIPS_OP in dec:                                                             
-                val = dec[DEC_TIPS_OP][DATTR_VAL]                                              
-                if cmd in val:
-                    tips = val[cmd]                  
-            
-        return tips                                                                            
+        try:
+            token = self.get_object(DEC_EMISSION_GRP,did,ANY_EMISSION_KEY.format(tname))
+            if token.group_code == tname :                                                     
+                dec = cbor.loads(token.dec)                                                        
+                if DEC_TIPS_OP in dec:                                                             
+                    val = dec[DEC_TIPS_OP][DATTR_VAL]                                              
+                    if cmd in val:
+                        tips = val[cmd]
+        except Exception as ex:
+            pass                  
+        gates['DGT'] = {'tips' : tips }  
+        return gates                                                                            
 
 
     #                            
@@ -755,14 +765,13 @@ class DecClient:
         info = {}                                                               
         tcurr = time.time() 
         target = self.get_target_opts(args) 
+        tips = self.get_this_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did,gate=args.gate)
+        info[DEC_TARGET_OP] = target 
         
-        info[DEC_TARGET_OP] = target                        
         #info[DEC_EMITTER] = signer.get_public_key().as_hex()              
         info[DEC_TMSTAMP] = tcurr 
-        info[DEC_TIPS_OP] = args.tips 
-        taddr = target[DEC_TARGET_ADDR] 
- 
-
+        info[DEC_TIPS_OP] = {DEC_TIPS_OP : args.tips,GATE_ADDR_ATTR :tips[GATE_ADDR_ATTR]}  
+        
         if args.did:                                                            
             # refer to DID owner  
             info[DEC_DID_VAL] = args.did  
@@ -771,23 +780,34 @@ class DecClient:
         #    addr = self._get_address(taddr)
         opts = {
                  DEC_CMD_OPTS   : info,
-                 DEC_TRANS_OPTS : { DEC_CMD    : DEC_TARGET_OP,
-                                    DEC_CMD_ARG: (taddr,DEC_TARGET_GRP,args.did),
+                 DEC_TRANS_OPTS : { DEC_CMD     : DEC_TARGET_OP,
+                                    DEC_CMD_ARG : (target[DEC_TARGET_ADDR],DEC_TARGET_GRP,args.did),
                                     DEC_CMD_DIN : [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)]
-                                  }
+                                  },
+                 DEC_TIPS_OP : tips
                 } 
         
         if args.tips > 0.0:                                   
-            opts[DEC_TRANS_OPTS][DEC_CMD_TO] = [(target[DEC_OWNER],DEC_WALLET_GRP,args.did)]
+            opts[DEC_TRANS_OPTS][DEC_CMD_TO] = [(target[DEC_OWNER],DEC_WALLET_GRP,args.did),(tips[GATE_ADDR_ATTR],DEC_WALLET_GRP,DEFAULT_DID)]
+            opts[DEC_TRANS_OPTS][DEC_CMD_DIN_EXT] = (SETTINGS_NAMESPACE,DGT_TOPOLOGY_SET_NM)
                                              
         return opts
+
+    def get_this_tips(self,tname,op,did,gate=DEFAULT_GATE):
+        tips = self.get_tips(tname,op,did)
+        for nest,val in tips.items():
+            if GATE_ADDR_ATTR in val :
+                if (gate == DEFAULT_GATE and DEFAULT_GATE in val) or nest == gate:
+                    val[DEFAULT_GATE] = nest
+                    return val
+        return 0.0
 
     def target(self,args,wait=5):
           
         info = self.target_info(args) 
         if  args.check > 0: 
-            tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)  
-            info[DEC_CMD_OPTS][DEC_TIPS_OP] = tips         
+            # show params
+            info[DEC_CMD_OPTS][DEC_TIPS_OP] = info[DEC_TIPS_OP]         
             return info[DEC_CMD_OPTS]  
 
         topts = info[DEC_TRANS_OPTS] 
