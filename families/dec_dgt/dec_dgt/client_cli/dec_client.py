@@ -138,7 +138,8 @@ class DecClient:
         if pub_key.startswith(DGT_ADDR_PREF):
             return (pub_key,DEC_WALLET_GRP,did)
         elif "@" in pub_key:
-            return (pub_key,DEC_SYNONYMS_GRP,did)
+            # alias 
+            return (key_to_dgt_addr(pub_key),DEC_SYNONYMS_GRP,did)
         else:
             return (key_to_dgt_addr(pub_key),DEC_WALLET_GRP,did)
         
@@ -830,7 +831,9 @@ class DecClient:
         return self._send_sign_transaction(topts,sign_req,wait=wait if wait else TRANS_TOUT) 
 
     def get_alias_opts(self,args):                                           
-        alias = self.get_only_wallet_opts(args)                        
+        alias = self.get_only_wallet_opts(args)
+        # keep hashed alias 
+        alias[DEC_ALIAS_OP] = key_to_dgt_addr(args.alias_name) 
         return alias                                                         
 
 
@@ -841,14 +844,14 @@ class DecClient:
         alias = self.get_alias_opts(args)                                                                                                                   
                                                                                                                                                           
         info[DEC_EMITTER] = self._signer.get_public_key().as_hex() 
-        alias[DEC_WALLET_ADDR]  = key_to_dgt_addr(info[DEC_EMITTER])                                                                                      
+        alias[DEC_WALLET_ADDR]  =  args.addr if args.addr else   key_to_dgt_addr(info[DEC_EMITTER])                                                                                   
         info[DEC_PAYLOAD] = {                                                                                                                             
                               DEC_ALIAS_OP : alias,                                                                                                         
                               DEC_TMSTAMP : tcurr,                                                                                                        
                               DEC_DID_VAL : DEFAULT_DID if args.did is None else args.did                                                                 
                             }                                                                                                                             
         #role_addr = self._get_full_addr(args.role_id,tp_space=DEC_ROLE_GRP,owner=args.did)                                                               
-        return self._send_transaction(DEC_ALIAS_OP, (args.alias_name,DEC_SYNONYMS_GRP,args.did), info, to=None, wait=wait if wait else TRANS_TOUT,din=None)       
+        return self._send_transaction(DEC_ALIAS_OP, (alias[DEC_ALIAS_OP],DEC_SYNONYMS_GRP,args.did), info, to=None, wait=wait if wait else TRANS_TOUT,din=None)       
 
 
     def user_sign_req(self,info):                                                  
@@ -980,16 +983,20 @@ class DecClient:
     def show(self,args, name):
         return self.get_object(args.type,args.did,name)
 
-    def get_object(self,tp,did, name):
+    def get_object(self,tp,did, addr):
 
-        if name.startswith('/') or name.startswith('./'):
-            # take public key from file 
-            name = self.get_pub_key(name)
+        npart = addr.split("::")
+        if len(npart) > 1:
+            name,did = npart[0],npart[1] 
         else:
-            npart = name.split("::")
-            if len(npart) > 1:
-                name,did = npart[0],npart[1] 
-            
+            if "@" in addr:
+                # check alias
+                name = key_to_dgt_addr(addr)
+            else:
+                name = self.get_pub_key(addr)
+                if name != addr:
+                    name = key_to_dgt_addr(name)
+        
         address = self._get_full_addr(name,tp,did) 
         #print(name,tp,did,'ADDR',address)
         result = self._send_request("state/{}".format(address), name=name,)
