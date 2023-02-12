@@ -11,6 +11,15 @@ dec faucet /project/peer/keys/wkey1.priv 1000 --keyfile /project/peer/keys/valid
 dec target target-1 1 --keyfile /project/peer/keys/wkey.priv  -g this --tips 0.2
 dec target target-2 2 --keyfile /project/peer/keys/wkey.priv  -g this --tips 0.2
 dec target target-2 3 --keyfile /project/peer/keys/wkey.priv  -g this --tips 0.2
+
+# alias
+dec alias trt1@mail.ru --keyfile /project/peer/keys/wkey1.priv
+dec alias trt@mail.ru --keyfile /project/peer/keys/wkey.priv
+dec alias trt2@mail.ru --keyfile /project/peer/keys/wkey.priv
+dec send /project/peer/keys/wkey1.priv trt@mail.ru 1 --keyfile /project/peer/keys/wkey1.priv
+dec show trt@mail.ru -tp aliases
+
+
 # list all objects
 dec list
 # show off wallets

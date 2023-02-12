@@ -224,8 +224,8 @@ class DecTransactionHandler(TransactionHandler):
         #LOGGER.debug('_do_emission updated=%s',updated)                                                                                      
         return updated  
                                                                                                                     
-    def _new_wallet(self,total,tcurr,opts=DEF_WALLET_OPTS,did=DEFAULT_DID):
-        token = DecTokenInfo(group_code = DEC_WALLET,                                                          
+    def _new_wallet(self,total,tcurr,opts=DEF_WALLET_OPTS,did=DEFAULT_DID,group = DEC_WALLET):
+        token = DecTokenInfo(group_code = group,                                                          
                              owner_key = self._signer.sign(DEC_WALLET.encode()), #owner_key,                   
                              sign = self._public_key.as_hex(),                                                 
                              decimals = total,                                                                     
@@ -253,7 +253,7 @@ class DecTransactionHandler(TransactionHandler):
 
         updated = {k: v for k, v in state.items() if k in out}                          
         
-        token = self._new_wallet(0,tcurr,opts,did=did_val)                              
+        token = self._new_wallet(0,tcurr,opts,did=did_val,group=DEC_WALLET_ALIAS)                              
         updated[name] = token.SerializeToString()                                       
         
         return updated                                                                  
@@ -528,6 +528,8 @@ class DecTransactionHandler(TransactionHandler):
             dtoken.ParseFromString(state[to])   
              
         else:
+            if value[DEC_CMD_TO_GRP] == DEC_SYNONYMS_GRP:
+                raise InvalidTransaction('Verb is "{}" but alias "{}" not in state'.format(DEC_SEND_OP,to))
             LOGGER.debug('_do_send create destination WALLET={}'.format(to))
             dtoken = self._new_wallet(0,tcurr)
         dest = cbor.loads(dtoken.dec)
@@ -591,8 +593,10 @@ class DecTransactionHandler(TransactionHandler):
         target = inputs[1] if len(inputs) > 2 else None
         pinfo = value[DEC_PAYLOAD][DEC_PAY_OP]
         is_invoice = DEC_PROVEMENT_KEY in pinfo                                                                                                                                      
-        if name not in state or to not in state:                                                                                                             
-            raise InvalidTransaction('Verb is "{}" but name "{}" or "{}" not in state'.format(DEC_PAY_OP,name,to))                                          
+        if name not in state :                                                                                                             
+            raise InvalidTransaction('Verb is "{}" but name "{}"  not in state'.format(DEC_PAY_OP,name)) 
+        if to not in state and pinfo[DEC_CMD_TO_GRP] == DEC_SYNONYMS_GRP:                                                                  
+            raise InvalidTransaction('Verb is "{}" but alias "{}" not in state'.format(DEC_PAY_OP,to))                                         
         if DEC_EMISSION_KEY not in state:                                                                                                                    
             raise InvalidTransaction('Verb is "{}" but emission was not done yet'.format(DEC_PAY_OP))                                                       
         if target is not None and target not in state:
@@ -615,7 +619,16 @@ class DecTransactionHandler(TransactionHandler):
         amount = pinfo[DATTR_VAL]
         tcurr = value[DEC_PAYLOAD][DEC_TMSTAMP]                                                                                                                            
         # destination token                                                                                                                                  
-        dest,dtoken = get_wallet(state[to])   
+        #dest,dtoken = get_wallet(state[to])   
+        if to in state:                                                                                                     
+            # destination token                                                                                             
+            dtoken = DecTokenInfo()                                                                                         
+            dtoken.ParseFromString(state[to])                                                                               
+                                                                                                                            
+        else:                                                                                                               
+            LOGGER.debug('_do_pay create destination WALLET={}'.format(to))                                                
+            dtoken = self._new_wallet(0,tcurr)                                                                              
+        dest = cbor.loads(dtoken.dec)
 
         LOGGER.debug('_do_send value={}'.format(value))                                                                                                      
         ttoken = DecTokenInfo()                                                                                                                                                     
@@ -659,7 +672,8 @@ class DecTransactionHandler(TransactionHandler):
         if total < amount:                                                                                                             
             raise InvalidTransaction('Verb is "{}", but amount={} token more then token in sender wallet'.format(DEC_PAY_OP,amount))   
 
-        updated = {k: v for k, v in state.items() if k in out}                                                                                               
+        updated = {k: v for k, v in state.items() if k in out} 
+                                                                                                      
         dtoken.decimals += amount
         dest[DEC_TOTAL_SUM] += amount
         dtoken.dec = cbor.dumps(dest) 

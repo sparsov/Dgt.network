@@ -927,6 +927,12 @@ def add_send_parser(subparsers, parent_parser):
         default=DEFAULT_DID,                   
         help='DID')                
 
+    parser.add_argument(                 
+        '--didto','-dto',                
+        type=str,                        
+        default = DEFAULT_DID,           
+        help='DID of wallet to')  
+           
     parser.add_argument(                                       
         '--asset_type','-at',                                     
         type=str,
@@ -936,8 +942,15 @@ def add_send_parser(subparsers, parent_parser):
        '--role','-r',                   
        type=str,                        
        help="Wallet role name"          
-       )                                
-    
+       ) 
+                                   
+    parser.add_argument(                     
+        '--direct',                                  
+        action='count',                             
+        default=0,                                  
+        help='Send tokens directly to wallet')  
+
+
     parser.add_argument(
         '--keyfile',
         type=str,
@@ -979,9 +992,11 @@ def add_pay_parser(subparsers, parent_parser):
         type=str,                   
         default = DEFAULT_DID,      
         help='DID of wallet to')  
-
-
-
+    parser.add_argument(                       
+        '--direct',                            
+        action='count',                        
+        default=0,                             
+        help='Send tokens directly to wallet') 
 
 
     # with out target works like send                 
