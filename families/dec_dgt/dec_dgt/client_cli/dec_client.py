@@ -96,7 +96,7 @@ class DecClient:
         self.url = url
 
         if keyfile is not None:
-            print("use keyfile {}".format(keyfile))
+            #print("use keyfile {}".format(keyfile))
             try:
                 with open(keyfile) as fd:
                     private_key_str = fd.read().strip()
@@ -170,7 +170,10 @@ class DecClient:
         if off or (verbose is None or verbose == 0):          
             for k,v in dec.items():                            
                 if isinstance(v,dict) and DATTR_VAL in v:                         
-                    dec[k] = v[DATTR_VAL]                      
+                    dec[k] = v[DATTR_VAL]
+                if k in [DEC_TMSTAMP,DEC_LAST_HEART_TMSTAMP,DEC_SPEND_TMSTAMP] and not isinstance(dec[k],str):
+                    dec[k] = tmstamp2str(dec[k])
+
         return dec                                             
 
 
@@ -182,6 +185,7 @@ class DecClient:
             token = self.show(args,emission_key)
             dec = cbor.loads(token.dec)  
             dec = self.do_verbose(dec,args.verbose)
+
             return {emission_key:token.group_code,"INFO":dec}
 
         info = self.load_json_proto(args.proto)
@@ -418,7 +422,7 @@ class DecClient:
             dec = cbor.loads(token.dec) #if token.group_code == DEC_NAME_DEF else {} 
         except Exception as ex:
             dec = {}
-        return dec[DEC_TOTAL_SUM][DATTR_VAL] if DEC_TOTAL_SUM in dec else 0
+        return {DEC_TOTAL_SUM : dec[DEC_TOTAL_SUM][DATTR_VAL] if DEC_TOTAL_SUM in dec else 0}
     
        
            
@@ -508,8 +512,8 @@ class DecClient:
         info = {}                                         
         if token.group_code == args.name :             
             dec = cbor.loads(token.dec)                        
-            for attr in [DEC_MINTING_TOTAL,DEC_MINTING_REST,DEC_СORPORATE_TOTAL,DEC_СORPORATE_REST,DEC_SALE_TOTAL,DEC_SALE_REST]:
-                info[attr] = dec[attr]
+            for attr in [DEC_TOTAL_SUM,DEC_MINTING_TOTAL,DEC_MINTING_REST,DEC_СORPORATE_TOTAL,DEC_СORPORATE_REST,DEC_SALE_TOTAL,DEC_SALE_REST]:
+                info[attr] = dec[attr] if not isinstance(dec[attr],dict) else dec[attr][DATTR_VAL]
         return info                                       
 
 
