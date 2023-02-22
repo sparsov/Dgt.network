@@ -96,6 +96,7 @@ class DecTransactionHandler(TransactionHandler):
         self._signer = crypto_factory.new_signer(self._private_key)
         #self._signer = CryptoFactory(self._context).new_signer(self.private_key)
         self._wallet_proto = load_json_proto(DEC_OPTS_PROTO_FILE_NM)
+        self._trans_sign = None
         LOGGER.debug('_do_set: public_key=%s  ',self._public_key.as_hex())
         LOGGER.info('DecTransactionHandler init DONE PREF=%s',DEC_ADDRESS_PREFIX)
 
@@ -161,7 +162,51 @@ class DecTransactionHandler(TransactionHandler):
             raise InvalidTransaction('Verb: {} err={} TB={}'.format(verb,ex,tb)) 
         
         
-         
+    def get_multi_sign_token(self,value,state,msign_nm,emitter,token_name):
+        epay  = cbor.dumps(value)
+        esign = _sha256(epay).hexdigest() 
+
+        if msign_nm in state:
+            stoken = DecTokenInfo()           
+            stoken.ParseFromString(state[msign_nm]) 
+        else:
+            sign = {
+                        DEC_ESIGNERS : [],
+                        DEC_ESIGNATURE : esign,
+                        DEC_MSIGN_ST   : False,
+                        DEC_ESIGN_NUM  : 0
+                }
+            stoken = DecTokenInfo(group_code = token_name,                                
+                                 owner_key = self._signer.sign(token_name.encode()),     
+                                 sign = emitter,
+                                 decimals=0,                                             
+                                 dec = cbor.dumps(sign)                                 
+                    )                                                                    
+        return stoken,esign
+
+    def do_multi_sign(self,stoken,esigner,esign,sign_min=1):
+        sign = cbor.loads(stoken.dec)   
+        if sign[DEC_MSIGN_ST]:                                      
+            return 'This multi sign transaction already done',sign  
+                                                                                                                             
+        if esign != sign[DEC_ESIGNATURE]:                                                                                                                    
+            return 'Multi sign  signature={} changed '.format(esign),sign                                       
+                                                                                                                                                             
+        if esigner in sign[DEC_ESIGNERS]:                                                                                                                    
+            return 'Multi sign   signer={} already sign transaction'.format(esigner),sign                               
+        
+        
+                                                                                                                                                             
+        sign[DEC_ESIGN_NUM] += 1
+        sign[DEC_MSIGN_ST]  = sign[DEC_ESIGN_NUM] == sign_min                                                                                                                            
+        sign[DEC_ESIGNERS].append(esigner)                                                                                                                   
+        stoken.dec = cbor.dumps(sign)
+        return None,sign                                                                                                                        
+
+
+
+
+
     # Emission parts 
     def _do_emission(self,name, val, to, state, out ):                                                                                           
         LOGGER.debug('emission "{}"'.format(name))                                                                                                               
@@ -170,28 +215,74 @@ class DecTransactionHandler(TransactionHandler):
         if name in state:                                                                                                               
             raise InvalidTransaction('Verb is "{o}", but emission {n} already was made.'.format(o=DEC_EMISSION_OP,n=name))
         # emitter pubkey
-        emitter = val[DEC_EMITTER]            
+        
+        emitter = val[DEC_EMITTER]  
+        esigner = key_to_dgt_addr(emitter)          
         if DGT_TOPOLOGY_SET_NM in state:
             tval = json.loads(state[DGT_TOPOLOGY_SET_NM])
             #LOGGER.debug('Topology "{}"'.format(tval))
             fbft = FbftTopology()
             fbft.get_topology(tval,'','','static')
             # 
-            is_peer = fbft.peer_is_leader(emitter)
+            esigner_min = fbft.get_esigner_min()
+            is_peer = fbft.peer_is_esigner(esigner)
             pname = fbft.get_scope_peer_attr(emitter)
             peer = fbft.get_peer(emitter)
-            LOGGER.debug('Topology is peer={} leader "{}"'.format(peer,is_peer))
+            LOGGER.debug('Peer={} is signer="{}" MIN SIGNER={}'.format(peer,is_peer,esigner_min))
             if not is_peer:
-                raise InvalidTransaction('Verb is "{}", but emitter is not Leader'.format(DEC_EMISSION_OP))
+                raise InvalidTransaction('Verb is "{}", but emitter not in signers'.format(DEC_EMISSION_OP))
+        else:
+            raise InvalidTransaction('Verb is "{}", but there is no emission signers info'.format(DEC_EMISSION_OP))
 
 
-            # check key into topology
-        updated = {k: v for k, v in state.items() if k in out}                                                                                      
-        #owner_key = self._context.sign('DEC_token'.encode(),self._private_key) 
-        payload = val[DEC_PAYLOAD]
-        tcurr = payload[DEC_TMSTAMP]
-        # emission params
+        payload = val[DEC_PAYLOAD]    
+        tcurr = payload[DEC_TMSTAMP]  
         value = payload[DEC_EMISSION_OP]
+        token_name = value[DEC_NAME][DATTR_VAL]
+        epay  = cbor.dumps(value)
+        esign = _sha256(epay).hexdigest() 
+
+        if DEC_ESIGNERS_KEY in state:
+            stoken = DecTokenInfo()           
+            stoken.ParseFromString(state[DEC_ESIGNERS_KEY]) 
+        else:
+            sign = {
+                        DEC_ESIGNERS   : [],
+                        DEC_ESIGNATURE : esign,
+                        DEC_ESIGN_NUM  : 0
+                }
+            stoken = DecTokenInfo(group_code = token_name,                                
+                                 owner_key = self._signer.sign(token_name.encode()),     
+                                 sign = emitter,
+                                 decimals=0,                                             
+                                 dec = cbor.dumps(sign)                                 
+                    )                                                                    
+
+
+        # check key into topology
+        updated = {k: v for k, v in state.items() if k in out} 
+        sign = cbor.loads(stoken.dec)
+        if esign != sign[DEC_ESIGNATURE]:                                                                               
+            raise InvalidTransaction('Verb is "{}", but emission signature={} changed '.format(DEC_EMISSION_OP,esign))  
+                                                                                                                        
+        if esigner in sign[DEC_ESIGNERS]:
+            raise InvalidTransaction('Verb is "{}", but this signer={} already sign emission'.format(DEC_EMISSION_OP,esigner))
+
+        
+        sign[DEC_ESIGN_NUM] += 1
+        sign[DEC_ESIGNERS].append(esigner)
+        stoken.dec = cbor.dumps(sign)                           
+        updated[DEC_ESIGNERS_KEY] = stoken.SerializeToString()  
+        if sign[DEC_ESIGN_NUM] < esigner_min:
+            # not enough signers
+            return updated
+        
+                                                                                             
+        #owner_key = self._context.sign('DEC_token'.encode(),self._private_key) 
+        #payload = val[DEC_PAYLOAD]
+        #tcurr = payload[DEC_TMSTAMP]
+        # emission params
+        # value = payload[DEC_EMISSION_OP]
         mint_share = value[DEC_MINTING_SHARE][DATTR_VAL] 
         corp_share = value[DEC_СORPORATE_SHARE][DATTR_VAL]
         sale_share = 100.0 - (mint_share + corp_share)
@@ -214,7 +305,7 @@ class DecTransactionHandler(TransactionHandler):
             if DEC_MINT_PERIOD not in mint:
                 mint[DEC_MINT_PERIOD] = DEC_MINT_PERIOD_DEF
             
-        token_name = value[DEC_NAME][DATTR_VAL]                                               
+        #token_name = value[DEC_NAME][DATTR_VAL]                                               
         token = DecTokenInfo(group_code = token_name,                                                                                  
                              owner_key = self._signer.sign(token_name.encode()),
                              sign = emitter,#self._public_key.as_hex(), 
@@ -266,8 +357,8 @@ class DecTransactionHandler(TransactionHandler):
 
         if name in state:                                                                                                              
             raise InvalidTransaction('Verb is "{}", but Wallet with name={} already exists.'.format(DEC_WALLET_OP,name)) 
-        #if DEC_EMISSION_KEY not in state:                                                              
-        #    raise InvalidTransaction('Verb is "{}" but emission was not done yet'.format(DEC_WALLET_OP)) 
+        if DEC_EMISSION_KEY not in state:                                                              
+            raise InvalidTransaction('Verb is "{}" but emission was not done yet'.format(DEC_WALLET_OP)) 
         if False:
             if DEC_DID_VAL not in value:
                 # use default did
@@ -296,8 +387,21 @@ class DecTransactionHandler(TransactionHandler):
             tcurr = value[DEC_TMSTAMP] 
         else:
             # 
+            evalue = state[DEC_EMISSION_KEY]   
+            etoken = DecTokenInfo()           
+            etoken.ParseFromString(evalue)      
+            emiss = cbor.loads(etoken.dec)      
+            aopts = emiss[DEC_CORP_ACC_ADDR][DATTR_VAL]
+            # account opts 
             payload = value[DEC_PAYLOAD]
             opts = payload[DEC_WALLET_OP]
+            LOGGER.debug('Account opts={} emiss={}'.format(opts,aopts))
+            if opts[DEC_WALLET_LIMIT] > aopts[DEC_WALLET_LIMIT]:
+                raise InvalidTransaction('Verb is "{}", account limit is exceeded (..< {}).'.format(DEC_WALLET_OP,aopts[DEC_WALLET_LIMIT]))
+            if opts[DEC_WALLET_SPEND_PERIOD] < aopts[DEC_WALLET_SPEND_PERIOD]:                                                                            
+                raise InvalidTransaction('Verb is "{}", account spend period too short (..>= {}).'.format(DEC_WALLET_OP,aopts[DEC_WALLET_SPEND_PERIOD])) 
+
+            
             tcurr = payload[DEC_TMSTAMP]
             did_val = payload[DEC_DID_VAL] if DEC_DID_VAL in payload else DEFAULT_DID
             if value[DEC_EMITTER] == name:
@@ -514,51 +618,104 @@ class DecTransactionHandler(TransactionHandler):
                                                                         
         curr = state[name]                                                                                                               
         token = DecTokenInfo()                                                                                                                       
-        token.ParseFromString(curr)                                                                                                                  
-        #dec = cbor.loads(token.dec)                                                                                                                  
-        #total_sum = dec[DEC_TOTAL_SUM][DATTR_VAL]                                                                                                    
-        #passkey = dec[DEC_PASSKEY][DATTR_VAL]                                                                                                        
-        #sale_share = dec[DEC_SALE_SHARE][DATTR_VAL]                                                                                                  
-        #max_sale = total_sum/100*sale_share                                                                                                          
-        #total_sale = dec[DEC_SALE_TOTAL]                                                                                                             
-        amount = value[DATTR_VAL] 
-        tcurr = value[DEC_TMSTAMP]  
+        token.ParseFromString(curr) 
+        if name != DEC_EMISSION_KEY:
+            etoken = DecTokenInfo()
+            etoken.ParseFromString(state[DEC_EMISSION_KEY])
+        else:
+            etoken = token
+
+        opts =   value[DEC_SEND_OP]                                                                                                          
+        amount = opts[DATTR_VAL] 
+        tcurr = value[DEC_TMSTAMP] 
+        emitter = key_to_dgt_addr(value[DEC_EMITTER]) 
         if to in state:
             # destination token                                                                                                                          
             dtoken = DecTokenInfo()                                                                                                                      
             dtoken.ParseFromString(state[to])   
              
         else:
-            if value[DEC_CMD_TO_GRP] == DEC_SYNONYMS_GRP:
+            if opts[DEC_CMD_TO_GRP] == DEC_SYNONYMS_GRP:
                 raise InvalidTransaction('Verb is "{}" but alias "{}" not in state'.format(DEC_SEND_OP,to))
             LOGGER.debug('_do_send create destination WALLET={}'.format(to))
             dtoken = self._new_wallet(0,tcurr)
         dest = cbor.loads(dtoken.dec)
+        
+        if DEC_TRANS_ID in opts:
+            msign_nm = DEC_TRANS_KEY.format(opts[DEC_TRANS_ID])
+            stoken,esign = self.get_multi_sign_token(opts,state,msign_nm,emitter,DEC_NAME_DEF)
+        else:
+            stoken = None
 
-        LOGGER.debug('_do_send value={}'.format(value))                               
+        # get emission info 
+        emiss = cbor.loads(etoken.dec)                                             
+        corp_account = emiss[DEC_СORPORATE_ACCOUNT][DATTR_VAL][DEC_CORP_ACC_ADDR] 
+        esigner_min = emiss[DEC_СORPORATE_ACCOUNT][DATTR_VAL][DEC_CORP_SIGN_MIN]
+        msigners = emiss[DEC_CORPORATE_PUB_KEY][DATTR_VAL]
+        LOGGER.debug('_do_send value={}'.format(value))  
+        updated = {k: v for k, v in state.items() if k in out}                            
         if name == DEC_EMISSION_KEY:
             # this is case when user ask tokens from сorporate wallet
             # check who is user 
-            emiss = cbor.loads(token.dec)
-            if key_to_dgt_addr(value[DEC_EMITTER]) != emiss[DEC_CORPORATE_PUB_KEY][DATTR_VAL]:
-                raise InvalidTransaction('Verb is "{}", but user who ask transfer tokens to CORPORATE WALLET have not access'.format(DEC_SEND_OP))
+            if stoken is None:
+                raise InvalidTransaction('Verb is "{}", set transfer id for multi sign operation'.format(DEC_SEND_OP))
+
+
+            if to != corp_account:
+                raise InvalidTransaction('Verb is "{}", but destination WALLET={} not corporate'.format(DEC_SEND_OP,to))
+            if emitter not in msigners:
+                LOGGER.debug('_do_send cops={}'.format(emiss[DEC_CORPORATE_PUB_KEY][DATTR_VAL]))
+                raise InvalidTransaction('Verb is "{}", but user who ask transfer tokens to CORPORATE WALLET have no access'.format(DEC_SEND_OP))
+
+            #esigner_min = emiss[DEC_СORPORATE_ACCOUNT][DATTR_VAL][DEC_CORP_SIGN_MIN]
+            ret,sign = self.do_multi_sign(stoken,emitter,esign,esigner_min)
+            if ret is not None:
+                raise InvalidTransaction(ret)
+
+            
+            updated[msign_nm] = stoken.SerializeToString()                  
+            if sign[DEC_ESIGN_NUM] < esigner_min:                                   
+                # not enough signers                                                
+                return updated                                                      
+
+
             if emiss[DEC_СORPORATE_REST] < amount:
                 amount = emiss[DEC_СORPORATE_REST]
             emiss[DEC_СORPORATE_REST] -= amount
-            token.dec = cbor.dumps(emiss)
+            etoken.dec = cbor.dumps(emiss)
         else:
-            eaddr = key_to_dgt_addr(value[DEC_EMITTER])
+            eaddr = emitter
             src = cbor.loads(token.dec)
             wopts = src[DEC_WALLET_OPTS_OP]
+            multi_mode = False
+            if name == corp_account or DEC_WALLETS_OWNERS in wopts:
+                if stoken is None:                                                                                          
+                    raise InvalidTransaction('Verb is "{}", set transfer id for multi sign operation'.format(DEC_SEND_OP))  
+                if name != corp_account:
+                    esigner_min = wopts[DEC_WALLETS_OWNERS][DEC_ESIGN_NUM]
+                    msigners = wopts[DEC_WALLETS_OWNERS][DEC_ESIGNERS]
+                if emitter not in msigners:                                                                                                               
+                    raise InvalidTransaction('Verb is "{}", but user who ask transfer tokens have no access'.format(DEC_SEND_OP))    
+
+                ret,sign = self.do_multi_sign(stoken,emitter,esign,esigner_min)               
+                if ret is not None:                                                           
+                    raise InvalidTransaction(ret)                                             
+                updated[msign_nm] = stoken.SerializeToString()            
+                if sign[DEC_ESIGN_NUM] < esigner_min:                     
+                    # not enough signers                                  
+                    return updated                                        
+                multi_mode = True
+
             LOGGER.debug('_do_send CHECK OWNER ={} ~= {}'.format(eaddr,name))
-            if (eaddr != name and DEC_WALLET_ADDR not in wopts)  or (DEC_WALLET_ADDR in wopts and eaddr != wopts[DEC_WALLET_ADDR]):
-                raise InvalidTransaction('Verb is "{}", but not owner try to send token from user WALLET'.format(DEC_SEND_OP))
+            if not multi_mode :
+                if (eaddr != name and DEC_WALLET_ADDR not in wopts)  or (DEC_WALLET_ADDR in wopts and eaddr != wopts[DEC_WALLET_ADDR]):
+                    raise InvalidTransaction('Verb is "{}", but not owner try to send token from user WALLET'.format(DEC_SEND_OP))
             
             total = src[DEC_TOTAL_SUM]
             if total < amount:                                                                                
                 raise InvalidTransaction('Verb is "{}", but amount={} token more then token in sender wallet'.format(DEC_SEND_OP,amount)) 
-            if DEC_WALLET_ROLE in value:
-                role = value[DEC_WALLET_ROLE]
+            if DEC_WALLET_ROLE in opts:
+                role = opts[DEC_WALLET_ROLE]
                 if DEC_WALLET_ROLE in src[DEC_WALLET_OPTS_OP] and role not in src[DEC_WALLET_OPTS_OP][DEC_WALLET_ROLE]:
                     raise InvalidTransaction('Verb is "{}" but role "{}" not granted'.format(DEC_SEND_OP,role))
 
@@ -584,7 +741,7 @@ class DecTransactionHandler(TransactionHandler):
         dtoken.decimals = round(dest[DEC_TOTAL_SUM])                                                                                                                      
         dtoken.dec = cbor.dumps(dest)
           
-        updated = {k: v for k, v in state.items() if k in out}                                                                                                                
+        #updated = {k: v for k, v in state.items() if k in out}                                                                                                                
         updated[name] = token.SerializeToString()                                                                                        
         updated[to] = dtoken.SerializeToString()                                                                                                   
                                                                                                                                                      
@@ -1155,7 +1312,8 @@ class DecTransactionHandler(TransactionHandler):
             
             try:
                 public_key = self._context.pub_from_hex(payload[DEC_PUBKEY])
-                ret = self._signer.verify(payload[DEC_SIGNATURE], payload[DATTR_VAL],public_key )
+                self._trans_sign = payload[DEC_SIGNATURE]
+                ret = self._signer.verify(self._trans_sign, payload[DATTR_VAL],public_key )
                 LOGGER.debug('_decode_transaction check sign={} key={}'.format(ret,payload[DEC_PUBKEY]))
             except Exception as ex:
                 LOGGER.debug('_decode_transaction check sign error {}'.format(ex))

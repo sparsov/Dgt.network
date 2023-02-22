@@ -257,7 +257,7 @@ def add_emission_parser(subparsers, parent_parser):
      
     parser.add_argument(                   
         '--corporate_share','-cs',                    
-        type=int,                        
+        type=float,                        
         #default=DEC_СORPORATE_SHARE_DEF,           
         help='DGT corporate share ') 
     
@@ -301,7 +301,8 @@ def add_emission_parser(subparsers, parent_parser):
        )  
     parser.add_argument(               
       '--corporate_pub_key','-ck',    
-      type=str,                       
+      type=str,
+      nargs='+',                       
       help='Corporate public key for managing corporate account'              
       )                                                          
     parser.add_argument(        
@@ -385,6 +386,19 @@ def add_wallet_parser(subparsers, parent_parser):
         #default=DEC_WALLET_LIMIT_DEF,       
         help="Wallet spending period"        
         ) 
+    parser.add_argument(                            
+        '--sign_min','-smin',                     
+        type=int,                                   
+        default=2,              
+        help="Min signer for multi sign account"               
+        )                                           
+    parser.add_argument(                                                    
+      '--owner_pub_key','-pk',                                          
+      type=str,                                                             
+      nargs='+',                                                            
+      help='Owner public key for managing multi signed account'            
+      )                                                                     
+
     parser.add_argument(                 
         '--status','-st',                
         type=str,
@@ -943,6 +957,12 @@ def add_send_parser(subparsers, parent_parser):
        type=str,                        
        help="Wallet role name"          
        ) 
+    
+    parser.add_argument(             
+       '-tid','--trans_id',                
+       type=str,                     
+       help="Transfer id for multi signed operations"       
+       )                             
                                    
     parser.add_argument(                     
         '--direct',                                  
@@ -960,7 +980,9 @@ def add_send_parser(subparsers, parent_parser):
 
 def do_send(args):
     client = _get_client(args)                                
-    response = client.send(args, args.wait)                  
+    response = client.send(args, args.wait) 
+    if isinstance(response,dict):     
+        response = do_yaml(response)                   
     print(response) 
 
 def add_pay_parser(subparsers, parent_parser):
@@ -998,8 +1020,11 @@ def add_pay_parser(subparsers, parent_parser):
         action='count',                        
         default=1,                             
         help='Send tokens directly to wallet') 
-
-
+    parser.add_argument(                                                     
+       '-tid','--trans_id',                                                 
+       type=str,                                                             
+       help="Transfer id for multi signed operations"                        
+       )                                                                     
     # with out target works like send                 
     parser.add_argument(            
         '--target','-tg',         
@@ -1207,7 +1232,12 @@ def add_alias_parser(subparsers, parent_parser):
         type=str,               
         default=DEFAULT_GATE,    
         help='Default gate for transaction')                
-
+    parser.add_argument(                                                
+      '--owner_pub_key','-pk',                                          
+      type=str,                                                         
+      nargs='+',                                                        
+      help='Owner public key for managing multi signed account'         
+      )                                                                 
     parser.add_argument(                                                                                                  
         '--keyfile',                                                                                                      
         type=str,  
