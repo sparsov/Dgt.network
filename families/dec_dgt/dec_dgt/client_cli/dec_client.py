@@ -185,7 +185,7 @@ class DecClient:
             for k,v in dec.items():                            
                 if isinstance(v,dict) and DATTR_VAL in v:                         
                     dec[k] = v[DATTR_VAL]
-                if k in [DEC_TMSTAMP,DEC_LAST_HEART_TMSTAMP,DEC_SPEND_TMSTAMP] and not isinstance(dec[k],str):
+                if k in [DEC_TMSTAMP,DEC_LAST_HEART_TMSTAMP,DEC_SPEND_TMSTAMP,DEC_CASHIN_TMSTAMP,DEC_CREATE_TMSTAMP] and not isinstance(dec[k],str):
                     dec[k] = tmstamp2str(dec[k])
 
         return dec                                             
@@ -894,6 +894,9 @@ class DecClient:
         alias = self.get_only_wallet_opts(args)
         # keep hashed alias 
         alias[DEC_ALIAS_OP] = key_to_dgt_addr(args.alias_name) 
+        if args.disable:
+            # for already created aliase - disable them
+            alias[DEC_ALIAS_DIS] = True
         return alias                                                         
 
 
@@ -1033,22 +1036,29 @@ class DecClient:
             limit = "&limit={}".format(args.limit)
         if args.start: 
             saddr =  args.start.split(':') 
-            stp = saddr[1] if len(saddr) > 1 else args.type
-            name,tp = self.get_name_tp(saddr[0],stp) 
-               
-            saddress = self._get_full_addr(name,tp,args.did if args.did else DEFAULT_DID)
+            if len(saddr) > 1:
+                stp = saddr[1]
+                name,tp = self.get_name_tp(saddr[0],stp) 
+                   
+                saddress = self._get_full_addr(name,tp,args.did if args.did else DEFAULT_DID)
+            else:
+                saddress = saddr[0]
             limit += "&start={}".format(saddress)
             #print("PAGING",saddress,limit)  
 
         result = self._send_request("state?address={}{}".format(pref,limit))
-        
+        #print('res',result)
         try:
-            encoded_entries = yaml.safe_load(result)["data"]
+            sres = yaml.safe_load(result)
+            encoded_entries = sres["data"]
 
-            return [
+            dlist = [
                 cbor.loads(base64.b64decode(entry["data"]))
                 for entry in encoded_entries
             ]
+            if "paging" in sres and "next_position" in sres["paging"]:
+                print("NEXT",sres["paging"]["next_position"])
+            return dlist
 
         except BaseException:
             return None

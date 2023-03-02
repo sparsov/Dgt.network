@@ -87,6 +87,7 @@ DEC_MINT_PERIOD       = "mint_period"
 DEC_NBURN             = "nBurn"             
 DEC_FEE               = "fee"
 DEC_TMSTAMP           = "timestamp"
+DEC_CREATE_TMSTAMP    = "create_timestamp"
 DEC_MINT_TMSTAMP      = "mint_timestamp"
 DEC_MINTING_TOTAL     = "mint_total"
 DEC_MINTING_REST      = "mint_balance"
@@ -117,6 +118,8 @@ DEC_EMITTER          = "emitter"
 DEC_OWNER            = "owner"
 DEC_NOTARY_KEY       = "notary_key"
 DEC_NOTARY_REQ_SIGN  = "notary_req_sign"
+DEC_CASHIN_TMSTAMP      = "cashin_timestamp"
+DEC_CASHIN_AMOUNT      = "cashin_amount"
 DEC_SPEND_TMSTAMP      = "spend_timestamp"
 DEC_SPEND_PERIOD      = "spend_period"
 DEC_WALLET_STATUS     = "status"
@@ -141,7 +144,7 @@ DEC_CMD_TO_GRP     =  'to_grp'
 DEC_CMD_VAL        = 'Value'    
 DEC_CMD_DIN        = 'Din'    
 DEC_CMD_DIN_EXT    = 'DinExt' 
-
+DEC_ALIAS_DIS      = 'disable'
 
 
 #DEC_WALLET_DID       = "wallet_did"

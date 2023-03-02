@@ -321,7 +321,7 @@ class DecTransactionHandler(TransactionHandler):
                              owner_key = self._signer.sign(DEC_WALLET.encode()), #owner_key,                   
                              sign = self._public_key.as_hex(),                                                 
                              decimals = total,                                                                     
-                             dec=cbor.dumps({DEC_TMSTAMP: tcurr,                                               
+                             dec=cbor.dumps({DEC_CREATE_TMSTAMP: tcurr,                                               
                                              DEC_TOTAL_SUM : total,                                                
                                              DEC_DID_VAL   : did,                                          
                                              DEC_WALLET_OPTS_OP: opts if opts else self._wallet_proto
@@ -332,20 +332,30 @@ class DecTransactionHandler(TransactionHandler):
 
     def _do_alias(self,name, value, to, state, out):                         
         LOGGER.debug('Alias "{}" value={}'.format(name,value))               
-        #value = {DEC_EMITTER,DEC_PAYLOAD}                                    
-        if name in state:                                                                                                 
+        #value = {DEC_EMITTER,DEC_PAYLOAD}  
+        #
+        payload = value[DEC_PAYLOAD]  
+        opts = payload[DEC_ALIAS_OP] 
+        dis = (DEC_ALIAS_DIS in opts and opts[DEC_ALIAS_DIS])                                 
+        if not dis and name in state:                                                                                                 
             raise InvalidTransaction('Verb is "{}", but Alias with name={} already exists.'.format(DEC_ALIAS_OP,name))  
-
-        payload = value[DEC_PAYLOAD]                                                            
-        opts = payload[DEC_ALIAS_OP]                                                           
+                                                                  
+                                                                 
         tcurr = payload[DEC_TMSTAMP]                                                            
         did_val = payload[DEC_DID_VAL] if DEC_DID_VAL in payload else DEFAULT_DID               
         if key_to_dgt_addr(value[DEC_EMITTER]) == opts[DEC_WALLET_ADDR]:                                                          
             LOGGER.debug('owner WALLET alias and signer the same')                                    
 
         updated = {k: v for k, v in state.items() if k in out}                          
-        
-        token = self._new_wallet(0,tcurr,opts,did=did_val,group=DEC_WALLET_ALIAS)                              
+        if name in state:
+            token = DecTokenInfo()                         
+            token.ParseFromString(state[name]) 
+            oalias = cbor.loads(token.dec)
+            oalias[DEC_WALLET_OPTS_OP][DEC_ALIAS_DIS] = dis
+            token.dec = cbor.dumps(oalias) 
+        else:
+            token = self._new_wallet(0,tcurr,opts,did=did_val,group=DEC_WALLET_ALIAS)
+                                          
         updated[name] = token.SerializeToString()                                       
         
         return updated                                                                  
@@ -742,7 +752,9 @@ class DecTransactionHandler(TransactionHandler):
         # destination wallet
         dest = cbor.loads(dtoken.dec)
         
-        dest[DEC_TOTAL_SUM] += amount
+        dest[DEC_TOTAL_SUM]     += amount
+        dest[DEC_CASHIN_TMSTAMP] = tcurr
+        dest[DEC_CASHIN_AMOUNT]  = amount
         dtoken.decimals = round(dest[DEC_TOTAL_SUM])                                                                                                                      
         dtoken.dec = cbor.dumps(dest)
           
@@ -870,6 +882,9 @@ class DecTransactionHandler(TransactionHandler):
                                                     
         dest = cbor.loads(dtoken.dec)                                                   
         dest[DEC_TOTAL_SUM] += amount
+        dest[DEC_CASHIN_TMSTAMP] = tcurr   
+        dest[DEC_CASHIN_AMOUNT]  = amount  
+
         dtoken.decimals = round(dest[DEC_TOTAL_SUM]) 
         dtoken.dec = cbor.dumps(dest) 
         # update wallet of customer                                                                                                                         
@@ -952,7 +967,7 @@ class DecTransactionHandler(TransactionHandler):
             # for notary mode                          
             info[DEC_DID_VAL] = payload[DEC_DID_VAL]     
         info[DEC_EMITTER] = key_to_dgt_addr(value[DEC_EMITTER]) # pubkey of owner 
-        info[DEC_TMSTAMP] = tcurr 
+        info[DEC_CREATE_TMSTAMP] = tcurr 
         # destination token                                                                                                                         
         updated = {k: v for k, v in state.items() if k in out}
         if tips > 0.0:
@@ -1031,7 +1046,8 @@ class DecTransactionHandler(TransactionHandler):
             # for notary mode
             info[DEC_DID_VAL] = payload[DEC_DID_VAL]
         
-                                                                                                                                         
+        info[DEC_CREATE_TMSTAMP] = payload[DEC_TMSTAMP]   
+                                                                                                                                     
         token = DecTokenInfo(group_code = DEC_ROLE_GRP,                                                                                
                              owner_key = self._signer.sign(DEC_ROLE_GRP.encode()),                                                     
                              sign = self._public_key.as_hex(),                                                                           
