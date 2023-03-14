@@ -42,7 +42,7 @@ from cert_common.protobuf.x509_cert_pb2 import X509CertInfo
 # DEC 
 from dec_dgt.client_cli.dec_attr import (DEC_WALLET_OP,DEC_WALLET_OPTS_OP,DEC_WALLET_LIMIT_DEF,DEC_WALLET_LIMIT,
                                          DEC_OPTS_PROTO_FILE_NM,DEC_ROLE_PROTO_FILE_NM,DEC_ROLE_OP,DEC_ROLES_OP,DEC_GOODS_OP,DEC_TARGET_OP,DEC_PAY_OP,
-                                         DEC_APPROVALS,DEC_APPROVAL,DEC_TARGET_PROTO_FILE_NM
+                                         DEC_APPROVALS,DEC_APPROVAL,DEC_TARGET_PROTO_FILE_NM,DEC_NAME_DEF
                                          )
 
 DISTRIBUTION_NAME = 'x509-cert'
@@ -137,6 +137,15 @@ def create_parent_parser(prog_name):
         const=sys.maxsize,                                               
         type=int,                                                                                                                               
         help='set time, in seconds, to wait for transaction to commit')  
+    parent_parser.add_argument(             
+        '-tk','--token',              
+        type=str, 
+        default= DEC_NAME_DEF,                  
+        help='Type of token')  
+
+
+
+
 
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
