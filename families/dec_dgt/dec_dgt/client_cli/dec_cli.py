@@ -310,7 +310,21 @@ def add_emission_parser(subparsers, parent_parser):
       type=str,
       nargs='+',                       
       help='Corporate public key for managing corporate account'              
-      )                                                          
+      ) 
+    
+    #emiss_signers and args.emiss_sign_min 
+    parser.add_argument(                                             
+      '--emiss_signers','-ems',                                   
+      type=str,                                                      
+      nargs='+',                                                     
+      help=' public keys for emission do'     
+      )   
+    parser.add_argument(             
+       '--emiss_sign_min','-esm',           
+       type=int,                     
+       default=2,       
+       help='emiss signers min ')           
+                                                                                                                      
     parser.add_argument(        
        '--wait_to_date','-wtd',                
        type=int,               

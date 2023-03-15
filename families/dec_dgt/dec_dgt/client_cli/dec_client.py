@@ -248,6 +248,15 @@ class DecClient:
                                  DEC_DID_VAL     : args.did
                                }
                 }
+        if args.emiss_signers and args.emiss_sign_min:
+            # for first time - fix list of signers
+            ekeys = []
+            for pkey in args.emiss_signers:
+                ekeys.append(self.get_pub_key(pkey))
+
+            finfo[DEC_SIGN_MIN] =  args.emiss_sign_min
+            finfo[DEC_MULTI_SIGNERS] = ekeys 
+
         taddr = (DEC_ESIGNERS_KEY,DEC_EMISSION_GRP,args.did)
         #print('PROTO',info)
         #eaddr = self._get_full_addr(emission_key,tp_space=DEC_EMISSION_GRP,owner=args.did) #self._get_address(DEC_EMISSION_KEY)
