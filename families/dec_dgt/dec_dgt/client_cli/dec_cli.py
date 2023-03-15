@@ -736,7 +736,11 @@ def add_faucet_parser(subparsers, parent_parser):
         '--passkey','-pk',                                     
         type=str,                                              
         help='passkey for special operation')                  
-
+    parser.add_argument(                
+        '--did','-d',                   
+        type=str,                       
+        default = DEFAULT_DID,          
+        help='DID')                     
     parser.add_argument(
         '--keyfile',
         type=str,

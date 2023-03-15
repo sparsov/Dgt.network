@@ -551,7 +551,7 @@ class DecClient:
             info[DATTR_VAL]   = args.value                                       
             print('PROTO',info) 
             to =  (ANY_EMISSION_KEY.format(args.name),DEC_EMISSION_GRP,DEFAULT_DID)
-            waddr = self.key_to_addr(args.pubkey)
+            waddr = self.key_to_addr(args.pubkey,did=args.did)
             info[DEC_EMITTER] = self._signer.get_public_key().as_hex() 
             info[DEC_TMSTAMP] = time.time()                                                                   
             return self._send_transaction(DEC_FAUCET_OP, waddr, info, to=to, wait=wait if wait else TRANS_TOUT)  
