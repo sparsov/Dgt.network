@@ -248,14 +248,25 @@ class DecClient:
                                  DEC_DID_VAL     : args.did
                                }
                 }
-        if args.emiss_signers and args.emiss_sign_min:
+
+        if args.emiss_signers:
             # for first time - fix list of signers
             ekeys = []
             for pkey in args.emiss_signers:
                 ekeys.append(self.get_pub_key(pkey))
 
-            finfo[DEC_SIGN_MIN] =  args.emiss_sign_min
-            finfo[DEC_MULTI_SIGNERS] = ekeys 
+            #finfo[DEC_SIGN_MIN] =  args.emiss_sign_min if args.emiss_sign_min else info[DEC_EMISSION_INFO][DEC_DID_VAL][DEC_SIGN_MIN]
+            #finfo[DEC_MULTI_SIGNERS] = ekeys 
+            info[DEC_EMISSION_INFO][DATTR_VAL][DEC_MULTI_SIGNERS] = ekeys
+            if args.emiss_sign_min:
+                info[DEC_EMISSION_INFO][DATTR_VAL][DEC_SIGN_MIN] = args.emiss_sign_min
+        else:
+            if DEC_EMISSION_INFO not in info:
+                print("Old emission proto - update emission.json")
+                return
+        # emission info 
+        finfo[DEC_SIGN_MIN] = info[DEC_EMISSION_INFO][DATTR_VAL][DEC_SIGN_MIN]
+        finfo[DEC_MULTI_SIGNERS] = info[DEC_EMISSION_INFO][DATTR_VAL][DEC_MULTI_SIGNERS]
 
         taddr = (DEC_ESIGNERS_KEY,DEC_EMISSION_GRP,args.did)
         #print('PROTO',info)

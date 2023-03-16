@@ -322,7 +322,6 @@ def add_emission_parser(subparsers, parent_parser):
     parser.add_argument(             
        '--emiss_sign_min','-esm',           
        type=int,                     
-       default=2,       
        help='emiss signers min ')           
                                                                                                                       
     parser.add_argument(        
