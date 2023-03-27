@@ -22,6 +22,8 @@ from urllib.parse import urlparse
 import platform
 import pkg_resources
 from aiohttp import web
+# add https
+import ssl
 
 from zmq.asyncio import ZMQEventLoop
 from pyformance import MetricsRegistry
@@ -157,13 +159,18 @@ def start_rest_api(host, port, connection, timeout, registry,
 
     # Start app
     LOGGER.info('Starting REST API on %s:%s', host, port)
+    # add ssl 
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.load_cert_chain('srv.crt', 'srv.key')
+
 
     web.run_app(
         app,
         host=host,
         port=port,
         access_log=LOGGER,
-        access_log_format='%r: %s status, %b size, in %Tf s')
+        access_log_format='%r: %s status, %b size, in %Tf s'
+        ,ssl_context=ssl_context)
 
 
 def load_rest_api_config(first_config):
