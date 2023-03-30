@@ -42,6 +42,9 @@ from dec_dgt.client_cli.dec_attr import *
 from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_SET_NM
 
 TRANS_TOUT = 4
+HTTPS_SRV_KEY = '/project/peer/keys/http_srv.key'  
+HTTPS_SRV_CERT = '/project/peer/keys/http_srv.crt'
+
 """
 { 'emitter': '3056301006072a8648ce3d020106052b8104000a034200045976931dfc659f1eafbda1698c78fa55ff4502bc71fbfa663468d49e894a1a468d0608873b08de6ff64b11fb0398223ec09674e7e83a20ba6d37580370e56fc4',
   'payload': {
@@ -1173,7 +1176,7 @@ class DecClient:
 
         
     def _send_request(self, suffix, data=None, content_type=None, name=None):
-        if self.url.startswith("http://"):
+        if self.url.startswith("http://") or self.url.startswith("https://"):
             url = "{}/{}".format(self.url, suffix)
         else:
             url = "http://{}/{}".format(self.url, suffix)
@@ -1187,7 +1190,7 @@ class DecClient:
             if data is not None:
                 result = requests.post(url, headers=headers, data=data)
             else:
-                result = requests.get(url, headers=headers)
+                result = requests.get(url, headers=headers,verify=True,cert=(HTTPS_SRV_CERT, HTTPS_SRV_KEY)) # cert=(HTTPS_SRV_CERT, HTTPS_SRV_KEY)
 
             if result.status_code == 404:
                 raise DecClientException("No such key: {}".format(name))
