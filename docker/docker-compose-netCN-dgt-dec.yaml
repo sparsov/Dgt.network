@@ -295,6 +295,7 @@ services:
     - PEER_HOME=/project/peer
     - CRYPTO_BACK=${CRYPTO_BACK}
     - DGT_TOP=${DGT_TOP}
+    - HTTPS_MODE=${HTTPS_MODE}
     volumes:
       - ..:/project/${DGT_TOP}
       - ../../dgt_clust/${C}/${PNM}${N}:/project/peer
@@ -309,10 +310,10 @@ services:
     command: |
       bash -c "
         cd rest-api;
-        dgtadm node ${C} ${PNM}${N} -cb ${CRYPTO_BACK};rm -f /project/peer/logs/rest-api*.log*;
+        dgtadm node ${C} ${PNM}${N} -cb ${CRYPTO_BACK};cr_cert.sh /project/peer/keys/http_srv.crt /project/peer/keys/http_srv.key;rm -f /project/peer/logs/rest-api*.log*;
         python3 setup.py clean --all
         python3 setup.py build
-        dgt-rest-api -vv --connect tcp://validator-${PNM}-${C}-${N}:${COMP} --bind api-${PNM}-${C}-${N}:${API} ${INFLUXDB} http://${DBHOST}:8086 --opentsdb-db metrics --opentsdb-username ${DBUSER} --opentsdb-password ${DBPASS}
+        dgt-rest-api -vv --connect tcp://validator-${PNM}-${C}-${N}:${COMP} --bind api-${PNM}-${C}-${N}:${API} ${INFLUXDB} http://${DBHOST}:8086 --opentsdb-db metrics --opentsdb-username ${DBUSER} --opentsdb-password ${DBPASS} ${HTTPS_MODE}
       "
     stop_signal: SIGKILL
 

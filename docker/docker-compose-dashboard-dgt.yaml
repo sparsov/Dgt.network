@@ -29,6 +29,7 @@ services:
     environment:
     - DGT_HOME=/project/peer
     - CRYPTO_BACK=${CRYPTO_BACK}
+    - HTTPS_MODE=${HTTPS_MODE}
     - DGT_TOP=${DGT_TOP}
     volumes:
       - ..:/project/${DGT_TOP}
@@ -46,7 +47,7 @@ services:
         cd dashboard
         python3 setup.py clean --all
         python3 setup.py build
-        dgt-dashboard -vv  --connect tcp://validator-dgt-c1-1:4104 --bind dashboard-dgt:8003 -cb ${CRYPTO_BACK} 
+        dgt-dashboard -vv  --connect tcp://validator-dgt-c1-1:4104 --bind dashboard-dgt:8003 -cb ${CRYPTO_BACK} ${HTTPS_MODE}
       "
     stop_signal: SIGKILL
 

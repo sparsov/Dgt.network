@@ -47,6 +47,9 @@ from dgt_rest_api.config import RestApiConfig
 LOGGER = logging.getLogger(__name__)
 DISTRIBUTION_NAME = 'dgt-rest-api'
 
+HTTPS_SRV_KEY = '/project/peer/keys/http_srv.key'  
+HTTPS_SRV_CERT = '/project/peer/keys/http_srv.crt'
+
 
 def parse_args(args):
     """Parse command line flags added to `rest_api` command.
@@ -71,6 +74,11 @@ def parse_args(args):
                         action='count',
                         default=0,
                         help='enable more verbose output to stderr')
+    parser.add_argument('-hssl', '--http_ssl',                             
+                        action='count',                                
+                        default=0,                                     
+                        help='enable https mode')   
+
     parser.add_argument('--opentsdb-url',
                         help='specify host and port for Open TSDB database \
                         used for metrics')
@@ -104,7 +112,7 @@ def parse_args(args):
 
 
 def start_rest_api(host, port, connection, timeout, registry,
-                   client_max_size=None):
+                   client_max_size=None,http_ssl=False):
     """Builds the web app, adds route handlers, and finally starts the app.
     """
     loop = asyncio.get_event_loop()
@@ -158,11 +166,11 @@ def start_rest_api(host, port, connection, timeout, registry,
     app.on_shutdown.append(lambda app: subscriber_handler.on_shutdown())
 
     # Start app
-    LOGGER.info('Starting REST API on %s:%s', host, port)
+    LOGGER.info('Starting REST API on %s:%s HTTPS=%s', host, port,http_ssl)
     # add ssl 
-    if True:
+    if http_ssl:
         ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        ssl_context.load_cert_chain('srv.crt', 'srv.key')
+        ssl_context.load_cert_chain(HTTPS_SRV_CERT, HTTPS_SRV_KEY)
     else:
         ssl_context = None
 
@@ -279,7 +287,8 @@ def main():
             connection,
             int(rest_api_config.timeout),
             wrapped_registry,
-            client_max_size=rest_api_config.client_max_size)
+            client_max_size=rest_api_config.client_max_size,
+            http_ssl=opts.http_ssl > 0)
         # pylint: disable=broad-except
     except Exception as e:
         LOGGER.exception(e)
