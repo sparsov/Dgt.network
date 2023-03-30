@@ -160,8 +160,11 @@ def start_rest_api(host, port, connection, timeout, registry,
     # Start app
     LOGGER.info('Starting REST API on %s:%s', host, port)
     # add ssl 
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    ssl_context.load_cert_chain('srv.crt', 'srv.key')
+    if True:
+        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        ssl_context.load_cert_chain('srv.crt', 'srv.key')
+    else:
+        ssl_context = None
 
 
     web.run_app(
@@ -170,7 +173,8 @@ def start_rest_api(host, port, connection, timeout, registry,
         port=port,
         access_log=LOGGER,
         access_log_format='%r: %s status, %b size, in %Tf s'
-        ,ssl_context=ssl_context)
+        ,ssl_context=ssl_context
+        )
 
 
 def load_rest_api_config(first_config):
