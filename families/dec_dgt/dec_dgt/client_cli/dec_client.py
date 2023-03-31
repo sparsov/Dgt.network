@@ -1176,11 +1176,12 @@ class DecClient:
 
         
     def _send_request(self, suffix, data=None, content_type=None, name=None):
+
         if self.url.startswith("http://") or self.url.startswith("https://"):
             url = "{}/{}".format(self.url, suffix)
         else:
             url = "http://{}/{}".format(self.url, suffix)
-
+        cert = (HTTPS_SRV_CERT, HTTPS_SRV_KEY) if self.url.startswith("https://") else None
         headers = {}
 
         if content_type is not None:
@@ -1190,7 +1191,7 @@ class DecClient:
             if data is not None:
                 result = requests.post(url, headers=headers, data=data)
             else:
-                result = requests.get(url, headers=headers,verify=True,cert=(HTTPS_SRV_CERT, HTTPS_SRV_KEY)) # cert=(HTTPS_SRV_CERT, HTTPS_SRV_KEY)
+                result = requests.get(url, headers=headers,verify=False,cert=cert) # cert=(HTTPS_SRV_CERT, HTTPS_SRV_KEY)
 
             if result.status_code == 404:
                 raise DecClientException("No such key: {}".format(name))
