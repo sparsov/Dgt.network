@@ -1180,8 +1180,9 @@ class DecClient:
         if self.url.startswith("http://") or self.url.startswith("https://"):
             url = "{}/{}".format(self.url, suffix)
         else:
-            url = "http://{}/{}".format(self.url, suffix)
+            url = "{}://{}/{}".format('https' if os.environ.get('HTTPS_MODE') == '--http_ssl' else 'http',self.url, suffix)
         cert = (HTTPS_SRV_CERT, HTTPS_SRV_KEY) if self.url.startswith("https://") else None
+        #cert = None
         headers = {}
 
         if content_type is not None:
@@ -1189,7 +1190,7 @@ class DecClient:
 
         try:
             if data is not None:
-                result = requests.post(url, headers=headers, data=data)
+                result = requests.post(url, headers=headers, data=data,verify=False,cert=cert)
             else:
                 result = requests.get(url, headers=headers,verify=False,cert=cert) # cert=(HTTPS_SRV_CERT, HTTPS_SRV_KEY)
 
