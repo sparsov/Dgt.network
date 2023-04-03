@@ -72,6 +72,7 @@ services:
     - DGT_HOME=/project/peer                     
     - DGT_TOP=${DGT_TOP}                         
     - CRYPTO_BACK=${CRYPTO_BACK}
+    - HTTPS_MODE=${HTTPS_MODE}
     volumes:
       - ..:/project/${DGT_TOP}
       - ../../dgt_notaries/n${V}/etc:/vault/config
@@ -91,6 +92,7 @@ services:
       - VAULT_ADDR=http://vault-n${V}:${VPORT}
       - VAULT_API_ADDR=http://vault-n${V}:${VPORT}
       - VAULT_ADDRESS=http://vault-n${V}:${VPORT}
+      - HTTPS_MODE=${HTTPS_MODE}
     container_name: vault-n${V}
     restart: unless-stopped
     cap_add:
