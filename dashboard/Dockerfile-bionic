@@ -42,7 +42,7 @@ RUN apt-get install -y -q \
 
 RUN apt-get install -y -q \
     python3-aiodns \
-    python3-aiohttp \
+    python3-aiohttp python3-aiohttp-security \
     python3-colorlog \
     python3-cchardet\
     python3-pyformance \
@@ -51,6 +51,7 @@ RUN apt-get install -y -q \
     python3-zmq python3-cbor python3-secp256k1 python3-cryptography>=1.7.1
 
 RUN pip3 install pysha3
+#RUN pip3 install aiohttp_security[session]
 RUN mkdir /var/log/sawtooth
 
 ENV PATH=$PATH:/project/$DGT_TOP/bin:/project/$DGT_TOP/bgx/bin
