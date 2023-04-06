@@ -14,47 +14,44 @@
 # -------------===  build ===-------------
 
 FROM ubuntu:jammy
-FROM python:3 as python-base
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1 \
-    PYSETUP_PATH="/opt/pysetup" \
-    VENV_PATH="/opt/pysetup/.venv"
 
-RUN apt-get update && apt -y upgrade\
- && apt-get install gnupg -y
+#ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt -y upgrade && apt-get install gnupg -y
+
 
 RUN apt-get install  --no-install-recommends -y \
     build-essential \
-    cron coreutils  procps
+    cron            \
+    coreutils  \
+    procps 
 
 RUN apt-get install -y -q \
     git apt-utils \
     iputils-ping\
     net-tools curl gcc autoconf cmake libtool 
       
-RUN apt-get install -y -q \ 
-    python3-pip \                                                            
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y -q \ 
+    python3  
+    
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y -q \                                                            
     python3-aiodns \                                                                    
     python3-aiohttp  \                                          
     python3-colorlog \                                                                  
-    python3-cchardet\                                                                   
-    python3-pyformance \                                                                
     python3-toml \                                                                      
     python3-yaml \                                                                      
-    python3-zmq python3-cbor python3-secp256k1 python3-cryptography>=1.7.1              
+    python3-zmq \
+    python3-cbor  \
+    python3-cryptography>=1.7.1              
 											
-RUN python3 -V      
+
 
 #python3-aiohttp-security
 ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
-RUN pip install pysha3
-RUN pip install aiohttp_security[session]
+RUN pip3 install pyformance
+RUN pip3 install chardet
+RUN pip3 install secp256k1
+RUN pip3 install pysha3
+RUN pip3 install aiohttp_security[session]
 RUN mkdir /var/log/sawtooth
 
 ENV PATH=$PATH:/project/$DGT_TOP/bin:
