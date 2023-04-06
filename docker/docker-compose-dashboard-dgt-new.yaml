@@ -16,7 +16,7 @@ version: '3.6'
 
 services:
 
-  dashboard-dgt-new:
+  dashboard-dgt:
     build:
       context: ..
       dockerfile: dashboard/Dockerfile-${DISTRN}
