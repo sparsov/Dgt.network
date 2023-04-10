@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker build -f validator/Dockerfile -t sawtooth-validator-local .
+# docker build -f rest_api/Dockerfile -t sawtooth-rest-api-local .
 
-# -------------===  build ===-------------
+# -------------=== rest_api build ===-------------
 
 FROM ubuntu:jammy
 ARG DGT_TOP
@@ -23,8 +23,6 @@ RUN apt-get update \
 
 RUN apt-get update && apt-get install -y -q \
     git \
-    iputils-ping\
-    net-tools unzip \
     python3 \
     python3-stdeb python3-pip
 
@@ -33,43 +31,29 @@ RUN apt-get install -y -q \
     python3-protobuf
 
 RUN apt-get install -y -q \
-    libssl-dev \
-    openssl \
-    pkg-config \
-    python3-cbor \
+    python3-aiodns \
+    python3-aiohttp \
     python3-colorlog \
-    python3-cryptography>=1.7.1 \
-    python3-dev \
-    python3-lmdb \
-    python3-netifaces \
     python3-toml \
     python3-yaml \
-    python3-zmq 
-     
-      
-#  python3-graphviz
+    python3-zmq  \
+    python3-cryptography>=1.7.1 \
+    python3-cbor graphviz
+
 RUN pip3 install secp256k1
 RUN pip3 install grpcio-tools
-RUN pip3 install pyformance
+RUN pip3 install pyformance 
+RUN pip3 install chardet
 RUN pip3 install pysha3
 
-ENV PATH=$PATH:/project/$DGT_TOP/bin:/project/$DGT_TOP/bgx/bin:/protoc3/bin
+RUN mkdir /var/log/dgt
 
-RUN ln -s /usr/bin/python3 /usr/bin/python
-
-RUN mkdir -p /etc/dgt/keys
-RUN mkdir -p /var/lib/dgt
-RUN mkdir -p /var/log/dgt
-
-#ENV PATH=$PATH:/project/$DGT_TOP/bgx/bin:/project/$DGT_TOP/bin
+ENV PATH=$PATH:/project/$DGT_TOP/bin:/project/$DGT_TOP/bgx/bin
 
 WORKDIR /project/$DGT_TOP
 
-CMD echo "\033[0;32m--- Building validator ---\n\033[0m" \
+CMD echo "\033[0;32m--- Building dgt_rest_api ---\n\033[0m" \
  && bin/protogen \
- && cd validator \
- && if [ -d "debian" ]; then rm -rf debian; fi \
+ && cd rest-api \
  && python3 setup.py clean --all \
- && python3 setup.py --command-packages=stdeb.command debianize \
- && if [ -d "packaging/ubuntu" ]; then cp -R packaging/ubuntu/* debian/; fi 
- 
+ && python3 setup.py build

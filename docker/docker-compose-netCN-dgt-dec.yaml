@@ -21,13 +21,13 @@ services:
   settings-tp:
     build:
       context: ..
-      dockerfile: docker/settings/Dockerfile-${DISTRN}
+      dockerfile: docker/settings/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: settings-tp-jm-${PNM}:${ISOLATION_ID}
+    image: settings-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
     networks: 
     - network1
     environment:
@@ -54,13 +54,13 @@ services:
   bgt-tp-python:
     build:
       context: ..
-      dockerfile: families/bgt_python/Dockerfile-${DISTRN}
+      dockerfile: families/bgt_python/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: bgt-tp-python-jm-${PNM}:${ISOLATION_ID}
+    image: bgt-tp-python-${DISTRJM}-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -94,7 +94,7 @@ services:
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: dec-tp-jm-${PNM}:${ISOLATION_ID}
+    image: dec-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -122,13 +122,13 @@ services:
   stuff-tp:
     build:
       context: ..
-      dockerfile: families/smart_stuff/Dockerfile-${DISTR}
+      dockerfile: families/smart_stuff/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: stuff-tp-${PNM}:${ISOLATION_ID}
+    image: stuff-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -156,13 +156,13 @@ services:
   xcert-tp:
     build:
       context: ..
-      dockerfile: families/x509_cert/Dockerfile-${DISTR}
+      dockerfile: families/x509_cert/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: xcert-tp-${PNM}:${ISOLATION_ID}
+    image: xcert-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -191,13 +191,13 @@ services:
   client:
     build:
       context: ..
-      dockerfile: docker/shell/Dockerfile-${DISTR}
+      dockerfile: docker/shell/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: shell-${PNM}:${ISOLATION_ID}
+    image: shell-${DISTRJM}-${PNM}:${ISOLATION_ID}
     networks:
     - network1
     environment:
@@ -223,13 +223,13 @@ services:
   validator-dgt:
     build:
       context: ..
-      dockerfile: validator/Dockerfile-${DISTR}
+      dockerfile: validator/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: validator-${PNM}:${ISOLATION_ID}
+    image: validator-${DISTRJM}-${PNM}:${ISOLATION_ID}
     networks:
     - network1
     environment:
@@ -284,13 +284,13 @@ services:
   dgt-api:
     build:
       context: ..
-      dockerfile: rest-api/Dockerfile-${DISTR}
+      dockerfile: rest-api/Dockerfile-${DISTRJM}
       args:
         - http_proxy   
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: rest-api-${PNM}:${ISOLATION_ID}
+    image: rest-api-${DISTRJM}-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -322,13 +322,13 @@ services:
   dgt-pbft:
     build:
       context: ..
-      dockerfile: consensus/dgt_pbft/Dockerfile-${DISTR}
+      dockerfile: consensus/dgt_pbft/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: pbft-${PNM}:${ISOLATION_ID}
+    image: pbft-${DISTRJM}-${PNM}:${ISOLATION_ID}
     networks:
     - network1
     environment:
