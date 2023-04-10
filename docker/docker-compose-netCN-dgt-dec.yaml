@@ -21,13 +21,13 @@ services:
   settings-tp:
     build:
       context: ..
-      dockerfile: docker/settings/Dockerfile-${DISTR}
+      dockerfile: docker/settings/Dockerfile-${DISTRN}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: settings-tp-${PNM}:${ISOLATION_ID}
+    image: settings-tp-jm-${PNM}:${ISOLATION_ID}
     networks: 
     - network1
     environment:
@@ -54,13 +54,13 @@ services:
   bgt-tp-python:
     build:
       context: ..
-      dockerfile: families/bgt_python/Dockerfile-${DISTR}
+      dockerfile: families/bgt_python/Dockerfile-${DISTRN}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: bgt-tp-python-${PNM}:${ISOLATION_ID}
+    image: bgt-tp-python-jm-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -88,13 +88,13 @@ services:
   dec-tp:
     build:
       context: ..
-      dockerfile: families/dec_dgt/Dockerfile-${DISTR}
+      dockerfile: families/dec_dgt/Dockerfile-${DISTRJM}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: dec-tp-${PNM}:${ISOLATION_ID}
+    image: dec-tp-jm-${PNM}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer

@@ -43,11 +43,11 @@ services:
     #   - validator 18.222.233.160
     command: |
       bash -c "
-        echo bin/protogen
+        bin/protogen
         cd dashboard
         echo python3 setup.py clean --all
         echo python3 setup.py build
-        echo dgt-dashboard -vv  --connect tcp://validator-dgt-c1-1:4104 --bind dashboard-dgt:8003 -cb ${CRYPTO_BACK} ${HTTPS_MODE}
+        dgt-dashboard -vv  --connect tcp://validator-dgt-c1-1:4104 --bind dashboard-dgt:8003 -cb ${CRYPTO_BACK} ${HTTPS_MODE}
         tail -f /dev/null
       "
     stop_signal: SIGKILL
