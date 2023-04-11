@@ -21,13 +21,13 @@ services:
   settings-tp:
     build:
       context: ..
-      dockerfile: docker/settings/Dockerfile-${DISTRJM}
+      dockerfile: docker/settings/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: settings-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: settings-tp-${PNM}-${DISTR}:${ISOLATION_ID}
     networks: 
     - network1
     environment:
@@ -54,13 +54,13 @@ services:
   bgt-tp-python:
     build:
       context: ..
-      dockerfile: families/bgt_python/Dockerfile-${DISTRJM}
+      dockerfile: families/bgt_python/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: bgt-tp-python-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: bgt-tp-python-${PNM}-${DISTR}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -88,13 +88,13 @@ services:
   dec-tp:
     build:
       context: ..
-      dockerfile: families/dec_dgt/Dockerfile-${DISTRJM}
+      dockerfile: families/dec_dgt/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: dec-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: dec-tp-${PNM}-${DISTR}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -122,13 +122,13 @@ services:
   stuff-tp:
     build:
       context: ..
-      dockerfile: families/smart_stuff/Dockerfile-${DISTRJM}
+      dockerfile: families/smart_stuff/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: stuff-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: stuff-tp-${PNM}-${DISTR}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -156,13 +156,13 @@ services:
   xcert-tp:
     build:
       context: ..
-      dockerfile: families/x509_cert/Dockerfile-${DISTRJM}
+      dockerfile: families/x509_cert/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: xcert-tp-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: xcert-tp-${PNM}-${DISTR}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -191,13 +191,13 @@ services:
   client:
     build:
       context: ..
-      dockerfile: docker/shell/Dockerfile-${DISTRJM}
+      dockerfile: docker/shell/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: shell-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: shell-${PNM}-${DISTR}:${ISOLATION_ID}
     networks:
     - network1
     environment:
@@ -223,13 +223,13 @@ services:
   validator-dgt:
     build:
       context: ..
-      dockerfile: validator/Dockerfile-${DISTRJM}
+      dockerfile: validator/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: validator-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: validator-${PNM}-${DISTR}:${ISOLATION_ID}
     networks:
     - network1
     environment:
@@ -284,13 +284,13 @@ services:
   dgt-api:
     build:
       context: ..
-      dockerfile: rest-api/Dockerfile-${DISTRJM}
+      dockerfile: rest-api/Dockerfile-${DISTR}
       args:
         - http_proxy   
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: rest-api-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: rest-api-${PNM}-${DISTR}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/${DGT_TOP}/clusters/${C}/${PNM}${N}
     - PEER_HOME=/project/peer
@@ -322,13 +322,13 @@ services:
   dgt-pbft:
     build:
       context: ..
-      dockerfile: consensus/dgt_pbft/Dockerfile-${DISTRJM}
+      dockerfile: consensus/dgt_pbft/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: pbft-${DISTRJM}-${PNM}:${ISOLATION_ID}
+    image: pbft-${PNM}-${DISTR}:${ISOLATION_ID}
     networks:
     - network1
     environment:

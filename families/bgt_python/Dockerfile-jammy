@@ -1,4 +1,4 @@
-# Copyright 2018 Cargill Incorporated
+# Copyright 2020 DGT NETWORK INC © Stanislav Parsov
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,11 +21,6 @@ ARG DGT_TOP
 RUN apt-get update \
  && apt-get install gnupg -y
 
-#RUN echo "deb http://repo.sawtooth.me/ubuntu/ci bionic universe" >> /etc/apt/sources.list \
-# && (apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8AA7AF1F1091A5FD \
-# || apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 8AA7AF1F1091A5FD) \
-# && apt-get update
-
 RUN apt-get update && apt-get install -y -q \
     git \
     python3 \
@@ -34,7 +29,6 @@ RUN apt-get update && apt-get install -y -q \
 # python3-grpcio-tools python3-secp256k1
 RUN apt-get install -y -q \
     python3-grpcio \
-     \
     python3-protobuf 
 
 RUN apt-get update && apt-get install -y -q  libzmq5
@@ -55,7 +49,7 @@ RUN pip3 install secp256k1
 RUN pip3 install pysha3
 RUN mkdir -p /var/log/dgt
 
-ENV PATH=$PATH:/project/$DGT_TOP/bin:/project/$DGT_TOP/bgx/bin:
+ENV PATH=$PATH:/project/$DGT_TOP/bin:
 
 WORKDIR /project/$DGT_TOP
 

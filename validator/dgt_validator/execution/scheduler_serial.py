@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ------------------------------------------------------------------------------
-from  sys import version_info
+#from  sys import version_info
 from collections import deque
 from collections import namedtuple
 from itertools import filterfalse

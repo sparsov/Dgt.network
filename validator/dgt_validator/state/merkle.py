@@ -71,7 +71,7 @@ class MerkleDatabase(object):
             if version_info.minor > 6:
                 return None
             else:
-                raise StopIteration
+                raise StopIteration()
 
         if path == INIT_ROOT_KEY:
             node = self._get_by_hash(hash_key)
