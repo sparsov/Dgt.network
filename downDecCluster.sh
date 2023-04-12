@@ -27,7 +27,7 @@
 mode=down
 peers="1 2 3"
 export PNM="dgt"
-export FCOMPOSE="docker-compose-netCN-dgt-dec.yaml"
+export FCOMPOSE="docker-compose-netCN-dgt-dec-ci.yaml"
 
 if [ -z $GATEWAY ]; then 
   echo STATIC MODE;export DCONFIG='dgt_val.conf';export PEERING='static'; 

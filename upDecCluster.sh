@@ -45,7 +45,7 @@ export PNM="dgt"
 export KYC=""
 export CRYPTO_BACK="bitcoin"
 export HTTPS_MODE=""
-export FCOMPOSE="docker-compose-netCN-dgt-dec.yaml"
+export FCOMPOSE="docker-compose-netCN-dgt-dec-ci.yaml"
 declare -A segments=(
     [c11]='AA.aa1'
     [c12]='AA.aa2'
@@ -57,7 +57,7 @@ do
 case "$1" in
 -G) GENESIS="Y";echo "Genesis mode." ;;
 -E) export SINGLE="Y";echo "External mode." ;;
--CI) export FCOMPOSE="docker-compose-netCN-dgt-dec-ci.yaml";echo "Common image." ;;
+-MI) export FCOMPOSE="docker-compose-netCN-dgt-dec.yaml";echo "Many images." ;;
 -SC) export SIGNED="--signed_consensus";echo "Signed consensus." ;;
 -HTTPS) export HTTPS_MODE="--http_ssl";echo "Https mode." ;;
 -C) shift;export PCONTROL=$1;echo "Peers control mode." ;;

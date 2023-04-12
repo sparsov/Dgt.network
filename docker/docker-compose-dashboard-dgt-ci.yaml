@@ -19,13 +19,13 @@ services:
   dashboard-dgt:
     build:
       context: ..
-      dockerfile: docker/Dockerfile-${DISTRN}
+      dockerfile: docker/Dockerfile-${DISTR}
       args:
         - http_proxy
         - https_proxy
         - no_proxy
         - DGT_TOP=${DGT_TOP}
-    image: dgt-common-${DISTR}:${ISOLATION_ID}
+    image: ${PNM}-common-${DISTR}:${ISOLATION_ID}
     environment:
     - DGT_HOME=/project/peer
     - CRYPTO_BACK=${CRYPTO_BACK}
@@ -45,10 +45,9 @@ services:
       bash -c "
         bin/protogen
         cd dashboard
-        echo python3 setup.py clean --all
-        echo python3 setup.py build
+        python3 setup.py clean --all
+        python3 setup.py build
         dgt-dashboard -vv  --connect tcp://validator-dgt-c1-1:4104 --bind dashboard-dgt:8003 -cb ${CRYPTO_BACK} ${HTTPS_MODE}
-        tail -f /dev/null
       "
     stop_signal: SIGKILL
 
