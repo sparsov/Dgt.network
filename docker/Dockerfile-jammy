@@ -53,22 +53,15 @@ RUN pip3 install secp256k1
 RUN pip3 install grpcio-tools
 RUN pip3 install pyformance
 RUN pip3 install chardet
-RUN pip3 install aiodns
-RUN pip3 install aiohttp aiohttp_security[session]
-#RUN pip3 install aiohttp_security[session]
+RUN pip3 install aiodns aiohttp aiohttp_security[session]
 
-
-#RUN pip3 install pysha3
-
-ENV PATH=$PATH:/project/$DGT_TOP/bin:/protoc3/bin
+ENV PATH=$PATH:/project/$DGT_TOP/bin:
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 RUN mkdir -p /etc/dgt/keys
 RUN mkdir -p /var/lib/dgt
 RUN mkdir -p /var/log/dgt
-
-#ENV PATH=$PATH:/project/$DGT_TOP/bin
 
 WORKDIR /project/$DGT_TOP
 
