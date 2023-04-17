@@ -163,11 +163,11 @@ def start_rest_api(host, port, connection,handler,subscriber_handler,client_max_
         notary_db.put("ROOT", {'qid' : 'xxx'}) 
     """
     runners = []                                                 
-    async def start_site(app):                                   
+    async def start_site(app,ssl_ctx):                                   
         runner = web.AppRunner(app)                              
         runners.append(runner)                                   
         await runner.setup()                                     
-        site = web.TCPSite(runner, host, port)                   
+        site = web.TCPSite(runner, host, port,ssl_context=ssl_ctx)                   
         await site.start()                                       
                                                                  
     async def stop_site(loop):                                   
@@ -255,7 +255,7 @@ def start_rest_api(host, port, connection,handler,subscriber_handler,client_max_
         ssl_context = None
 
     loop = asyncio.get_event_loop()                               
-    loop.create_task(start_site(app))                             
+    loop.create_task(start_site(app,ssl_context))                             
     try:                                                          
         loop.run_forever()                                        
     except:                                                       
