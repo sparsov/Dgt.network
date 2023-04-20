@@ -17,9 +17,10 @@
 /.idea/
 /**/.idea/
 *.sublime*
-
+*.pyc
+*.prof
 /bgx/rest-api/web_app_node/node_modules/
-
+*_pb2.py
 # Everything else
 /adm/Cargo.lock
 /adm/target/
