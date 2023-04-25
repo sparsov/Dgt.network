@@ -7,7 +7,7 @@ github = GithubClient(
 github1 = GithubClient(
     client_id='sparsov',
     client_secret='Ghbdtnueuk.1964',
-    access_token="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",
+    access_token="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",
 )
 
 class Dgt2Client(OAuth2Client):
@@ -46,7 +46,7 @@ def main():
         authorize_url = github.get_authorize_url(scope="user:email")               
         print("authorize_url",authorize_url,dir(github))
 
-        token,_ = await github1.get_access_token("json") #authorize_url)                    
+        #token,_ = await github1.get_access_token("json") #authorize_url)                    
         #token,_ = github.get_request_token()                                      
         #print("token",token) 
         response = await github1.request('GET', 'user')      
