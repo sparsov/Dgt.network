@@ -48,6 +48,7 @@ authorization_server = AuthorizationServer[Request, Storage](storage)
 # INSECURE_TRANSPORT must be enabled for local development only!
 settings = Settings(
     INSECURE_TRANSPORT=True,
+    TOKEN_EXPIRES_IN=86400
 )
 async def introspect(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
@@ -63,6 +64,7 @@ async def introspect(request: fastapi.Request) -> fastapi.Response:
 #@app.post("/token")
 async def token(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
+    print('TOKEN',request)
     oauth2_request: aioauth.Request = await to_oauth2_request(request)
     # Creates the response via this function call.
     oauth2_response: aioauth.Response = await server.create_token_response(oauth2_request)
@@ -72,11 +74,13 @@ async def token(request: fastapi.Request) -> fastapi.Response:
 #@app.post("/authorize")
 async def authorize(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
+    print('AUTHORIZE',request,type(request))
     oauth2_request: aioauth.Request = await to_oauth2_request(request)
     # Creates the response via this function call.
     oauth2_response: aioauth.Response = await server.create_authorization_response(oauth2_request)
     # Converts an aioauth.Response to a fastapi.Response.
     response: fastapi.Response = await to_fastapi_response(oauth2_response)
+    print('authorize',response)
     return response
 
 #@app.post("/revoke")
@@ -93,6 +97,7 @@ async def revoke(request: fastapi.Request) -> fastapi.Response:
 
 
 def make_app() -> web.Application:
+
     app = web.Application()
     app["user_map"] = user_map
     configure_handlers(app)
@@ -124,4 +129,5 @@ def make_app() -> web.Application:
 
 
 if __name__ == '__main__':
+    print('START')
     web.run_app(make_app(), port=8003)
