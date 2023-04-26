@@ -5,8 +5,8 @@ github = GithubClient(
     client_secret="Ghbdtnueuk.1964" #'Ghbdtnueuk.1964', #"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"
 )
 github1 = GithubClient(
-    client_id='sparsov',
-    client_secret='Ghbdtnueuk.1964',
+    client_id='test',
+    client_secret='testsecret',
     access_token="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",
 )
 
@@ -20,9 +20,9 @@ class Dgt2Client(OAuth2Client):
 
     authorize_url = "http://127.0.0.1:8003/authorize" #"https://accounts.google.com/o/oauth2/v2/auth"
     access_token_url = "http://127.0.0.1:8003/token" #"https://oauth2.googleapis.com/token"
-    base_url = "https://www.googleapis.com/userinfo/v2/"
+    base_url = "http://127.0.0.1:8003/userinfo/v2/"
     name = "dgt"
-    user_info_url = "https://www.googleapis.com/userinfo/v2/me"
+    user_info_url = "http://127.0.0.1:8003/userinfo/v2/user"
 
     @staticmethod
     def user_parse(data):
@@ -37,8 +37,9 @@ class Dgt2Client(OAuth2Client):
         yield "gender", data.get("gender")
 
 
-dgt = Dgt2Client(client_id='sparsov',                          
-                 client_secret='Ghbdtnueuk.1964',  
+dgt = Dgt2Client(client_id='test',                          
+                 client_secret='testsecret', 
+                 access_token="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", 
                  )
 
 def main():
@@ -57,9 +58,10 @@ def main():
     async def test1():                                                         
         authorize_url = dgt.get_authorize_url(scope="user:email")             
         print("DGT::authorize_url",authorize_url)                             
-        token,_ = await  dgt.get_access_token("json")                  
-        print("token",token)
-
+        #token,_ = await  dgt.get_access_token("json")                  
+        #print("token",token)
+        response = await dgt.request('GET', 'user')
+        print("user_info",response)
 
 
 

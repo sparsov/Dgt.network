@@ -61,17 +61,27 @@ async def introspect(request: fastapi.Request) -> fastapi.Response:
     response: fastapi.Response = await to_fastapi_response(oauth2_response)
     return response
     
-
-
-#@app.post("/token")
+async def userinfo(request: fastapi.Request) -> fastapi.Response:                                                           
+    # Converts a fastapi.Request to an aioauth.Request. 
+    print('USERINFO',request.headers,request.url,request.content_type)
+    ln = await request.read()
+    print('body',ln)                                                                      
+    #oauth2_request: aioauth.Request = await to_oauth2_request(request)                                                        
+    # Creates the response via this function call.                                                                            
+    oauth2_response: aioauth.Response = await authorization_server.create_token_introspection_response(request) #oauth2_request)                      
+    # Converts an aioauth.Response to a fastapi.Response.                                                                     
+    response: fastapi.Response = await to_fastapi_response(oauth2_response)                                                   
+    return response                                                                                                       
+                                                                                                                          
+@app.post("/token")
 async def token(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
     print('TOKEN',request.headers,request.url,request.content_type)
     ln = await request.read()
     print('body',ln)
-    oauth2_request: aioauth.Request = await to_oauth2_request(request)
+    #oauth2_request: aioauth.Request = await to_oauth2_request(request)
     # Creates the response via this function call.
-    oauth2_response: aioauth.Response = await server.create_token_response(oauth2_request)
+    oauth2_response: aioauth.Response = await authorization_server.create_token_response(request) #oauth2_request)
     # Converts an aioauth.Response to a fastapi.Response.
     response: fastapi.Response = await to_fastapi_response(oauth2_response)
     return response  
@@ -111,6 +121,7 @@ def make_app() -> web.Application:
     router = app.router
     #print('authorization_server',dir(authorization_server))
     router.add_get("/introspect", introspect, name='introspect')
+    router.add_get("/userinfo/v2/user", userinfo, name='userinfo')
     router.add_post("/token", token, name='token')
     router.add_post("/authorize", authorize, name='authorize')
     router.add_post("/revoke", revoke, name='revoke')
@@ -134,5 +145,5 @@ def make_app() -> web.Application:
 
 
 if __name__ == '__main__':
-    print('START')
+    print('START',dir(authorization_server))
     web.run_app(make_app(), port=8003)
