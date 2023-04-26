@@ -1,7 +1,7 @@
 from aioauth_client import OAuth2Client,GithubClient
 import asyncio
 github = GithubClient(
-    client_id='40262793', #sparsov',
+    client_id='sparsov', #sparsov',
     client_secret="Ghbdtnueuk.1964" #'Ghbdtnueuk.1964', #"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"
 )
 github1 = GithubClient(
@@ -46,7 +46,7 @@ def main():
         authorize_url = github.get_authorize_url(scope="user:email")               
         print("authorize_url",authorize_url,dir(github))
 
-        #token,_ = await github1.get_access_token("json") #authorize_url)                    
+        token,_ = await github.get_access_token("json") #authorize_url)                    
         #token,_ = github.get_request_token()                                      
         #print("token",token) 
         response = await github1.request('GET', 'user')      
@@ -67,7 +67,7 @@ def main():
 
 
     loop = asyncio.get_event_loop()
-    tasks = [loop.create_task(test())]                                
+    tasks = [loop.create_task(test1())]                                
     wait_tasks = asyncio.wait(tasks)
     loop.run_until_complete(wait_tasks)
     loop.close()

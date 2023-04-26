@@ -20,7 +20,9 @@ from aioauth.server import AuthorizationServer
 
 import fastapi
 from aioauth_fastapi.utils import to_oauth2_request, to_fastapi_response
+from fastapi import FastAPI
 
+app = FastAPI()
 
 class User():
     def __init__(self, first_name, last_name):
@@ -64,14 +66,17 @@ async def introspect(request: fastapi.Request) -> fastapi.Response:
 #@app.post("/token")
 async def token(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
-    print('TOKEN',request)
+    print('TOKEN',request.headers,request.url,request.content_type)
+    ln = await request.read()
+    print('body',ln)
     oauth2_request: aioauth.Request = await to_oauth2_request(request)
     # Creates the response via this function call.
     oauth2_response: aioauth.Response = await server.create_token_response(oauth2_request)
     # Converts an aioauth.Response to a fastapi.Response.
     response: fastapi.Response = await to_fastapi_response(oauth2_response)
-    return response    
-#@app.post("/authorize")
+    return response  
+  
+@app.post("/authorize")
 async def authorize(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
     print('AUTHORIZE',request,type(request))
@@ -83,7 +88,7 @@ async def authorize(request: fastapi.Request) -> fastapi.Response:
     print('authorize',response)
     return response
 
-#@app.post("/revoke")
+@app.post("/revoke")
 async def revoke(request: fastapi.Request) -> fastapi.Response:
     # Converts a fastapi.Request to an aioauth.Request.
     oauth2_request: aioauth.Request = await to_oauth2_request(request)
@@ -106,9 +111,9 @@ def make_app() -> web.Application:
     router = app.router
     #print('authorization_server',dir(authorization_server))
     router.add_get("/introspect", introspect, name='introspect')
-    router.add_get("/token", token, name='token')
-    router.add_get("/authorize", authorize, name='authorize')
-    router.add_get("/revoke", revoke, name='revoke')
+    router.add_post("/token", token, name='token')
+    router.add_post("/authorize", authorize, name='authorize')
+    router.add_post("/revoke", revoke, name='revoke')
 
 
     # OAUTH EOF
