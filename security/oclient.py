@@ -48,8 +48,8 @@ def main():
         print("authorize_url",authorize_url,dir(github))
 
         token,_ = await github.get_access_token("json") #authorize_url)                    
-        #token,_ = github.get_request_token()                                      
-        #print("token",token) 
+        token,_ = github.get_request_token()                                      
+        print("token",token) 
         response = await github1.request('GET', 'user')      
         #user_info = await response.json()                  
         print("user_info",response)                         
