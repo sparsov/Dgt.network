@@ -2,12 +2,12 @@ import sys
 import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-print('dir',SCRIPT_DIR)
+#print('dir',SCRIPT_DIR)
 sys.path.append(os.path.dirname(SCRIPT_DIR))
-
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 from oauthlib.oauth2 import BackendApplicationClient
-from .my_requests_oauthlib import OAuth2Session
+from request_oauth import OAuth2Session
 from requests.auth import HTTPBasicAuth
 
 client_id= 'gtania.spiter'
@@ -15,10 +15,27 @@ client_secret='TaniaTest.1970'
 
 client_id= 'clientB'
 client_secret='doe'
+user_name = 'john'
+user_pass = 'doe'
+grant_type =  'password'
+
+dgt_data = {     #'code': 'json',                                                
+                 #'grant_type': 'password', #'authorization_code',
+                 # 'username': 'john',
+                 #'password':  'doe', 
+                 'scope'  : 'calendar'                                               
+                 #'redirect_uri': 'http://127.0.0.1:8003/calendar'
+        }
 
 auth = HTTPBasicAuth(client_id, client_secret)
-client = BackendApplicationClient(client_id=client_id)
-oauth = OAuth2Session(client=client)
+client = BackendApplicationClient(client_id)
+client.grant_type = 'password'
+oauth = OAuth2Session(client=client,
+                      client_id=client_id,
+                      scope ='calendar' ,
+                      redirect_uri='http://127.0.0.1:8003/calendar',
+                      #**dgt_data
+                      )
 
 
 """
@@ -48,11 +65,16 @@ dgt_data = {'code': 'json',
 
 
 """
+
 def main():
     token = oauth.fetch_token(token_url= 'http://127.0.0.1:8003/token', #'https://github.com/login/oauth/access_token',
-                              auth=auth,
-                           client_id=client_id,
-                           client_secret=client_secret
+                              code='json',
+                              #auth=auth,
+                              client_id=client_id,
+                              #client_secret=client_secret,
+                              username=user_name,
+                              password=user_pass,
+                              **dgt_data
                            )
 
     print('token',token)

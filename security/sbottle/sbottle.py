@@ -34,7 +34,7 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
         return False
 
     def validate_user(self, username, password, client, request, *args, **kwargs):
-        print('validate_user')
+        print('validate_user',username)
         if self.users_password.get(username):
             request.user = username
             print("validate_user",username)
@@ -43,11 +43,11 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
         return False
 
     def validate_grant_type(self, client_id, grant_type, client, request, *args, **kwargs):
-        print('validate_grant_type')
-        return grant_type in ["password"]
+        print('validate_grant_type',grant_type)
+        return grant_type in ["password",'authorization_code']
 
     def validate_scopes(self, client_id, scopes, client, request, *args, **kwargs):
-        print('validate_scopes')
+        print('validate_scopes',scopes)
         return all(scope in self.clients_scopes.get(client_id) for scope in scopes)
 
     def save_bearer_token(self, token_response, request, *args, **kwargs):
@@ -59,7 +59,7 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
         }
 
     def validate_bearer_token(self, access_token, scopes_required, request):
-        print('validate_bearer_token')
+        print('validate_bearer_token',access_token)
         info = self.tokens_info.get(access_token, None)
         if info:
             request.client = info["client"]
@@ -79,7 +79,7 @@ from boauth2 import BottleOAuth2
 
 app = bottle.Bottle()
 app.auth = BottleOAuth2(app)
-app.auth.initialize(oauth2.LegacyApplicationServer(OAuth2_PasswordValidator()))
+app.auth.initialize(oauth2.BackendApplicationServer(OAuth2_PasswordValidator())) # BackendApplicationServer  LegacyApplicationServer
 
 
 @app.get('/mail')
