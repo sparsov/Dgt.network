@@ -1,13 +1,13 @@
-from aioauth_client import OAuth2Client,GithubClient
+from aioauth_client import OAuth2Client,GithubClient,GoogleClient
 import asyncio
 github = GithubClient(
     client_id='sparsov', #sparsov',
     client_secret="Ghbdtnueuk.1964" #'Ghbdtnueuk.1964', #"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"
 )
 github1 = GithubClient(
-    client_id='test',
-    client_secret='testsecret',
-    access_token="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",
+    client_id='sparsov',
+    client_secret='Ghbdtnueuk.1964',
+    access_token="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"
 )
 
 class Dgt2Client(OAuth2Client):
@@ -41,15 +41,20 @@ dgt = Dgt2Client(client_id='test',
                  client_secret='testsecret', 
                  access_token="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", 
                  )
+google = GoogleClient (
+                        client_id='gtania.spiter', #
+                        client_secret="TaniaTest.1970"
 
+
+    )
 def main():
     async def test():
         authorize_url = github.get_authorize_url(scope="user:email")               
         print("authorize_url",authorize_url,dir(github))
 
-        token,_ = await github.get_access_token("json") #authorize_url)                    
-        token,_ = github.get_request_token()                                      
-        print("token",token) 
+        #token,_ = await github.get_access_token() #authorize_url)                    
+        #token,_ = github.get_request_token()                                      
+        #print("token",token) 
         response = await github1.request('GET', 'user')      
         #user_info = await response.json()                  
         print("user_info",response)                         
@@ -63,13 +68,19 @@ def main():
         response = await dgt.request('GET', 'user')
         print("user_info",response)
 
-
-
-
-
+    async def test2():                                                                    
+        authorize_url = google.get_authorize_url(scope="user:email")                     
+        print("authorize_url",authorize_url)                                 
+                                                                                         
+        token,_ = await google.get_access_token("code","https://www.googleapis.com/userinfo/v2/me") #authorize_url)                  
+        #token,_ = google.get_request_token()                                             
+        print("token",token)                                                             
+        response = await google.request('GET', 'user')                                  
+        #user_info = await response.json()                                               
+        print("user_info",response)                                                      
 
     loop = asyncio.get_event_loop()
-    tasks = [loop.create_task(test1())]                                
+    tasks = [loop.create_task(test())]                                
     wait_tasks = asyncio.wait(tasks)
     loop.run_until_complete(wait_tasks)
     loop.close()
