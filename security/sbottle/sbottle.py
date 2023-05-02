@@ -48,6 +48,7 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
 
     def validate_scopes(self, client_id, scopes, client, request, *args, **kwargs):
         print('validate_scopes',scopes)
+        #scopes= scopes.split(':')
         return all(scope in self.clients_scopes.get(client_id) for scope in scopes)
 
     def save_bearer_token(self, token_response, request, *args, **kwargs):
@@ -79,7 +80,7 @@ from boauth2 import BottleOAuth2
 
 app = bottle.Bottle()
 app.auth = BottleOAuth2(app)
-app.auth.initialize(oauth2.BackendApplicationServer(OAuth2_PasswordValidator())) # BackendApplicationServer  LegacyApplicationServer
+app.auth.initialize(oauth2.LegacyApplicationServer(OAuth2_PasswordValidator())) # BackendApplicationServer  LegacyApplicationServer
 
 
 @app.get('/mail')

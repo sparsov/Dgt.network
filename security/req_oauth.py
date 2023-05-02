@@ -13,17 +13,17 @@ from requests.auth import HTTPBasicAuth
 client_id= 'gtania.spiter'
 client_secret='TaniaTest.1970'
 
-client_id= 'clientB'
+client_id= 'clientA'
 client_secret='doe'
 user_name = 'john'
 user_pass = 'doe'
 grant_type =  'password'
-
+scopes=["mail","calendar"]  #'calendar'
 dgt_data = {     #'code': 'json',                                                
                  #'grant_type': 'password', #'authorization_code',
                  # 'username': 'john',
                  #'password':  'doe', 
-                 'scope'  : 'calendar'                                               
+                 'scope'  :  scopes                                              
                  #'redirect_uri': 'http://127.0.0.1:8003/calendar'
         }
 
@@ -32,7 +32,7 @@ client = BackendApplicationClient(client_id)
 client.grant_type = 'password'
 oauth = OAuth2Session(client=client,
                       client_id=client_id,
-                      scope ='calendar' ,
+                      scope =scopes ,
                       redirect_uri='http://127.0.0.1:8003/calendar',
                       #**dgt_data
                       )
@@ -49,19 +49,7 @@ dgt = OAuth2Service(
            # user_info_url = "https://www.googleapis.com/userinfo/v2/me"
            )
 
-dgt_params = {'redirect_uri': 'http://127.0.0.1:8003/calendar', 
-                 'scope'  : 'calendar' ,            
-                 'response_type': 'code'                                      
-          }                                                            
-                                                                       
-dgt_data = {'code': 'json',                                                
-        #'access_token' : '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',   
-         'grant_type': 'password',#'authorization_code',
-         'username': 'john',
-         'password':  'doe', 
-         'scope'  : 'calendar' ,                                              
-        'redirect_uri': 'http://127.0.0.1:8003/calendar'
-        }
+
 
 
 """
@@ -78,6 +66,17 @@ def main():
                            )
 
     print('token',token)
+    ret = oauth.request('GET', 'http://127.0.0.1:8003/calendar')
+    print('ret',ret,ret.content)
+    ret = oauth.request('GET', 'http://127.0.0.1:8003/mail') 
+    if ret.status_code == 200:
+        print('ret',ret,ret.content)  
+    else:
+        print('ret',ret.status_code)
+
+
+
+
 
 
 if __name__ == '__main__':
