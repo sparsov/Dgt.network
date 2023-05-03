@@ -24,14 +24,14 @@ def extract_params(bottle_request):
 
     # this returns (None, None) for Bearer Token.
     username, password = bottle_request.auth if bottle_request.auth else (None, None)
-    print('username, password',username, password)
+    print('username={}, password=/{}/'.format(username, password))
     if "application/x-www-form-urlencoded" in bottle_request.content_type:
         client = {}
         if username is not None:
             client["client_id"] = username
         if password is not None:
             client["client_secret"] = password
-        print('forms',dict(client, **bottle_request.forms))
+        print('forms',dict(client, **bottle_request.forms),type(bottle_request.url))
         return \
             bottle_request.url, \
             bottle_request.method, \
@@ -48,7 +48,7 @@ def extract_params(bottle_request):
             "Authorization": requests.auth._basic_auth_str(username, password)
         }
         body = dict(client_id=username, client_secret=password)
-
+    print('body',dict(bottle_request.headers, **basic_auth))
     return \
         bottle_request.url, \
         bottle_request.method, \
@@ -166,6 +166,7 @@ class BottleOAuth2(object):
                 assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
 
                 # Get any additional creds
+                print('args',args,'kwargs',kwargs)
                 try:
                     credentials_extra = credentials(bottle.request)
                 except TypeError:
@@ -181,7 +182,7 @@ class BottleOAuth2(object):
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
                 set_response(bottle.request, bottle.response, resp_status,
                              resp_headers, resp_body)
-
+                print('func_response',f)
                 func_response = f(*args, **kwargs)
                 if func_response:
                     return func_response

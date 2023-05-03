@@ -18,7 +18,7 @@ client_secret='doe'
 user_name = 'john'
 user_pass = 'doe'
 grant_type =  'password'
-scopes=["mail","calendar"]  #'calendar'
+scopes=["calendar"]  #'calendar'
 dgt_data = {     #'code': 'json',                                                
                  #'grant_type': 'password', #'authorization_code',
                  # 'username': 'john',
@@ -57,7 +57,7 @@ dgt = OAuth2Service(
 def main():
     token = oauth.fetch_token(token_url= 'http://127.0.0.1:8003/token', #'https://github.com/login/oauth/access_token',
                               code='json',
-                              #auth=auth,
+                              auth=auth,
                               client_id=client_id,
                               #client_secret=client_secret,
                               username=user_name,
@@ -66,8 +66,10 @@ def main():
                            )
 
     print('token',token)
+    return
     ret = oauth.request('GET', 'http://127.0.0.1:8003/calendar')
     print('ret',ret,ret.content)
+    return
     ret = oauth.request('GET', 'http://127.0.0.1:8003/mail') 
     if ret.status_code == 200:
         print('ret',ret,ret.content)  

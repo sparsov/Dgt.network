@@ -95,9 +95,9 @@ async def protected_page(request: web.Request) -> web.Response:
 
 def configure_handlers(app: web.Application) -> None:
     @app.auth.create_token_response()
-    async def generate_token():
+    def generate_token(request :web.Request,response: web.Response) : #(*args, **kwargs):
         print('generate_token')
-        pass
+        return response 
 
 
     router = app.router

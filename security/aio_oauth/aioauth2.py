@@ -5,6 +5,7 @@ import json
 from oauthlib.common import add_params_to_uri
 from oauthlib.oauth2 import FatalClientError
 from oauthlib.oauth2 import OAuth2Error
+from aiohttp import web
 import requests
 import logging
 
@@ -23,21 +24,27 @@ async def extract_params(arequest):
     """
 
     # this returns (None, None) for Bearer Token.
-    body = await arequest.text()
-    
-    print('jbody',body)
-    username, password = 'john', 'doe' #arequest.auth if arequest.auth else (None, None)
-
+    #body = await arequest.text()
+    forms = await arequest.post()
+    print("query",arequest.query)
+    for i,v in arequest.query.items():
+        print("q[{}]={}".format(i,v))
+    for i,v in forms.items(): 
+        print("F[{}]={}".format(i,v))  
+    username = forms["client_id"] if "client_id" in forms else 'clientB' #None
+    password = forms["client_secret"] if "client_secret" in forms else ''#None
+    print('username={}, password=/{}/'.format(username, password))
     if "application/x-www-form-urlencoded" in arequest.content_type:
         client = {}
         if username is not None:
             client["client_id"] = username
         if password is not None:
             client["client_secret"] = password
+            print('forms',dict(client, **forms),type(arequest.url))
         return \
-            arequest.url, \
+            str(arequest.url), \
             arequest.method, \
-            dict(client, **arequest.forms), \
+            dict(client, **forms), \
             dict(arequest.headers)
 
     basic_auth = {}
@@ -50,7 +57,7 @@ async def extract_params(arequest):
             "Authorization": requests.auth._basic_auth_str(username, password)
         }
         body = dict(client_id=username, client_secret=password)
-
+    print("ret=",arequest.url)
     return \
         arequest.url, \
         arequest.method, \
@@ -68,7 +75,7 @@ def add_params_to_request(bottle_request, params):
             bottle_request.oauth[k] = v
 
 
-def set_response(bottle_request, bottle_response, status, headers, body, force_json=False):
+def set_response(arequest, status, headers, dbody, force_json=False):
     """Set status/headers/body into bottle_response.
 
     Headers is a dict
@@ -76,6 +83,45 @@ def set_response(bottle_request, bottle_response, status, headers, body, force_j
     """
     if not isinstance(headers, dict):
         raise TypeError("a dict-like object is required, not {0}".format(type(headers)))
+    if not body:                                                                     
+        return                                                                       
+                                                                                     
+    if not isinstance(dbody, str):                                                    
+        raise TypeError("a str-like object is required, not {0}".format(type(dbody))) 
+    try:                                                                                                            
+        values = json.loads(dbody)                                                                                   
+    except json.decoder.JSONDecodeError:                                                                            
+        # consider body as string but not JSON, we stop here.                                                       
+        body = dbody                                                                                 
+        log.debug("Body Bottle response body created as is: %r",body)                              
+    else:  # consider body as JSON                                                                                  
+        # request want a json as response  
+        rheaders = dict(arequest.headers)                                                                         
+        if force_json is True or (                                                                                  
+                "Accept" in rheaders and                                                              
+                "application/json" in rheaders["Accept"]):                                            
+            content_type = "application/json;charset=UTF-8"                                      
+            body = dbody                                                                             
+            log.debug("Body Bottle response body created as json: %r",body)                        
+        else:                                                                                                       
+            from urllib.parse import quote                                                                          
+                                                                                                                    
+            content_type = = "application/x-www-form-urlencoded;charset=UTF-8"                     
+            body = "&".join([                                                                       
+                "{0}={1}".format(                                                                                   
+                    quote(k) if isinstance(k, str) else k,                                                          
+                    quote(v) if isinstance(v, str) else v                                                           
+                ) for k, v in values.items()                                                                        
+            ])                                                                                                      
+            log.debug("Body Bottle response body created as form-urlencoded: %r", body)             
+
+
+
+
+
+    resp = web.Response(
+                status=status,
+                headers=headers,
 
     bottle_response.status = status
     for k, v in headers.items():
@@ -175,7 +221,7 @@ class AioHttpOAuth2(object):
 
                 print('args',args,type(args[0]),'kwargs',kwargs)
                 uri, http_method, body, headers = await extract_params(args[0]) #bottle.request)
-                print("create_token_response:url={} metod={} body={} head={}".format(uri, http_method, body, headers))
+                print("create_token_response:url={} metod={} body={} head={} cred={}".format(uri, http_method, body, headers,credentials_extra))
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_token_response(
                         uri, http_method, body, headers, credentials_extra
@@ -183,14 +229,14 @@ class AioHttpOAuth2(object):
                     print("create_token_response: cred={} rhead={} rbody={} rst={}".format(credentials_extra,resp_headers, resp_body, resp_status))
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
-                set_response(bottle.request, bottle.response, resp_status,
-                             resp_headers, resp_body)
-
-                func_response = f(*args, **kwargs)
+                print('st={} head={} b={}'.format(type(resp_status),type(resp_headers),type(resp_body)))
+                resp = set_response(args[0], resp_status,resp_headers, resp_body)
+                print('func_response',f)
+                func_response = f(args[0],resp) # (*args, **kwargs)
                 if func_response:
                     return func_response
-                print("create_token_response 2",bottle.response)
-                return bottle.response
+                print("create_token_response 2",resp)
+                return resp
             return wrapper
         return decorator
 
