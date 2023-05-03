@@ -24,13 +24,14 @@ def extract_params(bottle_request):
 
     # this returns (None, None) for Bearer Token.
     username, password = bottle_request.auth if bottle_request.auth else (None, None)
-
+    print('username, password',username, password)
     if "application/x-www-form-urlencoded" in bottle_request.content_type:
         client = {}
         if username is not None:
             client["client_id"] = username
         if password is not None:
             client["client_secret"] = password
+        print('forms',dict(client, **bottle_request.forms))
         return \
             bottle_request.url, \
             bottle_request.method, \

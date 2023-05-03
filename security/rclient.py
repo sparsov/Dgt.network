@@ -51,7 +51,7 @@ goog_data = {'code': 'foobar',
 
 dgt = OAuth2Service(
            name='clientB',
-           client_id="clientB",
+           client_id="clientA",
            client_secret="doe",
            access_token_url='http://127.0.0.1:8003/token',
            authorize_url='http://127.0.0.1:8003/o/oauth2/v2/auth',
@@ -69,7 +69,7 @@ dgt_data = {'code': 'json',
          'grant_type': 'password',#'authorization_code',
          'username': 'john',
          'password':  'doe', 
-         'scope'  : 'calendar' ,                                              
+         'scope'  : ['mail','calendar'] ,                                              
         'redirect_uri': 'http://127.0.0.1:8003/calendar'
         }
 

@@ -13,7 +13,7 @@ from requests.auth import HTTPBasicAuth
 client_id= 'gtania.spiter'
 client_secret='TaniaTest.1970'
 
-client_id= 'clientA'
+client_id= 'clientB'
 client_secret='doe'
 user_name = 'john'
 user_pass = 'doe'
@@ -29,7 +29,7 @@ dgt_data = {     #'code': 'json',
 
 auth = HTTPBasicAuth(client_id, client_secret)
 client = BackendApplicationClient(client_id)
-client.grant_type = 'password'
+client.grant_type = 'password' #'authorization_code' #'password'
 oauth = OAuth2Session(client=client,
                       client_id=client_id,
                       scope =scopes ,

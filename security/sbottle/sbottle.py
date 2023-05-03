@@ -44,7 +44,7 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
 
     def validate_grant_type(self, client_id, grant_type, client, request, *args, **kwargs):
         print('validate_grant_type',grant_type)
-        return grant_type in ["password",'authorization_code']
+        return grant_type in ["password",'authorization_code','client_credentials']
 
     def validate_scopes(self, client_id, scopes, client, request, *args, **kwargs):
         print('validate_scopes',scopes)
