@@ -24,7 +24,10 @@ def extract_params(bottle_request):
 
     # this returns (None, None) for Bearer Token.
     username, password = bottle_request.auth if bottle_request.auth else (None, None)
-    print('username={}, password=/{}/'.format(username, password))
+    print('username={}, password=/{}/ h={}'.format(username, password,dict(bottle_request.headers)))
+    for i,v in bottle_request.forms.items():          
+        print("F[{}]={}".format(i,v))  
+
     if "application/x-www-form-urlencoded" in bottle_request.content_type:
         client = {}
         if username is not None:
@@ -44,6 +47,7 @@ def extract_params(bottle_request):
     # TODO: Remove HACK of using body for GET requests. Use commented code below
     # once https://github.com/oauthlib/oauthlib/issues/609 is fixed.
     if username is not None:
+        print('username={}, password={}'.format(username, password))
         basic_auth = {
             "Authorization": requests.auth._basic_auth_str(username, password)
         }
@@ -61,6 +65,7 @@ def add_params_to_request(bottle_request, params):
         bottle_request.oauth
     except AttributeError:
         bottle_request.oauth = {}
+    print('add_params={}'.format(params))
     if params:
         for k, v in params.items():
             bottle_request.oauth[k] = v
@@ -204,8 +209,9 @@ class BottleOAuth2(object):
                     scopes_list = scopes
 
                 uri, http_method, body, headers = extract_params(bottle.request)
+                print('uri={}, method={}, body={}, headers={}'.format(uri, http_method, body, headers))
                 valid, req = self._oauthlib.verify_request(uri, http_method, body, headers, scopes_list)
-
+                print('valid={}, req={}'.format(valid, req))
                 # For convenient parameter access in the view
                 add_params_to_request(bottle.request, {
                     'client': req.client,

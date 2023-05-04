@@ -46,7 +46,7 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
         return False
 
     def validate_user(self, username, password, client, request, *args, **kwargs):
-        print('validate_user',username)
+        #print('validate_user',username)
         if self.users_password.get(username):
             request.user = username
             print("validate_user",username)

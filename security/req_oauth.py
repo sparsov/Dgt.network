@@ -13,12 +13,12 @@ from requests.auth import HTTPBasicAuth
 client_id= 'gtania.spiter'
 client_secret='TaniaTest.1970'
 
-client_id= 'clientB'
+client_id= 'clientA'
 client_secret='doe'
 user_name = 'john'
 user_pass = 'doe'
 grant_type =  'password'
-scopes=["calendar"]  #'calendar'
+scopes=["calendar","mail"]  #'calendar'
 dgt_data = {     #'code': 'json',                                                
                  #'grant_type': 'password', #'authorization_code',
                  # 'username': 'john',
@@ -66,10 +66,10 @@ def main():
                            )
 
     print('token',token)
-    return
+    #return
     ret = oauth.request('GET', 'http://127.0.0.1:8003/calendar')
     print('ret',ret,ret.content)
-    return
+    #return
     ret = oauth.request('GET', 'http://127.0.0.1:8003/mail') 
     if ret.status_code == 200:
         print('ret',ret,ret.content)  

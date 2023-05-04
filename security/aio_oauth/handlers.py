@@ -95,10 +95,24 @@ async def protected_page(request: web.Request) -> web.Response:
 
 def configure_handlers(app: web.Application) -> None:
     @app.auth.create_token_response()
-    def generate_token(request :web.Request,response: web.Response) : #(*args, **kwargs):
+    def generate_token(request :web.Request) : #(*args, **kwargs):
         print('generate_token')
-        return response 
-
+        
+    # access control
+    @app.auth.verify_request(scopes=['calendar'])                                                         
+    def access_calendar(request :web.Request):   
+        response = web.Response(       # "user"   "client"                        
+            text="Welcome {}, you have permissioned {} to use your calendar".format('joe','pass'),
+            content_type='text/html',                            
+        )                                                        
+        return response                                          
+    @app.auth.verify_request(scopes=['mail'])                                                         
+    def access_mail(request :web.Request):                                                            
+        response = web.Response(       # "user"   "client"                                                
+            text="Welcome {}, you have permissioned {} to use your mail".format('joe','pass'),        
+            content_type='text/html',                                                                     
+        )                                                                                                 
+        return response                                                                                   
 
     router = app.router
     router.add_get('/', index, name='index')
@@ -107,3 +121,5 @@ def configure_handlers(app: web.Application) -> None:
     router.add_get('/public', internal_page, name='public')
     router.add_get('/protected', protected_page, name='protected')
     router.add_post('/token', generate_token, name='token')
+    router.add_get('/calendar', access_calendar, name='calendar')
+    router.add_get('/mail', access_mail, name='mail')
