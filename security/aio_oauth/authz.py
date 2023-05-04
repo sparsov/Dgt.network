@@ -17,8 +17,7 @@ class DictionaryAuthorizationPolicy(AbstractAuthorizationPolicy):
         """
         return identity if identity in self.user_map else None
 
-    async def permits(self, identity: Optional[str], permission: Union[str, Enum],
-                      context: None = None) -> bool:
+    async def permits(self, identity: Optional[str], permission: Union[str, Enum],context: None = None) -> bool:
         """Check user permissions.
         Return True if the identity is allowed the permission in the
         current context, else return False.
@@ -29,8 +28,7 @@ class DictionaryAuthorizationPolicy(AbstractAuthorizationPolicy):
         return permission in user.permissions
 
 
-async def check_credentials(user_map: Mapping[Optional[str], User], username: str,
-                            password: str) -> bool:
+async def check_credentials(user_map: Mapping[Optional[str], User], username: str,password: str) -> bool:
     user = user_map.get(username)
     if not user:
         return False

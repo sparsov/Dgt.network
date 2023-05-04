@@ -80,10 +80,15 @@ class OAuth2_PasswordValidator(oauth2.RequestValidator):
             request.scopes = info["scopes"]
             return all(scope in request.scopes for scope in scopes_required)
         return False
-
+@web.middleware
+async def oauth_middleware(request: web.Request,handler):# : Callable[[web.Request], Awaitable[web.Response]]
+    print('>>> HANDLER={}'.format(handler))
+    resp = await handler(request)
+    print('<<< HANDLER'.format(handler))
+    return resp
 
 def make_app() -> web.Application:
-    app = web.Application()
+    app = web.Application(middlewares=[oauth_middleware])
     app["user_map"] = user_map
     app.auth = AioHttpOAuth2(app)
     app.auth.initialize(oauth2.LegacyApplicationServer(OAuth2_PasswordValidator()))
@@ -102,7 +107,7 @@ def make_app() -> web.Application:
     
 
 
-
+    print('middlewares',app.middlewares)
     return app
 
 

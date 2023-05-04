@@ -1,11 +1,10 @@
-import bottle
-from bottle import HTTPError
 import functools
 import json
 from oauthlib.common import add_params_to_uri
 from oauthlib.oauth2 import FatalClientError
 from oauthlib.oauth2 import OAuth2Error
 from aiohttp import web,BasicAuth,hdrs
+from aiohttp_session import get_session
 import requests
 import logging
 
@@ -13,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 async def extract_params(arequest):
-    """Extract bottle request informations to oauthlib implementation.
+    """Extract request informations to oauthlib implementation.
     HTTP Authentication Basic is read but overloaded by payload, if any.
 
     returns tuple of :
@@ -78,19 +77,19 @@ async def extract_params(arequest):
         dict(arequest.headers, **basic_auth)
 
 
-def add_params_to_request(bottle_request, params):
+def add_params_to_request(arequest, params):
     try:
-        bottle_request.oauth
+        arequest.oauth
     except AttributeError:
-        bottle_request.oauth = {}
+        arequest.oauth = {}
     print('add_params={}'.format(params))
     if params:
         for k, v in params.items():
-            bottle_request.oauth[k] = v
+            arequest.oauth[k] = v
 
 
 def set_response(arequest, status, headers, dbody, force_json=False):
-    """Set status/headers/body into bottle_response.
+    """Set status/headers/body into response.
 
     Headers is a dict
     Body is ideally a JSON string (not dict).
@@ -147,8 +146,8 @@ def set_response(arequest, status, headers, dbody, force_json=False):
 
 
 class AioHttpOAuth2(object):
-    def __init__(self, bottle_server):
-        self._bottle = bottle_server
+    def __init__(self, web_app):
+        self._web_app = web_app
         self._error_uri = None
         self._oauthlib = None
 
@@ -159,10 +158,10 @@ class AioHttpOAuth2(object):
     def create_metadata_response(self):
         def decorator(f):
             @functools.wraps(f)
-            def wrapper():
+            def wrapper(*args):
                 assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
-
-                uri, http_method, body, headers = extract_params(bottle.request)
+                request = args[0]
+                uri, http_method, body, headers = extract_params(request)
 
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_metadata_response(
@@ -170,13 +169,12 @@ class AioHttpOAuth2(object):
                     )
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
-                set_response(bottle.request, bottle.response, resp_status,
-                             resp_headers, resp_body, force_json=True)
+                resp = set_response(request, resp_status,resp_headers, resp_body, force_json=True)
 
                 func_response = f()
                 if func_response:
                     return func_response
-                return bottle.response
+                return resp
             return wrapper
         return decorator
 
@@ -184,16 +182,20 @@ class AioHttpOAuth2(object):
         def decorator(f):
             @functools.wraps(f)
             async def wrapper(*args, **kwargs):
-                assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
-
+                assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
+                request = args[0]
+                session = await get_session(request)
+                print('SESSION..',session)
+                session['token'] = True
+                print('SESSION',session)
                 # Get any additional creds
                 try:
-                    credentials_extra = credentials(args[0])
+                    credentials_extra = credentials(request)
                 except TypeError:
                     credentials_extra = credentials
 
-                print('args',args,type(args[0]),'kwargs',kwargs)
-                uri, http_method, body, headers = await extract_params(args[0]) #bottle.request)
+                print('args',args,type(request),'kwargs',kwargs)
+                uri, http_method, body, headers = await extract_params(request) 
                 print("create_token_response:url={} metod={} body={} head={} cred={}".format(uri, http_method, body, headers,credentials_extra))
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_token_response(
@@ -203,9 +205,9 @@ class AioHttpOAuth2(object):
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
                 print('st={} head={} b={}'.format(type(resp_status),type(resp_headers),type(resp_body)))
-                resp = set_response(args[0], resp_status,resp_headers, resp_body)
+                resp = set_response(request, resp_status,resp_headers, resp_body)
                 print('func_response',f)
-                func_response = f(args[0]) # (*args, **kwargs)
+                func_response = f(request) # (*args, **kwargs)
                 if func_response:
                     return func_response
                 print("create_token_response 2",resp)
@@ -217,7 +219,7 @@ class AioHttpOAuth2(object):
         def decorator(f):
             @functools.wraps(f)
             async def wrapper(*args, **kwargs):
-                assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
+                assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
                 request = args[0]
                 # Get the list of scopes
                 try:
@@ -251,9 +253,9 @@ class AioHttpOAuth2(object):
         def decorator(f):
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
-                assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
-
-                uri, http_method, body, headers = extract_params(bottle.request)
+                assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
+                request = args[0]
+                uri, http_method, body, headers = extract_params(request)
 
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_introspect_response(
@@ -261,13 +263,12 @@ class AioHttpOAuth2(object):
                     )
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
-                set_response(bottle.request, bottle.response, resp_status, resp_headers,
-                             resp_body, force_json=True)
+                resp = set_response(request, resp_status, resp_headers,resp_body, force_json=True)
 
-                func_response = f(*args, **kwargs)
+                func_response = f(request) #*args, **kwargs)
                 if func_response:
                     return func_response
-                return bottle.response
+                return resp
             return wrapper
         return decorator
 
@@ -275,10 +276,11 @@ class AioHttpOAuth2(object):
         def decorator(f):
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
-                assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
-
-                uri, http_method, body, headers = extract_params(bottle.request)
-                scope = bottle.request.params.get('scope', '').split(' ')
+                assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
+                request = args[0]
+                uri, http_method, body, headers = extract_params(request)
+                # maybe request.params is request.query
+                scope = request.params.get('scope', '').split(' ')
 
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_authorization_response(
@@ -286,18 +288,19 @@ class AioHttpOAuth2(object):
                     )
                 except FatalClientError as e:
                     if self._error_uri:
-                        raise bottle.HTTPResponse(status=302, headers={"Location": add_params_to_uri(
+                        raise web.Response(#bottle.HTTPResponse(
+                            status=302, headers={"Location": add_params_to_uri(
                             self._error_uri, {'error': e.error, 'error_description': e.description}
-                        )})
+                            )})
                     raise e
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
-                set_response(bottle.request, bottle.response, resp_status, resp_headers, resp_body)
+                resp = set_response(request, resp_status, resp_headers, resp_body)
 
-                func_response = f(*args, **kwargs)
+                func_response = f(request) #*args, **kwargs)
                 if func_response:
                     return func_response
-                return bottle.response
+                return resp
             return wrapper
         return decorator
 
@@ -305,9 +308,9 @@ class AioHttpOAuth2(object):
         def decorator(f):
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
-                assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
-
-                uri, http_method, body, headers = extract_params(bottle.request)
+                assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
+                request = args[0]
+                uri, http_method, body, headers = extract_params(request)
 
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_revocation_response(
@@ -316,12 +319,12 @@ class AioHttpOAuth2(object):
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
 
-                set_response(bottle.request, bottle.response, resp_status, resp_headers, resp_body)
+                resp = set_response(request, resp_status, resp_headers, resp_body)
 
-                func_response = f(*args, **kwargs)
+                func_response = f(request) #*args, **kwargs)
                 if func_response:
                     return func_response
-                return bottle.response
+                return resp
             return wrapper
         return decorator
 
@@ -329,9 +332,9 @@ class AioHttpOAuth2(object):
         def decorator(f):
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
-                assert self._oauthlib, "BottleOAuth2 not initialized with OAuthLib"
-
-                uri, http_method, body, headers = extract_params(bottle.request)
+                assert self._oauthlib, "AioHttpOAuth2 not initialized with OAuthLib"
+                request = args[0]
+                uri, http_method, body, headers = extract_params(request)
 
                 try:
                     resp_headers, resp_body, resp_status = self._oauthlib.create_userinfo_response(
@@ -340,12 +343,11 @@ class AioHttpOAuth2(object):
                 except OAuth2Error as e:
                     resp_headers, resp_body, resp_status = e.headers, e.json, e.status_code
 
-                set_response(bottle.request, bottle.response, resp_status, resp_headers,
-                             resp_body, force_json=True)
+                resp = set_response(request, resp_status, resp_headers, resp_body, force_json=True)
 
-                func_response = f(*args, **kwargs)
+                func_response = f(request) #*args, **kwargs)
                 if func_response:
                     return func_response
-                return bottle.response
+                return resp
             return wrapper
         return decorator

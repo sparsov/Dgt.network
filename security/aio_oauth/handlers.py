@@ -3,8 +3,7 @@ from typing import Dict, NoReturn, Optional
 
 from aiohttp import web
 
-from aiohttp_security import (authorized_userid, check_authorized, check_permission, forget,
-                              remember)
+from aiohttp_security import (authorized_userid, check_authorized, check_permission, forget,remember)
 from authz import check_credentials
 from users import User
 
@@ -24,6 +23,17 @@ index_template = dedent("""
             <a href="/logout">Logout</a>
         </body>
 """)
+
+class DgtRouteHandler:
+    def __init__(self, auth):  
+        self._auth = auth                                     
+
+    #@self._auth.create_token_response()                                        
+    def generate_token(self,request :web.Request) : 
+        print('generate_token')                                              
+
+
+
 
 
 async def index(request: web.Request) -> web.Response:
@@ -113,7 +123,7 @@ def configure_handlers(app: web.Application) -> None:
             content_type='text/html',                                                                     
         )                                                                                                 
         return response                                                                                   
-
+    #handl = DgtRouteHandler(app.auth)
     router = app.router
     router.add_get('/', index, name='index')
     router.add_post('/login', login, name='login')
