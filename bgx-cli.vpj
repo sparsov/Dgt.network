@@ -40,6 +40,7 @@
             <F N="cli/dgt_cli/settings.py"/>
             <F N="cli/dgt_cli/state.py"/>
             <F N="cli/dgt_cli/status.py"/>
+            <F N="cli/dgt_cli/token.py"/>
             <F N="cli/dgt_cli/transaction.py"/>
             <F N="cli/dgt_cli/tty.py"/>
         </Folder>

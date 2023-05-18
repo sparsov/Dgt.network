@@ -69,7 +69,7 @@ dgt_data = {'code': 'json',
          'grant_type': 'password',#'authorization_code',
          'username': 'john',
          'password':  'doe', 
-         'scope'  : ['mail','calendar'] ,                                              
+         'scope'  : ['calendar'] ,                                              
         'redirect_uri': 'http://127.0.0.1:8003/calendar'
         }
 
