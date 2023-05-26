@@ -93,7 +93,7 @@ def get_file_data(fnm):
 
 
 class NotaryClient(XcertClient):
-    def __init__(self, url, keyfile=None,backend=None,vault_url=None,notary=None,lead_addr=None,token=None):
+    def __init__(self, url, keyfile=None,backend=None,vault_url=None,notary=None,lead_addr=None,token=None,ntoken=None):
         """
         url - dgt rest-api
         keyfile -key file for sign certificate
@@ -108,6 +108,8 @@ class NotaryClient(XcertClient):
         self._lead_addr = lead_addr
         self._cdec = None
         self._user_signer = None
+        self._ntoken = ntoken
+        self._dtoken = token
 
     def init_vault(self):
         if Vault is None: 
@@ -186,7 +188,7 @@ class NotaryClient(XcertClient):
     def init_dec(self,keyfile):
         # for  wallet mode 
         # keyfile - this is private key wallet owner 
-        self._cdec = DecClient(self._url,keyfile=keyfile,backend=self._backend)
+        self._cdec = DecClient(self._url,keyfile=keyfile,backend=self._backend,token=self._dtoken)
 
     def get_xcert_notary_attr(self,xcert):
         val = self.get_xcert_attributes(xcert,X509_COMMON_NAME)
@@ -1010,7 +1012,7 @@ class NotaryClient(XcertClient):
     """
     def approvals(self,args): 
 
-        result = self._send_request(DEC_APPROVALS,rest_url=args.notary_url)                   
+        result = self._send_request(DEC_APPROVALS,rest_url=args.notary_url,access_token=self._ntoken)                   
         print("approvals",result)                                                                                            
         try:                                                                                         
             encoded_entries = yaml.safe_load(result)["data"]                                         

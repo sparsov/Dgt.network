@@ -509,6 +509,7 @@ class OAuth2Session(requests.Session):
         client_id=None,
         client_secret=None,
         files=None,
+        access_token=None,
         **kwargs
     ):
         """Intercept all requests and add the OAuth 2 token if present."""
@@ -525,6 +526,7 @@ class OAuth2Session(requests.Session):
                 url, headers, data = hook(url, headers, data)
 
             log.debug("Adding token %s to request.", self.token)
+            #print("{}: TOKEN={} kwargs={}".format(method,access_token,kwargs))
             try:
                 url, headers, data = self._client.add_token(
                     url, http_method=method, body=data, headers=headers
@@ -564,6 +566,10 @@ class OAuth2Session(requests.Session):
         log.debug("Requesting url %s using method %s.", url, method)
         log.debug("Supplying headers %s and data %s", headers, data)
         log.debug("Passing through key word arguments %s.", kwargs)
+        
+        if access_token and 'Authorization' in headers:
+            headers['Authorization'] = "Bearer {}".format(access_token)
+        #print("HEADER",headers)   
         return super(OAuth2Session, self).request(
             method, url, headers=headers, data=data, files=files, **kwargs
         )
