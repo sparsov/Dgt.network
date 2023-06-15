@@ -162,6 +162,7 @@ class DashboardRouteHandler(RouteHandler):
         make transfer from wallet to wallet
         """
         family = request.url.query.get('family', None)
+        LOGGER.debug('run_transaction: FAMILY=%s!',family)
         if family == 'bgt' :
             cmd = request.url.query.get('cmd', None)
             arg1 = request.url.query.get('wallet', None)
@@ -198,6 +199,7 @@ class DashboardRouteHandler(RouteHandler):
             # undefined families
             batch_id = None
             link = ''
+            LOGGER.debug('run_transaction error undefined family query={}'.format(request))
 
         if batch_id is not None:
             error_traps = [error_handlers.BatchInvalidTrap,error_handlers.BatchQueueFullTrap]
@@ -211,6 +213,8 @@ class DashboardRouteHandler(RouteHandler):
                     validator_query,
                     error_traps)
             link = self._build_url(request, path='/batch_statuses', id=batch_id)
+        
+
         return self._wrap_response(
             request,
             data=None,
