@@ -1,0 +1,70 @@
+@startuml
+!theme vibrant
+!define Database(name) entity name as "name" <<database>> #LightBlue
+
+rectangle "Client shell docker" as dshell {
+component "Client console" as shell
+
+}
+note bottom of dshell
+  Контейнер с клиентской частью
+  для доступа к DGT через 
+  сервис нотариуса. 
+  Для работы с нотариусом 
+  надо запросить токен нотариуса.
+end note
+
+node "Notary services" as notary {
+ 
+  rectangle "REST-API" as nrest {
+   component "REST-API" as notrest
+   database "REST Database" as ndb
+   
+  }
+  rectangle "Vault node" as vault {
+   component "VAULT-N" as vaultn
+   database "Vault Database" as vdb
+
+  }
+  note left of ndb
+    История запросов 
+    в том числе двух фазных 
+    с подписью нотуриуса.
+    И выданные токены доступа
+  end note
+
+}
+note right of notary
+  Перед запуском сервиса нотариуса
+  требуется получить токен доступа  
+  к сети DGT.
+end note
+
+
+rectangle "DGT node" as dgt {
+  component "VALIDATOR " as dvalid {
+  
+  }
+  component "REST-API " as drest {
+   
+  }
+  database "REST Database" as rdb
+  queue "validator ZEROMQ" as qvalid
+}
+notrest <--> ndb  : Two part \nrequest
+notrest <--> drest : HTTPS (Dgt token)
+vaultn <--> vdb
+vaultn <--> notrest
+shell <-->> notrest : HTTPS (Notary token) 
+
+' shell <-->> drest : HTTP requests (Dgt token)
+drest <--> qvalid : Messages with\n REQ/RESP
+drest <--> rdb
+dvalid <--> qvalid
+
+/'kteleg --> TelegRepublisher
+serv -[dashed;#blue]-> kteleg
+PlanRepublisher -[dashed;#blue]-> plans
+aggr -[dashed]-> serv : [TCP connection]
+'/
+@enduml
