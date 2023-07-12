@@ -93,6 +93,7 @@ function upCluster1 {
     echo "START $node"
     case $node in
         1)
+          
           export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/$FCOMPOSE $mode
         ;;
         2)
