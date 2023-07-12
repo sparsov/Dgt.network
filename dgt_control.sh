@@ -24,7 +24,7 @@ CBLUE="\033[0m\033[36m"
 CRED="\033[0m\033[31m"
 CDEF="\033[0m"
 
-
+# set type of peers- dgt node or dashboard
 function setPeerType {
   if [[ $SNM == "dash"* ]]; then
             PEER_LIST=${DASH_LIST[@]}
@@ -35,6 +35,10 @@ function setPeerType {
            PEER_LIST=${CLUSTER_LIST[@]}
            LNAME=CLUSTER_LIST
            PEER_PARAMS=${DGT_PARAMS[@]}
+  elif [[ $SNM == "graf"* ]]; then
+           PEER_LIST=${GRAF_LIST[@]}         
+           LNAME=GRAF_LIST                   
+           PEER_PARAMS=${DGT_GRAF_PARAMS[@]} 
   else 
         PEER_PARAMS=()
         echo -e $CRED "NO SUCH TYPE PEER." $CDEF
@@ -42,11 +46,34 @@ function setPeerType {
 
 }
 setPeerType
-#echo "'$LNAME' '${PEER_LIST[@]}' ${PEER_PARAMS[@]} "
+#echo "$LNAME='${PEER_LIST[@]}' params=(${PEER_PARAMS[@]}) "
 
+function doGrafCompose {
+   
+   if test -f $GRAF_FCOMP; then 
+       eval PEER=\$PEER_${SNM^^}                                              
+                                                           
+       eval API=\$API_${SNM^^}                                                
+       eval DBPORT=\$DBPORT_${SNM^^}                                                
+       eval DBUSER=\$DBUSER_${SNM^^}
+       eval DBPASS=\$DBPASS_${SNM^^}
+       eval DB_ADM_USER=\$DB_ADM_USER_${SNM^^}
+       eval DB_ADM_PASS=\$DB_ADM_PASS_${SNM^^}
+       eval DBMODE=\$DBMODE_${SNM^^}
+       
+
+        export COMPOSE_PROJECT_NAME=$SNM API=$API DBPORT=$DBPORT  \
+               DBUSER=$DBUSER DBPASS=$DBPASS DB_ADM_USER=$DB_ADM_USER DB_ADM_PASS=$DB_ADM_PASS DBMODE=$DBMODE; \
+               $COMPOSE -f $GRAF_FCOMP $CMD $@;                           
+       
+   else                                                                              
+       echo -e $CRED "Create and add $GRAF_FCOMP" $CDEF                      
+   fi
+
+}
 
 function doDashCompose {
-   echo "doDashCompose $@"
+   #echo "doDashCompose $@"
    if test -f $DASH_FCOMP; then 
        eval PEER=\$PEER_${SNM^^}                                              
                                                            
@@ -69,23 +96,13 @@ function doDashCompose {
                $COMPOSE -f $DASH_FCOMP $CMD $@;                           
        
    else                                                                              
-       echo -e $CRED "Create and add $DASH_FCOMP"   $CDEF                      
+       echo -e $CRED "Create and add $DASH_FCOMP" $CDEF                      
    fi
 
 }
 
-function doDgtCompose {
-   eval PEER=\$PEER_${SNM^^}
-   if [ -z ${PEER} ] ;then                                                            
-      echo -e $CRED "UNDEFINED DGT PEER '$SNM'" $CDEF                              
-      return                                                                                        
-   fi
-
-   echo -e $CBLUE "$CMD service $SNM"  $CDEF
-   if [[ $SNM == "dash"* ]]; then
-        doDashCompose $@
-        return
-   fi
+function doPeerCompose {
+   
    if test -f $FCOMPOSE; then 
        eval PEER=\$PEER_${SNM^^}                                              
        eval CLUST=\$CLUST_${SNM^^}                                                
@@ -124,7 +141,27 @@ function doDgtCompose {
    fi                                                                                
 
 }
+function doDgtCompose {
+   eval PEER=\$PEER_${SNM^^}
+   if [ -z ${PEER} ] ;then                                                            
+      echo -e $CRED "UNDEFINED DGT PEER '$SNM'" $CDEF                              
+      return                                                                                        
+   fi
 
+   echo -e $CBLUE "$CMD service $SNM"  $CDEF
+   if [[ $LNAME == "DASH_LIST" ]]; then
+        doDashCompose $@
+        
+   elif [[ $LNAME == "CLUSTER_LIST" ]] ; then
+        doPeerCompose $@
+
+   elif [[ $LNAME == "GRAF_LIST" ]] ; then
+        doGrafCompose $@
+
+   else 
+        echo -e $CRED "UNDEFINED TYPE PEER" $CDEF
+   fi
+}
                                                                                                        
 
 function doServiceCmd {
@@ -225,10 +262,15 @@ function doCopyDgt {
         do
             p_val="${var}_${SNM^^}"
             
-            if [[ ${!p_val} == *"$delim"* ]]; then                       
-                echo "${var}_${1^^}=\"${!p_val}\""   >> $FILE_ENV    
-            else                                                     
+            if [[ $var == 'PEER' ]]; then
+              echo "${var}_${1^^}=${1}"   >> $FILE_ENV
+            else 
+              if [[ ${!p_val} == *"$delim"* ]]; then                       
+                  echo "${var}_${1^^}=\"${!p_val}\""   >> $FILE_ENV    
+              else  
+                                                                  
                 echo "${var}_${1^^}=${!p_val}"   >> $FILE_ENV        
+              fi
             fi                                                       
 
 
@@ -443,7 +485,7 @@ case $CMD in
                     
      *)
 
-          echo -e $CBLUE "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy)" $CDEF
+          echo -e $CBLUE "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy/shell)" $CDEF
           ;;
 esac
 
