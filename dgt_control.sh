@@ -443,7 +443,7 @@ case $CMD in
                     
      *)
 
-          echo "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy)"
+          echo -e $CBLUE "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy)" $CDEF
           ;;
 esac
 
