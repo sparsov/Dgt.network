@@ -14,6 +14,12 @@ then
 fi
 #FCOMPOSE="docker-compose-netCN-dgt-dec-ci.yaml"
 #DGT_PARAM_LIST=${DGT_PARAMS[@]} #(PEER CLUST NODE GENESIS SINGLE PCONTROL PEERING NETWORK METRIC SIGNED INFLUXDB DBHOST DBUSER DBPASS PNM KYC CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
+declare -A MODES_HELP=(
+ [dynamic]="Set/reset peer in dynamic mode"
+ [taccess]="Set/reset token access mode"
+ [genesis]="Set/reset genesis mode for peer"
+
+)
 PEER_PARAMS=()
 PEER_LIST=()
 LNAME=
@@ -38,7 +44,12 @@ function setPeerType {
   elif [[ $SNM == "graf"* ]]; then
            PEER_LIST=${GRAF_LIST[@]}         
            LNAME=GRAF_LIST                   
-           PEER_PARAMS=${DGT_GRAF_PARAMS[@]} 
+           PEER_PARAMS=${DGT_GRAF_PARAMS[@]}
+  elif [[ $SNM == "nota"* ]]; then                    
+           PEER_LIST=${NOTARY_LIST[@]}         
+           LNAME=NOTARY_LIST                   
+           PEER_PARAMS=${DGT_NOTA_PARAMS[@]} 
+ 
   else 
         PEER_PARAMS=()
         echo -e $CRED "NO SUCH TYPE PEER." $CDEF
@@ -47,6 +58,35 @@ function setPeerType {
 }
 setPeerType
 #echo "$LNAME='${PEER_LIST[@]}' params=(${PEER_PARAMS[@]}) "
+
+function doNotaCompose {
+   #echo "doDashCompose $@"
+   if test -f $NOTA_FCOMP; then 
+       eval PEER=\$PEER_${SNM^^}                                              
+                                                           
+       eval CLUST=\$CLUST_${SNM^^}                                                
+       eval NODE=\$NODE_${SNM^^}                                                
+       eval SIGNED=\$SIGNED_${SNM^^}
+       eval PNM=\$PNM_${SNM^^}
+       eval CRYPTO_BACK=\$CRYPTO_BACK_${SNM^^}
+       eval HTTPS_MODE=\$HTTPS_MODE_${SNM^^}
+       eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
+       eval API=\$API_${SNM^^}
+       eval COMP=\$COMP_${SNM^^}
+
+                                             
+ 
+        #export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/$FCOMPOSE $mode
+        echo export COMPOSE_PROJECT_NAME=$SNM C=$CLUST N=$NODE API=$API COMP=$COMP  \
+               SIGNED=$SIGNED  \
+               PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK KYC=$KYC HTTPS_MODE=$HTTPS_MODE; \
+               $COMPOSE -f $NOTA_FCOMP $CMD $@;                           
+       
+   else                                                                              
+       echo -e $CRED "Create and add $NOTA_FCOMP" $CDEF                      
+   fi
+
+}
 
 function doGrafCompose {
    
@@ -133,7 +173,7 @@ function doPeerCompose {
         export COMPOSE_PROJECT_NAME=$SNM G=$GENESIS C=$CLUST N=$NODE API=$API COMP=$COMP NET=$NET CONS=$CONS \
                GENESIS=$GENESIS SINGLE=$SINGLE PCONTROL=$PCONTROL PEERING=$PEERING NETWORK=$NETWORK \
                METRIC=$METRIC SIGNED=$SIGNED INFLUXDB=$INFLUXDB DBHOST=$DBHOST DBUSER=$DBUSER DBPASS=$DBPASS \
-               PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK KYC=$KYC HTTPS_MODE=$HTTPS_MODE; \
+               PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK KYC=$KYC HTTPS_MODE=$HTTPS_MODE ACCESS_TOKEN=$ACCESS_TOKEN; \
                $COMPOSE -f $FCOMPOSE $CMD $@;                           
        
    else                                                                              
@@ -158,6 +198,8 @@ function doDgtCompose {
    elif [[ $LNAME == "GRAF_LIST" ]] ; then
         doGrafCompose $@
 
+   elif [[ $LNAME == "NOTARY_LIST" ]] ; then
+        doNotaCompose $@
    else 
         echo -e $CRED "UNDEFINED TYPE PEER" $CDEF
    fi
@@ -265,7 +307,7 @@ function doCopyDgt {
             if [[ $var == 'PEER' ]]; then
               echo "${var}_${1^^}=${1}"   >> $FILE_ENV
             else 
-              if [[ ${!p_val} == *"$delim"* ]]; then                       
+              if [[ ${!p_val} == *"$delim"* ]] ; then                       
                   echo "${var}_${1^^}=\"${!p_val}\""   >> $FILE_ENV    
               else  
                                                                   
@@ -325,6 +367,8 @@ eval PEER=\$PEER_${SNM^^}
           pvals=$(getParamHelp $1)
           echo -e $CBLUE "Set new value $pvals for ${SNM^^} DGT PEER" $CDEF
           read -e -p ">>> " -i "${!PAR}" NVAL   #-p "Set new value $pvals >>"
+          # for uri change special for sed letter '/'
+          NVAL=${NVAL////\\/}
           if [[ $NVAL == *"$delim"* ]]; then
           updateEnvParam $PAR "${!PAR}" "\"$NVAL\""
           else
@@ -391,7 +435,73 @@ eval PEER=\$PEER_${SNM^^}
 
 
 }
+function set_mode_dynamic {
 
+  echo "set dynamic peer"
+  # PEERING=dynamic SEEDS=--seeds <gateway>
+
+}
+
+function set_mode_taccess {
+
+  
+  eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
+  
+  if [[ $ACCESS_TOKEN == *"--access_token"* ]]; then
+      NVAL=""
+      echo "Set free access mode for peer $snm"   
+  else
+      NVAL="--access_token"
+      echo "Set token access mode for peer $snm"
+  fi
+  updateEnvParam "ACCESS_TOKEN_${SNM^^}" "$ACCESS_TOKEN" "$NVAL"
+
+}
+
+function set_mode_genesis {
+
+eval GENESIS=\$GENESIS_${SNM^^}
+  
+  if [[ $GENESIS == "N" ]]; then
+      NVAL=Y
+      echo "Set genesis mode for peer $snm"   
+  else
+      NVAL=N
+      echo "Reset genesis mode for peer $snm"
+  fi
+  updateEnvParam "GENESIS_${SNM^^}" "$GENESIS" "$NVAL"
+
+
+}
+
+function doModeDgt {
+  # 
+  eval PEER=\$PEER_${SNM^^}
+  if [ -z ${PEER} ];then           
+    echo -e $CRED "'$SNM' PEER UNDEFINED" $CDEF
+    return
+  fi
+  if [[ $1 != "" ]]; then
+     if [[ "$(type -t set_mode_$1)" == "function" ]]; then
+       "set_mode_$1"
+       return
+     else
+       echo -e $CRED "Undefined mode '$1'." $CDEF
+       
+     fi
+  else 
+     echo -e $CRED "Define mode which you want to set for '$SNM'" $CDEF
+     
+  fi
+  echo -e $CBLUE "Use mode from list:" $CDEF
+  for key in "${!MODES_HELP[@]}"; do                      
+                                                          
+   echo -e $CBLUE "  $key - '${MODES_HELP[$key]}'" $CDEF  
+  done                                                    
+
+
+
+}
 function doDelDgt {
   # sed '/the/d' dummy.txt
   eval PEER=\$PEER_${SNM^^}
@@ -431,6 +541,30 @@ function doShellDgt {
     fi
 
     docker exec -it shell-dgt-${CLUST}-${NODE} bash
+
+}
+function doTokenDgt {
+    
+    eval CLUST=\$CLUST_${SNM^^}
+    eval NODE=\$NODE_${SNM^^}
+    if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
+      echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
+      return
+    fi
+
+    docker exec -it shell-dgt-${CLUST}-${NODE}  dgt token get -u dgt:matagami -sc show -sc trans --client clientC
+
+}
+function doDecDgt {
+    
+    eval CLUST=\$CLUST_${SNM^^}
+    eval NODE=\$NODE_${SNM^^}
+    if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
+      echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
+      return
+    fi
+
+    docker exec -it shell-dgt-${CLUST}-${NODE} dec $@
 
 }
 
@@ -479,13 +613,22 @@ case $CMD in
      del)                             
           doDelDgt  $@                 
           ;;
+     mode)                             
+          doModeDgt  $@                 
+          ;;
+
      shell)
          doShellDgt $@
          ;;    
-                    
+     token)
+         doTokenDgt $@
+         ;;               
+     dec)                
+         doDecDgt $@     
+         ;;                
      *)
 
-          echo -e $CBLUE "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy/shell)" $CDEF
+          echo -e $CBLUE "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy/mode/shell/token)" $CDEF
           ;;
 esac
 
