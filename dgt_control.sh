@@ -16,10 +16,31 @@ fi
 #DGT_PARAM_LIST=${DGT_PARAMS[@]} #(PEER CLUST NODE GENESIS SINGLE PCONTROL PEERING NETWORK METRIC SIGNED INFLUXDB DBHOST DBUSER DBPASS PNM KYC CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
 declare -A MODES_HELP=(
  [dynamic]="Set/reset peer in dynamic mode"
- [taccess]="Set/reset token access mode"
+ [access]="Set/reset token access mode"
+ [https]="Set/reset https mode"
  [genesis]="Set/reset genesis mode for peer"
+ [signed]="Set/reset signed consensus mode for peer"
 
 )
+declare -A CMDS_HELP=(
+ [up]="Create and start DGT containers: ./dgt_control.sh c1_1 up [-d]"
+ [down]="Stop and remove DGT containers, networks, images, and volumes: ./dgt_control.sh c1_1 down"
+ [start]="Start DGT services: ./dgt_control.sh c1_1 start"
+ [stop]="Stop DGT services: ./dgt_control.sh c1_1 stop"
+ [restart]="Restart DGT services: ./dgt_control.sh c1_1 restart"
+ [list]="print DGT peer's params: ./dgt_control.sh dgt list [-v]"
+ [show]="DGT peer params: ./dgt_control.sh c1_2 show"
+ [edit]="edit DGT peer params: ./dgt_control.sh c1_1 edit [<param name>]"
+ [add]="Add new DGT peer: ./dgt_control.sh c4_1 add"
+ [del]="Drop peer declaration: ./dgt_control.sh c4_1 del"
+ [copy]="make peer copy: ./dgt_control.sh c1_1 copy <new peer name>"
+ [mode]="change peer mode: ./dgt_control.sh c1_1 <mode name>"
+ [shell]="Enter into peer shell: ./dgt_control.sh c1_1 shell"
+ [token]="Generate access token: ./dgt_control.sh c1_1 token"
+ [dec]="run dec commands: ./dgt_control.sh c1_1 dec list"
+
+)
+
 PEER_PARAMS=()
 PEER_LIST=()
 LNAME=
@@ -437,24 +458,68 @@ eval PEER=\$PEER_${SNM^^}
 }
 function set_mode_dynamic {
 
-  echo "set dynamic peer"
+  
   # PEERING=dynamic SEEDS=--seeds <gateway>
+  eval PEERING=\$PEERING_${SNM^^}
+  
+  if [[ $PEERING == *"static"* ]]; then
+      NVAL="dynamic"
+      echo "Set dynamic mode for peer $snm"   
+  else
+      NVAL="static"
+      echo "Set static mode for peer $snm"
+  fi
+  updateEnvParam "PEERING_${SNM^^}" "$PEERING" "$NVAL"
 
 }
 
-function set_mode_taccess {
+function set_mode_https {
+
+  
+  eval HTTPS_MODE=\$HTTPS_MODE_${SNM^^}
+  
+  if [[ $HTTPS_MODE == *"--http_ssl"* ]]; then
+      NVAL=""
+      echo "Set http mode for peer $snm"   
+  else
+      NVAL="--http_ssl"
+      echo "Set https mode for peer $snm"
+  fi
+  updateEnvParam "HTTPS_MODE_${SNM^^}" "$HTTPS_MODE" "$NVAL"
+
+}
+function set_mode_access {
 
   
   eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
-  
+  eval HTTPS_MODE=\$HTTPS_MODE_${SNM^^}
   if [[ $ACCESS_TOKEN == *"--access_token"* ]]; then
       NVAL=""
+      NVAL1=""
       echo "Set free access mode for peer $snm"   
   else
       NVAL="--access_token"
+      NVAL1="--http_ssl"
       echo "Set token access mode for peer $snm"
+      
   fi
+  updateEnvParam "HTTPS_MODE_${SNM^^}" "$HTTPS_MODE" "$NVAL1"
   updateEnvParam "ACCESS_TOKEN_${SNM^^}" "$ACCESS_TOKEN" "$NVAL"
+
+}
+function set_mode_signed {
+
+  
+  eval SIGNED=\$SIGNED_${SNM^^}
+  
+  if [[ $SIGNED == *"--signed_consensus"* ]]; then
+      NVAL=""
+      echo "Set unsigned consensus mode for peer $snm"   
+  else
+      NVAL="--signed_consensus"
+      echo "Set signed consensus mode for peer $snm"
+  fi
+  updateEnvParam "SIGNED_${SNM^^}" "$SIGNED" "$NVAL"
 
 }
 
@@ -627,8 +692,14 @@ case $CMD in
          doDecDgt $@     
          ;;                
      *)
-
-          echo -e $CBLUE "Undefined cmd '$CMD' use <peer name> (up/up -d/down/start/stop/restart/list/show/edit/add/copy/mode/shell/token)" $CDEF
+          desired_length=12
+          echo -e $CBLUE "usage:<peer name> <subcommand> [<args>]" $CDEF
+          echo -e $CBLUE "subcommands: " $CDEF
+          for key in "${!CMDS_HELP[@]}"; do                      
+            padding_len=$((desired_length - ${#key}))
+            padded_key="${key}$(printf '%*s' $padding_len)"                                              
+            echo -e $CBLUE "  $padded_key     ${CMDS_HELP[$key]}" $CDEF  
+          done
           ;;
 esac
 
