@@ -4,8 +4,12 @@
 source ./.env.dgt
 FILE_ENV=./.env.dgt
 COMPOSE=docker-compose
+# get name and operation
 SNM=$1
 shift
+CMD=$1
+shift
+
 if ! command -v $COMPOSE &> /dev/null
 then
     echo "$COMPOSE could not be found"
@@ -23,6 +27,7 @@ declare -A MODES_HELP=(
 
 )
 declare -A CMDS_HELP=(
+ [build]="Build or rebuild services: ./dgt_control.sh c1_1 build validator-dgt"
  [up]="Create and start DGT containers: ./dgt_control.sh c1_1 up [-d]"
  [down]="Stop and remove DGT containers, networks, images, and volumes: ./dgt_control.sh c1_1 down"
  [start]="Start DGT services: ./dgt_control.sh c1_1 start"
@@ -313,6 +318,12 @@ function doCopyDgt {
           return
 
         fi 
+        eval NPEER=\$PEER_${1^^}
+        if [ ! -z ${NPEER} ];then           
+           echo -e $CRED "DGT PEER '$NPEER' ALREADY DEFINED" $CDEF
+           return
+        fi 
+
         echo -e $CBLUE "COPY ${SNM^^} DGT PEER INTO ${1^^}" $CDEF
 
         PEER_LIST+=($1)
@@ -461,14 +472,21 @@ function set_mode_dynamic {
   
   # PEERING=dynamic SEEDS=--seeds <gateway>
   eval PEERING=\$PEERING_${SNM^^}
-  
+  eval SEEDS=\$SEEDS_${SNM^^}
+  eval CLUST=\$CLUST_${SNM^^}
+
   if [[ $PEERING == *"static"* ]]; then
       NVAL="dynamic"
+      NVAL1="--seeds"
+      NCL="dyn"
+      updateEnvParam "CLUST_${SNM^^}" "$CLUST" "$NCL"
       echo "Set dynamic mode for peer $snm"   
   else
       NVAL="static"
+      NVAL1=""
       echo "Set static mode for peer $snm"
   fi
+  updateEnvParam "SEEDS_${SNM^^}" "$SEEDS" "$NVAL1"
   updateEnvParam "PEERING_${SNM^^}" "$PEERING" "$NVAL"
 
 }
@@ -633,8 +651,8 @@ function doDecDgt {
 
 }
 
-CMD=$1
-shift
+
+
 case $CMD in
      up)
           doDgtCompose  $@
