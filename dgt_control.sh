@@ -50,6 +50,7 @@ declare -A CMDS_HELP=(
  [shell]="Enter into peer shell: ./dgt_control.sh c1_1 shell"
  [token]="Generate access token: ./dgt_control.sh c1_1 token"
  [dec]="run dec commands: ./dgt_control.sh c1_1 dec list"
+ [run]="run dgt commands: ./dgt_control.sh c1_1 dgt bgt list"
 
 )
 if [ ! -v DGT_PARAMS ]; then
@@ -700,6 +701,17 @@ function doDelDgt {
 
 
 }
+function doDockerCmd() {
+    local container_name=$1;shift
+    local container_id=$(docker ps -q -f "name=${container_name}")
+
+    if [ -n "$container_id" ]; then
+      #echo "Контейнер $container_name запущен."
+      docker exec -it ${container_name} $@
+    else
+      echo "Service '$container_name' is not ready."
+    fi
+}
 
 function doShellDgt {
     
@@ -709,11 +721,9 @@ function doShellDgt {
       echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
       return
     fi
-
-    docker exec -it shell-dgt-${CLUST}-${NODE} bash
-    if [ $? -ne 0 ]; then
-    echo "Произошла ошибка !"
-    fi
+    container_name="shell-dgt-${CLUST}-${NODE}"
+    doDockerCmd $container_name "bash"
+    
 
 }
 function doTokenDgt {
@@ -724,8 +734,9 @@ function doTokenDgt {
       echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
       return
     fi
-
-    docker exec -it shell-dgt-${CLUST}-${NODE}  dgt token get -u dgt:matagami -sc show -sc trans --client clientC
+    local container_name="shell-dgt-${CLUST}-${NODE}"
+    doDockerCmd $container_name "dgt token get -u dgt:matagami -sc show -sc trans --client clientC" 
+    #docker exec -it shell-dgt-${CLUST}-${NODE}  dgt token get -u dgt:matagami -sc show -sc trans --client clientC
     
 
 }
@@ -737,8 +748,22 @@ function doDecDgt {
       echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
       return
     fi
+    local container_name="shell-dgt-${CLUST}-${NODE}"
+    doDockerCmd $container_name dec $@
+    #docker exec -it shell-dgt-${CLUST}-${NODE} dec $@
 
-    docker exec -it shell-dgt-${CLUST}-${NODE} dec $@
+}
+function doDgtDgt {
+    
+    eval CLUST=\$CLUST_${SNM^^}
+    eval NODE=\$NODE_${SNM^^}
+    if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
+      echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
+      return
+    fi
+    local container_name="shell-dgt-${CLUST}-${NODE}"
+    doDockerCmd $container_name $@
+    #docker exec -it shell-dgt-${CLUST}-${NODE} dec $@
 
 }
 
@@ -746,6 +771,9 @@ function doDecDgt {
 
 case $CMD in
      up)
+          doDgtCompose  $@
+          ;;
+     ps)
           doDgtCompose  $@
           ;;
      down)
@@ -799,7 +827,12 @@ case $CMD in
          ;;               
      dec)                
          doDecDgt $@     
-         ;;                
+         ;;
+     run)                
+         doDgtDgt $@     
+         ;;    
+                
+                
      *)
           desired_length=12
           echo -e $CBLUE "usage:<peer name> <subcommand> [<args>]" $CDEF
