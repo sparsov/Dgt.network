@@ -775,27 +775,9 @@ function doDgtDgt {
 
 
 case $CMD in
-     up)
+     up | down | start | stop | restart | build | ps)
           doDgtCompose  $@
           ;;
-     ps)
-          doDgtCompose  $@
-          ;;
-     down)
-          doDgtCompose  $@
-          ;;
-     start)                  
-         doDgtCompose  $@  
-         ;;                
-     stop)
-          doDgtCompose  $@
-          ;;
-     restart)                      
-          doDgtCompose  $@      
-          ;;      
-     build)                       
-          doDgtCompose  $@              
-          ;;   
      load)
           doImageLoad  $@              
           ;;              
@@ -836,7 +818,6 @@ case $CMD in
      run)                
          doDgtDgt $@     
          ;;    
-                
                 
      *)
           desired_length=12
