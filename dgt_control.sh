@@ -452,11 +452,18 @@ function doCopyDgt {
                          
 }                        
 function updateEnvParam {
-
- if [[ $2 != $3 ]]; then       
- echo -e  $CBLUE "update:: $1=$2 -> $3" $CDEF
- sed -i "s/$1=.*/$1=$3/"  $FILE_ENV
- fi                                   
+ if grep -q "${1}=" "$FILE_ENV"; then
+   # this param already defined try to update
+   if [[ $2 != $3 ]]; then       
+   echo -e  $CBLUE "update:: $1=$2 -> $3" $CDEF
+   sed -i "s/$1=.*/$1=$3/"  $FILE_ENV
+   fi
+ else
+  # new params
+  after_par="NODE_${SNM^^}" 
+  sed -i "/$after_par=.*/a $1=$3"  $FILE_ENV
+                                  
+ fi                                  
 
 }
 function updatePeerList {
@@ -757,7 +764,6 @@ function doShellDgt {
     fi
     container_name="shell-dgt-${CLUST}-${NODE}"
     doDockerCmd $container_name "bash"
-    
 
 }
 function doTokenDgt {
@@ -770,8 +776,6 @@ function doTokenDgt {
     fi
     local container_name="shell-dgt-${CLUST}-${NODE}"
     doDockerCmd $container_name "dgt token get -u dgt:matagami -sc show -sc trans --client clientC" 
-    #docker exec -it shell-dgt-${CLUST}-${NODE}  dgt token get -u dgt:matagami -sc show -sc trans --client clientC
-    
 
 }
 function doDecDgt {
@@ -784,7 +788,6 @@ function doDecDgt {
     fi
     local container_name="shell-dgt-${CLUST}-${NODE}"
     doDockerCmd $container_name dec $@
-    #docker exec -it shell-dgt-${CLUST}-${NODE} dec $@
 
 }
 function doDgtDgt {
@@ -797,10 +800,8 @@ function doDgtDgt {
     fi
     local container_name="shell-dgt-${CLUST}-${NODE}"
     doDockerCmd $container_name $@
-    #docker exec -it shell-dgt-${CLUST}-${NODE} dec $@
-
+    
 }
-
 
 
 case $CMD in
