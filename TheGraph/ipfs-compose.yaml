@@ -1,0 +1,16 @@
+version: '3.6'
+services:
+  ipfs:
+    image: ipfs/go-ipfs
+    ports:
+      - "5001:5001" # Порт для IPFS API
+      - "8080:8080" # Порт для IPFS Gateway
+    volumes:
+      - ./ipfs-data:/data/ipfs # Монтируем папку для данных IPFS, "--writable"
+    command: ["daemon"]
+    networks:
+      - graph
+
+networks:               
+  graph:                
+     name: graph-network

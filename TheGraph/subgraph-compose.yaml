@@ -1,0 +1,34 @@
+version: '3.6'
+services:
+  graph-node:
+    image: graphprotocol/graph-node:latest
+    ports:
+      - "8000:8000" # Порт для GraphQL API
+      - "8020:8020" # Порт для Admin API
+      - "8030:8030" # Порт для Query API
+    volumes:
+      - ./subgraph:/subgraph # Монтируем папку с вашим сабграфом https://api.thegraph.com/ipfs/
+    environment:
+      - GRAPH_LOG=debug
+      - GRAPH_GRAPHQL_PORT=8000
+      - GRAPH_ADMIN_PORT=8020
+      - GRAPH_NODE_PORT=8030
+      - GRAPH_GRAPHQL_ENABLED=true
+#      - IPFS_URL=http://ipfs:5001
+      - GRAPH_GRAPHQL_IPFS_GATEWAY=https://api.thegraph.com/ipfs/
+      - GRAPH_GRAPHQL_PLAYGROUND_ENABLED=true
+      - GRAPH_GRAPHQL_REFLECTOR_ENABLED=true
+      - GRAPH_GRAPHQL_REFLECTOR_PORT=9000
+      - GRAPH_GRAPHQL_REFLECTOR_HEALTH_PORT=9002
+      - GRAPH_INDEXER_SERVERS=1
+      - GRAPH_WS_ENABLED=true
+      - GRAPH_INDEXER_PORT=8020
+      - GRAPH_INDEXER_NAME=my-subgraph
+      - GRAPH_INDEXER_WS_PORT=8020
+      - GRAPH_ALLOW_TRANSFERS=true
+    networks:
+      - graph
+
+networks:               
+  graph:             
+     name: graph-network 

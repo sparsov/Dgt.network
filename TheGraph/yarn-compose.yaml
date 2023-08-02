@@ -1,0 +1,11 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.yarn # Путь к вашему Dockerfile
+    ports:
+      - "3000:3000" # Замените на порт, который ваше приложение использует
+    volumes:
+      - .:/app
+    command: yarn start # Здесь указывается ваша команда для запуска приложения с помощью yarn
