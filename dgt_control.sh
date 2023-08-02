@@ -37,6 +37,8 @@ declare -A MODES_HELP=(
  [metric]="Set/reset metric mode for peer"
 
 )
+# etc/dgt.net.static etc/dgt.net.dyn
+# 
 declare -A CONFS_SRC=(
  [cert]="etc/certificate.json"
  [oauth]="etc/oauth_conf.json"
@@ -846,8 +848,12 @@ function doDgtDgt {
       echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
       return
     fi
-    local container_name="shell-dgt-${CLUST}-${NODE}"
-    doDockerCmd $container_name $@
+    if [[ $1 != "" ]]; then
+       local container_name="shell-dgt-${CLUST}-${NODE}"
+       doDockerCmd $container_name $@
+    else 
+       echo -e $CBLUE "usage:<dgt util name> [<args>]" $CDEF
+    fi
     
 }
 
