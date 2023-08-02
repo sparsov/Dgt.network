@@ -1,17 +1,17 @@
 # Используем образ Node.js
-FROM node:14
+FROM node:16.14
 
 # Устанавливаем директорию приложения в контейнере
-WORKDIR /app
+WORKDIR /sub_app
 
 # Копируем зависимости и файлы пакета
-COPY package*.json ./
+#COPY package*.json ./
 
 # Устанавливаем зависимости
-RUN yarn install
+#RUN yarn install
 
 # Копируем остальные файлы приложения
-COPY . .
+#COPY . .
 
 # Запускаем команду для старта приложения
-CMD ["yarn", "start"]
+#CMD ["yarn", "start"]
