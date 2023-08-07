@@ -2,8 +2,10 @@
 FROM node:16.14
 
 # Устанавливаем директорию приложения в контейнере
-WORKDIR /sub_app
-
+WORKDIR /project/sub_app
+RUN npm install -g npm@9.8.1
+RUN npm install -g ganache-cli
+RUN npm install -g truffle
 # Копируем зависимости и файлы пакета
 #COPY package*.json ./
 

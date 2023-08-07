@@ -1,0 +1,19 @@
+version: '3.6'
+services:
+  ganache:
+    image: trufflesuite/ganache-cli:latest
+    ports:
+      - "8545:8545" # Порт для взаимодействия с Ganache
+      - "8546:8546"
+    container_name: ganache
+    command: ["--deterministic", "--db", "/data", "--host", "0.0.0.0"]
+    volumes:
+      - ./ganache_data:/data
+    networks:
+      - eth_net
+networks:               
+  eth_net:             
+     name: eth_network
+
+
+    

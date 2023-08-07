@@ -2,14 +2,38 @@ version: '3.6'
 services:
   app:
     build:
-      context: .
+      context: . 
       dockerfile: docker/Dockerfile.yarn # Путь к вашему Dockerfile
+    image: node-dev-jammy
     ports:
       - "3000:3000" # Замените на порт, который ваше приложение использует
     volumes:
       - ./sub_app:/project/sub_app
-    container_name: graph-app
+    container_name: yarn
     command: |
       bash -c "
         tail -f /dev/null
       "
+    networks:     
+      - eth_net   
+  ganache:
+    build:
+      context: . 
+      dockerfile: docker/Dockerfile.yarn # Путь к вашему Dockerfile
+    image: node-dev-jammy
+    ports:
+      - "8545:8545" # Порт для взаимодействия с Ganache
+      - "8546:8546"
+    container_name: ganache
+    command: |
+      bash -c "
+        tail -f /dev/null
+      "
+    volumes:
+      - ./ganache_data:/data
+      - ./sub_app:/project/sub_app
+    networks:
+      - eth_net
+networks:               
+  eth_net:             
+     name: eth_network
