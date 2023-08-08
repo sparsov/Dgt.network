@@ -29,9 +29,10 @@ from dgt_sdk.protobuf.settings_pb2 import SettingCandidates
 from dgt_sdk.protobuf.settings_pb2 import SettingTopology
 #from dgt_cli.protobuf.setting_pb2 import Setting
 #from dgt_validator.protobuf.setting_pb2 import Setting
-
-from dgt_validator.protobuf.transaction_pb2 import TransactionHeader,Transaction
-from dgt_validator.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
+from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader,Transaction
+from dgt_sdk.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
+#from dgt_validator.protobuf.transaction_pb2 import TransactionHeader,Transaction
+#from dgt_validator.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
 from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_MAP_NM
 #from dgt_cli.protobuf.transaction_pb2 import TransactionHeader,Transaction
 #from dgt_cli.protobuf.batch_pb2 import BatchHeader,Batch,BatchList
