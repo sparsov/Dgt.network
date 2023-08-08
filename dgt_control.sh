@@ -87,7 +87,16 @@ fi
 if [ ! -v NOTA_FCOMP ]; then
 NOTA_FCOMP="docker/docker-compose-notary-raft-dgt.yaml"
 fi
-
+if [ ! -v DEVEL_FCOMP ]; then
+DEVEL_FCOMP="docker/docker-compose-devel.yaml"
+fi
+# all known type of list
+if [ ! -v DEVEL_LIST ]; then
+DEVEL_LIST=()
+fi
+if [ ! -v CLUSTER_LIST ]; then
+CLUSTER_LIST=()
+fi
 
 if [ ! -v DGT_PARAMS ]; then
 DGT_PARAMS=(PEER CLUST NODE API COMP NET CONS GENESIS SINGLE DAG_BRANCH PCONTROL MAX_PEER PEERING SEEDS NETWORK SIGNED ENDHOST GATEWAY INFLUXDB DBMODE DBHOST DBPORT DBUSER DBPASS PNM KYC CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
@@ -100,6 +109,9 @@ DGT_GRAF_PARAMS=(PEER API DBPORT DBUSER DBPASS DB_ADM_USER DB_ADM_PASS DBMODE)
 fi
 if [ ! -v DGT_DASH_PARAMS ]; then
 DGT_DASH_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
+fi
+if [ ! -v DGT_DEVEL_PARAMS ]; then
+DGT_DEVEL_PARAMS=(PEER PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN DGT_TOKEN)
 fi
 
 if [ ! -v PARAMS_HELP ]; then
@@ -175,6 +187,11 @@ function setPeerType {
            PEER_LIST=${NOTARY_LIST[@]}         
            LNAME=NOTARY_LIST                   
            PEER_PARAMS=${DGT_NOTA_PARAMS[@]} 
+  elif [[ $SNM == "dev"* ]]; then                    
+           PEER_LIST=${DEVEL_LIST[@]}         
+           LNAME=DEVEL_LIST                   
+           PEER_PARAMS=${DGT_DEVEL_PARAMS[@]} 
+ 
  
   else 
         PEER_PARAMS=()
@@ -266,6 +283,30 @@ function doDashCompose {
    fi
 
 }
+function doDevelCompose {
+   
+   if test -f $DEVEL_FCOMP; then 
+       eval PEER=\$PEER_${SNM^^}                                              
+       eval SIGNED=\$SIGNED_${SNM^^}
+       eval PNM=\$PNM_${SNM^^}
+       eval CRYPTO_BACK=\$CRYPTO_BACK_${SNM^^}
+       eval HTTPS_MODE=\$HTTPS_MODE_${SNM^^}
+       eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
+       
+
+                                             
+ 
+        #export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/$FCOMPOSE $mode
+        export COMPOSE_PROJECT_NAME=$SNM   \
+               SIGNED=$SIGNED PEER=$PEER \
+               PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK  HTTPS_MODE=$HTTPS_MODE; \
+               $COMPOSE -f $DEVEL_FCOMP $CMD $@;                           
+       
+   else                                                                              
+       echo -e $CRED "Create and add $DEVEL_FCOMP" $CDEF                      
+   fi
+
+}
 function doPeerParams {
     local -n PARAMS=$1
     for var in ${PEER_PARAMS[@]}
@@ -327,6 +368,8 @@ function doDgtCompose {
 
    elif [[ $LNAME == "NOTARY_LIST" ]] ; then
         doNotaCompose $@
+   elif [[ $LNAME == "DEVEL_LIST" ]] ; then
+        doDevelCompose $@
    else 
         echo -e $CRED "UNDEFINED TYPE PEER" $CDEF
    fi
@@ -486,8 +529,14 @@ function updateEnvParam {
 function updatePeerList {
 nlist=$1;shift
 lval="($@)"
+if grep -q "${nlist}=" "$FILE_ENV"; then
  #echo "s/${nlist}=.*/${nlist}=${lval}/"
  sed -i "s/${nlist}=.*/${nlist}=${lval}/"  $FILE_ENV
+else
+ after_par="all dgt cluster"
+ #echo "UNDEF LIST ${nlist}"
+ sed -i "/$after_par.*/a ${nlist}=${lval}"  $FILE_ENV
+fi
 
 
 }
@@ -805,7 +854,10 @@ function doDockerCmd() {
 }
 
 function doShellDgt {
-    
+    eval PEER=\$PEER_${SNM^^}
+    if [[ $LNAME == "DEVEL_LIST" ]] ; then
+      container_name="python-sdk-dgt-${PEER}"
+    else 
     eval CLUST=\$CLUST_${SNM^^}
     eval NODE=\$NODE_${SNM^^}
     if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
@@ -813,6 +865,7 @@ function doShellDgt {
       return
     fi
     container_name="shell-dgt-${CLUST}-${NODE}"
+    fi
     doDockerCmd $container_name "bash"
 
 }
