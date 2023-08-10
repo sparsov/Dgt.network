@@ -25,6 +25,8 @@ declare -A DEF_PARAMS=(
 [ENDHOST]=""
 [ENDPOINTS]=""
 [SEEDS]=""
+[COMP_URL]="tcp://validator-dgt-c1-1:4104"
+
 )
 #FCOMPOSE="docker-compose-netCN-dgt-dec-ci.yaml"
 #DGT_PARAM_LIST=${DGT_PARAMS[@]} #(PEER CLUST NODE GENESIS SINGLE PCONTROL PEERING NETWORK METRIC SIGNED INFLUXDB DBHOST DBUSER DBPASS PNM KYC CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
@@ -111,7 +113,7 @@ if [ ! -v DGT_DASH_PARAMS ]; then
 DGT_DASH_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
 fi
 if [ ! -v DGT_DEVEL_PARAMS ]; then
-DGT_DEVEL_PARAMS=(PEER PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN DGT_TOKEN)
+DGT_DEVEL_PARAMS=(PEER PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN DGT_TOKEN COMP_URL API)
 fi
 
 if [ ! -v PARAMS_HELP ]; then
@@ -154,6 +156,7 @@ declare -A PARAMS_HELP=(
     [USER_NOTARY]="User notary name:--user-notary <user>"
     [NREST]="Notary rest-api mode: ON/OFF"
     [BON]="Teler bot mode: -bon/"
+    [COMP_URL]="Url for component connect: tcp://validator-dgt-c1-1:4104"
 )
 fi
 
@@ -286,20 +289,15 @@ function doDashCompose {
 function doDevelCompose {
    
    if test -f $DEVEL_FCOMP; then 
-       eval PEER=\$PEER_${SNM^^}                                              
-       eval SIGNED=\$SIGNED_${SNM^^}
-       eval PNM=\$PNM_${SNM^^}
-       eval CRYPTO_BACK=\$CRYPTO_BACK_${SNM^^}
-       eval HTTPS_MODE=\$HTTPS_MODE_${SNM^^}
-       eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
        
-
+       declare -A params=()  
+       doPeerParams params   
                                              
- 
+        BIND_API="python-sdk-${params[PNM]}-${params[PEER]}:${params[API]}"
         #export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/$FCOMPOSE $mode
         export COMPOSE_PROJECT_NAME=$SNM   \
-               SIGNED=$SIGNED PEER=$PEER \
-               PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK  HTTPS_MODE=$HTTPS_MODE; \
+               SIGNED=${params["SIGNED"]} PEER=${params["PEER"]} ACCESS_TOKEN=${params["ACCESS_TOKEN"]} BIND_API=$BIND_API \
+               PNM=${params["PNM"]} CRYPTO_BACK=${params["CRYPTO_BACK"]}  HTTPS_MODE=${params["HTTPS_MODE"]} COMP_URL=${params["COMP_URL"]}; \
                $COMPOSE -f $DEVEL_FCOMP $CMD $@;                           
        
    else                                                                              
@@ -520,7 +518,7 @@ function updateEnvParam {
    fi
  else
   # new params
-  after_par="NODE_${SNM^^}" 
+  after_par="PEER_${SNM^^}" 
   sed -i "/$after_par=.*/a $1=$3"  $FILE_ENV
                                   
  fi                                  
@@ -894,15 +892,21 @@ function doDecDgt {
 
 }
 function doDgtDgt {
-    
-    eval CLUST=\$CLUST_${SNM^^}
-    eval NODE=\$NODE_${SNM^^}
-    if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
-      echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
-      return
+local container_name=""
+    if [[ $LNAME == "DEVEL_LIST" ]] ; then
+      eval PEER=\$PEER_${SNM^^}
+      container_name="python-sdk-dgt-${PEER}"
+    else
+       eval CLUST=\$CLUST_${SNM^^}
+       eval NODE=\$NODE_${SNM^^}
+       if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
+         echo -e $CRED "UDEFINED PEER '$SNM' " $CDEF        
+         return
+       fi
+       container_name="shell-dgt-${CLUST}-${NODE}"
     fi
     if [[ $1 != "" ]]; then
-       local container_name="shell-dgt-${CLUST}-${NODE}"
+       
        doDockerCmd $container_name $@
     else 
        echo -e $CBLUE "usage:<dgt util name> [<args>]" $CDEF
