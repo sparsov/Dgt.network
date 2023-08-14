@@ -40,13 +40,17 @@ export SIGNED_="--signed_consensus"
 export INFLUXDB="--opentsdb-url-off"
 export DBHOST="stats-influxdb-dgt"  
 export DBUSER="lrdata"              
-export DBPASS="pwlrdata"            
+export DBPASS="pwlrdata"
+export DBMODE="metrics"            
 export PNM="dgt"
 export KYC=""
 export CRYPTO_BACK="bitcoin"
 export HTTPS_MODE=""
 export ACCESS_TOKEN=""
 export FCOMPOSE="docker-compose-netCN-dgt-dec-ci.yaml"
+export DGT_API_URL="http://api-dgt-c1-1:8108"
+export DAG_BRANCH=6
+export MAX_PEER=70
 declare -A segments=(
     [c11]='AA.aa1'
     [c12]='AA.aa2'
@@ -282,6 +286,7 @@ function buildCluster {
 
 cluster=$1
 shift
+
 case $cluster in
      1|genesis)
           echo "Start cluster genesis"
