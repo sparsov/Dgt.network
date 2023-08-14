@@ -970,6 +970,7 @@ case $CMD in
      *)
           desired_length=12
           echo -e $CBLUE "usage:<peer name> <subcommand> [<args>]" $CDEF
+          echo -e $CBLUE "peer types: [dgt|dash|graf|dev]" $CDEF
           echo -e $CBLUE "subcommands: " $CDEF
           printHelp CMDS_HELP                                                 
           
