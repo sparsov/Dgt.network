@@ -41,5 +41,5 @@ current_vm = chain.get_vm()
 
 state = current_vm.state
 
-state.get_balance(SOME_ADDRESS)
-
+bal = state.get_balance(SOME_ADDRESS)
+print('bal',bal,state)

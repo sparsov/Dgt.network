@@ -34,7 +34,7 @@ services:
     - DGT_TOP=${DGT_TOP}
     volumes:
       - ..:/project/${DGT_TOP}
-      - ../../seth_dgt/${C}/dgt${N}:/project/peer  
+      - ../../../seth_dgt/${C}/dgt${N}:/project/peer  
     container_name: ${COMPOSE_PROJECT_NAME}-${PNM}
     networks:
     - network1
