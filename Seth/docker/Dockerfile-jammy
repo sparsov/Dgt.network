@@ -57,8 +57,11 @@ RUN pip3 install aiodns aiohttp aiohttp_security[session] oauthlib
 
 # for EVM
 RUN apt-get update && apt-get install   --no-install-recommends -y -q build-essential
+RUN apt-get update && apt-get install -y -q software-properties-common
+RUN add-apt-repository ppa:ethereum/ethereum
+RUN apt-get update && apt-get install   --no-install-recommends -y -q solc
 RUN pip3 install py-evm eth-utils
-
+RUN pip3 install py-solc
 #
 # aiohttp_oauth2
 
