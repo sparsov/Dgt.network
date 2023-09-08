@@ -18,7 +18,7 @@ GENESIS_STATE = {
 
     SOME_ADDRESS: {
 
-        "balance": to_wei(10000, 'ether'),
+        "balance": to_wei(100000, 'ether'),
 
         "nonce": 0,
 
