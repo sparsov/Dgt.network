@@ -110,7 +110,7 @@ transaction1 = chain.create_unsigned_transaction(
     gas_price=gas_price,#1,#vm.state.get_gas_price(),
     gas=gas_limit,#21000,  # Здесь можно указать другое значение газа
     to = b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00',  # В этом случае контракт будет развернут, поэтому адрес None
-    value=to_wei(0.5, 'ether'),
+    value=0,#to_wei(0.5, 'ether'),
     data = contract_bytecode,
 )
 signed_tx = transaction.as_signed_transaction(sender_private_key)
@@ -136,12 +136,47 @@ if True:
     f_get_abi = [{"inputs":[],"name":"get","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]
     args = []
     selector = encode_abi(['uint256'], [12345])#encode_abi(['function'], [function_set_abi]).hex()[:10]
+    print('selector',selector)
+    method_signature = ['get()'.encode()]
+    method_arguments = [            ]
+    selector = encode_abi(['bytes'], ['get()'.encode()])
+    print('selector',selector)
+
     signed_tx1 = transaction1.as_signed_transaction(sender_private_key)
     computation = chain.apply_transaction(signed_tx1)
+    msg= computation[2].msg
+    addr_contr = msg.storage_address
+    print('computation {} msg={} addr={} caddr={}'.format(computation,msg,msg.storage_address,msg.code_address))
     print('computation GAS_USED={} REMAIN={} PRECOMP={}'.format(computation[1].gas_used,computation[2].get_gas_remaining(), computation[2].get_precompiles()))
     print('computation RAW ENTRIES={}   OUT={} IS={} RET={} CODE={}'.format(computation[2].get_raw_log_entries(),computation[2].output,computation[2].is_success,
                                                                             computation[2].return_data,computation[2].code
                                                                              ))
+    transaction2 = chain.create_unsigned_transaction(
+    nonce=2,#vm.state.get_nonce(sender_address),
+    gas_price=1,#1,#vm.state.get_gas_price(),
+    gas=100000,#21000,  # Здесь можно указать другое значение газа
+    to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None
+    value=0,#to_wei(0.5, 'ether'),
+    data = selector,
+    )
+    signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
+    computation2 = chain.apply_transaction(signed_tx2)
+    msg= computation2[2].msg
+    addr_contr = msg.storage_address
+    print('computation2 {} msg={} addr={} caddr={} stv={} val={} data={} ISC={}'.format(computation2,msg,msg.storage_address,
+                                                                  msg.code_address,msg.should_transfer_value,msg.value,msg.data,
+                                                                  msg.is_create
+                                                                  ))
+    print('computation2 GAS_USED={} REMAIN={} PRECOMP={}'.format(computation2[1].gas_used,computation2[2].get_gas_remaining(),
+                                                                 computation2[2].get_precompiles()))
+    print('computation2 RAW ENTRIES={}   OUT={} IS={} RET={} CODE={}'.format(computation2[2].get_raw_log_entries(),
+                                                                            computation2[2].output,computation[2].is_success,
+                                                                            computation2[2].return_data,computation2[2].code
+                                                                             ))
+
+
+
+
     #function_selector = function_abi_to_4byte_selector('set()')
     #while not computation.is_success:
     #    computation = state.mine_block()

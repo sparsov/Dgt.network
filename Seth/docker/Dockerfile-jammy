@@ -62,6 +62,7 @@ RUN add-apt-repository ppa:ethereum/ethereum
 RUN apt-get update && apt-get install   --no-install-recommends -y -q solc
 RUN pip3 install py-evm eth-utils
 RUN pip3 install py-solc
+RUN pip3 install eth_abi
 #
 # aiohttp_oauth2
 
