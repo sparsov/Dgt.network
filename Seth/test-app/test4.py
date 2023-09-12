@@ -7,7 +7,7 @@ from eth_typing import Address
 from eth import constants
 
 from eth.chains.base import MiningChain
-
+from eth.chains.ropsten import RopstenChain
 from eth.consensus.pow import mine_pow_nonce
 
 from eth.vm.forks.byzantium import ByzantiumVM
@@ -18,8 +18,30 @@ from eth.vm.forks.frontier.blocks import FrontierBlock
 from eth.chains.base import Chain
 from eth.chains.base import MiningChain
 from eth.consensus.pow import PowConsensus
+import binascii
 
-db = AtomicDB() #MemoryDB()
+def check_computation(computation,title="computation"):
+    msg= computation[2].msg   
+    receipt  = computation[1]                                                                                                   
+    addr_contr = msg.storage_address                                                                                                  
+    print('{}:: {} msg={} addr={} caddr={} stv={} val={} data={} ISC={}'.format(title,computation,msg,msg.storage_address,         
+                                                                  msg.code_address,msg.should_transfer_value,msg.value,msg.data,      
+                                                                  msg.is_create                                                       
+                                                                  )) 
+    try:
+        print('{}:: GAS_USED={} REMAIN={} PRECOMP={}'.format(title,receipt.gas_used,computation[2].get_gas_remaining(),        
+                                                                     computation[2].get_precompiles())) 
+    except Exception as ex:
+        print('{}:: err {}'.format(title,ex))
+    try:
+        print('{}:: RAW ENTRIES={}   OUT={} IS={} RET={} CODE={}'.format(title,computation[2].get_raw_log_entries(),                   
+                                                                                computation[2].output,computation[2].is_success,         
+                                                                                computation[2].return_data,msg.code          
+                                                                            )) 
+    except Exception as ex:                  
+        print('{}::msg={} err {}'.format(title,dir(msg),ex))
+                                                       
+db = AtomicDB() #MemoryDB()                                                       
 #vm = FrontierVM(constants.GENESIS_BLOCK_NUMBER, db)
 #chain = Chain(vm)
 sender_private_key = keys.PrivateKey(to_bytes(hexstr='0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8'))
@@ -27,6 +49,7 @@ sender_address = sender_private_key.public_key.to_canonical_address()
 
 
 SOME_ADDRESS = b'\x85\x82\xa2\x89V\xb9%\x93M\x03\xdd\xb4Xu\xe1\x8e\x85\x93\x12\xc1'
+SOME_ADDRESS1 = b'\x85\x82\xa2\x89V\xb9%\x93M\x03\xdd\xb4Xu\xe1\x8e\x85\x93\x12\xc2'
 
 GENESIS_STATE = {
 
@@ -65,7 +88,7 @@ GENESIS_PARAMS = {
 consensus = PowConsensus(constants.GENESIS_DIFFICULTY)
 
 
-chain = MiningChain.configure(
+chain = MiningChain.configure( # RopstenChain.configure( #
     __name__='MyChain',
     
     vm_configuration=((constants.GENESIS_BLOCK_NUMBER, FrontierVM),),
@@ -73,9 +96,11 @@ chain = MiningChain.configure(
     chain_id=1,
 ).from_genesis(db,GENESIS_PARAMS,GENESIS_STATE)
 genesis = chain.get_canonical_block_header_by_number(0)
-print('genesis',genesis)
+
 vm = chain.get_vm()
 changes = vm.state
+print('genesis',genesis,dir(db)#,dir(chain),'adb',dir(vm.state._account_db),'\nACC',vm.state._account_db.account_exists(SOME_ADDRESS)
+      )
 # before transaction
 bal,bal1 = changes.get_balance(SOME_ADDRESS),changes.get_balance(sender_address)
 print('SOME bal',bal,'\nSOME bal',bal1)
@@ -86,10 +111,10 @@ sender_address = sender_private_key.public_key.to_canonical_address()
 contract_address = to_bytes(hexstr='0x742d35Cc6634C0532925a3b844Bc454e4438f44e')
 transaction = chain.create_unsigned_transaction(
     nonce=vm.state.get_nonce(sender_address),
-    gas_price=2,#vm.state.get_gas_price(),
+    gas_price=1,#vm.state.get_gas_price(),
     gas=21000,  # Здесь можно указать другое значение газа
     to=SOME_ADDRESS,#b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x02',
-    value=to_wei(1, 'ether'),  # Здесь можно указать другое количество ETH
+    value=to_wei(0.5, 'ether'),  # Здесь можно указать другое количество ETH
     data=b'',
     #v=chain.network_id,
     #r=0,
@@ -105,17 +130,31 @@ with open('./SimpleStorage.bin', 'rb') as f:
 gas_price = 1  # Укажите желаемую цену газа
 gas_limit = 73921+2454+22514+2402  # Укажите желаемый лимит газа
 
-transaction1 = chain.create_unsigned_transaction(
-    nonce=1,#vm.state.get_nonce(sender_address),
-    gas_price=gas_price,#1,#vm.state.get_gas_price(),
-    gas=gas_limit,#21000,  # Здесь можно указать другое значение газа
-    to = b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00',  # В этом случае контракт будет развернут, поэтому адрес None
-    value=0,#to_wei(0.5, 'ether'),
-    data = contract_bytecode,
-)
+root0 = vm.state.state_root
 signed_tx = transaction.as_signed_transaction(sender_private_key)
+if False:
+    block = vm.mine_block(
+       coinbase=sender_address,
+       transactions=[signed_tx],
+    )
+    chain.apply_block(block)
 
-chain.apply_transaction(signed_tx)
+if False:
+    ex = vm.state.get_transaction_executor()
+    print('EXEC',ex,dir(ex))
+    comp = ex.validate_transaction(signed_tx)
+    print('comp',comp)
+
+
+comp0 = chain.apply_transaction(signed_tx)
+#vm.state.commit()
+root1 = vm.state.state_root
+st1 = type(vm.state.commit)
+print('ROOT',root0.hex(),st1)
+print('ROOT',root1.hex(),root0 == root1)
+
+check_computation(comp0,"COMP0")
+
 if False:
     block = FrontierBlock(vm.state)
 
@@ -132,25 +171,38 @@ if False:
 
 
 if True:
+    transaction1 = chain.create_unsigned_transaction(                                                                                   
+        nonce=1,#vm.state.get_nonce(sender_address),                                                                                    
+        gas_price=gas_price,#1,#vm.state.get_gas_price(),                                                                               
+        gas=gas_limit,#21000,  # Здесь можно указать другое значение газа                                                               
+        to = b'',# b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00',  # В этом случае контракт будет развернут, поэтому адрес None               
+        value=0,#to_wei(0.5, 'ether'),                                                                                                  
+        data = contract_bytecode,                                                                                                       
+    )                                                                                                                                   
+    signed_tx1 = transaction1.as_signed_transaction(sender_private_key)
+
     function_set_abi = [{"inputs":[{"internalType":"uint256","name":"x","type":"uint256"}],"name":"set","outputs":[],"stateMutability":"nonpayable","type":"function"}]
     f_get_abi = [{"inputs":[],"name":"get","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]
     args = []
     selector = encode_abi(['uint256'], [12345])#encode_abi(['function'], [function_set_abi]).hex()[:10]
-    print('selector',selector)
+    #function_selector = encode_abi(['bytes4', 'uint256'], ['set(uint256)', [123]])
+
+    print('SELECTOR',selector)
     method_signature = ['get()'.encode()]
     method_arguments = [            ]
-    selector = encode_abi(['bytes'], ['get()'.encode()])
-    print('selector',selector)
+    selector1 = encode_abi(['bytes'], ['get()'.encode()])
+    selector = binascii.unhexlify('60fe47b1')
+    print('selector',selector,selector1)
 
-    signed_tx1 = transaction1.as_signed_transaction(sender_private_key)
-    computation = chain.apply_transaction(signed_tx1)
-    msg= computation[2].msg
-    addr_contr = msg.storage_address
-    print('computation {} msg={} addr={} caddr={}'.format(computation,msg,msg.storage_address,msg.code_address))
-    print('computation GAS_USED={} REMAIN={} PRECOMP={}'.format(computation[1].gas_used,computation[2].get_gas_remaining(), computation[2].get_precompiles()))
-    print('computation RAW ENTRIES={}   OUT={} IS={} RET={} CODE={}'.format(computation[2].get_raw_log_entries(),computation[2].output,computation[2].is_success,
-                                                                            computation[2].return_data,computation[2].code
-                                                                             ))
+    
+    root0 = vm.state.state_root
+    comp1 = chain.apply_transaction(signed_tx1)
+    root1 = vm.state.state_root
+    print('ROOT',root0.hex())
+    print('ROOT',root1.hex(),root0 == root1)
+    check_computation(comp1,"COMP1>>")
+    addr_contr  =comp1[2].msg.storage_address
+    print('addr_contr',addr_contr)
     transaction2 = chain.create_unsigned_transaction(
     nonce=2,#vm.state.get_nonce(sender_address),
     gas_price=1,#1,#vm.state.get_gas_price(),
@@ -160,34 +212,15 @@ if True:
     data = selector,
     )
     signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
-    computation2 = chain.apply_transaction(signed_tx2)
-    msg= computation2[2].msg
-    addr_contr = msg.storage_address
-    print('computation2 {} msg={} addr={} caddr={} stv={} val={} data={} ISC={}'.format(computation2,msg,msg.storage_address,
-                                                                  msg.code_address,msg.should_transfer_value,msg.value,msg.data,
-                                                                  msg.is_create
-                                                                  ))
-    print('computation2 GAS_USED={} REMAIN={} PRECOMP={}'.format(computation2[1].gas_used,computation2[2].get_gas_remaining(),
-                                                                 computation2[2].get_precompiles()))
-    print('computation2 RAW ENTRIES={}   OUT={} IS={} RET={} CODE={}'.format(computation2[2].get_raw_log_entries(),
-                                                                            computation2[2].output,computation[2].is_success,
-                                                                            computation2[2].return_data,computation2[2].code
-                                                                             ))
+    comp2 = chain.apply_transaction(signed_tx2)
+    check_computation(comp2,"COMP2")
+    bal1 = changes.get_balance(addr_contr)
+    print('bal1',bal1)
+    data= db.get(addr_contr)
+    print('DATA',data)
 
 
 
-
-    #function_selector = function_abi_to_4byte_selector('set()')
-    #while not computation.is_success:
-    #    computation = state.mine_block()
-    #contract_address = computation.contract_address
-# Выполняем транзакцию
-#with vm.state(read_only=False) as state_db:
-#    computation = vm.apply_transaction(state_db, signed_tx1)
-
-
-
-#
 
 block_result = vm.finalize_block(chain.get_block())
 block = block_result.block
@@ -197,5 +230,8 @@ print('block',block)
 balance = vm.state.get_balance(sender_address) 
 print("balance ",balance,sender_address)
 bal = changes.get_balance(SOME_ADDRESS)
-print('SOME bal',bal)
+print('SOME bal',bal,vm.state.state_root)
+#for key in db.keys() :
+#    print('db:key {}'.format(key))
+print('keys',db.items())
 
