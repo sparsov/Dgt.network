@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 contract HelloWorld {
+    //uint256 public storedData;
     // Публичная функция, которая возвращает "Hello, World!"
     function sayHello() public pure returns (string memory) {
         return "Hello, World!";

@@ -19,6 +19,16 @@ from eth.chains.base import Chain
 from eth.chains.base import MiningChain
 from eth.consensus.pow import PowConsensus
 import binascii
+import logging
+
+logging.basicConfig(level=8) #logging.DEBUG)
+logging.debug("Start test")
+sender_private_key = keys.PrivateKey(to_bytes(hexstr='0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8'))
+sender_address = sender_private_key.public_key.to_canonical_address()
+some_private_key = keys.PrivateKey(to_bytes(hexstr='0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2ff'))
+SOME_ADDRESS = some_private_key.public_key.to_canonical_address()
+tx_nonce = 0
+
 
 def check_computation(computation,title="computation"):
     msg= computation[2].msg   
@@ -41,15 +51,35 @@ def check_computation(computation,title="computation"):
     except Exception as ex:                  
         print('{}::msg={} err {}'.format(title,dir(msg),ex))
                                                        
+        
+def send2add(sender_private_key,to_address,val):
+    global tx_nonce
+    sender_address = sender_private_key.public_key.to_canonical_address()
+    print('tx_nonce',tx_nonce)
+    transaction = chain.create_unsigned_transaction(                                                              
+        nonce=vm.state.get_nonce(sender_address),                                                                     
+        gas_price=1,#vm.state.get_gas_price(),                                                                        
+        gas=21000,  # Здесь можно указать другое значение газа                                                        
+        to=to_address,#b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x02',                                               
+        value=to_wei(val, 'ether'),  # Здесь можно указать другое количество ETH                                       
+        data=b'',                                                                                                     
+        #v=chain.network_id,                                                                                          
+        #r=0,                                                                                                         
+        #s=0,                                                                                                         
+    ) 
+    signed_tx = transaction.as_signed_transaction(sender_private_key)
+    comp = chain.apply_transaction(signed_tx) 
+    #tx_nonce = tx_nonce + 1
+    return comp                                                                                                                
+        
+                                                               
 db = AtomicDB() #MemoryDB()                                                       
 #vm = FrontierVM(constants.GENESIS_BLOCK_NUMBER, db)
 #chain = Chain(vm)
-sender_private_key = keys.PrivateKey(to_bytes(hexstr='0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8'))
-sender_address = sender_private_key.public_key.to_canonical_address()
 
 
-SOME_ADDRESS = b'\x85\x82\xa2\x89V\xb9%\x93M\x03\xdd\xb4Xu\xe1\x8e\x85\x93\x12\xc1'
-SOME_ADDRESS1 = b'\x85\x82\xa2\x89V\xb9%\x93M\x03\xdd\xb4Xu\xe1\x8e\x85\x93\x12\xc2'
+#SOME_ADDRESS = b'\x85\x82\xa2\x89V\xb9%\x93M\x03\xdd\xb4Xu\xe1\x8e\x85\x93\x12\xc1'
+#SOME_ADDRESS1 = b'\x85\x82\xa2\x89V\xb9%\x93M\x03\xdd\xb4Xu\xe1\x8e\x85\x93\x12\xc2'
 
 GENESIS_STATE = {
 
@@ -66,7 +96,7 @@ GENESIS_STATE = {
     },
     sender_address: {
 
-        "balance": to_wei(20, 'ether'), #int(5000000 * (10 ** 18)) ,#to_wei(10000000, 'ether'),
+        "balance": to_wei(5000000, 'ether'), #int(5000000 * (10 ** 18)) ,#to_wei(10000000, 'ether'),
 
         "nonce": 0,
 
@@ -99,7 +129,7 @@ genesis = chain.get_canonical_block_header_by_number(0)
 
 vm = chain.get_vm()
 changes = vm.state
-print('genesis',genesis#,dir(chain),'adb',dir(vm.state._account_db),'\nACC',vm.state._account_db.account_exists(SOME_ADDRESS)
+print('genesis',genesis,'\nVMSTATE',dir(vm.state)#,'adb',dir(vm.state._account_db),'\nACC',vm.state._account_db.account_exists(SOME_ADDRESS)
       )
 # before transaction
 bal,bal1 = changes.get_balance(SOME_ADDRESS),changes.get_balance(sender_address)
@@ -108,29 +138,27 @@ print('SOME bal',bal,'\nSOME bal',bal1)
 
 contract_address = to_bytes(hexstr='0x742d35Cc6634C0532925a3b844Bc454e4438f44e')
 
-transaction = chain.create_unsigned_transaction(
-    nonce=vm.state.get_nonce(sender_address),
-    gas_price=1,#vm.state.get_gas_price(),
-    gas=21000,  # Здесь можно указать другое значение газа
-    to=SOME_ADDRESS,#b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x02',
-    value=to_wei(10, 'ether'),  # Здесь можно указать другое количество ETH
-    data=b'',
-    #v=chain.network_id,
-    #r=0,
-    #s=0,
-)
+
+comp0 = send2add(sender_private_key,SOME_ADDRESS,10)
+check_computation(comp0,"SEND COMP0 >>")
+comp0 = send2add(some_private_key,sender_address,10)
+check_computation(comp0,"COMP0 >>")
+#comp0 = send2add(some_private_key,sender_address,10)
 
 contract_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"  # Address for your contract
 contract_address = binascii.unhexlify('742d35Cc6634C0532925a3b844Bc454e4438f44e')
-smart_fnm = "./HelloWorld.bin" # './SimpleStorage.bin'
+contract_address = constants.CREATE_CONTRACT_ADDRESS
+smart_fnm = "./HelloWorld.bin" # 
+#smart_fnm = './SimpleStorage.bin'
 with open(smart_fnm, 'rb') as f:
     contract_bytecode = f.read()
 
+#print('CONTR',len(contract_bytecode),contract_bytecode.hex())
 # Create a new transaction to deploy the contract
 # Создать объект транзакции
-gas_price = 1  # Укажите желаемую цену газа
+gas_price = 0  # Укажите желаемую цену газа
 gas_limit = 73921+2454+22514+2402  # Укажите желаемый лимит газа
-
+#gas_limit = 91139+2402+10000
 root0 = vm.state.state_root
 
 if False:
@@ -146,12 +174,10 @@ if False:
     comp = ex.validate_transaction(signed_tx)
     print('comp',comp)
 
-signed_tx = transaction.as_signed_transaction(sender_private_key)
-comp0 = chain.apply_transaction(signed_tx)
-#comp0 = chain.apply_transaction(signed_tx)
+
 bal= vm.state._account_db.get_balance(sender_address)
 print('BAL',bal)
-check_computation(comp0,"COMP0 >>")
+
 #vm.state.commit()
 root1 = vm.state.state_root
 st1 = type(vm.state.commit)
@@ -176,8 +202,9 @@ if False:
 
 
 if True:
+    nonce_val = 1 
     transaction1 = chain.create_unsigned_transaction(                                                                                   
-        nonce=1,#vm.state.get_nonce(sender_address),                                                                                    
+        nonce=nonce_val,#vm.state.get_nonce(sender_address),                                                                                    
         gas_price=gas_price,#1,#vm.state.get_gas_price(),                                                                               
         gas=gas_limit,#21000,  # Здесь можно указать другое значение газа                                                               
         to = contract_address,#b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00',  # В этом случае контракт будет развернут, поэтому адрес None               
@@ -202,20 +229,44 @@ if True:
 
     
     root0 = vm.state.state_root
+    print("LOAD SMART>>>")
     comp1 = chain.apply_transaction(signed_tx1)
-    root1 = vm.state.state_root
-    print('ROOT',root0.hex())
-    print('ROOT',root1.hex(),root0 == root1)
     check_computation(comp1,"COMP1>>")
     addr_contr  =comp1[2].msg.storage_address
     print('ADDR_CONTR>>>',addr_contr,contract_address,addr_contr==contract_address)
+    #vm.finalize_block(chain.get_block())
+    bal1 = changes.get_balance(addr_contr)
+    print('BAL1',bal1)
+
+    if False:
+        nonce_val += 1
+        transaction1 = chain.create_unsigned_transaction(                                                                                   
+            nonce=nonce_val,#vm.state.get_nonce(sender_address),                                                                                    
+            gas_price=gas_price,#1,#vm.state.get_gas_price(),                                                                               
+            gas=gas_limit,#21000,  # Здесь можно указать другое значение газа                                                               
+            to = constants.CREATE_CONTRACT_ADDRESS,#contract_address,#b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00',  # В этом случае контракт будет развернут, поэтому адрес None               
+            value=0,#to_wei(0.5, 'ether'),                                                                                                  
+            data = contract_bytecode,                                                                                                       
+        )                                                                                                                                   
+        signed_tx1 = transaction1.as_signed_transaction(sender_private_key)
+        comp1 = chain.apply_transaction(signed_tx1)
+        slot = vm.state.get_code(contract_address) #contract_address,1)
+        print('SLOT',slot)
+        root1 = vm.state.state_root
+        print('ROOT',root0.hex())
+        print('ROOT',root1.hex(),root0 == root1)
+        check_computation(comp1,"COMP1 DUP>>")
+        addr_contr  =comp1[2].msg.storage_address
+        print('ADDR_CONTR>>>',addr_contr,contract_address,addr_contr==contract_address)
+
+    nonce_val += 1
     transaction2 = chain.create_unsigned_transaction(
-    nonce=2,#vm.state.get_nonce(sender_address),
-    gas_price=1,#1,#vm.state.get_gas_price(),
-    gas=100000,#21000,  # Здесь можно указать другое значение газа
-    to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None
-    value=0,#to_wei(0.5, 'ether'),
-    data = selector,
+        nonce=nonce_val,#vm.state.get_nonce(sender_address),
+        gas_price=1,#1,#vm.state.get_gas_price(),
+        gas=100000,#21000,  # Здесь можно указать другое значение газа
+        to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None
+        value=0,#to_wei(0.5, 'ether'),
+        data = selector,
     )
     signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
     comp2 = chain.apply_transaction(signed_tx2)
@@ -237,7 +288,7 @@ balance = vm.state.get_balance(sender_address)
 print("balance ",balance,sender_address)
 bal = changes.get_balance(SOME_ADDRESS)
 print('SOME bal',bal,vm.state.state_root)
-#for key in db.keys() :
+#for key,data in vm.state._db.items() :
 #    print('db:key {}'.format(key))
-print('keys',db.items())
+print('keys',vm.state._db.items())
 

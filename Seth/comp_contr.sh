@@ -1,1 +1,1 @@
-solc --bin --abi -o ./ $1
+solc --overwrite --bin --abi -o ./ $1
