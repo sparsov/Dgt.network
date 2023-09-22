@@ -1,1 +1,1 @@
-solc --overwrite --bin --abi -o ./ $1
+solc --overwrite --optimize --evm-version byzantium --bin --abi -o ./ $1
