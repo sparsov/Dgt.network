@@ -30,7 +30,7 @@ SOME_ADDRESS = some_private_key.public_key.to_canonical_address()
 tx_nonce = 0
 
 
-def check_computation(computation,title="computation"):
+def check_computation(computation,title="computation",is_out=False,is_code=False):
     msg= computation[2].msg   
     receipt  = computation[1]                                                                                                   
     addr_contr = msg.storage_address                                                                                                  
@@ -44,9 +44,9 @@ def check_computation(computation,title="computation"):
     except Exception as ex:
         print('{}:: err {}'.format(title,ex))
     try:
-        print('{}:: RAW ENTRIES={}   OUT={} SUCCESS={} RET={} CODE={}'.format(title,computation[2].get_raw_log_entries(),                   
-                                                                                computation[2].output,computation[2].is_success,         
-                                                                                computation[2].return_data,msg.code          
+        print('{}:: RAW ENTRIES={}   OUT={}({}) SUCCESS={} RET={} CODE={}'.format(title,computation[2].get_raw_log_entries(),                   
+                                                                                computation[2].output if is_out else '**',len(computation[2].output),computation[2].is_success,         
+                                                                                computation[2].return_data,msg.code if is_code else '**'         
                                                                             )) 
     except Exception as ex:                  
         print('{}::msg={} err {}'.format(title,dir(msg),ex))
@@ -152,6 +152,7 @@ contract_address = constants.CREATE_CONTRACT_ADDRESS
 smart_fnm = "./HelloWorld.bin" #
 #smart_fnm = "./int.bin" #'./intkey.bin'                                
 smart_fnm = './SimpleStorage.bin'
+smart_fnm = './BGXToken.bin'
 with open(smart_fnm, 'r') as f:
     contract_bytecode = f.read()
 
@@ -275,7 +276,7 @@ if True:
             )
 
 
-    if True:
+    if True and smart_fnm == './SimpleStorage.bin':
         
         selector = bytes.fromhex('ef5fb05b5b')
         selector = bytes.fromhex('8a46e603')
@@ -314,7 +315,66 @@ if True:
         data= db.get(addr_contr)
         print('DATA',data)
 
-
+    if True and smart_fnm == './BGXToken.bin':
+        """======= BGXToken.sol:BGXToken =======
+        Function signatures:
+        dd62ed3e: allowance(address,address)
+        095ea7b3: approve(address,uint256)
+        70a08231: balanceOf(address)
+        31d2f891: crowdsaleAddress()
+        313ce567: decimals()
+        66188463: decreaseApproval(address,uint256)
+        fb932108: distribute(address,uint256)
+        76e7430e: finally(address)
+        d73dd623: increaseApproval(address,uint256)
+        158ef93e: initialized()
+        06fdde03: name()
+        8da5cb5b: owner()
+        dcbda04c: setCrowdsaleInterface(address)
+        95d89b41: symbol()
+        1c75f085: teamAddress()
+        ad9fb75e: teamDate()
+        18160ddd: totalSupply()
+        ee31f9f6: totalSupplyTmp()
+        a9059cbb: transfer(address,uint256)
+        23b872dd: transferFrom(address,address,uint256)
+        f2fde38b: transferOwnership(address)
+        """
+        # 06fdde03 name
+        print("BGXToken>>>>")
+        selector_name = bytes.fromhex('06fdde03')
+        selector_initialized = bytes.fromhex('158ef93e')
+        selector_const = bytes.fromhex('60078054')
+        selector_symbol = bytes.fromhex('95d89b41')
+        selector_totalSupply = bytes.fromhex('18160ddd')
+        selector_setCrowdsaleInterface = bytes.fromhex('dcbda04c')+encode_abi(['address'], [sender_address])
+        selector_crowdsaleAddress = bytes.fromhex('31d2f891')
+        nonce_val += 1
+        transaction2 = chain.create_unsigned_transaction(
+            nonce=nonce_val,#vm.state.get_nonce(sender_address),
+            gas_price=1,#1,#vm.state.get_gas_price(),
+            gas=100000,#21000,  # Здесь можно указать другое значение газа
+            to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None
+            value=0,#to_wei(0.5, 'ether'),
+            data = selector_setCrowdsaleInterface,
+        )
+        signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
+        comp2 = chain.apply_transaction(signed_tx2)
+        check_computation(comp2,"COMP-"+str(nonce_val),is_out=True)
+        #
+        nonce_val += 1                                                                       
+        transaction2 = chain.create_unsigned_transaction(                                    
+            nonce=nonce_val,#vm.state.get_nonce(sender_address),                             
+            gas_price=1,#1,#vm.state.get_gas_price(),                                        
+            gas=100000,#21000,  # Здесь можно указать другое значение газа                   
+            to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None   
+            value=0,#to_wei(0.5, 'ether'),                                                   
+            data = selector_initialized,                                           
+        )                                                                                    
+        signed_tx2 = transaction2.as_signed_transaction(sender_private_key)                  
+        comp2 = chain.apply_transaction(signed_tx2)                                          
+        check_computation(comp2,"COMP-"+str(nonce_val),is_out=True)
+        print("!!ADD",sender_address)                          
 
 
 block_result = vm.finalize_block(chain.get_block())
