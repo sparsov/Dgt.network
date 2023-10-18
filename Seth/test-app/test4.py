@@ -20,6 +20,7 @@ from eth.chains.base import MiningChain
 from eth.consensus.pow import PowConsensus
 import binascii
 import logging
+from collections.abc import Mapping
 
 logging.basicConfig(level=8) #logging.DEBUG)
 logging.debug("Start test")
@@ -28,34 +29,34 @@ sender_address = sender_private_key.public_key.to_canonical_address()
 some_private_key = keys.PrivateKey(to_bytes(hexstr='0x45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2ff'))
 SOME_ADDRESS = some_private_key.public_key.to_canonical_address()
 tx_nonce = 0
-
+logging.debug("SENDER={} SOME={}".format(sender_address.hex(),SOME_ADDRESS.hex()))
 
 def check_computation(computation,title="computation",is_out=False,is_code=False):
     msg= computation[2].msg   
     receipt  = computation[1]                                                                                                   
     addr_contr = msg.storage_address                                                                                                  
-    print('{}:: {} msg={} storage_addr={} caddr={} stv={} val={} data={} ISC={}'.format(title,computation,msg,msg.storage_address,         
+    logging.debug('{}:: {} \nreceipt={}\n msg={} storage_addr={} caddr={} stv={} val={} data={} ISC={}'.format(title,computation[0],receipt,msg,msg.storage_address,         
                                                                   msg.code_address,msg.should_transfer_value,msg.value,msg.data.hex(),      
                                                                   msg.is_create                                                       
                                                                   )) 
     try:
-        print('{}:: GAS_USED={} REMAIN={} PRECOMP={}'.format(title,receipt.gas_used,computation[2].get_gas_remaining(),        
+        logging.debug('{}:: GAS_USED={} REMAIN={} PRECOMP={}'.format(title,receipt.gas_used,computation[2].get_gas_remaining(),        
                                                                      computation[2].get_precompiles())) 
     except Exception as ex:
-        print('{}:: err {}'.format(title,ex))
+        logging.debug('{}:: err {}'.format(title,ex))
     try:
-        print('{}:: RAW ENTRIES={}   OUT={}({}) SUCCESS={} RET={} CODE={}'.format(title,computation[2].get_raw_log_entries(),                   
+        logging.debug('{}:: RAW ENTRIES={}   OUT={}({}) SUCCESS={} RET={} CODE={}'.format(title,computation[2].get_raw_log_entries(),                   
                                                                                 computation[2].output if is_out else '**',len(computation[2].output),computation[2].is_success,         
                                                                                 computation[2].return_data,msg.code if is_code else '**'         
                                                                             )) 
     except Exception as ex:                  
-        print('{}::msg={} err {}'.format(title,dir(msg),ex))
-                                                       
+        logging.debug('{}::msg={} err {}'.format(title,dir(msg),ex))
+    return computation[2]                                                   
         
 def send2add(sender_private_key,to_address,val):
     global tx_nonce
     sender_address = sender_private_key.public_key.to_canonical_address()
-    print('>>> TX NONCE',tx_nonce)
+    logging.debug('>>> TX NONCE={}'.format(tx_nonce))
     transaction = chain.create_unsigned_transaction(                                                              
         nonce=vm.state.get_nonce(sender_address),                                                                     
         gas_price=1,#vm.state.get_gas_price(),                                                                        
@@ -69,12 +70,22 @@ def send2add(sender_private_key,to_address,val):
     ) 
     signed_tx = transaction.as_signed_transaction(sender_private_key)
     comp = chain.apply_transaction(signed_tx) 
-    print('<<<TX')
+    logging.debug('<<<TX')
     #tx_nonce = tx_nonce + 1
     return comp                                                                                                                
         
                                                                
-db = AtomicDB() #MemoryDB()                                                       
+class MyAtomicDB(AtomicDB):
+    def __setitem__(self, key: bytes, value: bytes) -> None:
+        logging.debug('SET DB::{}={}'.format(key.hex(),value.hex()))
+        super().__setitem__(key,value)
+    def __getitem__(self, key: bytes) -> bytes:
+        logging.debug('GET DB::{}'.format(key.hex()))
+        return super().__getitem__(key)
+
+
+                                                               
+db = MyAtomicDB() #MemoryDB()                                                       
 #vm = FrontierVM(constants.GENESIS_BLOCK_NUMBER, db)
 #chain = Chain(vm)
 
@@ -130,21 +141,21 @@ genesis = chain.get_canonical_block_header_by_number(0)
 
 vm = chain.get_vm()
 changes = vm.state
-print('genesis',genesis,'\nVMSTATE',dir(vm.state)#,'adb',dir(vm.state._account_db),'\nACC',vm.state._account_db.account_exists(SOME_ADDRESS)
+logging.debug('genesis={} \nVMSTATE={} '.format(genesis,dir(vm.state))#,'adb',dir(vm.state._account_db),'\nACC',vm.state._account_db.account_exists(SOME_ADDRESS)
       )
 # before transaction
 bal,bal1 = changes.get_balance(SOME_ADDRESS),changes.get_balance(sender_address)
-print('SOME bal',bal,'\nSOME bal',bal1)
+logging.debug('SOME bal={} bal1={}'.format(bal,bal1))
 
 
 contract_address = to_bytes(hexstr='0x742d35Cc6634C0532925a3b844Bc454e4438f44e')
 
-
-comp0 = send2add(sender_private_key,SOME_ADDRESS,10)
-check_computation(comp0,"SEND COMP0 >>")
-comp0 = send2add(some_private_key,sender_address,10)
-check_computation(comp0,"COMP0 >>")
-#comp0 = send2add(some_private_key,sender_address,10)
+if False :
+    comp0 = send2add(sender_private_key,SOME_ADDRESS,10)
+    check_computation(comp0,"SEND COMP0 >>")
+    comp0 = send2add(some_private_key,sender_address,10)
+    check_computation(comp0,"COMP0 >>")
+    #comp0 = send2add(some_private_key,sender_address,10)
 
 contract_address = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"  # Address for your contract
 contract_address = binascii.unhexlify('742d35Cc6634C0532925a3b844Bc454e4438f44e')
@@ -152,11 +163,11 @@ contract_address = constants.CREATE_CONTRACT_ADDRESS
 smart_fnm = "./HelloWorld.bin" #
 #smart_fnm = "./int.bin" #'./intkey.bin'                                
 smart_fnm = './SimpleStorage.bin'
-smart_fnm = './BGXToken.bin'
+#smart_fnm = './BGXToken.bin'
 with open(smart_fnm, 'r') as f:
     contract_bytecode = f.read()
 
-print('CONTR>>',len(contract_bytecode),bytes.fromhex(contract_bytecode))
+logging.debug('CONTR>> len={} HEX={}'.format(len(contract_bytecode),bytes.fromhex(contract_bytecode)))
 # Create a new transaction to deploy the contract
 # Создать объект транзакции
 gas_price = 1  # Укажите желаемую цену газа
@@ -185,8 +196,8 @@ print('BAL',bal)
 #vm.state.commit()
 root1 = vm.state.state_root
 st1 = type(vm.state.commit)
-print('ROOT',root0.hex(),st1)
-print('ROOT',root1.hex(),root0 == root1)
+logging.debug('ROOT={},st={}'.format(root0.hex(),st1))
+logging.debug('ROOT={} ~={}'.format(root1.hex(),root0 == root1))
 
 
 
@@ -206,7 +217,7 @@ if False:
 
 
 if True:
-    nonce_val = 1 
+    nonce_val = 0 
     
     сdata = bytes.fromhex(contract_bytecode)
     
@@ -217,7 +228,8 @@ if True:
         to = contract_address,#b'\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x00',  # В этом случае контракт будет развернут, поэтому адрес None               
         value=0,#to_wei(0.5, 'ether'),                                                                                                  
         data = сdata,#bytes.fromhex(contract_bytecode),                                                                                                       
-    )                                                                                                                                   
+    ) 
+    nonce_val += 1                                                                                                                                  
     signed_tx1 = transaction1.as_signed_transaction(sender_private_key)
 
     function_set_abi = [{"inputs":[{"internalType":"uint256","name":"x","type":"uint256"}],"name":"set","outputs":[],"stateMutability":"nonpayable","type":"function"}]
@@ -232,15 +244,15 @@ if True:
     selector1 = encode_abi(['bytes'], ['get()'.encode()])
     selector = binascii.unhexlify('60fe47b1')
     selector = decode_hex('0xef5fb05b5b')#: sayHello() ef5fb05b
-    print('selector',selector,selector1)
+    #logging.debug('selector ={} {} '.format(selector,selector1))
 
     
     root0 = vm.state.state_root
-    print("LOAD SMART>>>")
+    logging.debug("LOAD SMART>>>")
     comp1 = chain.apply_transaction(signed_tx1)
     check_computation(comp1,"COMP1>>")
     addr_contr  =comp1[2].msg.storage_address
-    print('ADDR_CONTR>>>',addr_contr,contract_address,addr_contr==contract_address)
+    logging.debug('ADDR_CONTR>>> {} {} diff={}'.format(addr_contr.hex(),contract_address,addr_contr==contract_address))
     #vm.finalize_block(chain.get_block())
     bal1 = changes.get_balance(addr_contr)
     print('BAL1',bal1)
@@ -282,23 +294,24 @@ if True:
         selector = bytes.fromhex('8a46e603')
         selector_get = bytes.fromhex('6d4ce63c')
         selector_store = bytes.fromhex('2a1afcd9')
-        selector = bytes.fromhex('60fe47b1')+encode_abi(['uint256'], [1024])
+        selector_set = bytes.fromhex('60fe47b1')+encode_abi(['uint256'], [1024])
         #6d4ce63c: get()
         #60fe47b1: set(uint256)
         #2a1afcd9: storedData()
-        nonce_val += 1
+        
         transaction2 = chain.create_unsigned_transaction(
             nonce=nonce_val,#vm.state.get_nonce(sender_address),
             gas_price=1,#1,#vm.state.get_gas_price(),
             gas=100000,#21000,  # Здесь можно указать другое значение газа
             to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None
             value=0,#to_wei(0.5, 'ether'),
-            data = selector,
+            data = selector_set,
         )
+        nonce_val += 1
         signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
         comp2 = chain.apply_transaction(signed_tx2)
         check_computation(comp2,"COMP2")
-        nonce_val += 1
+        
         transaction2 = chain.create_unsigned_transaction(
             nonce=nonce_val,#vm.state.get_nonce(sender_address),
             gas_price=1,#1,#vm.state.get_gas_price(),
@@ -307,13 +320,14 @@ if True:
             value=0,#to_wei(0.5, 'ether'),
             data = selector_store,#selector_get,
         )
+        nonce_val += 1
         signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
         comp2 = chain.apply_transaction(signed_tx2)
         check_computation(comp2,"COMP3")
         bal1 = changes.get_balance(addr_contr)
-        print('bal1',bal1)
+        logging.debug('bal1={}'.format(bal1))
         data= db.get(addr_contr)
-        print('DATA',data)
+        logging.debug('DATA={}'.format(data))
 
     if True and smart_fnm == './BGXToken.bin':
         """======= BGXToken.sol:BGXToken =======
@@ -341,7 +355,7 @@ if True:
         f2fde38b: transferOwnership(address)
         """
         # 06fdde03 name
-        print("BGXToken>>>>")
+        logging.debug("BGXToken>>>>")
         selector_name = bytes.fromhex('06fdde03')
         selector_initialized = bytes.fromhex('158ef93e')
         selector_const = bytes.fromhex('60078054')
@@ -349,6 +363,8 @@ if True:
         selector_totalSupply = bytes.fromhex('18160ddd')
         selector_setCrowdsaleInterface = bytes.fromhex('dcbda04c')+encode_abi(['address'], [sender_address])
         selector_crowdsaleAddress = bytes.fromhex('31d2f891')
+        selector_distribute = bytes.fromhex('fb932108')+encode_abi(['address','uint256'], [SOME_ADDRESS,1024])
+        #vm.state.get_changes()
         nonce_val += 1
         transaction2 = chain.create_unsigned_transaction(
             nonce=nonce_val,#vm.state.get_nonce(sender_address),
@@ -359,35 +375,53 @@ if True:
             data = selector_setCrowdsaleInterface,
         )
         signed_tx2 = transaction2.as_signed_transaction(sender_private_key)
+        vm.state.lock_changes()
         comp2 = chain.apply_transaction(signed_tx2)
-        check_computation(comp2,"COMP-"+str(nonce_val),is_out=True)
+        vm.finalize_block(chain.get_block())
+        comput = check_computation(comp2,"COMP-"+str(nonce_val),is_out=True)
+
+        #vm.state.get_changes()
         #
-        nonce_val += 1                                                                       
-        transaction2 = chain.create_unsigned_transaction(                                    
-            nonce=nonce_val,#vm.state.get_nonce(sender_address),                             
-            gas_price=1,#1,#vm.state.get_gas_price(),                                        
-            gas=100000,#21000,  # Здесь можно указать другое значение газа                   
-            to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None   
-            value=0,#to_wei(0.5, 'ether'),                                                   
-            data = selector_initialized,                                           
-        )                                                                                    
-        signed_tx2 = transaction2.as_signed_transaction(sender_private_key)                  
-        comp2 = chain.apply_transaction(signed_tx2)                                          
-        check_computation(comp2,"COMP-"+str(nonce_val),is_out=True)
-        print("!!ADD",sender_address)                          
+        if True:
+            logging.debug('SENDER={} LOGS={}'.format(sender_address,comput.get_log_entries()))
+            logging.debug('LOCK_CHANGES >>')
+            vm.state.lock_changes()
+            logging.debug('LOCK_CHANGES <<')
+            nonce_val += 1                                                                       
+            transaction2 = chain.create_unsigned_transaction(                                    
+                nonce=nonce_val,#vm.state.get_nonce(sender_address),                             
+                gas_price=1,#1,#vm.state.get_gas_price(),                                        
+                gas=100000,#21000,  # Здесь можно указать другое значение газа                   
+                to = addr_contr,  # В этом случае контракт будет развернут, поэтому адрес None   
+                value=0,#to_wei(0.5, 'ether'),                                                   
+                data = selector_crowdsaleAddress,#selector_distribute,                                           
+            )                                                                                    
+            signed_tx2 = transaction2.as_signed_transaction(sender_private_key)                  
+            comp2 = chain.apply_transaction(signed_tx2)                                          
+            comput = check_computation(comp2,"COMP-"+str(nonce_val),is_out=True)
+            adb = None#comput.state.get_changes()
+            logs = comput.get_log_entries()
+            alist = None #dir(adb._get_changed_roots())
+            #for jj in adb._get_changed_roots():
+            #    print('k',jj)
+            logging.debug("!!DIFF={} comp={} \nstat={} \nslot={} \nlogs={}".format(vm.state.difficulty,dir(comput),dir(comput.state),adb,logs))                          
 
 
 block_result = vm.finalize_block(chain.get_block())
 block = block_result.block
-print('block',block)
+logging.debug('block={}'.format(block))
 
 
 balance = vm.state.get_balance(sender_address) 
-print("balance ",balance,sender_address)
+logging.debug("balance={} sender={} ".format(balance,sender_address))
 bal = changes.get_balance(SOME_ADDRESS)
-print('SOME bal',bal,vm.state.state_root)
+logging.debug('SOME bal={} state-root={}'.format(bal,vm.state.state_root))
 #for key,data in vm.state._db.items() :
 #    print('db:key {}'.format(key))
-print('keys',vm.state._db.items())
+ditems = vm.state._db.items()
+logging.debug('keys={}'.format(ditems))
+if isinstance(ditems, Mapping):
+    for key, value in ditems:
+        logging.debug(f'Key: {key}, Value: {value}')
 #print('\nVMSTATE',dir(vm))
 

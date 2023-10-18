@@ -1,0 +1,419 @@
+# Copyright 2016, 2017 DGT NETWORK INC © Stanislav Parsov
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ------------------------------------------------------------------------------
+
+import argparse
+import getpass
+import logging
+import os
+import sys
+import traceback
+import pkg_resources
+
+from colorlog import ColoredFormatter
+
+from deth.client_cli.generate import add_generate_parser
+from deth.client_cli.generate import do_generate
+from deth.client_cli.populate import add_populate_parser
+from deth.client_cli.populate import do_populate
+from deth.client_cli.create_batch import add_create_batch_parser
+from deth.client_cli.create_batch import do_create_batch
+from deth.client_cli.load import add_load_parser
+from deth.client_cli.load import do_load
+from deth.client_cli.deth_workload import add_workload_parser
+from deth.client_cli.deth_workload import do_workload
+
+from deth.client_cli.deth_client import DethClient
+from deth.client_cli.exceptions import DethCliException
+from deth.client_cli.exceptions import DethClientException
+from deth_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
+
+DISTRIBUTION_NAME = 'dgt-deth'
+MAX_VALUE = 4294967295
+CRYPTO_BACK="openssl"
+DEFAULT_URL = 'http://api-dgt-c1-1:8108'
+
+DGT_API_URL = os.environ.get('DGT_API_URL',DEFAULT_URL) or DEFAULT_URL
+def check_range(value):
+    ivalue = int(value)
+    if ivalue < 0 or ivalue > MAX_VALUE:
+        raise argparse.ArgumentTypeError("{} is not in the range [0, {}]".format(value,MAX_VALUE))
+    return ivalue
+
+def create_console_handler(verbose_level):
+    clog = logging.StreamHandler()
+    formatter = ColoredFormatter(
+        "%(log_color)s[%(asctime)s %(levelname)-8s%(module)s]%(reset)s "
+        "%(white)s%(message)s",
+        datefmt="%H:%M:%S",
+        reset=True,
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red',
+        })
+
+    clog.setFormatter(formatter)
+
+    if verbose_level == 0:
+        clog.setLevel(logging.WARN)
+    elif verbose_level == 1:
+        clog.setLevel(logging.INFO)
+    else:
+        clog.setLevel(logging.DEBUG)
+
+    return clog
+
+
+def setup_loggers(verbose_level):
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(create_console_handler(verbose_level))
+
+
+def create_parent_parser(prog_name):
+    parent_parser = argparse.ArgumentParser(prog=prog_name, add_help=False)
+    parent_parser.add_argument(
+        '-v', '--verbose',
+        action='count',
+        help='enable more verbose output')
+
+    try:
+        version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
+    except pkg_resources.DistributionNotFound:
+        version = 'UNKNOWN'
+
+    parent_parser.add_argument(
+        '-V', '--version',
+        action='version',
+        version=(DISTRIBUTION_NAME + ' (Hyperledger Sawtooth) version {}')
+        .format(version),
+        help='display version information')
+    parent_parser.add_argument(                                                                          
+        '-cb', '--crypto_back',                                                                          
+        type=str,                                                                                        
+        choices=["openssl","bitcoin"] ,                                                                  
+        help='Specify a crypto back openssl/bitcoin',                                                    
+        default=CRYPTO_BACK                                                                              
+        )                                                                                                
+    parent_parser.add_argument(                                                                          
+        '-U','--url',                                                                                    
+        type=str,                                                                                        
+        help='Specify URL of REST API',                                                                  
+        default=DGT_API_URL)                                                                             
+    parent_parser.add_argument(                                                                          
+        '--wait',                                                                                        
+        nargs='?',                                                                                       
+        const=sys.maxsize,                                                                               
+        type=int,                                                                                        
+        help='Set time, in seconds, to wait for transaction to commit')                                  
+    parent_parser.add_argument(                                                                          
+        '--access_token','-atok',                                                                        
+        type=str,                                                                                        
+        default=None,                                                                                    
+        help='Access token')                                                                             
+
+
+    return parent_parser
+
+
+def create_parser(prog_name):
+    parent_parser = create_parent_parser(prog_name)
+
+    parser = argparse.ArgumentParser(
+        parents=[parent_parser],
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    subparsers = parser.add_subparsers(title='subcommands', dest='command')
+
+    add_set_parser(subparsers, parent_parser)
+    add_inc_parser(subparsers, parent_parser)
+    add_dec_parser(subparsers, parent_parser)
+    add_trans_parser(subparsers, parent_parser)
+    add_show_parser(subparsers, parent_parser)
+    add_list_parser(subparsers, parent_parser)
+
+    add_generate_parser(subparsers, parent_parser)
+    add_load_parser(subparsers, parent_parser)
+    add_populate_parser(subparsers, parent_parser)
+    add_create_batch_parser(subparsers, parent_parser)
+    add_workload_parser(subparsers, parent_parser)
+
+    return parser
+
+
+def add_set_parser(subparsers, parent_parser):
+    message = 'Sends an bgt transaction to set <name> to <value>.'
+
+    parser = subparsers.add_parser(
+        'set',
+        parents=[parent_parser],
+        description=message,
+        help='Sets an bgt value')
+
+    parser.add_argument(
+        'name',
+        type=str,
+        help='name of key to set')
+
+    parser.add_argument(
+        'value',
+        type=check_range,
+        help='amount to set')
+
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+
+
+def do_set(args):
+    name, value, wait = args.name, args.value, args.wait
+    client = _get_client(args)
+    response = client.set(name, value, wait)
+    print(response)
+
+
+def add_inc_parser(subparsers, parent_parser):
+    message = 'Sends an bgt transaction to increment <name> by <value>.'
+
+    parser = subparsers.add_parser(
+        'inc',
+        parents=[parent_parser],
+        description=message,
+        help='Increments an bgt value')
+
+    parser.add_argument(
+        'name',
+        type=str,
+        help='identify name of key to increment')
+
+    parser.add_argument(
+        'value',
+        type=check_range,
+        help='specify amount to increment')
+
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+
+
+def do_inc(args):
+    name, value, wait = args.name, args.value, args.wait
+    client = _get_client(args)
+    response = client.inc(name, value, wait)
+    print(response)
+
+
+def add_dec_parser(subparsers, parent_parser):
+    message = 'Sends an bgt transaction to decrement <name> by <value>.'
+
+    parser = subparsers.add_parser(
+        'dec',
+        parents=[parent_parser],
+        description=message,
+        help='Decrements an bgt value')
+
+    parser.add_argument(
+        'name',
+        type=str,
+        help='identify name of key to decrement')
+
+    parser.add_argument(
+        'value',
+        type=check_range,
+        help='amount to decrement')
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+
+def add_trans_parser(subparsers, parent_parser):
+    message = 'Sends an bgt transaction from <name> to  <to> by <value>.'
+
+    parser = subparsers.add_parser(
+        'trans',
+        parents=[parent_parser],
+        description=message,
+        help='transfer an bgt value from vallet to vallet')
+
+    parser.add_argument(
+        'name',
+        type=str,
+        help='identify name of key transfer from')
+
+    parser.add_argument(
+        'value',
+        type=check_range,
+        help='amount to transfer')
+
+    parser.add_argument(
+        'to',
+        type=str,
+        help='identify name of key transfer to')
+
+
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        help="identify file containing user's private key")
+
+ 
+
+def do_dec(args):
+    name, value, wait = args.name, args.value, args.wait
+    client = _get_client(args)
+    response = client.dec(name, value, wait)
+    print(response)
+
+def do_trans(args):
+    name, value,to, wait = args.name, args.value, args.to, args.wait
+    client = _get_client(args)
+    response = client.trans(name, value, to, wait)
+    print(response)
+
+
+def add_show_parser(subparsers, parent_parser):
+    message = 'Shows the value of the key <name>.'
+
+    parser = subparsers.add_parser(
+        'show',
+        parents=[parent_parser],
+        description=message,
+        help='Displays the specified bgt value')
+
+    parser.add_argument(
+        'name',
+        type=str,
+        help='name of key to show')
+
+
+
+def do_show(args):
+    name = args.name
+    client = _get_client(args)
+    value = client.show(name)
+    token = BgtTokenInfo()
+    token.ParseFromString(value)
+    print('{}: {}={}'.format(name,token.group_code,token.decimals))
+
+
+def add_list_parser(subparsers, parent_parser):
+    message = 'Shows the values of all keys in bgt state.'
+
+    parser = subparsers.add_parser(
+        'list',
+        parents=[parent_parser],
+        description=message,
+        help='Displays all bgt values')
+
+
+
+def do_list(args):
+    client = _get_client(args)
+    results = client.list()
+    token = BgtTokenInfo()
+    for pair in results:
+        for name, value in pair.items():
+            token.ParseFromString(value)
+            print('{}: {}={}'.format(name,token.group_code,token.decimals))
+
+
+def _get_client(args):
+    return DethClient(
+        url=args.url,
+        keyfile=_get_keyfile(args),
+        token=args.access_token)
+
+
+def _get_keyfile(args):
+    try:
+        if args.keyfile is not None:
+            return args.keyfile
+    except AttributeError:
+        return None
+
+    real_user = getpass.getuser()
+    home = os.path.expanduser("~")
+    key_dir = os.path.join(home, ".dgt", "keys")
+
+    return '{}/{}.priv'.format(key_dir, real_user)
+
+
+def main(prog_name=os.path.basename(sys.argv[0]), args=None):
+    if args is None:
+        args = sys.argv[1:]
+    parser = create_parser(prog_name)
+    args = parser.parse_args(args)
+
+    if args.verbose is None:
+        verbose_level = 0
+    else:
+        verbose_level = args.verbose
+    setup_loggers(verbose_level=verbose_level)
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    if args.command == 'set':
+        do_set(args)
+    elif args.command == 'inc':
+        do_inc(args)
+    elif args.command == 'dec':
+        do_dec(args)
+    elif args.command == 'trans':
+        do_trans(args)
+    elif args.command == 'show':
+        do_show(args)
+    elif args.command == 'list':
+        do_list(args)
+    elif args.command == 'generate':
+        do_generate(args)
+    elif args.command == 'populate':
+        do_populate(args)
+    elif args.command == 'load':
+        do_load(args)
+    elif args.command == 'create_batch':
+        do_create_batch(args)
+    elif args.command == 'workload':
+        do_workload(args)
+
+    else:
+        raise DethCliException("invalid command: {}".format(args.command))
+
+
+def main_wrapper():
+    # pylint: disable=bare-except
+    try:
+        main()
+    except (DethCliException, DethClientException) as err:
+        print("Error: {}".format(err), file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        pass
+    except SystemExit as e:
+        raise e
+    except:
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)

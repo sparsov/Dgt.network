@@ -11,6 +11,7 @@
         <Project File="bgx-validator.vpj"/>
         <Project File="dashboard.vpj"/>
         <Project File="dec.vpj"/>
+        <Project File="deth.vpj"/>
         <Project File="dgt-sdk.vpj"/>
         <Project File="dgt_sign.vpj"/>
         <Project File="../Lua/lua-secp.vpj"/>
