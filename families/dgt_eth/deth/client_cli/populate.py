@@ -32,7 +32,7 @@ from dgt_signing import CryptoFactory
 from dgt_sdk.protobuf import batch_pb2
 from dgt_sdk.protobuf import transaction_pb2
 
-from dgt_bgt.processor.handler import make_deth_address
+from deth.processor.handler import make_deth_address
 
 
 LOGGER = logging.getLogger(__name__)

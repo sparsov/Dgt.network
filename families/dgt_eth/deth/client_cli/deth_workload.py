@@ -29,7 +29,7 @@ from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
 
 from deth.client_cli.workload.workload_generator import WorkloadGenerator
-from deth.client_cli.workload.deth_workload import Workload
+from deth.client_cli.workload.dgt_workload import Workload
 from deth.client_cli.create_batch import create_deth_transaction
 from deth.client_cli.create_batch import create_batch
 from deth.client_cli.exceptions import DethCliException

@@ -22,7 +22,7 @@ import cbor
 from dgt_sdk.processor.handler import TransactionHandler
 from dgt_sdk.processor.exceptions import InvalidTransaction
 from dgt_sdk.processor.exceptions import InternalError
-from deth_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
+from deth_common.protobuf.deth_pb2 import DethTransaction as BgtTokenInfo
 from dgt_signing import CryptoFactory,create_context
 
 LOGGER = logging.getLogger(__name__)

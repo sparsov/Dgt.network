@@ -37,7 +37,7 @@ from deth.client_cli.deth_workload import do_workload
 from deth.client_cli.deth_client import DethClient
 from deth.client_cli.exceptions import DethCliException
 from deth.client_cli.exceptions import DethClientException
-from deth_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
+from deth_common.protobuf.deth_pb2 import DethTransaction as BgtTokenInfo
 
 DISTRIBUTION_NAME = 'dgt-deth'
 MAX_VALUE = 4294967295

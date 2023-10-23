@@ -30,7 +30,7 @@ from dgt_signing import CryptoFactory
 
 from dgt_sdk.protobuf import transaction_pb2
 from dgt_sdk.protobuf import batch_pb2
-from deth_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
+from deth_common.protobuf.deth_pb2 import DethTransaction as BgtTokenInfo
 from deth.processor.handler import make_deth_address
 
 

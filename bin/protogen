@@ -101,6 +101,10 @@ def main(args=None):
     # DEC DGT
     proto_dir = JOIN(TOP_DIR, "protos/families/dec_dgt")          
     protoc(proto_dir, "families/dec_dgt", "dec_common/protobuf") 
+    # ETH DGT
+    proto_dir = JOIN(TOP_DIR, "protos/families/dgt_eth")          
+    protoc(proto_dir, "families/dgt_eth", "deth_common/protobuf")
+
 
     print('protogen DONE !')
 

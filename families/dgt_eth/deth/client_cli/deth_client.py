@@ -30,7 +30,7 @@ from dgt_sdk.protobuf.transaction_pb2 import Transaction
 from dgt_sdk.protobuf.batch_pb2 import BatchList
 from dgt_sdk.protobuf.batch_pb2 import BatchHeader
 from dgt_sdk.protobuf.batch_pb2 import Batch
-from bgt_common.protobuf.smart_bgt_token_pb2 import BgtTokenInfo
+from deth_common.protobuf.deth_pb2 import DethTransaction as BgtTokenInfo
 from dgt_sdk.oauth.requests import OAuth2Session
 from deth.client_cli.exceptions import DethClientException
 

@@ -30,6 +30,7 @@
             Name="Other Files"
             Filters=""
             GUID="{11F41F44-706A-4AEE-BA0D-053C1C37A677}">
+            <F N="protos/families/dgt_eth/deth.proto"/>
             <F N="families/dgt_eth/Dockerfile-jammy"/>
         </Folder>
     </Files>
