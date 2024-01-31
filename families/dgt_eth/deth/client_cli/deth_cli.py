@@ -20,6 +20,8 @@ import os
 import sys
 import traceback
 import pkg_resources
+import yaml
+import cbor
 
 from colorlog import ColoredFormatter
 
@@ -37,8 +39,11 @@ from deth.client_cli.deth_workload import do_workload
 from deth.client_cli.deth_client import DethClient
 from deth.client_cli.exceptions import DethCliException
 from deth.client_cli.exceptions import DethClientException
-from deth_common.protobuf.deth_pb2 import DethTransaction as BgtTokenInfo
+from deth_common.protobuf.deth_pb2 import DethTransaction as BgtTokenInfo,EvmEntry
+from deth.client_cli.deth_attr import *
 
+
+ENABLE_EXTRA_CMD = False
 DISTRIBUTION_NAME = 'dgt-deth'
 MAX_VALUE = 4294967295
 CRYPTO_BACK="openssl"
@@ -83,6 +88,17 @@ def setup_loggers(verbose_level):
     logger.setLevel(logging.DEBUG)
     logger.addHandler(create_console_handler(verbose_level))
 
+def do_yaml(data):                                                                  
+    return yaml.dump(data,explicit_start=True,indent=4,default_flow_style=False)    
+
+def do_cmd(func,args):
+    response = func(args,args.wait)
+    if isinstance(response,dict) or isinstance(response,tuple):    
+        response = do_yaml(response)  
+    print(response) 
+
+
+
 
 def create_parent_parser(prog_name):
     parent_parser = argparse.ArgumentParser(prog=prog_name, add_help=False)
@@ -117,7 +133,8 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(                                                                          
         '--wait',                                                                                        
         nargs='?',                                                                                       
-        const=sys.maxsize,                                                                               
+        const=sys.maxsize, 
+        default=6,                                                                              
         type=int,                                                                                        
         help='Set time, in seconds, to wait for transaction to commit')                                  
     parent_parser.add_argument(                                                                          
@@ -139,31 +156,33 @@ def create_parser(prog_name):
 
     subparsers = parser.add_subparsers(title='subcommands', dest='command')
 
-    add_set_parser(subparsers, parent_parser)
-    add_inc_parser(subparsers, parent_parser)
-    add_dec_parser(subparsers, parent_parser)
-    add_trans_parser(subparsers, parent_parser)
+    add_crt_parser(subparsers, parent_parser)
+    add_call_parser(subparsers, parent_parser)
+    
+    add_smart_parser(subparsers, parent_parser)
+    add_send_parser(subparsers, parent_parser)
     add_show_parser(subparsers, parent_parser)
     add_list_parser(subparsers, parent_parser)
-
-    add_generate_parser(subparsers, parent_parser)
-    add_load_parser(subparsers, parent_parser)
-    add_populate_parser(subparsers, parent_parser)
-    add_create_batch_parser(subparsers, parent_parser)
-    add_workload_parser(subparsers, parent_parser)
+    if ENABLE_EXTRA_CMD:
+        add_perm_parser(subparsers, parent_parser)
+        add_generate_parser(subparsers, parent_parser)
+        add_load_parser(subparsers, parent_parser)
+        add_populate_parser(subparsers, parent_parser)
+        add_create_batch_parser(subparsers, parent_parser)
+        add_workload_parser(subparsers, parent_parser)
 
     return parser
 
 
-def add_set_parser(subparsers, parent_parser):
-    message = 'Sends an bgt transaction to set <name> to <value>.'
+def add_crt_parser(subparsers, parent_parser):
+    message = 'Sends transaction to create account.'
 
     parser = subparsers.add_parser(
-        'set',
+        DETH_CRT_OP,
         parents=[parent_parser],
         description=message,
-        help='Sets an bgt value')
-
+        help='Create an EVM account')
+    """
     parser.add_argument(
         'name',
         type=str,
@@ -174,60 +193,73 @@ def add_set_parser(subparsers, parent_parser):
         type=check_range,
         help='amount to set')
 
-
+    """
     parser.add_argument(
-        '--keyfile',
+        '-key','--keyfile',
         type=str,
         help="identify file containing user's private key")
 
 
 
-def do_set(args):
-    name, value, wait = args.name, args.value, args.wait
+def do_crt(args):
     client = _get_client(args)
-    response = client.set(name, value, wait)
-    print(response)
+    do_cmd(client.crt,args)
+   
 
-
-def add_inc_parser(subparsers, parent_parser):
-    message = 'Sends an bgt transaction to increment <name> by <value>.'
+def add_call_parser(subparsers, parent_parser):
+    message = 'Call smart method <name> <func>.'
 
     parser = subparsers.add_parser(
-        'inc',
+        DETH_CALL_OP,
         parents=[parent_parser],
         description=message,
-        help='Increments an bgt value')
+        help='Call smart method')
 
     parser.add_argument(
         'name',
         type=str,
-        help='identify name of key to increment')
+        help='identify name of smart contract')
 
     parser.add_argument(
-        'value',
-        type=check_range,
-        help='specify amount to increment')
+        'func',
+        type=str,
+        help='identify name of smart contract function')
+
+    #parser.add_argument(                                       
+    #    '-p','--path',                                         
+    #    type=str,                                              
+    #    help='Smart contract path')
+    parser.add_argument(            
+        '-a','--args',              
+        type=str,                   
+        help='Smart contract function args') 
+                                
+                                                               
+    #parser.add_argument(                                       
+    #    '-op','--out_path',                                    
+    #    type=str,                                              
+    #    default="/project/peer/etc/contracts",                 
+    #    help='Smart contract output path')                     
 
 
     parser.add_argument(
-        '--keyfile',
+        '-key','--keyfile',
         type=str,
         help="identify file containing user's private key")
 
 
 
-def do_inc(args):
-    name, value, wait = args.name, args.value, args.wait
+def do_call(args):
     client = _get_client(args)
-    response = client.inc(name, value, wait)
-    print(response)
+    do_cmd(client.call,args)
+    
 
 
-def add_dec_parser(subparsers, parent_parser):
+def add_perm_parser(subparsers, parent_parser):
     message = 'Sends an bgt transaction to decrement <name> by <value>.'
 
     parser = subparsers.add_parser(
-        'dec',
+        DETH_PERM_OP,
         parents=[parent_parser],
         description=message,
         help='Decrements an bgt value')
@@ -248,50 +280,104 @@ def add_dec_parser(subparsers, parent_parser):
         help="identify file containing user's private key")
 
 
-def add_trans_parser(subparsers, parent_parser):
-    message = 'Sends an bgt transaction from <name> to  <to> by <value>.'
+def add_smart_parser(subparsers, parent_parser):
+    message = 'Sends  transaction for smart contract <name> create  .'
 
     parser = subparsers.add_parser(
-        'trans',
+        DETH_SMART_OP,
         parents=[parent_parser],
         description=message,
-        help='transfer an bgt value from vallet to vallet')
+        help='Smart contract create')
 
     parser.add_argument(
         'name',
         type=str,
-        help='identify name of key transfer from')
+        help='identify name of smart contract')
+
+    parser.add_argument(                                   
+        '-p','--path',                                
+        type=str,                                          
+        help='Smart contract path')                        
 
     parser.add_argument(
-        'value',
-        type=check_range,
-        help='amount to transfer')
-
-    parser.add_argument(
-        'to',
+        '-op','--out_path',
         type=str,
-        help='identify name of key transfer to')
-
+        default="/project/peer/etc/contracts",
+        help='Smart contract output path')
+    #gas_price
+    parser.add_argument(                      
+        '-gas','--gas_amount',                     
+        type=int,
+        default=0,                             
+        help='Gas amount ')  
+    parser.add_argument(           
+        '-gasp','--gas_price',     
+        type=int,
+        default=1,                  
+        help='Gas price ')        
+    parser.add_argument(
+        '-comp', '--compile',
+        action='count',
+        default=0,
+        help='First compile contract')
+    parser.add_argument(
+        '-upd', '--update',
+        action='count',
+        default=0,
+        help='Update contract version')
+    parser.add_argument(                                    
+        '-skey','--smart_keyfile',                                 
+        type=str,                                           
+        help="identify file containing smart contract addr or private key") 
 
     parser.add_argument(
-        '--keyfile',
+        '-key','--keyfile',
         type=str,
         help="identify file containing user's private key")
 
  
 
-def do_dec(args):
-    name, value, wait = args.name, args.value, args.wait
+def do_perm(args):
     client = _get_client(args)
-    response = client.dec(name, value, wait)
-    print(response)
+    do_cmd(client.perm,args)
 
-def do_trans(args):
-    name, value,to, wait = args.name, args.value, args.to, args.wait
+
+def do_smart(args):
     client = _get_client(args)
-    response = client.trans(name, value, to, wait)
-    print(response)
+    do_cmd(client.smart,args)
 
+
+                                                                                   
+def add_send_parser(subparsers, parent_parser):                                    
+    message = 'Sends <value> to <to> .'           
+                                                                                   
+    parser = subparsers.add_parser(                                                
+        DETH_SEND_OP,                                                              
+        parents=[parent_parser],                                                   
+        description=message,                                                       
+        help='Send an money')                                            
+                                                                                   
+    parser.add_argument(                                                           
+        'to',                                                                    
+        type=str,                                                                  
+        help='Recipient key')                                  
+                                                                                   
+    parser.add_argument(                                                           
+        'value',                                                                   
+        type=check_range,                                                          
+        help='amount to send')                                                
+                                                                                   
+    parser.add_argument(                                                           
+        '-key','--keyfile',                                                               
+        type=str,                                                                  
+        help="identify file containing user's private key")                        
+
+
+
+def do_send(args):                                                       
+    client = _get_client(args)
+    do_cmd(client.send,args)                                           
+    
 
 def add_show_parser(subparsers, parent_parser):
     message = 'Shows the value of the key <name>.'
@@ -300,43 +386,77 @@ def add_show_parser(subparsers, parent_parser):
         'show',
         parents=[parent_parser],
         description=message,
-        help='Displays the specified bgt value')
+        help='Displays the specified ETH account')
 
     parser.add_argument(
         'name',
         type=str,
         help='name of key to show')
 
+def print_token(client,name,token,filter=DETH_ALL):
+    data = {'key'   :name,
+                    DETH_ACCOUNT:{                                    
+                    'address':token.account.address.hex(),                    
+                    'balance':token.account.balance,                          
+                    'nonce':token.account.nonce,
+
+                    }
+            }
+
+
+    if token.account.code is not None and len(token.account.code) > 0:
+        if filter == DETH_ACCOUNT:
+            return
+        code = cbor.loads(token.account.code)
+        smart = client.get_smart_api(token.account.address,code[DETH_SMART_ABI])
+        data[DETH_ACCOUNT][DETH_SMART_CODE] = {
+                                  DETH_SMART_NAME : code[DETH_SMART_NAME],
+                                  DETH_SMART_PATH : code[DETH_SMART_PATH],
+                                  DETH_SMART_FUNCS: smart.all_functions(),
+                                 }
+
+    elif filter == DETH_SMART:
+        return
+    ret = do_yaml(data)   
+    print(ret)                        
 
 
 def do_show(args):
     name = args.name
     client = _get_client(args)
     value = client.show(name)
-    token = BgtTokenInfo()
+    token = EvmEntry()
     token.ParseFromString(value)
-    print('{}: {}={}'.format(name,token.group_code,token.decimals))
+    print_token(client,name,token)
+    
+    #print('{}: {} addr={} bal={}'.format(name,token,token.account.address.hex(),token.account.balance))
 
 
 def add_list_parser(subparsers, parent_parser):
-    message = 'Shows the values of all keys in bgt state.'
+    message = 'Shows the all ETH accounts.'
 
     parser = subparsers.add_parser(
         'list',
         parents=[parent_parser],
         description=message,
-        help='Displays all bgt values')
+        help='Displays all ETH accounts')
 
+    parser.add_argument(                                                                           
+        '-tp','--type',                                                                            
+        type=str,
+        default=DETH_ALL,                                                                                  
+        choices=[DETH_ALL,DETH_SMART,DETH_ACCOUNT] ,   
+        help='Type of account to filter')                                                              
 
 
 def do_list(args):
     client = _get_client(args)
     results = client.list()
-    token = BgtTokenInfo()
+    token = EvmEntry()
     for pair in results:
         for name, value in pair.items():
             token.ParseFromString(value)
-            print('{}: {}={}'.format(name,token.group_code,token.decimals))
+            print_token(client,name,token,filter=args.type)
 
 
 def _get_client(args):
@@ -376,17 +496,20 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
         parser.print_help()
         sys.exit(1)
 
-    if args.command == 'set':
-        do_set(args)
-    elif args.command == 'inc':
-        do_inc(args)
-    elif args.command == 'dec':
-        do_dec(args)
-    elif args.command == 'trans':
-        do_trans(args)
-    elif args.command == 'show':
+    if args.command == DETH_CRT_OP:
+        do_crt(args)
+    
+    elif args.command == DETH_SEND_OP:    
+        do_send(args)                     
+    elif args.command == DETH_CALL_OP:
+        do_call(args)
+    elif args.command == DETH_PERM_OP:
+        do_perm(args)
+    elif args.command == DETH_SMART_OP:
+        do_smart(args)
+    elif args.command == DETH_SHOW_OP:
         do_show(args)
-    elif args.command == 'list':
+    elif args.command == DETH_LIST_OP:
         do_list(args)
     elif args.command == 'generate':
         do_generate(args)

@@ -12,7 +12,10 @@
             <F N="families/dgt_eth/deth/client_cli/__init__.py"/>
             <F N="families/dgt_eth/deth/client_cli/workload/__init__.py"/>
             <F N="families/dgt_eth/deth/processor/__init__.py"/>
+            <F N="families/dgt_eth/deth/processor/chain_plumbing.py"/>
+            <F N="families/dgt_eth/deth/client_cli/compile.py"/>
             <F N="families/dgt_eth/deth/client_cli/create_batch.py"/>
+            <F N="families/dgt_eth/deth/client_cli/deth_attr.py"/>
             <F N="families/dgt_eth/deth/client_cli/deth_cli.py"/>
             <F N="families/dgt_eth/deth/client_cli/deth_client.py"/>
             <F N="families/dgt_eth/deth/deth_message_factory.py"/>
@@ -24,6 +27,7 @@
             <F N="families/dgt_eth/deth/client_cli/load.py"/>
             <F N="families/dgt_eth/deth/processor/main.py"/>
             <F N="families/dgt_eth/deth/client_cli/populate.py"/>
+            <F N="families/dgt_eth/deth/processor/pyevm.py"/>
             <F N="families/dgt_eth/deth/client_cli/workload/workload_generator.py"/>
         </Folder>
         <Folder
@@ -32,6 +36,7 @@
             GUID="{11F41F44-706A-4AEE-BA0D-053C1C37A677}">
             <F N="protos/families/dgt_eth/deth.proto"/>
             <F N="families/dgt_eth/Dockerfile-jammy"/>
+            <F N="Seth/test-app/intkey.sol"/>
         </Folder>
     </Files>
     <Config

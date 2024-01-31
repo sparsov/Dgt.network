@@ -24,7 +24,8 @@ from dgt_sdk.processor.log import log_configuration
 from dgt_sdk.processor.config import get_log_config
 from dgt_sdk.processor.config import get_log_dir
 from deth.processor.handler import DethTransactionHandler
-
+from deth.processor.pyevm import PyevmTransactionHandler
+from deth.client_cli.deth_attr import ETH_DB_PATH
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,13 @@ def parse_args(args):
                         action='count',
                         default=0,
                         help='Increase output sent to stderr')
+
+    parser.add_argument(                           
+        '-db','--db_path',                        
+        type=str,                                  
+        default=ETH_DB_PATH,     
+        help='Eth database')         
+
 
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
@@ -82,12 +90,13 @@ def main(args=None):
                 log_dir=log_dir,
                 name="deth-" + str(processor.zmq_id)[2:-1])
 
-        init_console_logging(verbose_level=opts.verbose)
+        init_console_logging(verbose_level=8) #opts.verbose)
 
         # The prefix should eventually be looked up from the
         # validator's namespace registry.
         #processor = TransactionProcessor(url=opts.connect)
-        handler = DethTransactionHandler()
+        evm = PyevmTransactionHandler(opts.db_path)
+        handler = DethTransactionHandler(evm=evm)
         processor.add_handler(handler)
         LOGGER.debug("{}: connect {}".format(DISTRIBUTION_NAME,opts.connect))
         processor.start()

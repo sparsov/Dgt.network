@@ -119,7 +119,7 @@ if [ ! -v DGT_DASH_PARAMS ]; then
 DGT_DASH_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
 fi
 if [ ! -v DGT_DETH_PARAMS ]; then
-DGT_DETH_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
+DGT_DETH_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN GENESIS)
 fi
 if [ ! -v DGT_DEVEL_PARAMS ]; then
 DGT_DEVEL_PARAMS=(PEER PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN DGT_TOKEN COMP_URL API)
@@ -231,12 +231,13 @@ function doNotaCompose {
        eval HTTPS_MODE=\$HTTPS_MODE_${SNM^^}
        eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
        eval API=\$API_${SNM^^}
+       eval NAPI=\$NAPI_${SNM^^}
        eval COMP=\$COMP_${SNM^^}
 
                                              
  
         #export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/$FCOMPOSE $mode
-        echo export COMPOSE_PROJECT_NAME=$SNM C=$CLUST N=$NODE API=$API COMP=$COMP  \
+        echo export COMPOSE_PROJECT_NAME=$SNM C=$CLUST N=$NODE API=$API NAPI=$NAPI COMP=$COMP  \
                SIGNED=$SIGNED  \
                PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK KYC=$KYC HTTPS_MODE=$HTTPS_MODE; \
                $COMPOSE -f $NOTA_FCOMP $CMD $@;                           
@@ -313,12 +314,14 @@ function doDethCompose {
        eval ACCESS_TOKEN=\$ACCESS_TOKEN_${SNM^^}
        eval API=\$API_${SNM^^}
        eval COMP=\$COMP_${SNM^^}
+       eval GENESIS=\$GENESIS_${SNM^^}
+       
 
                                              
  
         #export COMPOSE_PROJECT_NAME=1 G=$GENESIS C=c1 N=1 API=8108 COMP=4104 NET=8101 CONS=5051;docker-compose -f docker/$FCOMPOSE $mode
         export COMPOSE_PROJECT_NAME=$SNM C=$CLUST N=$NODE API=$API COMP=$COMP  \
-               SIGNED=$SIGNED  \
+               SIGNED=$SIGNED  G=$GENESIS \
                PNM=$PNM CRYPTO_BACK=$CRYPTO_BACK KYC=$KYC HTTPS_MODE=$HTTPS_MODE; \
                $COMPOSE -f $DETH_FCOMP $CMD $@;                           
        
@@ -1017,7 +1020,7 @@ case $CMD in
      *)
           desired_length=12
           echo -e $CBLUE "usage:<peer name> <subcommand> [<args>]" $CDEF
-          echo -e $CBLUE "peer types: [dgt|dash|graf|dev]" $CDEF
+          echo -e $CBLUE "peer types: [dgt|dash|graf|dev|deth]" $CDEF
           echo -e $CBLUE "subcommands: " $CDEF
           printHelp CMDS_HELP                                                 
           

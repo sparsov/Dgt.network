@@ -86,7 +86,7 @@ message CreateExternalAccountTxn {
     // array); formally T_t."
     bytes to = 2;
 
-    // The Burrow-EVM permissions to assign to the new account
+    // The PY-EVM permissions to assign to the new account
     EvmPermissions permissions = 3;
 }
 
