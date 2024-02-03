@@ -60,13 +60,17 @@ RUN apt-get update && apt-get install   --no-install-recommends -y -q build-esse
 RUN apt-get update && apt-get install -y -q software-properties-common
 RUN add-apt-repository ppa:ethereum/ethereum
 RUN apt-get update && apt-get install   --no-install-recommends -y -q solc
-RUN pip3 install py-evm eth-utils
+RUN pip3 install eth-utils
 RUN pip3 install py-solc
 RUN pip3 install eth_abi
 
 RUN pip3 install termcolor
 RUN pip3 install web3
 RUN pip3 install plyvel
+#RUN pip3 install eth-bloom mypy-extensions trie cached-property
+RUN pip3 install py-evm 
+RUN pip3 install pyethash
+
 # aiohttp_oauth2
 
 ENV PATH=$PATH:/project/$DGT_TOP/bin:
