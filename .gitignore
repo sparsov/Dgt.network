@@ -14,11 +14,15 @@
 # ------------------------------------------------------------------------------
 
 # Exclude IDE and Editor files
+__pycache__/
 /.idea/
 /**/.idea/
 *.sublime*
 *.pyc
 *.prof
+*.bin
+*.abi
+*.evm
 /bgx/rest-api/web_app_node/node_modules/
 *_pb2.py
 # Everything else
