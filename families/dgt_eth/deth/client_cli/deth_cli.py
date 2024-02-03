@@ -105,6 +105,7 @@ def create_parent_parser(prog_name):
     parent_parser.add_argument(
         '-v', '--verbose',
         action='count',
+        default=0,
         help='enable more verbose output')
 
     try:
@@ -393,7 +394,7 @@ def add_show_parser(subparsers, parent_parser):
         type=str,
         help='name of key to show')
 
-def print_token(client,name,token,filter=DETH_ALL):
+def print_token(client,name,token,filter=DETH_ALL,verb=True):
     data = {'key'   :name,
                     DETH_ACCOUNT:{                                    
                     'address':token.account.address.hex(),                    
@@ -412,7 +413,7 @@ def print_token(client,name,token,filter=DETH_ALL):
         data[DETH_ACCOUNT][DETH_SMART_CODE] = {
                                   DETH_SMART_NAME : code[DETH_SMART_NAME],
                                   DETH_SMART_PATH : code[DETH_SMART_PATH],
-                                  DETH_SMART_FUNCS: smart.all_functions(),
+                                  DETH_SMART_FUNCS: smart.all_functions() if verb else [f['name'] for f in smart.functions._functions if f["type"] == 'function'],
                                  }
 
     elif filter == DETH_SMART:
@@ -456,7 +457,7 @@ def do_list(args):
     for pair in results:
         for name, value in pair.items():
             token.ParseFromString(value)
-            print_token(client,name,token,filter=args.type)
+            print_token(client,name,token,filter=args.type,verb=args.verbose > 0)
 
 
 def _get_client(args):
