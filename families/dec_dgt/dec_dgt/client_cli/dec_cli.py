@@ -927,8 +927,8 @@ def do_balance_of(args):
             dec = cbor.loads(token.dec)# if token.group_code  in DEC_TYPES else {}
         except Exception as ex:
             dec = {}
-        
-        inf = { DEC_TOTAL_SUM : token.decimals if DEC_TOTAL_SUM not in dec else dec[DEC_TOTAL_SUM][DATTR_VAL],
+        #print('dec',dec)
+        inf = { DEC_TOTAL_SUM : token.decimals if DEC_TOTAL_SUM not in dec else dec[DEC_TOTAL_SUM],#[DATTR_VAL],
                   }
         if DEC_СORPORATE_REST in dec:
             inf[DEC_СORPORATE_REST] = dec[DEC_СORPORATE_REST]

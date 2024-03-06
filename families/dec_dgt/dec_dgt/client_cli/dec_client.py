@@ -1094,16 +1094,24 @@ class DecClient:
         except BaseException:
             return None
     def show(self,args, name):
+        #print("emission_key",args.type,name,args.did)
         return self.get_object(args.type,args.did,name)
 
     def corpaccount(self,args):
         emission_key = ANY_EMISSION_KEY.format(args.name)
-        token = self.get_object(DEC_EMISSION_GRP,args.did,emission_key)       
+        #print("emission_key",emission_key,args.did)
+        token = self.get_object(DEC_EMISSION_GRP,args.did,emission_key)  #  DEC_TARGET_GRP   
+                                                                         
         dec = cbor.loads(token.dec)  
+        #print("token",dec)
         if DEC_СORPORATE_ACCOUNT in dec:
             addr = dec[DEC_СORPORATE_ACCOUNT][DATTR_VAL][DEC_CORP_ACC_ADDR]
             owners = dec[DEC_CORPORATE_PUB_KEY][DATTR_VAL]
-            token = self.get_object(DEC_WALLET_GRP,args.did,addr)
+            try:
+                token = self.get_object(DEC_WALLET_GRP,args.did,addr)
+            except Exception as ex:
+                print("not created yet",addr)
+                return dec
             dec = cbor.loads(token.dec)
             dec[DEC_CORPORATE_PUB_KEY] = owners
         else:
