@@ -176,6 +176,9 @@ def create_parser(prog_name):
 
 
 def add_crt_parser(subparsers, parent_parser):
+    """
+    use dec from account -key and spent money for EVM operation
+    """
     message = 'Sends transaction to create account.'
 
     parser = subparsers.add_parser(
@@ -198,7 +201,7 @@ def add_crt_parser(subparsers, parent_parser):
     parser.add_argument(
         '-key','--keyfile',
         type=str,
-        help="identify file containing user's private key")
+        help="Identify file containing user's private key")
 
 
 

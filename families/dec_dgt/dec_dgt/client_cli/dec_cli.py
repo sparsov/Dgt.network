@@ -1171,6 +1171,11 @@ def add_target_parser(subparsers, parent_parser):
         '--target','-tg',                                                                                                 
         type=str,                                                                                                         
         help='Target specification')
+    parser.add_argument(              
+        '--turl','-tu',             
+        type=str,                     
+        help='Target url ')  
+
     parser.add_argument(                          
         '--target_proto',                           
         type=str,                                 
@@ -1685,9 +1690,12 @@ def add_list_parser(subparsers, parent_parser):
         '-l','--limit',                        
         type=int,                       
         help='Take not more then limit items')      
-
-
-       
+    """
+    parser.add_argument(                     
+        '--owner','-own',                        
+        type=str,                            
+        help='Owner key')                          
+    """   
     parser.add_argument(        
         '--did','-d',           
         type=str,
