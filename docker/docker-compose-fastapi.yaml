@@ -1,0 +1,45 @@
+version: '3.6'
+
+services:
+  # shell for entering into services net fastapi-${PNM}-${C}-${N}
+  
+     
+  back:
+    build:
+      context: .
+      dockerfile: fastapi/Dockerfile-${DISTR}
+    container_name: fast-api-${PNM}-${C}-${N}
+    image: ${PNM}-fastapi-${DISTR}
+    environment:
+    - API=${API}
+    - DB_USER=${DB_USER}                       
+    - DB_PASS=${DB_PASS}                       
+    - DB_HOST=${DB_HOST}                       
+    - DB_NAME=${DB_NAME}                       
+    - DB_PORT=${DB_PORT}
+    - CRYPTO_BACK=${CRYPTO_BACK} 
+    - DGT_CONNECT=tcp://validator-${PNM}-${C}-${N}:${COMP}
+    #- DB_CONN=${DB_CONN}                      
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
+    ports:
+      - ${API}:${API}
+    restart: always
+    volumes:
+      - ..:/project
+      - ../../dgt_clust/${C}/${PNM}${N}:/project/peer
+    networks:
+    - network1
+    command:  |
+      bash -c "
+        ls -l;cd /project/fast-api
+        echo bash rest.sh;
+        tail -f /dev/null 
+      "
+
+
+networks:
+  network1:
+     name: dgt-net
