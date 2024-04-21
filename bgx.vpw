@@ -14,6 +14,7 @@
         <Project File="deth.vpj"/>
         <Project File="dgt-sdk.vpj"/>
         <Project File="dgt_sign.vpj"/>
+        <Project File="fast-api.vpj"/>
         <Project File="../Lua/lua-secp.vpj"/>
         <Project File="../../Projects/Hyperledger/Lua/lua-tp.vpj"/>
         <Project File="notary-api.vpj"/>

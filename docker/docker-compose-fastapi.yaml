@@ -42,4 +42,4 @@ services:
 
 networks:
   network1:
-     name: dgt-net
+     name: ${PNM}1-network
