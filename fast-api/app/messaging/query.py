@@ -27,7 +27,7 @@ from google.protobuf.message import DecodeError
 
 
 import app.messaging.exceptions as errors
-import app.messaging.error_handlers
+import app.messaging.error_handlers as error_handlers
 from .messaging import DisconnectError
 from .messaging import SendBackoffTimeoutError
 from .messaging import Connection
@@ -690,6 +690,31 @@ class QueryValidatorHandler:
             return proto.Status.Name(status_enum)
         except ValueError:
             return 'Unknown ({})'.format(status_enum)
+
+    async def _head_to_root(self, block_id):                                                          
+        error_traps = [error_handlers.BlockNotFoundTrap]                                              
+        if block_id:                                                                                  
+            response = await self._query_validator(                                                   
+                Message.CLIENT_BLOCK_GET_BY_ID_REQUEST,                                               
+                client_block_pb2.ClientBlockGetResponse,                                              
+                client_block_pb2.ClientBlockGetByIdRequest(block_id=block_id),                        
+                error_traps)                                                                          
+            block = self._expand_block(response['block'])                                             
+        else:                                                                                         
+            LOGGER.debug('_head_to_root ask list block')                                              
+                                                                                                      
+            response = await self._query_validator(                                                   
+                Message.CLIENT_BLOCK_LIST_REQUEST,                                                    
+                client_block_pb2.ClientBlockListResponse,                                             
+                client_block_pb2.ClientBlockListRequest(                                              
+                    paging=client_list_control_pb2.ClientPagingControls(                              
+                        limit=1)),                                                                    
+                error_traps)                                                                          
+            block = self._expand_block(response['blocks'][0])                                         
+        return (                                                                                      
+            block['header_signature'],                                                                
+            block['header']['state_root_hash'],                                                       
+        )                                                                                             
 
 
 connection = Connection(settings.DGT_CONNECT)
