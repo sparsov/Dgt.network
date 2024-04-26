@@ -8,6 +8,8 @@ from .blocks.endpoints import router as v1_blocks
 from .transactions.endpoints import router as v1_transactions
 from .receipts.endpoints import router as v1_receipts
 from .state.endpoints import router as v1_state
+from .families.endpoints import router as v1_families
+
 """
 from .bgt.endpoints import router as v1_bgt
 from .blocks.endpoints import router as v1_blocks 

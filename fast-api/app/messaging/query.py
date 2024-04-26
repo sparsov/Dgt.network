@@ -64,9 +64,6 @@ PAGE_LIMIT = 'limit'
 
 
 
-TX_FAMILIES = {
-    'bgt': {'commands' :{'set':['wallet','amount'],'inc':['wallet','amount'],'dec':['wallet','amount'],'trans':['wallet','amount','to'],'show':['wallet']}}
-    }
 RUN_STATUSES = {
       "id": "23102b0fcf11e6d6ed0476e08c76dd6ec0a83cf3dba3d77256ede90d048a3545242459efab08627bf622d2da2f1434e48a2e54561df1ada5ba1cc99c02f5c666",
       "invalid_transactions": [
@@ -421,7 +418,7 @@ class QueryValidatorHandler:
         """Parses out the head and link properties based on the HTTP Request
         from the client, and the Protobuf response from the validator.
         """
-        head = response.get('head_id', head)
+        head = response.get('head_id', head) if response is not None else None
         metadata = {'link': cls._build_url(request, head=head)}
 
         if head is not None:

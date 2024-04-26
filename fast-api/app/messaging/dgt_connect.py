@@ -27,66 +27,7 @@ asyncio.set_event_loop(zmq_loop)
 #connection = Connection(settings.DGT_CONNECT)
 #connection.open()
 
-async def _query_validator(self, request_type, response_proto,payload, error_traps=None):
-    """Sends a request to the validator and parses the response.
-    """
-    LOGGER.debug(
-        'Sending %s request to validator',
-        self._get_type_name(request_type))
 
-    payload_bytes = payload.SerializeToString()
-    response = await self._send_request(request_type, payload_bytes)
-    content = self._parse_response(response_proto, response)
-
-    LOGGER.debug(
-        'Received %s response from validator with status %s',
-        self._get_type_name(response.message_type),
-        self._get_status_name(response_proto, content.status))
-
-    self._check_status_errors(response_proto, content, error_traps)
-    return self._message_to_dict(content)
-
-async def _send_request(self, request_type, payload):
-    """Uses an executor to send an asynchronous ZMQ request to the
-    validator with the handler's Connection
-    """
-    try:
-        return await self._connection.send(
-            message_type=request_type,
-            message_content=payload,
-            timeout=self._timeout)
-    except DisconnectError:
-        LOGGER.warning('Validator disconnected while waiting for response')
-        raise errors.ValidatorDisconnected()
-    except asyncio.TimeoutError:
-        LOGGER.warning('Timed out while waiting for validator response')
-        raise errors.ValidatorTimedOut()
-    except SendBackoffTimeoutError:
-        LOGGER.warning('Failed sending message - Backoff timed out')
-        raise errors.SendBackoffTimeout()
-
-async def _head_to_root(self, block_id):
-    error_traps = [error_handlers.BlockNotFoundTrap]
-    if block_id:
-        response = await self._query_validator(
-            Message.CLIENT_BLOCK_GET_BY_ID_REQUEST,
-            client_block_pb2.ClientBlockGetResponse,
-            client_block_pb2.ClientBlockGetByIdRequest(block_id=block_id),
-            error_traps)
-        block = self._expand_block(response['block'])
-    else:
-        response = await self._query_validator(
-            Message.CLIENT_BLOCK_LIST_REQUEST,
-            client_block_pb2.ClientBlockListResponse,
-            client_block_pb2.ClientBlockListRequest(
-                paging=client_list_control_pb2.ClientPagingControls(
-                    limit=1)),
-            error_traps)
-        block = self._expand_block(response['blocks'][0])
-    return (
-        block['header_signature'],
-        block['header']['state_root_hash'],
-    )
 
 @staticmethod
 def _parse_response(proto, response):
