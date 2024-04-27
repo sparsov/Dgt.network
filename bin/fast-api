@@ -26,7 +26,7 @@ TOP_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, os.path.join(TOP_DIR,'fast-api'))
 sys.path.insert(0, os.path.join(TOP_DIR,'sdk', 'python'))
 sys.path.insert(0, os.path.join(TOP_DIR,'signing'))
-#sys.path.insert(0, os.path.join(TOP_DIR,'families','bgt_python'))
+sys.path.insert(0, os.path.join(TOP_DIR,'families','bgt_python'))
 #sys.path.insert(0, os.path.join(TOP_DIR,'families','smart_stuff'))
 #sys.path.insert(0, os.path.join(TOP_DIR,'validator'))
 

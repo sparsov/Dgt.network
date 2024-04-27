@@ -2,10 +2,11 @@ from fastapi import APIRouter
 from fastapi import Depends, Request
 from app.messaging import getQueryValidator, QueryValidatorHandler
 from dgt_sdk.protobuf.validator_pb2 import Message
-from dgt_sdk.protobuf import client_batch_pb2
+from dgt_sdk.protobuf import client_batch_pb2, client_batch_submit_pb2
 from fastapi_pagination import Page, paginate
-from app.schemas import DgtPagingListResponse, DgtResponse
-from app.messaging.error_handlers import BatchNotFoundTrap
+from app.schemas import DgtPagingListResponse, DgtResponse, DgtListResponse
+import app.messaging.error_handlers as error_handlers
+import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
 router = APIRouter()
 
@@ -57,7 +58,7 @@ async def get_batch(request: Request,batch_id: str ='',query: QueryValidatorHand
         data: A JSON object with the data from the fully expanded Batch                 
         link: The link to this exact query                                              
     """                                                                                 
-    error_traps = [BatchNotFoundTrap]                                    
+    error_traps = [error_handlers.BatchNotFoundTrap]                                    
                                                                                         
     #batch_id = request.match_info.get('batch_id', '')                                   
     LOGGER.debug(f'fetch_batch batch_id={batch_id}')                                    
@@ -75,10 +76,87 @@ async def get_batch(request: Request,batch_id: str ='',query: QueryValidatorHand
         metadata=query._get_metadata(request, response))                                 
     
     
+@router.get("/batch_statuses",response_model=DgtListResponse)
+async def get_batch_statuses(request: Request,id:str,query: QueryValidatorHandler = Depends(getQueryValidator)):
+    """Fetches the committed status of batches by either a POST or GET.
+
+    Request:
+        body: A JSON array of one or more id strings (if POST)
+        query:
+            - id: A comma separated list of up to 15 ids (if GET)
+            - wait: Request should not return until all batches committed
+
+    Response:
+        data: A JSON object, with batch ids as keys, and statuses as values
+        link: The /batch_statuses link queried (if GET)
+    """
+    error_traps = [error_handlers.StatusResponseMissing]
+    ids = query._get_filter_ids(request)
+    if not ids:
+        LOGGER.info('Request for statuses missing id query')
+        raise errors.StatusIdQueryInvalid()
+
+
+    # Query validator
+    validator_query = client_batch_submit_pb2.ClientBatchStatusRequest(batch_ids=ids)
+    query._set_wait(request, validator_query)
+    LOGGER.info('Request for statuses id={}'.format(ids))
+    response = await query._query_validator(
+        Message.CLIENT_BATCH_STATUS_REQUEST,
+        client_batch_submit_pb2.ClientBatchStatusResponse,
+        validator_query,
+        error_traps)
+
+    # Send response
+    metadata = query._get_metadata(request, response)
+
+    data = query._drop_id_prefixes(query._drop_empty_props(response['batch_statuses']))
+
+    return query._wrap_response(request, data=data, metadata=metadata)
+
+
+
+@router.post("/batch_statuses") #,response_model=DgtResponse)
+async def post_batch_statuses(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):
+    """Fetches the committed status of batches by either a POST or GET.
+    Request:
+        body: A JSON array of one or more id strings
+        query:
+            - wait: Request should not return until all batches committed
+
+    Response:
+        data: A JSON object, with batch ids as keys, and statuses as values
+        link: The /batch_statuses link queried (if GET)
+    """
+    error_traps = [error_handlers.StatusResponseMissing]
+    if request.headers['Content-Type'] != 'application/json':                                             
+        LOGGER.debug(                                                                                     
+            'Request headers had wrong Content-Type: %s',                                                 
+            request.headers['Content-Type'])                                                              
+        raise errors.StatusWrongContentType()                                                             
+                                                                                                          
+    ids = await request.json()                                                                            
+                                                                                                          
+    if (not ids                                                                                           
+            or not isinstance(ids, list)                                                                  
+            or not all(isinstance(i, str) for i in ids)):                                                 
+        LOGGER.debug('Request body was invalid: %s', ids)                                                 
+        raise errors.StatusBodyInvalid()                                                                  
+    for i in ids:                                                                                         
+        query._validate_id(i)                                                                              
     
-    
-    
-    
-    
-    
-    
+    # Query validator                                                                                                                                                                                       
+    validator_query =  client_batch_submit_pb2.ClientBatchStatusRequest(batch_ids=ids)                                                                            
+    query._set_wait(request, validator_query)                                                          
+                                                                                                      
+    response = await query._query_validator(                                                           
+        Message.CLIENT_BATCH_STATUS_REQUEST,                                                          
+        client_batch_submit_pb2.ClientBatchStatusResponse,                                            
+        validator_query,                                                                              
+        error_traps)                                                                                  
+                                                                                                      
+    # Send response                                                                                   
+                                                                                                      
+    data = query._drop_id_prefixes(query._drop_empty_props(response['batch_statuses']))                                           
+                                                                                                      
+    return query._wrap_response(request, data=data, metadata=None)                                 

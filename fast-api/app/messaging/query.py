@@ -18,7 +18,7 @@ import re
 import json
 import cbor
 import base64
-
+from urllib.parse import urlparse
 # pylint: disable=no-name-in-module,import-error
 # needed for the google.protobuf imports to pass pylint
 from google.protobuf.json_format import MessageToDict
@@ -241,7 +241,7 @@ class QueryValidatorHandler:
         """
         change validator
         """
-        endpoint = request.url.query.get('endpoint', None) 
+        endpoint = request.query_params.get('endpoint', None) 
         #if endpoint is not None:
         self._connection.reopen(endpoint)
         LOGGER.debug('Request validator endpoint=%s request=%s',endpoint,request)
@@ -250,9 +250,9 @@ class QueryValidatorHandler:
             data={'endpoint':endpoint}
             )
 
-    async def _query_validator(self, request_type, response_proto,
-                               payload, error_traps=None):
-        """Sends a request to the validator and parses the response.
+    async def _query_validator(self, request_type, response_proto,payload, error_traps=None):
+        """
+           Sends a request to the validator and parses the response.
         """
         LOGGER.debug('Sending %s request to validator',self._get_type_name(request_type))
 
@@ -465,11 +465,28 @@ class QueryValidatorHandler:
 
         scheme = cls._get_forwarded(request, 'proto') or request.url.scheme
         host = cls._get_forwarded(request, 'host') or request.client.host
+        port = request.headers.get("X-Forwarded-Port") or request.client.port
         forwarded_path = cls._get_forwarded(request, 'path')
-        path = path if path is not None else request.url.path
+        origin_host  = request.headers.get("host")
+        if origin_host :
+            
+            host = origin_host
+        original_uri = request.headers.get("X-Original-URI")
+        
+        #LOGGER.info('forwarded_proto {}'.format(request.headers))
+        if original_uri:
+            parsed_uri = urlparse(original_uri)
+            orig_path = '/'.join(parsed_uri.path.split('/')[:-1]) 
+            #host = '{}:{}'.format(parsed_uri.hostname,parsed_uri.port)
+        else:
+            orig_path = '/'.join(request.url.path.split('/')[:-1])
+            #host = cls._get_forwarded(request, 'host') or request.client.host
+
+
+        path = "{}".format(path) if path is not None else request.url.path
         query = '?' + '&'.join(query_strings) if query_strings else ''
 
-        url = '{}://{}{}{}{}'.format(scheme, host, forwarded_path, path, query)
+        url = '{}://{}:{}{}{}{}'.format(scheme, host,port, forwarded_path, path, query)
         return url
 
     @staticmethod
