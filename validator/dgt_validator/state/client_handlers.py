@@ -46,6 +46,7 @@ from dgt_validator.protobuf.client_peers_pb2 import  ClientPeersControlRequest,C
 from dgt_validator.protobuf.block_pb2 import BlockHeader
 from dgt_validator.protobuf import validator_pb2
 from dgt_validator.protobuf import client_heads_pb2,client_topology_pb2
+from dgt_validator.protobuf import client_status_pb2
 
 
 
@@ -1217,3 +1218,24 @@ class CandidatesGetRequest(_ClientRequestHandler):
         candidates = self._publisher.get_candidates()
         #endpoints = [peers[connection_id] for connection_id in heads]
         return self._wrap_response(heads=candidates)
+
+
+class StatusGetRequest(_ClientRequestHandler):
+    def __init__(self, gossip):
+        super().__init__(
+            client_status_pb2.ClientStatusGetRequest,
+            client_status_pb2.ClientStatusGetResponse,
+            validator_pb2.Message.CLIENT_STATUS_GET_RESPONSE
+        )
+        self._gossip = gossip
+
+    def _respond(self, request):
+        peers = self._gossip.get_peers()
+        LOGGER.debug("StatusGetRequest: status={}".format(peers))
+        endpoints = list(set([peers[connection_id] for connection_id in peers]))
+        #LOGGER.debug("StatusGetRequest: endpoints={}".format(endpoints))
+
+        plist = [client_status_pb2.ClientStatusGetResponse.Peer(endpoint=ep) for ep in endpoints]
+        return self._wrap_response(peers=plist,endpoint=endpoints[0])
+
+

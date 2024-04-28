@@ -253,7 +253,12 @@ def add(
     dispatcher.add_handler(                                     
         validator_pb2.Message.CLIENT_GATE_GET_REQUEST,      
         client_handlers.GateGetRequest(gossip),             
-        thread_pool)                                            
+        thread_pool) 
+
+    dispatcher.add_handler(                                    
+        validator_pb2.Message.CLIENT_STATUS_GET_REQUEST,        
+        client_handlers.StatusGetRequest(gossip),               
+        thread_pool)                                                                                      
 
     """
     dispatcher.add_handler(
