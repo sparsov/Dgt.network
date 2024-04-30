@@ -5,7 +5,11 @@ from fastapi_pagination import add_pagination
 from app.utils.logger import logger as log
 from app.api.routes import router as api_router
 from app.messaging import getQueryValidator
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+
 import uvicorn
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,14 +26,25 @@ async def lifespan(app: FastAPI):
     connection.disconnect()
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.PROJECT_NAME,
+    #oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+    if False:
+        oauth2_flows = OAuthFlowsModel(password={"tokenUrl": "token", "scopes": {}})
+        openapi = lambda: {"info": {"title": settings.PROJECT_NAME, "version": "1.0"}, 
+                           "security": [{"OAuth2PasswordBearerWithCookie": oauth2_flows.dict()}],
+                           "openapi": "3.1.0"
+                           }
+    #oauth2_flows = OAuthFlows()
+    app = FastAPI(title=settings.PROJECT_NAME,version=settings.VERSION,
                   docs_url=settings.PROJECT_DOCS,
                   openapi_url=f"{settings.API_PREFIX}/openapi.json",
+                  #swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect",
                   lifespan=lifespan
                   )
+    
+    #app.openapi = openapi
     add_pagination(app)
     app.include_router(api_router, prefix=settings.API_PREFIX)
-
+    
     return app
 
 

@@ -1,2 +1,2 @@
-from .models import User, UserCreate
+from .models import User, UserCreate, Token
 

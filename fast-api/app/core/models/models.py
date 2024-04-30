@@ -10,7 +10,13 @@ class UserCreate(UserBase):
 
 
 class User(UserBase):
-    id: int
+    password : str
+    #"scopes": request.scopes,
+    token    : str
 
     class Config:
         from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type  : str
