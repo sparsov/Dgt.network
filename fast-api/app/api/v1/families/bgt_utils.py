@@ -13,14 +13,9 @@ from dgt_bgt.processor.handler import make_bgt_address, make_bgt_prefix
 
 async def bgt_show(request: Request,query: QueryValidatorHandler):
     wallet = request.query_params.get('wallet', None) 
-    address = make_bgt_address(wallet)                                                                              
-    error_traps = [error_handlers.InvalidAddressTrap,error_handlers.StateNotFoundTrap]                            
-    response = await query._query_validator(                                                                      
-        Message.CLIENT_STATE_GET_REQUEST,                                                                         
-        client_state_pb2.ClientStateGetResponse,                                                                  
-        client_state_pb2.ClientStateGetRequest(state_root='',address=address),                                                                                     
-        error_traps
-        )                                                                                              
+    address = make_bgt_address(wallet)  
+    response = await query.get_state_by_addr(address=address)                                                                            
+                                                                                                  
     LOGGER.debug('run_transaction: BGT show=%s (%s)!',wallet,response)                                              
     if response['status'] == 'OK':                                                                                
         bgt = loads_bgt_token(response['value'],wallet)                                                             

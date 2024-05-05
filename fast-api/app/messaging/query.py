@@ -729,6 +729,22 @@ class QueryValidatorHandler:
             block['header_signature'],                                                                
             block['header']['state_root_hash'],                                                       
         )                                                                                             
+    
+
+    async def get_state_by_addr(self,address,root=''):
+        error_traps = [error_handlers.InvalidAddressTrap,error_handlers.StateNotFoundTrap]  
+                                                       
+        response = await self._query_validator(                                                                                            
+            Message.CLIENT_STATE_GET_REQUEST,                                                                                              
+            client_state_pb2.ClientStateGetResponse,                                                                                       
+            client_state_pb2.ClientStateGetRequest(state_root=root,address=address),                                                                                                          
+            error_traps)
+
+        return response      
+
+
+
+
 
 
 connection = Connection(settings.DGT_CONNECT)
