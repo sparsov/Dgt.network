@@ -72,5 +72,25 @@ def loads_dec_token(data,name=None):
     return dec
     
     
+def loads_dec_entries(entries):
+    results = [
+                cbor.loads(base64.b64decode(entry["data"]))
+                for entry in entries
+            ]
+    token = DecTokenInfo()  
+    dres = {}                                                           
+    for pair in results:                                                               
+        #print('pair',pair)                                                            
+        for name, value in pair.items():                                               
+            token.ParseFromString(value)                                               
+            try:                                                                       
+                dec = cbor.loads(token.dec)# if token.group_code in DEC_TYPES else {}  
+            except Exception as ex:                                                    
+                dec = {} 
+            dres[name]  = dec
+
+    return dres
+
+
  
 

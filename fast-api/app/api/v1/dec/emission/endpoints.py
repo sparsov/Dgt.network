@@ -65,28 +65,27 @@ async def get_emission_keys(request: Request,query: QueryValidatorHandler = Depe
 @router.get("/emission/minting",response_model=DgtResponse)
 async def get_minting(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     
-    
-    response = await query._query_validator(                                                                                          
-        Message.CLIENT_HEADS_GET_REQUEST,                                                                                             
-        client_heads_pb2.ClientHeadsGetResponse,                                                                                      
-        client_heads_pb2.ClientHeadsGetRequest(head_id=''))                                                                      
+    dec, response = await get_dec_emission_key(query)
+    mint = {DEC_MINT_PARAM    : dec[DEC_MINT_PARAM][DATTR_VAL],
+            DEC_MINTING_SHARE : dec[DEC_MINTING_SHARE][DATTR_VAL],
+            DEC_MINTING_TOTAL : dec[DEC_MINTING_TOTAL],
+            DEC_MINTING_REST  : dec[DEC_MINTING_REST]
+
+            }                                                                       
                                                                                                                                       
     return query._wrap_response(                                                                                                      
         request,                                                                                                                      
-        data=response['heads'],                                                                                                       
+        data=mint,                                                                                                       
         metadata=query._get_metadata(request, response))
 
-@router.get("/emission/token_hold",response_model=DgtListResponse)
+@router.get("/emission/token_hold",response_model=DgtResponse)
 async def get_token_hold(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     
     
-    response = await query._query_validator(                                                                                          
-        Message.CLIENT_HEADS_GET_REQUEST,                                                                                             
-        client_heads_pb2.ClientHeadsGetResponse,                                                                                      
-        client_heads_pb2.ClientHeadsGetRequest(head_id=''))                                                                      
+    dec, response = await get_dec_emission_key(query)                                                                      
                                                                                                                                       
     return query._wrap_response(                                                                                                      
         request,                                                                                                                      
-        data=response['heads'],                                                                                                       
+        data={},                                                                                                       
         metadata=query._get_metadata(request, response))                                                                          
                                                                                                                                       

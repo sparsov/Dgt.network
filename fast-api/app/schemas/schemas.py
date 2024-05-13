@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 class DgtBaseResponse(BaseModel):
     link: str
@@ -29,3 +29,10 @@ class UserOut(UserBase):
     class Config:
         from_attributes = True
         #orm_mode = True
+
+class AccountCreate(BaseModel):
+    role        : Optional[str] = "def_role"         
+    limit       : Optional[int] = 1001              
+    spend_period: Optional[int] = 2                    
+    token       : Optional[str] = "DEC"                
+    status      : Optional[str] = "on"                  
