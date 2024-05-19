@@ -40,4 +40,11 @@ class AccountCreate(BaseModel):
     limit       : Optional[int] = 1001              
     spend_period: Optional[int] = 2                    
     token       : Optional[str] = "DEC"                
-    status      : Optional[str] = "on"                  
+    status      : Optional[str] = "on"  
+    
+class AssetCreate(BaseModel):
+    name   :  Optional[str] = "target"                           
+    url    :  Optional[str] = "url for target description"     
+    hiden  :  Optional[str] = "hiden description"
+    price  :  Optional[int] = 1
+    tid    :  Optional[str] = "Target-ID"             

@@ -6,7 +6,7 @@ from dgt_sdk.protobuf import client_state_pb2
 import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
-from app.schemas import DgtListResponse,DgtResponse,DgtPagingDictResponse
+from app.schemas import DgtListResponse, DgtResponse, DgtPagingDictResponse, AssetCreate
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
 from app.utils.dec_utils import get_dec_assets
@@ -27,19 +27,19 @@ async def get_assets(request: Request,query: QueryValidatorHandler = Depends(get
     
  
 
-@router.get("/assets/create",response_model=DgtResponse)                                                                      
-async def get_create_asset(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+@router.post("/assets/create",response_model=DgtResponse)                                                                      
+async def post_create_asset(request: Request,asset: AssetCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+    LOGGER.debug('request asset={}'.format(asset)) 
     
-    dec, response = await get_dec_emission_key(query)
                                                                                                                                       
     return query._wrap_response(                                                                                                      
         request,                                                                                                                      
-        data={DEC_TOTAL_SUM : dec[DEC_TOTAL_SUM][DATTR_VAL] if DEC_TOTAL_SUM in dec else 0},                                                                                                       
+        data={},                                                                                                       
         metadata=query._get_metadata(request, response))  
                                                                             
 
-@router.get("/assets/{asset_id}/pay",response_model=DgtResponse)                                                                      
-async def get_pay_asset(request: Request,asset_id: str,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+@router.post("/assets/{asset_id}/pay",response_model=DgtResponse)                                                                      
+async def post_pay_asset(request: Request,asset_id: str,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # dec distribute
     dec, response = await get_dec_emission_key(query)
     supply = {}
@@ -52,8 +52,8 @@ async def get_pay_asset(request: Request,asset_id: str,query: QueryValidatorHand
         metadata=query._get_metadata(request, response))
 
 
-@router.get("/assets/{asset_id}/invoice",response_model=DgtResponse)                                                                      
-async def get_invoice(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+@router.post("/assets/{asset_id}/invoice",response_model=DgtResponse)                                                                      
+async def post_invoice(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # dec show _DEC_EMISSION_SIG_
     
     dec, response = await get_dec_emission_key(query)                                                                     
