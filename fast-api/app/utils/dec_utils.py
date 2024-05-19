@@ -24,7 +24,7 @@ async def get_dec_entries(request: Request,address: str,query: QueryValidatorHan
     
     LOGGER.debug('Request get_dec_entries addr={}'.format(address))                     
     response = await query.get_states_by_addr(request,address)                                                                                            
-    LOGGER.debug('response={}'.format(response))  
+    #LOGGER.debug('response={}'.format(response))  
     entries = loads_dec_entries(response['entries'])
     return entries, response  
 
@@ -58,6 +58,13 @@ async def get_dec_alias_by_id(request: Request,alias_id: str,query: QueryValidat
 
 
     return alias, response  
+
+
+async def get_dec_assets(request: Request,query: QueryValidatorHandler):
+    address = _get_full_prefix(DEC_TARGET_GRP,DEFAULT_DID)
+    entries, response = await get_dec_entries(request,address,query)
+   
+    return entries, response 
 
 
 

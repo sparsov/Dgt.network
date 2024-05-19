@@ -1,2 +1,2 @@
-from .schemas import DgtResponse, DgtListResponse, DgtPagingListResponse, AccountCreate
+from .schemas import DgtResponse, DgtListResponse, DgtPagingListResponse, DgtPagingDictResponse, AccountCreate
 

@@ -6,7 +6,7 @@ from dgt_sdk.protobuf import client_state_pb2
 import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
-from app.schemas import DgtListResponse,DgtResponse, AccountCreate
+from app.schemas import DgtListResponse,DgtResponse, AccountCreate, DgtPagingListResponse, DgtPagingDictResponse
 from app.utils.dec_utils import get_dec_accounts,get_dec_aliases, get_dec_account_by_id, get_dec_alias_by_id
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
@@ -15,15 +15,17 @@ router = APIRouter()
 
 
 
-@router.get("/accounts") #,response_model=DgtResponse)
+@router.get("/accounts",response_model=DgtPagingDictResponse)
 async def get_accounts(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):
     # dec show _DEC_EMISSION_KEY_
     dec, response = await get_dec_accounts(request,query)
-                                                                            
-    return query._wrap_response(                                                
-        request,                                                               
-        data=dec,
-        metadata=query._get_metadata(request, response))                        
+    paging_controls = query._get_paging_controls(request) 
+    return query._wrap_paginated_response(                                                           
+        request=request,                                                                            
+        response=response,                                                                          
+        controls=paging_controls,                                                                   
+        data=dec)
+                  
 
 @router.get("/accounts/{account_id}/parameters",response_model=DgtResponse)                                                                      
 async def get_account_params(request: Request,account_id: str,query: QueryValidatorHandler = Depends(getQueryValidator)):                           

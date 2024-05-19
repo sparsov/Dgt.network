@@ -371,7 +371,7 @@ class QueryValidatorHandler:
         a JSON encoded web.Response
         """
         paging_response = response['paging']
-        if head is None:
+        if head is None and 'head_id' in response:
             head = response['head_id']
         link = cls._build_url(
             request,

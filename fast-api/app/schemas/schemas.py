@@ -12,8 +12,13 @@ class DgtListResponse(DgtBaseResponse):
     data: List[Any]
 
 class DgtPagingListResponse(DgtListResponse):
-    head: str
+    head: Optional[str]
     paging: Dict[str,Any]
+
+class DgtPagingDictResponse(DgtResponse):
+    head: Optional[str]
+    paging: Dict[str,Any]
+
 
 class UserBase(BaseModel):
     name: str
