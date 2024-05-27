@@ -40,6 +40,8 @@ from dec_common.protobuf.dec_dgt_token_pb2 import DecTokenInfo
 
 from dec_dgt.client_cli.exceptions import DecClientException
 from dec_dgt.client_cli.dec_attr import *
+from dec_dgt.client_cli.dec_addr import get_target_addr
+from dec_dgt.client_cli.dec_cmd_utils import get_target_opts,get_this_tips,target_info
 from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_SET_NM
 
 TRANS_TOUT = 4
@@ -836,7 +838,7 @@ class DecClient:
         return self._send_transaction(DEC_INVOICE_OP, (target,DEC_TARGET_GRP,args.did), info, to=None, wait=wait if wait else TRANS_TOUT,din=din)  
      
     def get_target_addr(self,pkey,tid):
-        return key_to_dgt_addr("{}.{}".format(pkey,tid)) if not tid.startswith(DGT_ADDR_PREF) else tid
+        return get_target_addr(pkey,tid) #key_to_dgt_addr("{}.{}".format(pkey,tid)) if not tid.startswith(DGT_ADDR_PREF) else tid
 
     def get_target_opts(self,args):
         target = self.load_json_proto(args.target_proto)
@@ -858,12 +860,13 @@ class DecClient:
             target[DEC_INVOICE_OP] = {DEC_CUSTOMER_KEY : None, DEC_TARGET_PRICE :args.price} 
         return target
 
-    def target_info(self,args,signer=None):
+    def target_info(self,args,tip_list,signer=None):
         # full info for target                                             
         info = {}                                                               
         tcurr = time.time() 
-        target = self.get_target_opts(args) 
-        tips = self.get_this_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did,gate=args.gate)
+        target = get_target_opts(args,self._signer) #self.get_target_opts(args) 
+        #tip_list = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
+        tips = get_this_tips(tip_list,gate=args.gate)
         info[DEC_TARGET_OP] = target 
         
         #info[DEC_EMITTER] = signer.get_public_key().as_hex()              
@@ -892,8 +895,8 @@ class DecClient:
                                              
         return opts
 
-    def get_this_tips(self,tname,op,did,gate=DEFAULT_GATE):
-        tips = self.get_tips(tname,op,did)
+    def get_this_tips(self,tips,gate=DEFAULT_GATE):
+        #tips = self.get_tips(tname,op,did)
         for nest,val in tips.items():
             if GATE_ADDR_ATTR in val :
                 if (gate == DEFAULT_GATE and DEFAULT_GATE in val) or nest == gate:
@@ -902,8 +905,9 @@ class DecClient:
         return 0.0
 
     def target(self,args,wait=5):
-          
-        info = self.target_info(args) 
+        print("type",type(args),args)
+        tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did) 
+        info = target_info(args,tips,self._signer) 
         if  args.check > 0: 
             # show params
             # c2939e26413f64637daf89428ae3a6b5eb6eed69181883338f3e878db0a01bd12b1797  c2939e26413f64637daf89428ae3a6b5eb6eed69181883338f3e878db0a01bd12b1797
@@ -958,7 +962,8 @@ class DecClient:
         return {DEC_CMD_OPTS : req, DEC_TRANS_OPTS: info[DEC_TRANS_OPTS]}       
 
     def target_req(self,args): 
-        info = self.target_info(args) 
+        tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
+        info = target_info(args,tips,self._signer) 
         return self.user_sign_req(info)                
         
         

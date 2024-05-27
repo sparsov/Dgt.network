@@ -16,6 +16,7 @@ import hashlib
 import base64
 import cbor
 import yaml
+from dgt_signing import key_to_dgt_addr,DGT_ADDR_PREF
 from dec_common.protobuf.dec_dgt_token_pb2 import DecTokenInfo
 from dec_dgt.client_cli.dec_attr import FAMILY_NAME,DEC_TARGET_GRP
 
@@ -91,6 +92,6 @@ def loads_dec_entries(entries):
 
     return dres
 
-
- 
+def get_target_addr(pkey,tid):                                                               
+    return key_to_dgt_addr("{}.{}".format(pkey,tid)) if not tid.startswith(DGT_ADDR_PREF) else tid 
 
