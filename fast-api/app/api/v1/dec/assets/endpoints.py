@@ -10,6 +10,7 @@ from app.schemas import DgtListResponse, DgtResponse, DgtPagingDictResponse, Ass
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
 from app.utils.dec_utils import get_dec_assets
+from argparse import Namespace
 router = APIRouter()
 
 
@@ -28,7 +29,8 @@ async def get_assets(request: Request,query: QueryValidatorHandler = Depends(get
  
 
 @router.post("/assets/create",response_model=DgtResponse)                                                                      
-async def post_create_asset(request: Request,asset: AssetCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+async def post_create_asset(request: Request,asset: AssetCreate,query: QueryValidatorHandler = Depends(getQueryValidator)): 
+                              
     LOGGER.debug('request asset={}'.format(asset)) 
     
                                                                                                                                       
