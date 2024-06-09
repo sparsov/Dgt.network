@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     OPENTSDB_DB: str = env.str("OPENTSDB_DB",default="metrics")  
     OPENTSDB_UNAME: str = env.str("OPENTSDB_UNAME",default="dgt")
     OPENTSDB_PASSW: str = env.str("OPENTSDB_PASSWD",default="dgtpass") 
+    REPORTING_INTERVAL: int =  env.int("REPORTING_INTERVAL",default=10)
+    REPORTING_PREFIX: str = env.str("REPORTING_PREFIX",default="dgt_rest_api")
     DEFAULT_TIMEOUT: int =  env.int("DEFAULT_TIMEOUT",default=300)
     class Config:
         env_file = ".env"

@@ -814,9 +814,9 @@ if settings.OPENTSDB_ENABLE > 0:
                                                                                        
     reporter = InfluxReporter(                                                         
         registry=registry,                                                             
-        reporting_interval=10,                                                         
+        reporting_interval=settings.REPORTING_INTERVAL,                                                         
         database=settings.OPENTSDB_DB,                                          
-        prefix="dgt_rest_api",                                                         
+        prefix=settings.REPORTING_PREFIX,                                                         
         port=db_port,                                                                  
         protocol=proto,                                                                
         server=db_server,                                                              
