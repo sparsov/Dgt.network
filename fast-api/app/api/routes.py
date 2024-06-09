@@ -3,7 +3,8 @@ from fastapi import APIRouter
 from .endpoints import router as create_user
 from .v1 import (v1_status, v1_batches, v1_peers, v1_topology, v1_graph, v1_dag,
                  v1_blocks, v1_transactions, v1_receipts, v1_state, v1_families,
-                 v1_emission, v1_assets, v1_accounts, v1_payments, v1_consortium
+                 v1_emission, v1_assets, v1_accounts, v1_payments, v1_consortium,
+                 v1_crypto,v1_monitoring
                  )
 
 
@@ -26,5 +27,7 @@ router.include_router(v1_assets)
 router.include_router(v1_accounts)
 router.include_router(v1_payments)
 router.include_router(v1_consortium)
+router.include_router(v1_crypto)
+router.include_router(v1_monitoring)
 
 

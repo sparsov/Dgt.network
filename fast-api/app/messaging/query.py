@@ -23,7 +23,8 @@ from urllib.parse import urlparse
 # needed for the google.protobuf imports to pass pylint
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
-
+from pyformance import MetricsRegistry
+from pyformance.reporters import InfluxReporter
 
 
 import app.messaging.exceptions as errors
@@ -74,7 +75,24 @@ RUN_STATUSES = {
       ],
       "status": "INVALID"
     }
+
+class MetricsRegistryWrapper():
+    def __init__(self, registry):
+        self._registry = registry
+
+    def gauge(self, name):
+        return self._registry.gauge(
+            ''.join([name, ',host=', platform.node()]))
+
+    def counter(self, name):
+        return self._registry.counter(
+            ''.join([name, ',host=', platform.node()]))
+
+    def timer(self, name):
+        return self._registry.timer(
+            ''.join([name, ',host=', platform.node()]))
   
+      
 class CounterWrapper():
     def __init__(self, counter=None):
         self._counter = counter
@@ -786,10 +804,36 @@ class QueryValidatorHandler:
 
 
 
+if settings.OPENTSDB_ENABLE > 0:
+    LOGGER.debug('Use OPENTSDB: %s',settings.OPENTSDB_URL)
+    url = urlparse(settings.OPENTSDB_URL)                                       
+    proto, db_server, db_port, = url.scheme, url.hostname, url.port                    
+                                                                                       
+    registry = MetricsRegistry()                                                       
+    wrapped_registry = MetricsRegistryWrapper(registry)                                
+                                                                                       
+    reporter = InfluxReporter(                                                         
+        registry=registry,                                                             
+        reporting_interval=10,                                                         
+        database=settings.OPENTSDB_DB,                                          
+        prefix="dgt_rest_api",                                                         
+        port=db_port,                                                                  
+        protocol=proto,                                                                
+        server=db_server,                                                              
+        username=settings.OPENTSDB_UNAME,                                    
+        password=settings.OPENTSDB_PASSW)                                    
+    reporter.start()                                                                   
 
+
+
+
+
+else:
+    LOGGER.debug('Without  OPENTSDB')
+    wrapped_registry = None
 
 connection = Connection(settings.DGT_CONNECT)
-query_validator = QueryValidatorHandler(connection)
+query_validator = QueryValidatorHandler(connection,timeout=settings.DEFAULT_TIMEOUT,metrics_registry=wrapped_registry)
 
 def getQueryValidator():
     return query_validator
