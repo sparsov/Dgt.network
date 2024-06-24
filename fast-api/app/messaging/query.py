@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 # needed for the google.protobuf imports to pass pylint
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
+import platform
 from pyformance import MetricsRegistry
 from pyformance.reporters import InfluxReporter
 

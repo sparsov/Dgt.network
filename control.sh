@@ -92,6 +92,9 @@ fi
 if [ ! -v GRAF_FCOMP ]; then
 GRAF_FCOMP="docker/docker-compose-grafana-dgt.yaml"
 fi
+if [ ! -v INFLUX_FCOMP ]; then
+INFLUX_FCOMP="docker/docker-compose-influxdb-dgt.yml"
+fi
 if [ ! -v NOTA_FCOMP ]; then
 NOTA_FCOMP="docker/docker-compose-notary-raft-dgt.yaml"
 fi
@@ -118,6 +121,9 @@ fi
 if [ ! -v DGT_GRAF_PARAMS ]; then
 DGT_GRAF_PARAMS=(PEER API DBPORT DBUSER DBPASS DB_ADM_USER DB_ADM_PASS DBMODE)
 fi
+if [ ! -v DGT_INFLUX_PARAMS ]; then
+DGT_INFLUX_PARAMS=(PEER DBPORT DBUSER DBPASS DB_ADM_USER DB_ADM_PASS DBMODE)
+fi
 if [ ! -v DGT_DASH_PARAMS ]; then
 DGT_DASH_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN)
 fi
@@ -128,7 +134,7 @@ if [ ! -v DGT_DEVEL_PARAMS ]; then
 DGT_DEVEL_PARAMS=(PEER PNM CRYPTO_BACK HTTPS_MODE ACCESS_TOKEN DGT_TOKEN COMP_URL API)
 fi
 if [ ! -v DGT_FAST_PARAMS ]; then
-DGT_FAST_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK ACCESS_TOKEN)
+DGT_FAST_PARAMS=(PEER CLUST NODE COMP API SIGNED PNM CRYPTO_BACK ACCESS_TOKEN OPENTSDB_ENABLE)
 fi
 
 if [ ! -v PARAMS_HELP ]; then
@@ -209,6 +215,11 @@ function setPeerType {
            PEER_LIST=${GRAF_LIST[@]}         
            LNAME=GRAF_LIST                   
            PEER_PARAMS=${DGT_GRAF_PARAMS[@]}
+  elif [[ $SNM == "influx"* ]]; then             
+           PEER_LIST=${INFLUX_LIST[@]}           
+           LNAME=INFLUX_LIST                     
+           PEER_PARAMS=${DGT_INFLUX_PARAMS[@]}   
+
   elif [[ $SNM == "nota"* ]]; then                    
            PEER_LIST=${NOTARY_LIST[@]}         
            LNAME=NOTARY_LIST                   
@@ -278,6 +289,29 @@ function doGrafCompose {
        
    else                                                                              
        echo -e $CRED "Create and add $GRAF_FCOMP" $CDEF                      
+   fi
+
+}
+function doInfluxCompose {
+   
+   if test -f $INFLUX_FCOMP; then 
+       eval PEER=\$PEER_${SNM^^}                                              
+                                                           
+       eval API=\$API_${SNM^^}                                                
+       eval DBPORT=\$DBPORT_${SNM^^}                                                
+       eval DBUSER=\$DBUSER_${SNM^^}
+       eval DBPASS=\$DBPASS_${SNM^^}
+       eval DB_ADM_USER=\$DB_ADM_USER_${SNM^^}
+       eval DB_ADM_PASS=\$DB_ADM_PASS_${SNM^^}
+       eval DBMODE=\$DBMODE_${SNM^^}
+       
+
+        export COMPOSE_PROJECT_NAME=$SNM API=$API DBPORT=$DBPORT  \
+               DBUSER=$DBUSER DBPASS=$DBPASS DB_ADM_USER=$DB_ADM_USER DB_ADM_PASS=$DB_ADM_PASS DBMODE=$DBMODE; \
+               $COMPOSE -f $INFLUX_FCOMP $CMD $@;                           
+       
+   else                                                                              
+       echo -e $CRED "Create and add $INFLUX_FCOMP" $CDEF                      
    fi
 
 }
@@ -457,6 +491,9 @@ function doDgtCompose {
 
    elif [[ $LNAME == "GRAF_LIST" ]] ; then
         doGrafCompose $@
+
+   elif [[ $LNAME == "INFLUX_LIST" ]] ; then
+        doInfluxCompose $@
 
    elif [[ $LNAME == "NOTARY_LIST" ]] ; then
         doNotaCompose $@

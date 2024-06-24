@@ -34,25 +34,30 @@ async def run_transaction(request: Request,family: str,cmd: str,query: QueryVali
     """                                                                                                                                        
     make transfer from wallet to wallet                                                                                                        
     """                                                                                                                                        
-    if family == 'bgt' :                                                                                                                       
-        if cmd == 'show':   
-            resp = await bgt_show(request,query)                                                                                                                   
-                                                                                      
-        elif  cmd == 'list' :
-            resp = await bgt_list(request,query)                                                                                                                   
-            
-        else:
-            resp = await bgt_op(request,cmd,query)                                                                  
-        return resp                                                                                                     
-    else:                                                                                                                                      
-        # undefined families                                                                                                                   
-        return query._wrap_response(                                                                                                                
-         request,                                                                                                                               
-          data=None,                                                                                                                             
-          metadata={                                                                                                                             
-          'link': '',                                                                                                                        
-         }                                                                                                                                      
-        )                                                                                                                        
+    if family == 'bgt' : 
+        try:
+            if cmd == 'show':   
+                resp = await bgt_show(request,query)                                                                                                                   
+                                                                                          
+            elif  cmd == 'list' :
+                resp = await bgt_list(request,query)                                                                                                                   
+                
+            else:
+
+                resp = await bgt_op(request,cmd,query)                                                                  
+            return resp  
+        except  Exception as ex:
+            LOGGER.debug('run_transaction err={}'.format(ex))
+
+    
+     # undefined families                                                                                                                   
+    return query._wrap_response(                                                                                                                
+      request,                                                                                                                               
+       data=None,                                                                                                                             
+       metadata={                                                                                                                             
+       'link': '',                                                                                                                        
+      }                                                                                                                                      
+    )                                                                                                                        
 
 
 
