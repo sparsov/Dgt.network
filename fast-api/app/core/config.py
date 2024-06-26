@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     REPORTING_INTERVAL: int =  env.int("REPORTING_INTERVAL",default=10)
     REPORTING_PREFIX: str = env.str("REPORTING_PREFIX",default="dgt_rest_api")
     DEFAULT_TIMEOUT: int =  env.int("DEFAULT_TIMEOUT",default=300)
+    LIMITER_ENABLE: bool =  env.bool("LIMITER_ENABLE",default=True)
     class Config:
         env_file = ".env"
         case_sensitive = True

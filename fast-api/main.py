@@ -7,7 +7,9 @@ from app.api.routes import router as api_router
 from app.messaging import getQueryValidator
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
-
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.utils.limiter import limiter
 import uvicorn
 
 
@@ -43,6 +45,12 @@ def create_app() -> FastAPI:
     
     #app.openapi = openapi
     add_pagination(app)
+    
+    if settings.LIMITER_ENABLE:
+        app.state.limiter = limiter
+        # Добавляем обработчик ошибок для превышения лимита запросов
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     app.include_router(api_router, prefix=settings.API_PREFIX)
     
     return app

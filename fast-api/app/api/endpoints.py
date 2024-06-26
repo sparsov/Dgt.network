@@ -6,8 +6,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.messaging import getQueryValidator, QueryValidatorHandler
 from app.db  import TokenDatabase, get_token_db
 from app.utils.logger import logger as LOGGER
-
+from app.utils.limiter import limiter
 router = APIRouter()
+
 
 
 @router.post("/users", response_model=User)
@@ -67,6 +68,7 @@ async def post_token(request: Request,form_data: OAuth2PasswordRequestForm = Dep
     return Token(access_token=access_token, token_type= "bearer")
 
 @router.get("/token_list")
+@limiter.limit("1 per minute")
 async def get_token_list(request: Request,token_db: TokenDatabase = Depends(get_token_db),query: QueryValidatorHandler = Depends(getQueryValidator)):
     """
     """

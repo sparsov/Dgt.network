@@ -34,8 +34,9 @@ services:
     - network1
     command:  |
       bash -c "
-        ls -l;cd /project/fast-api
-        echo bash rest.sh;
+        bin/protogen;
+        cd /project/fast-api;mkdir /project/peer/logs;mkdir /project/peer/data;
+        fast-api;
         tail -f /dev/null 
       "
 
