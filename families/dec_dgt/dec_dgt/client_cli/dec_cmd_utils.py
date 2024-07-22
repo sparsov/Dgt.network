@@ -58,8 +58,8 @@ def get_this_tips(tips,gate=DEFAULT_GATE):
                                                                                                                                                                                     
                                                                                                     
                                                                                                     
-def get_target_opts(args,_signer):                                                                                                                                                                                                     
-    target = load_json_proto(args.target_proto)                                                                            
+def get_target_opts(args,proto,_signer):                                                                                                                                                                                                     
+    target = proto #load_json_proto(args.target_proto)                                                                            
     pkey = _signer.get_public_key().as_hex()                                                                               
     target[DEC_TARGET_PRICE] = args.price                                                                                       
     target[DEC_TARGET_INFO] = args.target if args.target else DEC_TARGET_INFO_DEF                                               
@@ -78,11 +78,12 @@ def get_target_opts(args,_signer):
         target[DEC_INVOICE_OP] = {DEC_CUSTOMER_KEY : None, DEC_TARGET_PRICE :args.price}                                        
     return target 
                                                                                                               
-def target_info(args,tip_list,signer):                                                                                                                                                                                                                                
+def target_info(args,proto,tip_list,signer):                                                                                                                                                                                                                                
     # full info for target                                                                                                                                        
     info = {}                                                                                                                                                     
-    tcurr = time.time()                                                                                                                                           
-    target = get_target_opts(args,signer) #self.get_target_opts(args)                                                                                       
+    tcurr = time.time()  
+    #proto = load_json_proto(args.target_proto)                                                                                                                                         
+    target = get_target_opts(args,proto,signer) #self.get_target_opts(args)                                                                                       
     #tip_list = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)                                                                                                
     tips = get_this_tips(tip_list,gate=args.gate)                                                                                                                 
     info[DEC_TARGET_OP] = target                                                                                                                                  

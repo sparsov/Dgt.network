@@ -906,16 +906,18 @@ class DecClient:
 
     def target(self,args,wait=5):
         print("type",type(args),args)
-        tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did) 
-        info = target_info(args,tips,self._signer) 
+        tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
+        proto = load_json_proto(args.target_proto) 
+        info = target_info(args,proto,tips,self._signer) 
         if  args.check > 0: 
             # show params
             # c2939e26413f64637daf89428ae3a6b5eb6eed69181883338f3e878db0a01bd12b1797  c2939e26413f64637daf89428ae3a6b5eb6eed69181883338f3e878db0a01bd12b1797
             opts = info[DEC_TRANS_OPTS][DEC_CMD_ARG]
             address = self._get_full_addr(opts[0],opts[1],opts[2])
-            print("o",opts,address)
+            print("o",opts,address,"\n",info[DEC_CMD_OPTS])
             #address = self._get_full_addr(name,tp,did)
-            info[DEC_CMD_OPTS][DEC_TIPS_OP] = info[DEC_TIPS_OP]         
+            info[DEC_CMD_OPTS][DEC_TIPS_OP] = info[DEC_TIPS_OP] 
+                    
             return info[DEC_CMD_OPTS]  
 
         topts = info[DEC_TRANS_OPTS] 

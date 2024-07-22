@@ -11,6 +11,7 @@ from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
 from app.utils.dec_utils import get_dec_assets
 from argparse import Namespace
+import base64
 router = APIRouter()
 
 
@@ -30,14 +31,27 @@ async def get_assets(request: Request,query: QueryValidatorHandler = Depends(get
 
 @router.post("/assets/create",response_model=DgtResponse)                                                                      
 async def post_create_asset(request: Request,asset: AssetCreate,query: QueryValidatorHandler = Depends(getQueryValidator)): 
-                              
-    LOGGER.debug('request asset={}'.format(asset)) 
-    
+    #       
+    args = Namespace(**vars(asset))                   
+    LOGGER.debug('request asset={} args={} pay={}'.format(type(asset.info),type(asset.signed),asset.signed)) 
+    # bytes_field = b"Hello, world!"
+    # encoded_bytes = base64.b64encode(bytes_field)
+
+    #encoded_bytes = request.json()["bytes_field"]
+    #bytes_field = base64.b64decode(encoded_bytes)  
+    if asset.signed is not None:
+        # already signed
+        pass
+    elif asset.info is not None:
+        # sign my key
+        pass
+    else:
+
                                                                                                                                       
     return query._wrap_response(                                                                                                      
         request,                                                                                                                      
         data={},                                                                                                       
-        metadata=query._get_metadata(request, response))  
+        metadata=query._get_metadata(request, None))  
                                                                             
 
 @router.post("/assets/{asset_id}/pay",response_model=DgtResponse)                                                                      
