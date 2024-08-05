@@ -423,6 +423,9 @@ class DecTransactionHandler(TransactionHandler):
             aopts = emiss[DEC_CORP_ACC_ADDR][DATTR_VAL]
             # account opts 
             payload = value[DEC_PAYLOAD]
+            hpayload = value[DEC_HEADER_PAYLOAD] if DEC_HEADER_PAYLOAD in value else None    # new version extra params         
+           
+
             opts = payload[DEC_WALLET_OP]
             LOGGER.debug('Account opts={} emiss={}'.format(opts,aopts))
             if opts[DEC_WALLET_LIMIT] > aopts[DEC_WALLET_LIMIT]:
@@ -431,8 +434,12 @@ class DecTransactionHandler(TransactionHandler):
                 raise InvalidTransaction('Verb is "{}", account spend period too short (..>= {}).'.format(DEC_WALLET_OP,aopts[DEC_WALLET_SPEND_PERIOD])) 
 
             
-            tcurr = payload[DEC_TMSTAMP]
+            tcurr = payload[DEC_TMSTAMP] if DEC_TMSTAMP in payload else hpayload[DEC_TMSTAMP]
             did_val = payload[DEC_DID_VAL] if DEC_DID_VAL in payload else DEFAULT_DID
+            if hpayload:                                       
+                opts[DEC_WALLET_ADDR] = hpayload[DEC_WALLET_ADDR]  
+                
+
             if value[DEC_EMITTER] == name:
                 LOGGER.debug('owner WALLET and signer the same')
 
@@ -996,15 +1003,27 @@ class DecTransactionHandler(TransactionHandler):
         LOGGER.debug('TARGET STATE={}'.format([k for k in state.keys()]))
         info = {} 
         payload = value[DEC_PAYLOAD]
-        info[DEC_TARGET_OP] = payload[DEC_TARGET_OP] 
-        tcurr = payload[DEC_TMSTAMP]  
-        tips = payload[DEC_TIPS_OP][DEC_TIPS_OP]  
-        agate  = payload[DEC_TIPS_OP][GATE_ADDR_ATTR]                                                                                                                                
+        if DEC_HEADER_PAYLOAD in value:
+            # new version extra params
+            hpayload = value[DEC_HEADER_PAYLOAD]
+        vtarget = payload[DEC_TARGET_OP]
+        
+        info[DEC_TARGET_OP] = vtarget 
+        tcurr = payload[DEC_TMSTAMP]  if DEC_TMSTAMP in payload else hpayload[DEC_TMSTAMP]
+        tips_opt = payload[DEC_TIPS_OP] if DEC_TIPS_OP in payload else hpayload[DEC_TIPS_OP]
+        tips = tips_opt[DEC_TIPS_OP]  
+        agate  = tips_opt[GATE_ADDR_ATTR]                                                                                                                                
         if DEC_DID_VAL  in payload:                      
             # for notary mode                          
-            info[DEC_DID_VAL] = payload[DEC_DID_VAL]     
-        info[DEC_EMITTER] = key_to_dgt_addr(value[DEC_EMITTER]) # pubkey of owner 
+            info[DEC_DID_VAL] = payload[DEC_DID_VAL] 
+        # somebody who sign request or one of the owner marked as owner which produce addr of target
+        r_owner = vtarget[DEC_WALLETS_OWNERS][vtarget[DEC_ADDR_IND]] if DEC_WALLETS_OWNERS in vtarget else value[DEC_EMITTER]    
+        info[DEC_EMITTER] = key_to_dgt_addr(r_owner) # pubkey of owner 
         info[DEC_CREATE_TMSTAMP] = tcurr 
+        if DEC_HEADER_PAYLOAD in value:
+            vtarget[DEC_TARGET_ADDR] = hpayload[DEC_TARGET_ADDR]
+            vtarget[DEC_OWNER] = hpayload[DEC_OWNER]
+
         # destination token                                                                                                                         
         updated = {k: v for k, v in state.items() if k in out}
         if tips > 0.0:
@@ -1054,11 +1073,11 @@ class DecTransactionHandler(TransactionHandler):
             dest[DEC_TOTAL_SUM] += tips  
             dtoken.dec = cbor.dumps(dest)
             updated[agate] = dtoken.SerializeToString()  
-
+        price = vtarget[DEC_TARGET_PRICE]
         token = DecTokenInfo(group_code = DEC_TARGET_GRP,                                                                                          
                              owner_key = self._signer.sign(DEC_TARGET_GRP.encode()),                                                               
                              sign = self._public_key.as_hex(),                                                                                      
-                             decimals=int(info[DEC_TARGET_OP][DEC_TARGET_PRICE]),                                                                                                       
+                             decimals=int(price),                                                                                                       
                              dec = cbor.dumps(info)                                                                                                 
                 )                                                                                                                                   
                                                                                                                                                     
@@ -1456,6 +1475,9 @@ class DecTransactionHandler(TransactionHandler):
                     LOGGER.debug('_decode_transaction User sign={} incorrect'.format(ret))           
                     raise AttributeError 
                 LOGGER.debug('_decode_transaction check User sign={} REQ={}'.format(ret,val))
+                if DEC_PAYLOAD in hdr:
+                    # extra params
+                    val[DEC_HEADER_PAYLOAD] = hdr[DEC_PAYLOAD]
                 value = val
 
         except AttributeError:

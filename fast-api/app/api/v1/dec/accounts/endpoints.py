@@ -7,7 +7,7 @@ import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
 from app.schemas import DgtListResponse,DgtResponse, AccountCreate, DgtPagingListResponse, DgtPagingDictResponse
-from app.utils.dec_utils import get_dec_accounts,get_dec_aliases, get_dec_account_by_id, get_dec_alias_by_id
+from app.utils.dec_utils import get_dec_accounts,get_dec_aliases, get_dec_account_by_id, get_dec_alias_by_id,make_account_trans,do_dec_op
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
 
@@ -65,12 +65,15 @@ async def get_account_info(request: Request,account_id: str,query: QueryValidato
 async def post_create_account(request: Request,account: AccountCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # dec distribute
     LOGGER.debug('request account={}'.format(account)) 
+    sign_req,topts = make_account_trans(vars(account.info),account.did,vars(account.signed) if account.signed is not None else None)
+    response = await do_dec_op(request,topts,sign_req,query)
+    return query._wrap_response(                                                                                                                
+        request,                                                                                                                               
+        data=response,                                                                                                                             
+        metadata=query._get_metadata(request, response)                                                                                                                                    
+        )                                                                                                                                      
+
     
-    
-    return query._wrap_response(                                                                                                      
-        request,                                                                                                                      
-        data={},                                                                                                       
-        metadata=query._get_metadata(request, None))
 
 
 @router.get("/accounts/{alias}/info",response_model=DgtResponse)                                                                      

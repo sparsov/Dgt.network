@@ -41,7 +41,7 @@ from dec_common.protobuf.dec_dgt_token_pb2 import DecTokenInfo
 from dec_dgt.client_cli.exceptions import DecClientException
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import get_target_addr
-from dec_dgt.client_cli.dec_cmd_utils import get_target_opts,get_this_tips,target_info
+from dec_dgt.client_cli.dec_cmd_utils import get_target_opts,get_this_tips,target_info,get_all_target_opts,do_target_req,make_dec_transaction
 from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_SET_NM
 
 TRANS_TOUT = 4
@@ -175,7 +175,13 @@ class DecClient:
         else:
             pub_key = self.get_pub_key(vkey)
             return (key_to_dgt_addr(pub_key) if not  pub_key.startswith(DGT_ADDR_PREF) else  vkey,DEC_WALLET_GRP,did)
-        
+
+    def get_random_signer(self):                                          
+        private_key = self._context.new_random_private_key() 
+        signer = CryptoFactory(self._context).new_signer(private_key)              
+        return signer                                                     
+
+
 
     def get_random_addr(self):
         priv_key = self._context.new_random_private_key()
@@ -860,13 +866,13 @@ class DecClient:
             target[DEC_INVOICE_OP] = {DEC_CUSTOMER_KEY : None, DEC_TARGET_PRICE :args.price} 
         return target
 
-    def target_info(self,args,tip_list,signer=None):
+    def target_info(self,args,tips,signer=None):
         # full info for target                                             
         info = {}                                                               
         tcurr = time.time() 
-        target = get_target_opts(args,self._signer) #self.get_target_opts(args) 
+        target = self.get_target_opts(args) 
         #tip_list = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
-        tips = get_this_tips(tip_list,gate=args.gate)
+        #tips = get_this_tips(tip_list,gate=args.gate)
         info[DEC_TARGET_OP] = target 
         
         #info[DEC_EMITTER] = signer.get_public_key().as_hex()              
@@ -905,19 +911,22 @@ class DecClient:
         return 0.0
 
     def target(self,args,wait=5):
-        print("type",type(args),args)
-        tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
-        proto = load_json_proto(args.target_proto) 
-        info = target_info(args,proto,tips,self._signer) 
+        tip_list = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
+        #print("tip_list",tip_list)
+        tips = get_this_tips(tip_list,gate=args.gate)
+        #tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
+        info = self.target_info(args,tips,self._signer) 
+
         if  args.check > 0: 
             # show params
             # c2939e26413f64637daf89428ae3a6b5eb6eed69181883338f3e878db0a01bd12b1797  c2939e26413f64637daf89428ae3a6b5eb6eed69181883338f3e878db0a01bd12b1797
-            opts = info[DEC_TRANS_OPTS][DEC_CMD_ARG]
-            address = self._get_full_addr(opts[0],opts[1],opts[2])
-            print("o",opts,address,"\n",info[DEC_CMD_OPTS])
+            #opts = info[DEC_TRANS_OPTS][DEC_CMD_ARG]
+            #address = self._get_full_addr(opts[0],opts[1],opts[2])
+            #print("o",opts,address,"\n",info[DEC_CMD_OPTS])
             #address = self._get_full_addr(name,tp,did)
             info[DEC_CMD_OPTS][DEC_TIPS_OP] = info[DEC_TIPS_OP] 
-                    
+            req = self.dec_req_sign(info[DEC_CMD_OPTS])
+            #print("SIGNED",req)        
             return info[DEC_CMD_OPTS]  
 
         topts = info[DEC_TRANS_OPTS] 
@@ -991,7 +1000,8 @@ class DecClient:
                 DEC_NOTARY_REQ_SIGN  : psignature,
                 DEC_PAYLOAD          : payload
             }
-        #ret = self._signer.verify(psign, payload,self._context.pub_from_hex(info[DEC_EMITTER]) )            
+        #rsigner = self.get_random_signer()
+        #ret = rsigner.verify(psignature, payload,self._context.pub_from_hex(req[DEC_EMITTER]) )            
         #if not ret:                                                                                         
         #    print('BAD SIGN')                                                                               
         return req                                                                            
@@ -1326,7 +1336,8 @@ class DecClient:
 
 
     def _send_transaction(self, verb, name, value, to=None, wait=None,din=None,din_ext=None):
-        transaction = self._make_transaction(verb,name,value,to,din,din_ext)
+        #transaction = self._make_transaction(verb,name,value,to,din,din_ext)
+        transaction = make_dec_transaction(self._signer,verb,name,value,to,din,din_ext)
         batch_list = self._create_batch_list([transaction])
         batch_id = batch_list.batches[0].header_signature
 

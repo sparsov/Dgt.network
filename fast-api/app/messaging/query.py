@@ -504,8 +504,8 @@ class QueryValidatorHandler:
 
         path = "{}".format(path) if path is not None else request.url.path
         query = '?' + '&'.join(query_strings) if query_strings else ''
-
-        url = '{}://{}:{}{}{}{}'.format(scheme, host,port, forwarded_path, path, query)
+        jhost = host.split(':')
+        url = '{}://{}:{}{}{}{}'.format(scheme, jhost[0],port, forwarded_path, path, query)
         return url
 
     @staticmethod

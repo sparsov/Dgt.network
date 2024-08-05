@@ -40,29 +40,43 @@ class OwnerSignPayload(BaseModel):
 
     pubkey     :  str              # owner pub key                              
     signature  :  str              # signature
-    payload    :  Optional[bytes] = None            #
+    payload    :  Optional[bytes] = None            #   
                                    
-class AccountCreate(BaseModel):
-    role        : Optional[str] = "def_role"         
-    limit       : Optional[int] = 1001              
-    spend_period: Optional[int] = 2                    
-    token       : Optional[str] = "DEC"                
-    status      : Optional[str] = "on"  
-    owner       : OwnerSignPayload
+class AccountInfo(BaseModel):
+    role           : Optional[str] = "def_role"         
+    limit          : Optional[int] = 1001              
+    spend_period   : Optional[int] = 2                    
+    token          : Optional[str] = "DEC"                
+    status         : Optional[str] = "off" 
+    owner_pub_key  : List[str]
+    addr_ind       : int = 0   # index into owner_pub_key  for wallet addr 
+    sign_min       : int = 1
 
+
+    
+
+class AccountCreate(BaseModel):  
+    info    :  Optional[AccountInfo] = None 
+    did     :  str =DEFAULT_DID
+    signed  :  Optional[OwnerSignPayload] = None      
+    
 
 class AssetInfo(BaseModel):
-    did    :  Optional[str] = DEFAULT_DID
-    name   :  Optional[str] = "Asset name"                           
-    url    :  Optional[str] = "url for Asset description"     
-    hiden  :  Optional[str] = "hiden description"
-    price  :  Optional[int] = 0
-    tid    :  Optional[str] = "Asset-ID"
-    invoice:  Optional[bool] = False # invoice free 
-
+    
+    name           : Optional[str] = "Asset name"                           
+    url            : Optional[str] = "url for Asset description"     
+    hiden          : Optional[str] = "hiden description"
+    price          : Optional[int] = 0
+    tips           : Optional[float] = 0.0
+    #tid            :  Optional[str] = "Asset-ID"
+    invoice        : Optional[bool] = False # invoice free
+    owner_pub_key  : List[str] 
+    addr_ind       : int = 0   # index into owner_pub_key  for asset addr 
+    sign_min       : int = 1                                               
     
 class AssetCreate(BaseModel):
     info    :  Optional[AssetInfo] = None
+    did     :  str = DEFAULT_DID
     signed  :  Optional[OwnerSignPayload] = None 
 
     

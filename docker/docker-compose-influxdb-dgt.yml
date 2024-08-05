@@ -1,0 +1,27 @@
+version: '3.6'
+
+services:
+  influxdb:
+    build:
+      context: ..
+      dockerfile: docker/grafana/dgt-stats-influxdb
+    image: influxdb
+    container_name: stats-influxdb-dgt
+    networks:
+    - network1
+    ports:
+      - ${DBPORT}:${DBPORT}
+    volumes:
+      - /var/lib/influx-data:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=${DBMODE}
+      - INFLUXDB_ADMIN_USER=${DB_ADM_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${DB_ADM_PASS}
+      - INFLUXDB_USER=${DBUSER}          
+      - INFLUXDB_USER_PASSWORD=${DBPASS}
+      - INFLUXD_LOG_LEVEL=${DBLOG} 
+
+networks:
+  network1:
+     name: dgt1-network
+

@@ -107,6 +107,7 @@ DEC_TARGET_ADDR         = "addr"
 DEC_TARGET_URL        = "url" 
 DEC_PROVEMENT_KEY     = "provement_key"  
 DEC_CUSTOMER_KEY      = "customer"
+DEC_IS_INVOICE        = "invoice"
 AVAILABLE_TILL        = "available_till" 
 DEC_CORPORATE_PUB_KEY = "corporate_pub_key"
 DEC_HEART_BEAT_PERIOD = "heart_period"
@@ -122,6 +123,9 @@ DEC_EMITTER          = "emitter"
 DEC_OWNER            = "owner"
 DEC_NOTARY_KEY       = "notary_key"
 DEC_NOTARY_REQ_SIGN  = "notary_req_sign"
+DEC_SIGNER_PUBKEY    = "pubkey"
+DEC_PAYLOAD_SIGNATURE = "signature"
+DEC_FULL_PAYLOAD      = "fpayload"
 DEC_CASHIN_TMSTAMP      = "cashin_timestamp"
 DEC_CASHIN_AMOUNT      = "cashin_amount"
 DEC_SPEND_TMSTAMP      = "spend_timestamp"
@@ -132,8 +136,10 @@ DEC_WALLET_TOKEN      = "token"
 DEC_WALLET_STATUS_ON     = "on"
 DEC_WALLET_STATUS_OFF     = "off"
 DEC_WALLET_ADDR         = "addr"
+DEC_ADDR_IND         = "addr_ind"
 DEC_TARGET_INFO     = "target_info"
 DEC_TARGET_PRICE     = "target_price"
+DEC_PRICE     = "price"
 DEC_WALLETS_OWNERS   = "owner_pub_key"
 DEC_ROLE_TYPE        = "role_type"
 DEC_HEADER_PAYLOAD = "hpayload"   
@@ -208,7 +214,7 @@ MAX_VALUE = 4294967295
 
 MAX_NAME_LENGTH = 20
 
-TARGET_VISIBLE_ATTR =  DEC_TARGET_ID,DEC_TARGET_URL,DEC_TARGET_ADDR,DEC_TARGET_PRICE,DEC_TARGET_INFO,DEC_OWNER
+TARGET_VISIBLE_ATTR =  DEC_TARGET_ID,DEC_TARGET_URL,DEC_TARGET_ADDR,DEC_TARGET_PRICE,DEC_TARGET_INFO,DEC_OWNER,DEC_TIPS_OP
 LONG_NAME_OPS = DEC_WALLET_OP,DEC_ALIAS_OP,DEC_WALLET_OPTS_OP,DEC_MINT_OP,DEC_SEND_OP,DEC_PAY_OP,DEC_TARGET_OP,DEC_INVOICE_OP,DEC_FAUCET_OP
 EMISSION_UNVISIBLE_ATTR = DEC_PASSKEY,DEC_ADMIN_PUB_KEY,DEC_CORPORATE_PUB_KEY
 
