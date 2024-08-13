@@ -977,6 +977,7 @@ class DecTransactionHandler(TransactionHandler):
         payload = value[DEC_PAYLOAD]
         invo = payload[DEC_INVOICE_OP]
         if AVAILABLE_TILL in invo:
+            # available during time
             info[AVAILABLE_TILL] = invo[AVAILABLE_TILL]
 
         amount = invo[DATTR_VAL]

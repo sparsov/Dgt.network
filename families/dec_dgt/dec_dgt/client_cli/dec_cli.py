@@ -105,6 +105,13 @@ def create_parent_parser(prog_name):
         action='count',                            
         default=0,                                 
         help='Just show all params for operation')  
+    parent_parser.add_argument(                      
+        '--sign',                                   
+        action='count',                              
+        default=0,                                   
+        help='Sign operation and produce payload for REST-API')   
+
+
 
     parent_parser.add_argument(                                        
         '-cb', '--crypto_back',                                 
@@ -1141,6 +1148,7 @@ def add_invoice_parser(subparsers, parent_parser):
     parser.add_argument(
         '--keyfile',
         type=str,
+        default="/project/peer/keys/validator.priv",
         help="identify file containing owner private key")
 
 
@@ -1744,8 +1752,9 @@ def _get_keyfile(args):
     real_user = getpass.getuser()
     home = os.path.expanduser("~")
     key_dir = os.path.join(home, ".dgt", "keys")
-
-    return '{}/{}.priv'.format(key_dir, real_user)
+    kfile = '{}/{}.priv'.format(key_dir, real_user)
+    #print("_get_keyfile",kfile)
+    return kfile
 
 
 def main(prog_name=os.path.basename(sys.argv[0]), args=None):

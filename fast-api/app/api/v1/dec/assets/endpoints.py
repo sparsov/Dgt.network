@@ -6,10 +6,10 @@ from dgt_sdk.protobuf import client_state_pb2
 import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
-from app.schemas import DgtListResponse, DgtResponse, DgtPagingDictResponse, AssetCreate
+from app.schemas import DgtListResponse, DgtResponse, DgtPagingDictResponse, AssetCreate,InvoiceCreate
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
-from app.utils.dec_utils import get_dec_assets,make_asset_trans,get_gates_tips,do_dec_op
+from app.utils.dec_utils import get_dec_assets,make_asset_trans,get_gates_tips,do_dec_op,make_invoice_trans
 from argparse import Namespace
 import base64
 router = APIRouter()
@@ -40,9 +40,9 @@ async def post_create_asset(request: Request,asset: AssetCreate,query: QueryVali
 
     #encoded_bytes = request.json()["bytes_field"]
     #bytes_field = base64.b64decode(encoded_bytes) 
-    sign_req,topts = make_asset_trans(gates_tips,vars(asset.info),asset.did,vars(asset.signed) if asset.signed else None) 
+    sign_req,topts,addr = make_asset_trans(gates_tips,vars(asset.info),asset.did,vars(asset.signed) if asset.signed else None) 
     response = await do_dec_op(request,topts,sign_req,query)
-                                                                                                                                      
+    response["addr"] = addr                                                                                                                                 
     return query._wrap_response(                           
         request,                                           
         data=response,                                     
@@ -66,13 +66,14 @@ async def post_pay_asset(request: Request,asset_id: str,query: QueryValidatorHan
 
 
 @router.post("/assets/{asset_id}/invoice",response_model=DgtResponse)                                                                      
-async def post_invoice(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
-    # dec show _DEC_EMISSION_SIG_
-    
-    dec, response = await get_dec_emission_key(query)                                                                     
-    keys = dec[DEC_EMISSION_INFO][DATTR_VAL]
+async def post_invoice(request: Request,invoice : InvoiceCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+    # 
+    sign_req,topts,addr = make_invoice_trans(vars(invoice.info),invoice.did,vars(invoice.signed) if invoice.signed else None)
+    LOGGER.debug('request invoice={}'.format(topts))
+    response = await do_dec_op(request,topts,sign_req,query)
+    response["addr"] = addr
     return query._wrap_response(                                                                                                      
         request,                                                                                                                      
-        data=keys,                                                                                                       
+        data=response,                                                                                                       
         metadata=query._get_metadata(request, response))
 

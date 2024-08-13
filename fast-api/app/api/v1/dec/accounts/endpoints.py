@@ -65,8 +65,9 @@ async def get_account_info(request: Request,account_id: str,query: QueryValidato
 async def post_create_account(request: Request,account: AccountCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # dec distribute
     LOGGER.debug('request account={}'.format(account)) 
-    sign_req,topts = make_account_trans(vars(account.info),account.did,vars(account.signed) if account.signed is not None else None)
+    sign_req,topts,addr = make_account_trans(vars(account.info),account.did,vars(account.signed) if account.signed is not None else None)
     response = await do_dec_op(request,topts,sign_req,query)
+    response["addr"] = addr
     return query._wrap_response(                                                                                                                
         request,                                                                                                                               
         data=response,                                                                                                                             

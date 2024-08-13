@@ -74,7 +74,9 @@ tips:
   }
 
 """ 
- 
+def req2b64(req):
+    req[DEC_PAYLOAD] = base64.b64encode(req[DEC_PAYLOAD]).decode('utf-8')
+    return req
  
 def dec_req_sign(info,signer):                                                                                         
     # sign dec request by owner                                                                                     
@@ -136,24 +138,22 @@ def get_all_target_opts(args):
                                                                                                     
                                                                                                     
                                                                                                     
-def get_target_opts(args,proto,_signer):                                                                                                                                                                                                     
-    target = proto #load_json_proto(args.target_proto)                                                                            
-    pkey = _signer.get_public_key().as_hex()                                                                               
+def get_target_opts(args,signer):                                                                                                                                                                                                     
+    target = load_json_proto(args.target_proto)                                                                            
     target[DEC_TARGET_PRICE] = args.price                                                                                       
     target[DEC_TARGET_INFO] = args.target if args.target else DEC_TARGET_INFO_DEF                                               
     target[DEC_TARGET_ID] = args.target_id                                                                                      
-    target[DEC_TARGET_ADDR] = get_target_addr(pkey,args.target_id)  #self.get_random_addr() if False else get_target_addr(pkey,args.target_id)                    
+    
     if args.turl:                                                                                                               
         target[DEC_TARGET_URL] = args.turl                                                                                      
-    owner = key_to_dgt_addr(pkey)                                                                                               
-                                                                                                                                
-    target[DEC_OWNER] = owner #key_to_dgt_addr(self._signer.get_public_key().as_hex(),pref="0x")                                
-    #print(type(owner),owner)                                                                                                   
+
     for key,val in target.items():                                                                                              
         if key not in TARGET_VISIBLE_ATTR:                                                                                      
             target[key] = key_to_dgt_addr(val,pref="")                                                                          
-    if args.invoice > 0:                                                                                                        
-        target[DEC_INVOICE_OP] = {DEC_CUSTOMER_KEY : None, DEC_TARGET_PRICE :args.price}                                        
+
+    target[DEC_INVOICE_OP] = args.invoice > 0
+    target[DEC_ADDR_IND] = 0
+    target[DEC_WALLETS_OWNERS] = [signer.get_public_key().as_hex()]
     return target 
                                                                                                               
 def gate_req_sign(opts,req,nsigner):                                                                                                                                                                                                      
@@ -284,7 +284,7 @@ def do_target_req(info,req,tips,nsigner,did=DEFAULT_DID):
     
     
                                                                                                           
-    return gate_request_sign,gate_hdr,topts                                                                                              
+    return gate_request_sign,gate_hdr,topts,addr                                                                                              
 
 
 
@@ -362,12 +362,17 @@ def make_dec_transaction(_signer,verb, name, value, to=None,din=None,din_ext=Non
     ) 
     return transaction                                                                                                                                        
 
+                                                                                              
+
 def do_signed_wallet_req(opts,did,signer):                                                                                                                  
     # load default options                                                                                                                             
     #opts = load_json_proto(args.opts_proto)                                                                                                       
-    sign_min = opts[DEC_SIGN_MIN]                                                                                                                                               
+    sign_min = opts[DEC_SIGN_MIN] if DEC_SIGN_MIN in opts else 1
+    addr_ind = opts[DEC_ADDR_IND] if DEC_ADDR_IND in opts else 0                                                                                                                                            
     signs = [] 
-    pubkey = opts[DEC_WALLETS_OWNERS][opts[DEC_ADDR_IND]]                                                                                                                                  
+    if DEC_WALLETS_OWNERS not in opts:
+        opts[DEC_WALLETS_OWNERS] = [signer.get_public_key().as_hex()]
+    pubkey = opts[DEC_WALLETS_OWNERS][addr_ind]                                                                                                                                  
     for sign in opts[DEC_WALLETS_OWNERS]:                                                                                                              
         signs.append(key_to_dgt_addr(sign))   #self.get_pub_key(signer)                                                                               
                                                                                                                                                    
@@ -378,7 +383,7 @@ def do_signed_wallet_req(opts,did,signer):
                 DEC_DID_VAL     : did         
               }   
 
-
+    
 
     return dec_req_sign(payload,signer),pubkey                                                                                                          
    
@@ -399,4 +404,40 @@ def do_wallet_req(wallet,req,pubkey,nsigner,did=DEFAULT_DID):
                DEC_CMD_DIN: din                                     
              }                                                      
             
-    return gate_request_sign,topts                                                                      
+    return gate_request_sign,topts,waddr  
+                                                                  
+                                                                  
+def do_signed_invoice_req(opts,did,signer):
+    #
+    payload = {                                       
+                DEC_INVOICE_OP   : opts,               
+                DEC_DID_VAL     : did                 
+              }                                       
+                                                      
+                                                      
+                                                      
+    return dec_req_sign(payload,signer),opts[DEC_WALLETS_OWNERS]      
+
+
+
+def do_invoice_req(invoice,req,pubkey,nsigner,did=DEFAULT_DID):
+    
+    target = get_target_addr(pubkey,invoice[DEC_TARGET])                                              
+    extra = {                                                                    
+            DEC_TMSTAMP     : time.time(),                                       
+
+            }                                                                    
+    gate_request_sign,_ = dec_gate_sign(req, extra, nsigner)                     
+    #info[DEC_EMITTER] = signer.get_public_key().as_hex()                        
+    din = [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)] 
+    if invoice[DEC_CUSTOMER_KEY] is not None:             
+        din.append(invoice[DEC_CUSTOMER_KEY]) 
+    
+                         
+    #addr = self._get_full_addr(waddr,tp_space=DEC_WALLET_GRP,owner=args.did)    
+    topts =  { DEC_CMD    : DEC_INVOICE_OP,                                       
+               DEC_CMD_ARG:  (target,DEC_TARGET_GRP,did),                          
+               DEC_CMD_DIN: din                                                  
+             }                                                                   
+                                                                                 
+    return gate_request_sign,topts,target                                         

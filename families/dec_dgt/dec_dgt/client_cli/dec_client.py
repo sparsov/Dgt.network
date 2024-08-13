@@ -41,7 +41,11 @@ from dec_common.protobuf.dec_dgt_token_pb2 import DecTokenInfo
 from dec_dgt.client_cli.exceptions import DecClientException
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import get_target_addr
-from dec_dgt.client_cli.dec_cmd_utils import get_target_opts,get_this_tips,target_info,get_all_target_opts,do_target_req,make_dec_transaction
+from dec_dgt.client_cli.dec_cmd_utils import (get_target_opts,get_this_tips,target_info,get_all_target_opts,
+                                              do_target_req,make_dec_transaction,do_signed_target_req,do_signed_wallet_req,
+                                              do_signed_invoice_req,
+                                              req2b64
+                                              )
 from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_SET_NM
 
 TRANS_TOUT = 4
@@ -323,8 +327,20 @@ class DecClient:
 
     def wallet(self,args,wait=None):                                   
         info = self.wallet_info(args)                                  
-        topts = info[DEC_TRANS_OPTS] 
-        opts = info[DEC_CMD_OPTS] 
+        
+        
+        if args.sign > 0:                                                               
+            # sign   
+            opts = self.get_only_wallet_opts(args)
+            #print("OPTS",opts)                                                                   
+            req,_ = do_signed_wallet_req(opts,args.did,self._signer)                      
+            req = req2b64(req)                                                          
+            #print("SIGNED REQ",info,req)                                               
+            return req  
+                                                                        
+        topts = info[DEC_TRANS_OPTS]       
+        opts = info[DEC_CMD_OPTS]          
+
         if args.check > 0:                           
             #print("Wallet info={}".format(opts))    
             return opts                                                                  
@@ -819,16 +835,27 @@ class DecClient:
     def invoice(self,args,wait=None):   
         inv = {DATTR_VAL : args.amount}                                                                         
         tcurr = time.time()
+        pkey = self._signer.get_public_key().as_hex()
         inv[DEC_PROVEMENT_KEY] = args.prove_key 
         inv[DEC_CUSTOMER_KEY] = args.customer if args.customer else None
         if args.available_till:                                                                                   
-            inv[AVAILABLE_TILL] = tcurr + args.available_till                                                         
-        
+            inv[AVAILABLE_TILL] = tcurr + args.available_till  
+        inv[DEC_WALLETS_OWNERS] = pkey
+        inv[DEC_TARGET]  = args.target                                                        
+        if args.sign > 0:                                                   
+            # sign     
+            #    
+            print("INV",inv)                                                  
+            req,_ = do_signed_invoice_req(inv,args.did,self._signer)        
+            req = req2b64(req)                                              
+            #print("SIGNED REQ",inv)                                   
+            return req                                                      
         din = [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)]
         if args.customer:
             din.append(args.customer) 
-        pkey = self._signer.get_public_key().as_hex()
+        
         target = self.get_target_addr(pkey,args.target)
+        #print("TARGET",pkey,args.target)
         info = { 
                  DEC_EMITTER : pkey,  
                  DEC_PAYLOAD : {                                                                  
@@ -853,6 +880,7 @@ class DecClient:
         target[DEC_TARGET_INFO] = args.target if args.target else DEC_TARGET_INFO_DEF
         target[DEC_TARGET_ID] = args.target_id
         target[DEC_TARGET_ADDR] = self.get_random_addr() if False else self.get_target_addr(pkey,args.target_id)
+        #print("TARGET",pkey,args.target_id)
         if args.turl:
             target[DEC_TARGET_URL] = args.turl
         owner = key_to_dgt_addr(pkey)
@@ -915,6 +943,14 @@ class DecClient:
         #print("tip_list",tip_list)
         tips = get_this_tips(tip_list,gate=args.gate)
         #tips = self.get_tips(DEC_NAME_DEF,DEC_TARGET_OP,args.did)
+        if args.sign > 0:
+            # sign 
+            info = get_target_opts(args,self._signer)
+            req = do_signed_target_req(info,self._signer,args.did)
+            req = req2b64(req)
+            #print("SIGNED REQ",info,req)
+            return req
+
         info = self.target_info(args,tips,self._signer) 
 
         if  args.check > 0: 

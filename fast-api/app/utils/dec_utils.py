@@ -10,10 +10,15 @@ from dgt_sdk.protobuf import client_batch_submit_pb2
 from app.utils.logger import logger as LOGGER
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token, _get_full_prefix, loads_dec_entries
-from dec_dgt.client_cli.dec_cmd_utils import do_signed_target_req,do_target_req,get_this_tips,make_dec_transaction,do_signed_wallet_req,do_wallet_req
-from app.utils.signing import signer
+from dec_dgt.client_cli.dec_cmd_utils import (do_signed_target_req,do_target_req,get_this_tips,
+                                              make_dec_transaction,
+                                              do_signed_wallet_req,do_wallet_req,
+                                              do_signed_invoice_req,do_invoice_req
+                                              )
+from app.utils.signing import signer,_context
 from app.utils.tnx_utils import create_batch
 import base64
+import cbor
 
 async def get_dec_emission_key(query: QueryValidatorHandler):
     address = get_full_addr(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)
@@ -83,6 +88,21 @@ async def get_gates_tips(request: Request,query: QueryValidatorHandler):
     #LOGGER.debug('Request get_gates_tips=%s',gates)              
     return gates      
     
+def decode_signed(signed):
+    payload = base64.b64decode(signed["payload"])                  
+    designed = {                                                     
+            DEC_EMITTER           : signed["emitter"],             
+            DEC_PAYLOAD_SIGNATURE : signed["signature"],           
+            DEC_PAYLOAD           : payload                        
+        }  
+    ret = signer.verify(signed["signature"], payload,_context.pub_from_hex(signed["emitter"]) )    
+    if not ret:                                                                                      
+        print('BAD SIGN')                                                                            
+    
+                                                            
+    LOGGER.debug('make_asset_trans CHECK={} payload={}'.format(ret,designed)) 
+    return designed,signed["emitter"]   
+
 
 def make_asset_trans(gates_tips,info,did,signed=None):
     if signed is None:
@@ -91,13 +111,17 @@ def make_asset_trans(gates_tips,info,did,signed=None):
 
         signed = do_signed_target_req(info,signer,did)
         LOGGER.debug('make_asset_trans info={} signed={}'.format(info,signed))
+    else:
+        #LOGGER.debug('make_asset_trans signed={}'.format(signed))
+        signed,_ = decode_signed(signed)
+
     # sign by this gate DEFAULT_GATE
     tips = get_this_tips(gates_tips)
-    sign_req,hdr,topts = do_target_req(info,signed,tips,signer,did)
+    sign_req,hdr,topts,addr = do_target_req(info,signed,tips,signer,did)
     
     LOGGER.debug('make_asset_trans req={} topts={} tips={}'.format(sign_req,topts,tips))
     # do trans params
-    return sign_req,topts
+    return sign_req,topts,addr
 
 
 async def do_dec_op(request: Request,topts: dict,info: dict,query: QueryValidatorHandler):
@@ -136,16 +160,27 @@ def make_account_trans(info,did,signed=None):
         LOGGER.debug('make_accont_trans info={} did={}'.format(info,did))
         req,publey = do_signed_wallet_req(info,did,signer)
         LOGGER.debug('make_accont_trans req={} publey={}'.format(req,publey))
-        freq,topts = do_wallet_req(info,req,publey,signer,did)
-        LOGGER.debug('make_accont_trans freq={} topts={}'.format(freq,topts))
+        
     else:
-        freq,topts = None, None
+        req,publey = decode_signed(signed)
+        
     
-    #sign_req,hdr,topts = do_target_req(info,signed,tips,signer)
-
-    #LOGGER.debug('make_accont_trans req={} topts={}'.format(sign_req,topts))
-    # do trans params
+    freq,topts,addr = do_wallet_req(info,req,publey,signer,did)
+    LOGGER.debug('make_accont_trans freq={} topts={}'.format(freq,topts))
     
-    return freq,topts
+    return freq,topts,addr
 
+def make_invoice_trans(info,did,signed=None):
+    LOGGER.debug('make_invoice_trans info={} did={}'.format(info,did))
+    if signed:
+        #
+        req,pubkey = decode_signed(signed)
+        inv = cbor.loads(req[DEC_PAYLOAD])[DEC_PAYLOAD][DEC_INVOICE_OP]
+        print(inv)
+    else: 
+        req,pubkey = do_signed_invoice_req(info,did,signer)
+        inv = info
 
+    freq,topts,addr = do_invoice_req(inv,req,pubkey,signer,did)
+    LOGGER.debug('make_invoice_trans freq={} topts={}'.format(freq,topts))
+    return freq,topts,addr

@@ -38,7 +38,7 @@ class UserOut(UserBase):
 
 class OwnerSignPayload(BaseModel):     
 
-    pubkey     :  str              # owner pub key                              
+    emitter    :  str              # owner pub key                              
     signature  :  str              # signature
     payload    :  Optional[bytes] = None            #   
                                    
@@ -79,4 +79,15 @@ class AssetCreate(BaseModel):
     did     :  str = DEFAULT_DID
     signed  :  Optional[OwnerSignPayload] = None 
 
-    
+class InvoiceInfo(BaseModel):                                                      
+    target         : str     # name of target                            
+    provement_key  : str     # uniq key for customer                                   
+    available_till : Optional[int] = 0                                           
+    amount         : float 
+    customer       : Optional[str] = None   # fix customer for this invoice
+    owner_pub_key  : str                                      
+
+class InvoiceCreate(BaseModel):                          
+    info    :  Optional[InvoiceInfo] = None              
+    did     :  str = DEFAULT_DID                       
+    signed  :  Optional[OwnerSignPayload] = None       
