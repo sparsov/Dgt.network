@@ -90,4 +90,21 @@ class InvoiceInfo(BaseModel):
 class InvoiceCreate(BaseModel):                          
     info    :  Optional[InvoiceInfo] = None              
     did     :  str = DEFAULT_DID                       
-    signed  :  Optional[OwnerSignPayload] = None       
+    signed  :  Optional[OwnerSignPayload] = None 
+    
+class PayInfo(BaseModel):                                                                       
+                                                                                            
+    #asset          : Optional[str] = None   # asset                                        
+    customer       : str                    # key of customer
+    to             : str                                    
+    amount         : float                                                      
+    tips           : Optional[float] = 0.0                                                  
+    tid            : Optional[str] = None # tid for multi signed                                           
+    provement_key  : Optional[str] = None # Provement key refer to prov key from invoice
+    passkey        : Optional[str] = None # passkey for special operation  
+                                          # 
+class PayTrans(BaseModel):                          
+    info    :  Optional[PayInfo] = None              
+    did     :  str = DEFAULT_DID                       
+    signed  :  Optional[OwnerSignPayload] = None                                                         
+    

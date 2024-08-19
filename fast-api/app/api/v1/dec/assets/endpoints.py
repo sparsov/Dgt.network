@@ -6,10 +6,10 @@ from dgt_sdk.protobuf import client_state_pb2
 import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
-from app.schemas import DgtListResponse, DgtResponse, DgtPagingDictResponse, AssetCreate,InvoiceCreate
+from app.schemas import DgtListResponse, DgtResponse, DgtPagingDictResponse, AssetCreate,InvoiceCreate,PayTrans
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
-from app.utils.dec_utils import get_dec_assets,make_asset_trans,get_gates_tips,do_dec_op,make_invoice_trans
+from app.utils.dec_utils import get_dec_assets,make_asset_trans,get_gates_tips,do_dec_op,make_invoice_trans,make_pay_asset_trans
 from argparse import Namespace
 import base64
 router = APIRouter()
@@ -52,16 +52,15 @@ async def post_create_asset(request: Request,asset: AssetCreate,query: QueryVali
                                                                             
 
 @router.post("/assets/{asset_id}/pay",response_model=DgtResponse)                                                                      
-async def post_pay_asset(request: Request,asset_id: str,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
-    # dec distribute
-    dec, response = await get_dec_emission_key(query)
-    supply = {}
-    for attr in [DEC_TOTAL_SUM,DEC_MINTING_TOTAL,DEC_MINTING_REST,DEC_СORPORATE_TOTAL,DEC_СORPORATE_REST,DEC_SALE_TOTAL,DEC_SALE_REST]:
-        supply[attr] = dec[attr] if not isinstance(dec[attr],dict) else dec[attr][DATTR_VAL]                                                                 
+async def post_pay_asset(request: Request,asset_id: str,pay : PayTrans,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+    # pay for asset 
+    LOGGER.debug('post_pay_asset asset_id={} pay={}'.format(asset_id,pay))
+    sign_req,topts,addr = make_pay_asset_trans(asset_id,vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)
+    response = await do_dec_op(request,topts,sign_req,query)
     
     return query._wrap_response(                                                                                                      
         request,                                                                                                                      
-        data=supply,                                                                                                       
+        data=response,                                                                                                       
         metadata=query._get_metadata(request, response))
 
 

@@ -746,13 +746,16 @@ class DecClient:
         return self._send_transaction(DEC_SEND_OP, faddr, info, to=taddr, wait=wait if wait else TRANS_TOUT,din=din)  
 
     def pay(self,args,wait=None,control=False):
-        info = self.pay_info(args)    
+        info = self.pay_info(args)  
+        if args.sign > 0:
+            return info
+               
         if args.check > 0:
             return info[DEC_CMD_OPTS]
         topts = info[DEC_TRANS_OPTS]                                   
         req = self.dec_req_sign(info[DEC_CMD_OPTS])                    
         # for notary less mode user sign with his own key  
- 
+        
         sign_req = self.notary_req_sign(req,self._signer)              
         #print('PREQ',sign_req,topts)                                   
         #return    

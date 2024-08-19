@@ -176,7 +176,7 @@ def make_invoice_trans(info,did,signed=None):
         #
         req,pubkey = decode_signed(signed)
         inv = cbor.loads(req[DEC_PAYLOAD])[DEC_PAYLOAD][DEC_INVOICE_OP]
-        print(inv)
+        #print(inv)
     else: 
         req,pubkey = do_signed_invoice_req(info,did,signer)
         inv = info
@@ -184,3 +184,7 @@ def make_invoice_trans(info,did,signed=None):
     freq,topts,addr = do_invoice_req(inv,req,pubkey,signer,did)
     LOGGER.debug('make_invoice_trans freq={} topts={}'.format(freq,topts))
     return freq,topts,addr
+
+
+def make_pay_asset_trans(asset_id: str,info,did,signed=None):
+     LOGGER.debug('make_pay_asset_trans {} info={} did={}'.format(asset_id,info,did))
