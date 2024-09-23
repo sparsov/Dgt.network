@@ -440,4 +440,40 @@ def do_invoice_req(invoice,req,pubkey,nsigner,did=DEFAULT_DID):
                DEC_CMD_DIN: din                                                  
              }                                                                   
                                                                                  
-    return gate_request_sign,topts,target                                         
+    return gate_request_sign,topts,target  
+                                       
+def do_signed_pay_req(opts,did,signer):
+    # pay request 
+    payload = {                                                                                            
+                DEC_PAY_OP   : opts,                           
+                DEC_DID_VAL  : did                              
+              }                                                    
+                                                                   
+                                                                   
+    
+    return dec_req_sign(payload,signer),opts[DEC_CUSTOMER_KEY] 
+
+def do_pay_req(pinfo,req,pubkey,nsigner,did=DEFAULT_DID):
+    extra = {                                                 
+            DEC_TMSTAMP     : time.time(),                    
+                                                              
+            }                                                 
+    gate_request_sign,_ = dec_gate_sign(req, extra, nsigner)
+    odid = pinfo[DEC_DID_VAL] if DEC_DID_VAL in pinfo and pinfo[DEC_DID_VAL] else DEFAULT_DID
+    to = [(pinfo[DEC_OWNER],DEC_WALLET_GRP,odid)] 
+    to.append((pinfo[DEC_TARGET_INFO],DEC_TARGET_GRP,did))    # args.didto                       
+    if DEC_TRANS_ID in pinfo and pinfo[DEC_TRANS_ID]:                                                                
+        to.append((DEC_TRANS_KEY.format(pinfo[DEC_TRANS_ID]),DEC_EMISSION_GRP,odid))                                                    
+    din = [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)]
+
+
+    faddr = (pinfo[DEC_CUSTOMER_KEY],DEC_WALLET_GRP,did)
+    
+    
+    topts =  { DEC_CMD    : DEC_PAY_OP,                   
+               DEC_CMD_ARG:  faddr, 
+               DEC_CMD_TO : to,  
+               DEC_CMD_DIN: din                             
+             }                                              
+                                                            
+    return gate_request_sign,topts                   

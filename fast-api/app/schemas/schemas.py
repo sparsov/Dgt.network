@@ -96,7 +96,8 @@ class PayInfo(BaseModel):
                                                                                             
     #asset          : Optional[str] = None   # asset                                        
     customer       : str                    # key of customer
-    to             : str                                    
+    owner          : str                    # owner addr 
+    did            : Optional[str] = None   # owner did            
     amount         : float                                                      
     tips           : Optional[float] = 0.0                                                  
     tid            : Optional[str] = None # tid for multi signed                                           
@@ -105,6 +106,6 @@ class PayInfo(BaseModel):
                                           # 
 class PayTrans(BaseModel):                          
     info    :  Optional[PayInfo] = None              
-    did     :  str = DEFAULT_DID                       
+    did     :  str = DEFAULT_DID        # customer did                     
     signed  :  Optional[OwnerSignPayload] = None                                                         
     

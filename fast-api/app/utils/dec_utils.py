@@ -13,7 +13,8 @@ from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_d
 from dec_dgt.client_cli.dec_cmd_utils import (do_signed_target_req,do_target_req,get_this_tips,
                                               make_dec_transaction,
                                               do_signed_wallet_req,do_wallet_req,
-                                              do_signed_invoice_req,do_invoice_req
+                                              do_signed_invoice_req,do_invoice_req,
+                                              do_signed_pay_req,do_pay_req
                                               )
 from app.utils.signing import signer,_context
 from app.utils.tnx_utils import create_batch
@@ -188,3 +189,27 @@ def make_invoice_trans(info,did,signed=None):
 
 def make_pay_asset_trans(asset_id: str,info,did,signed=None):
      LOGGER.debug('make_pay_asset_trans {} info={} did={}'.format(asset_id,info,did))
+     if signed:                                                                               
+         #                                                                                    
+         req,pubkey = decode_signed(signed)                                                   
+         pinfo = cbor.loads(req[DEC_PAYLOAD])[DEC_PAYLOAD][DEC_PAY_OP]                      
+         #print(inv)                                                                          
+     else:      
+         info[DEC_TARGET_INFO] = asset_id                                                                             
+         req,pubkey = do_signed_pay_req(info,did,signer)
+         pinfo = info                                  
+         
+     LOGGER.debug('make_invoice_trans REQ={}'.format(pinfo))                                                                                        
+     freq,topts = do_pay_req(pinfo,req,pubkey,signer,did)                              
+     LOGGER.debug('make_invoice_trans freq={} topts={}'.format(freq,topts))                   
+     return freq,topts                                                                   
+                                                                                              
+                                                                                              
+
+
+
+
+
+def make_pay_send_trans(asset_id: str,info,did,signed=None):
+    LOGGER.debug('make_pay_send_trans {} info={} did={}'.format(asset_id,info,did))
+

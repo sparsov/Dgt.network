@@ -9,19 +9,26 @@ from app.utils.logger import logger as LOGGER
 from app.schemas import DgtListResponse,DgtResponse
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
+from app.utils.dec_utils import make_pay_send_trans
 router = APIRouter()
 
 
 
 @router.post("/payments/send",response_model=DgtResponse)
 async def post_pay_send(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):
-    # dec show _DEC_EMISSION_KEY_
-    dec, response = await get_dec_emission_key(query)
-                                                                            
-    return query._wrap_response(                                                
-        request,                                                               
-        data=dec,
-        metadata=query._get_metadata(request, response))                        
+    # send coins
+    sign_req,topts,addr = make_pay_send_trans(asset_id,vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)           
+    response = await do_dec_op(request,topts,sign_req,query)                                                                       
+                                                                                                                                   
+    return query._wrap_response(                                                                                                     
+        request,                                                                                                                    
+        data=response,                                                                                                             
+        metadata=query._get_metadata(request, response))                                                                             
+
+
+
+
+
 
 @router.post("/payments/invoice",response_model=DgtResponse)                                                                      
 async def post_pay_invoice(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           

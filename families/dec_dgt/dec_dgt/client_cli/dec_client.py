@@ -43,7 +43,7 @@ from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import get_target_addr
 from dec_dgt.client_cli.dec_cmd_utils import (get_target_opts,get_this_tips,target_info,get_all_target_opts,
                                               do_target_req,make_dec_transaction,do_signed_target_req,do_signed_wallet_req,
-                                              do_signed_invoice_req,
+                                              do_signed_invoice_req,do_signed_pay_req,
                                               req2b64
                                               )
 from dgt_validator.gossip.fbft_topology import DGT_TOPOLOGY_SET_NM
@@ -748,7 +748,14 @@ class DecClient:
     def pay(self,args,wait=None,control=False):
         info = self.pay_info(args)  
         if args.sign > 0:
-            return info
+            pinfo = info[DEC_CMD_OPTS][DEC_PAY_OP]
+            pinfo[DEC_CUSTOMER_KEY] = args.name
+            pinfo[DEC_OWNER] = args.to
+            pinfo[DEC_TARGET_INFO] = args.target
+            signed,_ = do_signed_pay_req(pinfo,args.did or DEFAULT_DID,self._signer)
+            req = req2b64(signed)
+            
+            return req
                
         if args.check > 0:
             return info[DEC_CMD_OPTS]
@@ -774,7 +781,7 @@ class DecClient:
         #daddr = self._get_full_addr(args.to,tp_space=DEC_WALLET_GRP,owner=args.didto) 
         #eaddr = self._get_full_addr(DEC_EMISSION_KEY,tp_space=DEC_EMISSION_GRP,owner=DEFAULT_DID)
         to_addr =  args.to                                         
-        nm_addr = args.name                                        
+        nm_addr = args.name    # from wallet                                    
         if args.direct > 0 :                                       
             # take wallet addr from alias                          
             if  is_alias(args.to):                                 
@@ -822,7 +829,8 @@ class DecClient:
                                     DEC_CMD_TO : to,
                                     DEC_CMD_DIN: din                    
                                   }                                                 
-                }                                                                   
+                }   
+        print("TOPTS",opts[DEC_TRANS_OPTS])                                                                
         return opts                                                                                                   
 
 
@@ -832,6 +840,7 @@ class DecClient:
     def pay_req(self,args): 
         # make pay request                                            
         info = self.pay_info(args)  
+        
         return self.user_sign_req(info)                                   
     
      

@@ -839,12 +839,10 @@ class DecTransactionHandler(TransactionHandler):
             if stoken is None:                                                                                          
                 raise InvalidTransaction('Verb is "{}", set transfer id for multi sign operation'.format(DEC_PAY_OP))  
 
-        
-
         # wallet of source
         total = src[DEC_TOTAL_SUM]
-        amount = pinfo[DATTR_VAL]
-        tcurr = value[DEC_PAYLOAD][DEC_TMSTAMP]                                                                                                                            
+        amount = pinfo[DEC_AMOUNT] if DEC_AMOUNT in pinfo else pinfo[DATTR_VAL]
+        tcurr = value[DEC_HEADER_PAYLOAD][DEC_TMSTAMP] if DEC_HEADER_PAYLOAD in value else value[DEC_PAYLOAD][DEC_TMSTAMP]                                                                                                                            
 
         LOGGER.debug('_do_send value={}'.format(value))                                                                                                      
         ttoken = DecTokenInfo()                                                                                                                                                     
@@ -1542,7 +1540,7 @@ class DecTransactionHandler(TransactionHandler):
                     state = cbor.loads(entry.data)                                                                                         
                     #LOGGER.debug('_get_state_data entry=({})'.format(entry))                                                              
                     for key, val in state.items():                                                                                         
-                        #LOGGER.debug('_get_state_data add=%s', key)                                                                       
+                        LOGGER.debug('_get_state_data[{}] KEY={}'.format(i, key))                                                                       
                         states[key] = val                                                                                                  
             return states,r_to                                                                                                             
         except IndexError:                                                                                                                 

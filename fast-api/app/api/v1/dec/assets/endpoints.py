@@ -55,7 +55,7 @@ async def post_create_asset(request: Request,asset: AssetCreate,query: QueryVali
 async def post_pay_asset(request: Request,asset_id: str,pay : PayTrans,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # pay for asset 
     LOGGER.debug('post_pay_asset asset_id={} pay={}'.format(asset_id,pay))
-    sign_req,topts,addr = make_pay_asset_trans(asset_id,vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)
+    sign_req,topts = make_pay_asset_trans(asset_id,vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)
     response = await do_dec_op(request,topts,sign_req,query)
     
     return query._wrap_response(                                                                                                      
