@@ -6,18 +6,18 @@ from dgt_sdk.protobuf import client_state_pb2
 import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
-from app.schemas import DgtListResponse,DgtResponse
+from app.schemas import DgtListResponse,DgtResponse,PayTrans
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
-from app.utils.dec_utils import make_pay_send_trans
+from app.utils.dec_utils import make_pay_send_trans,do_dec_op
 router = APIRouter()
 
 
 
 @router.post("/payments/send",response_model=DgtResponse)
-async def post_pay_send(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):
+async def post_pay_send(request: Request,pay : PayTrans,query: QueryValidatorHandler = Depends(getQueryValidator)):
     # send coins
-    sign_req,topts,addr = make_pay_send_trans(asset_id,vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)           
+    sign_req,topts = make_pay_send_trans(vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)           
     response = await do_dec_op(request,topts,sign_req,query)                                                                       
                                                                                                                                    
     return query._wrap_response(                                                                                                     

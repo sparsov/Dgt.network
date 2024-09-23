@@ -460,8 +460,9 @@ def do_pay_req(pinfo,req,pubkey,nsigner,did=DEFAULT_DID):
             }                                                 
     gate_request_sign,_ = dec_gate_sign(req, extra, nsigner)
     odid = pinfo[DEC_DID_VAL] if DEC_DID_VAL in pinfo and pinfo[DEC_DID_VAL] else DEFAULT_DID
-    to = [(pinfo[DEC_OWNER],DEC_WALLET_GRP,odid)] 
-    to.append((pinfo[DEC_TARGET_INFO],DEC_TARGET_GRP,did))    # args.didto                       
+    to = [(pinfo[DEC_OWNER],DEC_WALLET_GRP,odid)]
+    if pinfo[DEC_TARGET_INFO] is not None:
+        to.append((pinfo[DEC_TARGET_INFO],DEC_TARGET_GRP,did))    # args.didto                       
     if DEC_TRANS_ID in pinfo and pinfo[DEC_TRANS_ID]:                                                                
         to.append((DEC_TRANS_KEY.format(pinfo[DEC_TRANS_ID]),DEC_EMISSION_GRP,odid))                                                    
     din = [(DEC_EMISSION_KEY,DEC_EMISSION_GRP,DEFAULT_DID)]

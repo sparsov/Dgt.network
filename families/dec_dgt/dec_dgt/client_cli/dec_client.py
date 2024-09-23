@@ -830,7 +830,7 @@ class DecClient:
                                     DEC_CMD_DIN: din                    
                                   }                                                 
                 }   
-        print("TOPTS",opts[DEC_TRANS_OPTS])                                                                
+        #print("TOPTS",opts[DEC_TRANS_OPTS])                                                                
         return opts                                                                                                   
 
 

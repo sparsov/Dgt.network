@@ -210,6 +210,20 @@ def make_pay_asset_trans(asset_id: str,info,did,signed=None):
 
 
 
-def make_pay_send_trans(asset_id: str,info,did,signed=None):
-    LOGGER.debug('make_pay_send_trans {} info={} did={}'.format(asset_id,info,did))
-
+def make_pay_send_trans(info,did,signed=None):
+    LOGGER.debug('make_pay_send_trans info={} did={}'.format(info,did))
+    if signed:                                                                                           
+        #                                                                                                
+        req,pubkey = decode_signed(signed)                                                               
+        pinfo = cbor.loads(req[DEC_PAYLOAD])[DEC_PAYLOAD][DEC_PAY_OP]                                    
+        #print(inv)                                                                                      
+    else:                                                                                                
+        
+        req,pubkey = do_signed_pay_req(info,did,signer)                                                  
+        pinfo = info                                                                                     
+                                                                                                         
+    LOGGER.debug('make_pay_trans REQ={}'.format(pinfo))                                              
+    freq,topts = do_pay_req(pinfo,req,pubkey,signer,did)                                                 
+    LOGGER.debug('make_pay_trans freq={} topts={}'.format(freq,topts))                               
+    return freq,topts                                                                                    
+                                                                                                         
