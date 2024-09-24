@@ -43,13 +43,13 @@ async def post_pay_invoice(request: Request,query: QueryValidatorHandler = Depen
                                                                             
 
 @router.post("/payments/send-by-alias",response_model=DgtResponse)                                                                      
-async def post_pay_by_alias(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+async def post_pay_by_alias(request: Request,pay : PayTrans,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # dec show _DEC_EMISSION_SIG_
-    
-    dec, response = await get_dec_emission_key(query)                                                                     
-    keys = dec[DEC_EMISSION_INFO][DATTR_VAL]
-    return query._wrap_response(                                                                                                      
-        request,                                                                                                                      
-        data=keys,                                                                                                       
-        metadata=query._get_metadata(request, response))
-
+    sign_req,topts = make_pay_send_trans(vars(pay.info),pay.did,vars(pay.signed) if pay.signed else None)        
+    response = await do_dec_op(request,topts,sign_req,query)                                                     
+                                                                                                                 
+    return query._wrap_response(                                                                                 
+        request,                                                                                                 
+        data=response,                                                                                           
+        metadata=query._get_metadata(request, response))                                                         
+                                                                                                                 

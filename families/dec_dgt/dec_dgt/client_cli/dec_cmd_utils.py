@@ -74,6 +74,11 @@ tips:
   }
 
 """ 
+def is_alias(name):                            
+    return "@" in name or name.startswith('+') 
+
+
+
 def req2b64(req):
     req[DEC_PAYLOAD] = base64.b64encode(req[DEC_PAYLOAD]).decode('utf-8')
     return req
