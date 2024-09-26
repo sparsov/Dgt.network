@@ -179,7 +179,7 @@ class QueryValidatorHandler:
         """
         timer_ctx = self._post_batches_total_time.time()
         self._post_batches_count.inc()
-
+        #LOGGER.debug('Submission batches {} ..'.format(timer_ctx))
         # Parse request
         if request.headers['Content-Type'] != 'application/octet-stream':
             LOGGER.debug(

@@ -140,7 +140,8 @@ async def do_dec_op(request: Request,topts: dict,info: dict,query: QueryValidato
         validator_query = client_batch_submit_pb2.ClientBatchSubmitRequest(batches=[batch])                                                    
         LOGGER.debug('run_transaction send batch_id=%s',batch_id)                                                                              
 
-        with query._post_batches_validator_time.time():                                                                                         
+        with query._post_batches_validator_time.time(): 
+            query._post_batches_count.inc()                                                                                        
             response = await query._query_validator(                                                                                                       
                 Message.CLIENT_BATCH_SUBMIT_REQUEST,                                                                                           
                 client_batch_submit_pb2.ClientBatchSubmitResponse,                                                                             
