@@ -76,6 +76,7 @@ RUN pip3 install python-multipart
 RUN pip3 install fastapi_pagination
 RUN pip3 install python-jose
 RUN pip3 install slowapi
+RUN pip3 install influxdb-client
 ENV PATH=$PATH:/project/$DGT_TOP/bin:
 
 RUN ln -s /usr/bin/python3 /usr/bin/python

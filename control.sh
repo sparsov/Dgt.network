@@ -992,7 +992,9 @@ function doShellDgt {
     elif [[ $LNAME == "DETH_LIST" ]] ; then
       container_name="${SNM}-dgt-${CLUST}-${NODE}" 
     elif [[ $LNAME == "FAST_LIST" ]] ; then
-      container_name="fast-api-${PNM}-${CLUST}-${NODE}" 
+      container_name="fast-api-${PNM}-${CLUST}-${NODE}"
+    elif [[ $LNAME == "INFLUX_LIST" ]] ; then
+       container_name="stats-influxdb-dgt" 
     else 
 
     if [ -z ${CLUST} ] || [ -z ${NODE} ];then   
@@ -1102,7 +1104,7 @@ case $CMD in
      *)
           desired_length=12
           echo -e $CBLUE "usage:<peer name> <subcommand> [<args>]" $CDEF
-          echo -e $CBLUE "peer types: [dgt|dash|graf|dev|deth|fast]" $CDEF
+          echo -e $CBLUE "peer types: [dgt|dash|graf|influx|dev|deth|fast]" $CDEF
           echo -e $CBLUE "subcommands: " $CDEF
           printHelp CMDS_HELP                                                 
           
