@@ -7,7 +7,7 @@ from dgt_sdk.protobuf.validator_pb2 import Message
 from dgt_sdk.protobuf import client_peers_pb2
 
 from app.schemas import DgtResponse
-from app.utils.metrics import query_api
+from app.utils.metrics import client
 from app.utils.logger import logger as LOGGER 
 router = APIRouter()
 QUERY = '''
@@ -24,10 +24,14 @@ async def get_metrics_tps(request: Request,query: QueryValidatorHandler = Depend
     LOGGER.debug("QUERY {}".format(QUERY))
     results = []
     try:
-        tables = query_api.query(squery) #, org=org)
-        for table in tables:
-            for record in table.records:
-                results.append((record.get_field(), record.get_value()))
+        if True:
+            result = client.query('SELECT * FROM "{}" order by time LIMIT 20 OFFSET 10'.format(TPS))
+            results = list(result.get_points())
+        else:
+            tables = query_api.query(squery) #, org=org)
+            for table in tables:
+                for record in table.records:
+                    results.append((record.get_field(), record.get_value()))
     except Exception as ex:
         LOGGER.debug("get get data {}".format(ex))
 

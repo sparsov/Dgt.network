@@ -109,3 +109,35 @@ class PayTrans(BaseModel):
     did     :  str = DEFAULT_DID        # customer did                     
     signed  :  Optional[OwnerSignPayload] = None                                                         
     
+
+class CertInfo(BaseModel):
+    COUNTRY_NAME              : str = "CA"
+    STATE_OR_PROVINCE_NAME    : str = "ONTARIO"
+    LOCALITY_NAME             : str = "BARRIE"
+    ORGANIZATION_NAME         : str = "YOUR ORGANIZATION NAME" 
+    COMMON_NAME               : str = "NODE SAMPLE"
+    DNS_NAME                  : str = "dgt.world"
+    EMAIL_ADDRESS             : str = "adminmail@mail.com"
+    PSEUDONYM                 : str = "dgt00000000000000000"
+    JURISDICTION_COUNTRY_NAME : str = "CA"
+    BUSINESS_CATEGORY         : str = "YOUR BUSINESS CATEGORY"
+    USER_ID                   : str = "000000000000000001" 
+    #
+    FIRST_NAME                : Optional[str] = "CA"
+    LAST_NAME                 : Optional[str] = "CA"
+    PHONE                     : Optional[str] = "CA"
+    FULL_ADDRESS              : Optional[str] = "CA"
+    DATE_OF_BIRTH             : Optional[str] = "CA"
+    PASSPORT_ID_DOCUMENT      : Optional[str] = "CA" # hash
+    PHOTOGRAPH                : Optional[str] = "CA" # hash
+
+class CertInfoCreate(BaseModel):                            
+    cert         : CertInfo                
+    owner        : str 
+
+        
+class CertCreate(BaseModel):                                   
+    info         : CertInfoCreate                
+    signed       : Optional[OwnerSignPayload] = None
+    photograph   : Optional[bytes] = None           
+    document     : Optional[bytes] = None 

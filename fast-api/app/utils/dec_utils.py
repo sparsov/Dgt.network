@@ -17,7 +17,7 @@ from dec_dgt.client_cli.dec_cmd_utils import (do_signed_target_req,do_target_req
                                               do_signed_pay_req,do_pay_req
                                               )
 from app.utils.signing import signer,_context
-from app.utils.tnx_utils import create_batch
+from app.utils.tnx_utils import create_batch, decode_signed
 import base64
 import cbor
 
@@ -89,21 +89,6 @@ async def get_gates_tips(request: Request,query: QueryValidatorHandler):
     #LOGGER.debug('Request get_gates_tips=%s',gates)              
     return gates      
     
-def decode_signed(signed):
-    payload = base64.b64decode(signed["payload"])                  
-    designed = {                                                     
-            DEC_EMITTER           : signed["emitter"],             
-            DEC_PAYLOAD_SIGNATURE : signed["signature"],           
-            DEC_PAYLOAD           : payload                        
-        }  
-    ret = signer.verify(signed["signature"], payload,_context.pub_from_hex(signed["emitter"]) )    
-    if not ret:                                                                                      
-        print('BAD SIGN')                                                                            
-    
-                                                            
-    LOGGER.debug('make_asset_trans CHECK={} payload={}'.format(ret,designed)) 
-    return designed,signed["emitter"]   
-
 
 def make_asset_trans(gates_tips,info,did,signed=None):
     if signed is None:

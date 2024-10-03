@@ -77,7 +77,14 @@ tips:
 def is_alias(name):                            
     return "@" in name or name.startswith('+') 
 
-
+def alias_to_addr(self,alias,did):                                                                                                          
+    token = self.get_object(DEC_SYNONYMS_GRP,did,alias)                                                                                     
+    try:                                                                                                                                    
+        dec = cbor.loads(token.dec)                                                                                                         
+    except  Exception as ex:                                                                                                                
+        dec = {}                                                                                                                            
+    #print("DEC",dec)                                                                                                                       
+    return  dec[DEC_WALLET_OPTS_OP][DEC_WALLET_ADDR] if DEC_WALLET_OPTS_OP in dec and DEC_WALLET_ADDR in dec[DEC_WALLET_OPTS_OP] else alias 
 
 def req2b64(req):
     req[DEC_PAYLOAD] = base64.b64encode(req[DEC_PAYLOAD]).decode('utf-8')

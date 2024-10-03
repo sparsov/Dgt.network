@@ -6,11 +6,11 @@ from dgt_sdk.protobuf import client_state_pb2
 import app.messaging.error_handlers as error_handlers
 import app.messaging.exceptions as errors
 from app.utils.logger import logger as LOGGER
-from app.schemas import DgtListResponse,DgtResponse, AccountCreate, DgtPagingListResponse, DgtPagingDictResponse
+from app.schemas import DgtListResponse,DgtResponse, AccountCreate, DgtPagingListResponse, DgtPagingDictResponse,CertCreate
 from app.utils.dec_utils import get_dec_accounts,get_dec_aliases, get_dec_account_by_id, get_dec_alias_by_id,make_account_trans,do_dec_op
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
-
+from app.utils.xcert_utils import make_did_trans
 router = APIRouter()
 
 
@@ -125,6 +125,22 @@ async def post_add_alias(request: Request,account_id: str,query: QueryValidatorH
         request,                                                                                                                      
         data=supply,                                                                                                       
         metadata=query._get_metadata(request, response))
+
+
+@router.post("/did/create",response_model=DgtResponse)                                                                      
+async def post_create_did(request: Request,dinfo: CertCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
+    # dec distribute
+    LOGGER.debug('request did={}'.format(dinfo)) 
+    sign_req,topts,addr = make_did_trans(vars(dinfo.info),vars(dinfo.signed) if dinfo.signed is not None else None)
+    response = await do_dec_op(request,topts,sign_req,query)
+    response["addr"] = addr
+    return query._wrap_response(                                                                                                                
+        request,                                                                                                                               
+        data=response,                                                                                                                             
+        metadata=query._get_metadata(request, response)                                                                                                                                    
+        )                                                                                                                                      
+
+
 
 
 
