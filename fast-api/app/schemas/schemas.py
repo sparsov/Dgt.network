@@ -141,3 +141,10 @@ class CertCreate(BaseModel):
     signed       : Optional[OwnerSignPayload] = None
     photograph   : Optional[bytes] = None           
     document     : Optional[bytes] = None 
+
+class DgtMetricItems(BaseModel):
+    values : List[Dict[str,Any]]
+
+class DgtMetricResponse(DgtBaseResponse):     
+    #columns: List[str] 
+    data : DgtMetricItems                        

@@ -19,7 +19,7 @@ import cbor
 def make_did_trans(info,signed=None):
     if signed is None:
         LOGGER.debug('make_did_trans info={}'.format(info))
-        signed = do_signed_target_req(info,signer,did)
+        signed = do_signed_did_req(info,signer,did)
         LOGGER.debug('make_asset_trans info={} signed={}'.format(info,signed))
     else:
         #LOGGER.debug('make_asset_trans signed={}'.format(signed))
