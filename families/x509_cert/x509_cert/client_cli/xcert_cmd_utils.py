@@ -79,8 +79,34 @@ def read_conf(fconf=NOTARY_CONF_NM):
         LOGGER.info(f"CANT READ VCONF = {ex}")                       
         info = {}                                                    
     LOGGER.info(f"VCONF = {info}")                                   
-    return info                                                      
-                                                                     
+    return info      
+                                                
+def xcert_req_sign(info,signer):                                                                                                                                                       
+    # sign dec request by owner                                                                                                                                                      
+    # info - data relating to dec operation                                                                                                                                          
+    #                                                                                                                                                                                
+                                                                                                                                                                                     
+    # this is header of request with owner sign                                                                                                                                      
+    req_header = {                                                                                                                                                                   
+            XCERT_EMITTER     : signer.get_public_key().as_hex(),                                                                                                                      
+            XCERT_PAYLOAD     : info                                                                                                                                                   
+                                                                                                                                                                                     
+    }                                                                                                                                                                                
+    payload = cbor.dumps(req_header)                                                                                                                                                 
+    psignature = signer.sign(payload)                                                                                                                                                
+    #                                                                                                                                                                                
+    #  NotaryRequest is body of request with signed header                                                                                                                           
+    #                                                                                                                                                                                
+    req = {                                                                                                                                                                          
+            XCERT_EMITTER           : req_header[XCERT_EMITTER],                                                                                                                         
+            XCERT_PAYLOAD_SIGNATURE : psignature,                                                                                                                                      
+            XCERT_PAYLOAD           : payload                                                                                                                                          
+        }                                                                                                                                                                            
+    #ret = self._signer.verify(psignature, payload,self._context.pub_from_hex(info[DEC_EMITTER]) )                                                                                   
+    #if not ret:                                                                                                                                                                     
+    #    print('BAD SIGN')                                                                                                                                                           
+    return req                                                                                                                                                                       
+                                                                    
 def _make_xcert_transaction(signer, verb, name, value,to=None):                                                                                                                                
     val = {                                                                                                                                                                                  
         'Verb': verb,                                                                                                                                                                        

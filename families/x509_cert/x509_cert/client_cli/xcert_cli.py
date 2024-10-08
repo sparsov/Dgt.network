@@ -112,10 +112,11 @@ def create_parent_parser(prog_name):
         const=sys.maxsize,                                                   
         type=int,                                                            
         help='set time, in seconds, to wait for transaction to commit')      
-
-
-
-
+             
+             
+    
+          
+          
     try:
         version = pkg_resources.get_distribution(DISTRIBUTION_NAME).version
     except pkg_resources.DistributionNotFound:
@@ -189,14 +190,25 @@ def add_set_parser(subparsers, parent_parser):
         type=int,
         default=10,                                       
         help='set time, in day - cert is valid after') 
+    parser.add_argument(                                        
+        '-ph','--PHONE' ,                                           
+        type=str, 
+        default='',                                              
+        help="identify user's phone")     
 
-                    
+
+
+    parser.add_argument(          
+        '-sign', '--sign',               
+        action='count',                  
+        default=0,                       
+        help='Do only sign of request')                  
 
 
 def do_set(args):
     value, wait, user = args.value, args.wait, args.user
     client = _get_client(args)
-    response = client.set(value,user,args.before,args.after,wait)
+    response = client.set(args,value,user,args.before,args.after,wait)
     print(response)
 
 
@@ -234,14 +246,20 @@ def add_upd_parser(subparsers, parent_parser):
         type=int,
         default=10,                                         
         help='set time, in day - cert is valid after')    
-    
+    parser.add_argument(          
+        '-sign', '--sign',               
+        action='count',                  
+        default=0,                       
+        help='Do only sign of request') 
+
+
                               
 
 
 def do_upd(args):
     value, wait, user = args.value, args.wait, args.user
     client = _get_client(args)
-    response = client.upd( value,user,args.before,args.after,wait)
+    response = client.upd(args, value,user,args.before,args.after,wait)
     print(response)
 
 

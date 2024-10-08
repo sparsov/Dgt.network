@@ -62,6 +62,16 @@ ADDRESS_ATTR = 'address'
 XCERT_ATTR = 'xcert'
 XCERT_PAYLOAD = 'payload'                                                            
 COUNTRY_ATTR = 'country' 
-                                                       
-
-                                                   
+# extra
+FIRST_NAME            =  "FIRST_NAME"              
+LAST_NAME             =  "LAST_NAME"           
+PHONE                 =  "PHONE"                                                                 
+FULL_ADDRESS          =  "FULL_ADDRESS"        
+DATE_OF_BIRTH         =  "DATE_OF_BIRTH"       
+PASSPORT_ID_DOCUMENT  =  "PASSPORT_ID_DOCUMENT"
+PHOTOGRAPH            =  "PHOTOGRAPH" 
+EXTRA_ARGS = FIRST_NAME, LAST_NAME, PHONE, FULL_ADDRESS, DATE_OF_BIRTH,  PASSPORT_ID_DOCUMENT, PHOTOGRAPH  
+     
+XCERT_EMITTER           = "emitter"   
+XCERT_PAYLOAD_SIGNATURE = "signature"                         
+XCERT_PAYLOAD           = "payload"

@@ -37,6 +37,7 @@ from cert_common.protobuf.x509_cert_pb2 import X509CertInfo
 
 from x509_cert.client_cli.exceptions import XcertClientException,XcertClientKeyfileException
 from x509_cert.client_cli.xcert_attr import *
+from x509_cert.client_cli.xcert_cmd_utils  import xcert_req_sign
 LOGGER = logging.getLogger(__name__)
 
 NOTARY_TYPES = [KEYKEEPER_ID,NOTARY_LEADER_ID,NOTARY_FOLOWER_ID,NOTARY_LIST_ID]
@@ -196,19 +197,27 @@ class XcertClient:
         xcert = self.load_xcert(token.xcert)
         val = self.get_xcert_notary_attr(xcert) 
         return val
+    def get_info(self,value,args=None):
+        if isinstance(value,dict):                             
+            info = value  
+        else:
+            # from proto json file 
+            with open(value,"r") as cert_file:                 
+                try:                                           
+                    info =  json.load(cert_file)               
+                                                               
+                except Exception as ex:                        
+                    info = {} 
+        if args is not None:
+            # add extra params
+            for arg in EXTRA_ARGS:
+                if hasattr(args, arg) :
+                    info[arg] = getattr(args, arg)
+        return info                                
 
 
     def set_or_upd(self,value,user,before,after):
-        if isinstance(value,dict):
-            info = value
-        else:
-            with open(value,"r") as cert_file:                                               
-                try:                                                                         
-                    info =  json.load(cert_file)                                             
-                                                                                             
-                except Exception as ex:                                                      
-                    info = {}  
-        
+        info = self.get_info(value)
         try:
             signer = self.get_signer(user)
             pubkey = signer.get_public_key().as_hex() 
@@ -228,19 +237,24 @@ class XcertClient:
         transaction = self._make_xcert_transaction(oper,pubkey, cert)
         return transaction
 
-    def _do_oper(self,oper,value,user,before,after,wait=None):                                    
-        pubkey,cert = self.set_or_upd(value,user,before,after)                          
+    def _do_oper(self,args,oper,value,user,before,after,wait=None):   
+        if args.sign > 0:                       
+            info = self.get_info(value,args)         
+            print("do_oper",info)               
+            return                              
+                                         
+        pubkey,cert = self.set_or_upd(value,user,before,after) 
         print(f'{oper} cert={cert} pub={pubkey} valid={before}/{after}')                   
         return self._send_transaction(oper,pubkey, cert, to=None, wait=wait,user=user) 
 
-    def set(self,value,user,before,after,wait=None):
-        return self._do_oper(XCERT_SET_OP,value,user,before,after, wait=wait)
+    def set(self,args,value,user,before,after,wait=None):
+        return self._do_oper(args,XCERT_SET_OP,value,user,before,after, wait=wait)
 
-    def upd(self,value,user,before,after, wait=None):
-        return self._do_oper(XCERT_UPD_OP,value,user,before,after, wait=wait)      
+    def upd(self,args,value,user,before,after, wait=None):
+        return self._do_oper(args,XCERT_UPD_OP,value,user,before,after, wait=wait)      
 
-    def crt(self,value,user,before,after, wait=None):  
-        return self._do_oper(XCERT_CRT_OP,value,user,before,after, wait=wait)                                   
+    def crt(self,args,value,user,before,after, wait=None):  
+        return self._do_oper(args,XCERT_CRT_OP,value,user,before,after, wait=wait)                                   
         
 
     def list(self):
