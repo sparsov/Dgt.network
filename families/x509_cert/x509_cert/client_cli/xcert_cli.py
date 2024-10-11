@@ -21,6 +21,7 @@ import sys
 import traceback
 import pkg_resources
 import cbor
+import yaml
 from colorlog import ColoredFormatter
 
 from x509_cert.client_cli.generate import add_generate_parser
@@ -49,6 +50,10 @@ CRYPTO_BACK = "openssl"
 DGT_API_URL = os.environ.get('DGT_API_URL',DEFAULT_URL) or DEFAULT_URL
 DGT_TOP = os.environ.get('DGT_TOP','dgt')
 XCERT_PROTO_FILE = f"/project/{DGT_TOP}/etc/certificate.json"
+
+def do_yaml(data):                                                               
+    return yaml.dump(data,explicit_start=True,indent=4,default_flow_style=False) 
+
 def create_console_handler(verbose_level):
     clog = logging.StreamHandler()
     formatter = ColoredFormatter(
@@ -209,7 +214,7 @@ def do_set(args):
     value, wait, user = args.value, args.wait, args.user
     client = _get_client(args)
     response = client.set(args,value,user,args.before,args.after,wait)
-    print(response)
+    print(do_yaml(response))
 
 
 def add_upd_parser(subparsers, parent_parser):

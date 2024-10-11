@@ -10,7 +10,7 @@ from app.schemas import DgtListResponse,DgtResponse, AccountCreate, DgtPagingLis
 from app.utils.dec_utils import get_dec_accounts,get_dec_aliases, get_dec_account_by_id, get_dec_alias_by_id,make_account_trans,do_dec_op
 from dec_dgt.client_cli.dec_attr import *
 from dec_dgt.client_cli.dec_addr import _get_full_addr as get_full_addr, loads_dec_token
-from app.utils.xcert_utils import make_did_trans
+from app.utils.xcert_utils import make_did_trans,do_xcert_op
 router = APIRouter()
 
 
@@ -131,9 +131,9 @@ async def post_add_alias(request: Request,account_id: str,query: QueryValidatorH
 async def post_create_did(request: Request,dinfo: CertCreate,query: QueryValidatorHandler = Depends(getQueryValidator)):                           
     # dec distribute
     LOGGER.debug('request did={}'.format(dinfo)) 
-    sign_req,topts,addr = make_did_trans(vars(dinfo.info),vars(dinfo.signed) if dinfo.signed is not None else None)
-    response = await do_dec_op(request,topts,sign_req,query)
-    response["addr"] = addr
+    trans,addr = make_did_trans(dinfo.info,vars(dinfo.signed) if dinfo.signed is not None else None)
+    response = await do_xcert_op(request,trans,query)
+    response["did"] = addr
     return query._wrap_response(                                                                                                                
         request,                                                                                                                               
         data=response,                                                                                                                             

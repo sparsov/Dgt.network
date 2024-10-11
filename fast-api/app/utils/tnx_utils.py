@@ -3,10 +3,12 @@ from dgt_sdk.protobuf.batch_pb2 import Batch,BatchHeader,BatchList
 from dgt_sdk.protobuf.transaction_pb2 import Transaction,TransactionHeader
 
 from app.utils.logger import logger as LOGGER
-from app.utils.signing import signer
+from app.utils.signing import signer, _context
 import base64                                                                                   
                                                                                                                                      
-
+EMITTER  = "emitter"                                                                                                                                              
+PAYLOAD_SIGNATURE   =  "signature"                                                                                                                                  
+PAYLOAD = "payload"         
 def create_batch(transactions,signer):                                                    
     """                                                                                   
     Create batch for transactions                                                         
@@ -30,17 +32,17 @@ def create_batch(transactions,signer):
                                                                           
 
 def decode_signed(signed):
-    payload = base64.b64decode(signed["payload"])                  
+    payload = base64.b64decode(signed[PAYLOAD])                  
     designed = {                                                     
-            DEC_EMITTER           : signed["emitter"],             
-            DEC_PAYLOAD_SIGNATURE : signed["signature"],           
-            DEC_PAYLOAD           : payload                        
+            EMITTER           : signed[EMITTER],             
+            PAYLOAD_SIGNATURE : signed[PAYLOAD_SIGNATURE],           
+            PAYLOAD           : payload                        
         }  
-    ret = signer.verify(signed["signature"], payload,_context.pub_from_hex(signed["emitter"]) )    
+    ret = signer.verify(signed[PAYLOAD_SIGNATURE], payload,_context.pub_from_hex(signed[EMITTER]) )    
     if not ret:                                                                                      
         print('BAD SIGN')                                                                            
 
 
     LOGGER.debug('make_asset_trans CHECK={} payload={}'.format(ret,designed)) 
-    return designed,signed["emitter"]   
+    return designed,signed[EMITTER]   
                                                                           

@@ -26,6 +26,7 @@ from dgt_signing import create_context
 from dgt_signing import CryptoFactory
 from dgt_signing import ParseError
 from dgt_signing.core import (X509_COMMON_NAME, X509_USER_ID,X509_BUSINESS_CATEGORY,X509_SERIAL_NUMBER)
+from dgt_signing import key_to_dgt_addr,DGT_ADDR_PREF
 
 from dgt_sdk.oauth.requests import OAuth2Session
 from dgt_sdk.protobuf.transaction_pb2 import TransactionHeader
@@ -37,7 +38,7 @@ from cert_common.protobuf.x509_cert_pb2 import X509CertInfo
 
 from x509_cert.client_cli.exceptions import XcertClientException,XcertClientKeyfileException
 from x509_cert.client_cli.xcert_attr import *
-from x509_cert.client_cli.xcert_cmd_utils  import xcert_req_sign
+from x509_cert.client_cli.xcert_cmd_utils  import xcert_req_sign, req2b64
 LOGGER = logging.getLogger(__name__)
 
 NOTARY_TYPES = [KEYKEEPER_ID,NOTARY_LEADER_ID,NOTARY_FOLOWER_ID,NOTARY_LIST_ID]
@@ -129,7 +130,7 @@ def create_meta_xcert_txn(signer, key, value):
     info = {X509_COMMON_NAME:payload}
     xcert = signer.context.create_x509_certificate(info, signer.private_key, after=XCERT_AFTER_TM, before=XCERT_BEFORE_TM)
 
-    transaction = _make_xcert_transaction(signer, XCERT_CRT_OP, key, xcert)
+    transaction = _make_xcert_transaction(signer, XCERT_CRT_OP,key_to_dgt_addr(key,pref="") , xcert)
     return transaction                                                                                                  
                                                                      
                                                                      
@@ -234,17 +235,19 @@ class XcertClient:
 
     def _do_meta_xcert_transaction(self, oper,value,user,before=XCERT_BEFORE_TM,after=XCERT_AFTER_TM):
         pubkey,cert = self.set_or_upd(value,user,before,after)
-        transaction = self._make_xcert_transaction(oper,pubkey, cert)
+        transaction = self._make_xcert_transaction(oper,key_to_dgt_addr(pubkey,pref=""), cert)
         return transaction
 
     def _do_oper(self,args,oper,value,user,before,after,wait=None):   
         if args.sign > 0:                       
-            info = self.get_info(value,args)         
-            print("do_oper",info)               
-            return                              
+            info = self.get_info(value,args) 
+            req = xcert_req_sign(info,self.get_signer(user)) 
+            req = req2b64(req)       
+            #print("do_oper",info)               
+            return  req                            
                                          
         pubkey,cert = self.set_or_upd(value,user,before,after) 
-        print(f'{oper} cert={cert} pub={pubkey} valid={before}/{after}')                   
+        #print(f'{oper} cert={cert} pub={pubkey} valid={before}/{after}')                   
         return self._send_transaction(oper,pubkey, cert, to=None, wait=wait,user=user) 
 
     def set(self,args,value,user,before,after,wait=None):
@@ -381,7 +384,7 @@ class XcertClient:
 
     def _send_transaction(self, verb, name, value, to=None, wait=None,user='anybody'):
         # 'set',pubkey, cert, to=None, wait=wait,user=user)
-        transaction = self._make_xcert_transaction(verb,name,value)
+        transaction = self._make_xcert_transaction(verb,key_to_dgt_addr(name,pref=""),value)
         batch_list = self._create_batch_list([transaction])
         batch_id = batch_list.batches[0].header_signature
 

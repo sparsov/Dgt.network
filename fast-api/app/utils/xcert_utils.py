@@ -10,6 +10,7 @@ from dgt_sdk.protobuf import client_batch_submit_pb2
 from app.utils.logger import logger as LOGGER
 from app.utils.signing import signer,_context
 from app.utils.tnx_utils import create_batch, decode_signed
+from x509_cert.client_cli.xcert_cmd_utils  import xcert_req_sign,do_did_req
 import base64
 import cbor
 
@@ -19,28 +20,24 @@ import cbor
 def make_did_trans(info,signed=None):
     if signed is None:
         LOGGER.debug('make_did_trans info={}'.format(info))
-        signed = do_signed_did_req(info,signer,did)
+        signed = xcert_req_sign(vars(info.cert),signer,owner=info.owner)
+        owner = info.owner
         LOGGER.debug('make_asset_trans info={} signed={}'.format(info,signed))
     else:
         #LOGGER.debug('make_asset_trans signed={}'.format(signed))
-        signed,_ = decode_signed(signed)
+        signed,owner = decode_signed(signed)
 
-
-    sign_req,hdr,topts,addr = do_target_req(info,signed,tips,signer,did)
     
-    LOGGER.debug('make_did_trans req={} topts={} tips={}'.format(sign_req,topts,tips))
+    trans,did = do_did_req(info,signed,signer,owner)
+    
+    LOGGER.debug('make_did_trans did={} trans={}'.format(did,trans))
     # do trans params
-    return sign_req,topts,addr
+    return trans,did
 
 
-async def do_xcert_op(request: Request,topts: dict,info: dict,query: QueryValidatorHandler):
-    to      = topts[DEC_CMD_TO] if DEC_CMD_TO in topts else None                                                        
-    din     = topts[DEC_CMD_DIN] if DEC_CMD_DIN in topts else None                                                      
-    din_ext = topts[DEC_CMD_DIN_EXT] if DEC_CMD_DIN_EXT in topts else None                                              
-    #return self._send_transaction(topts[DEC_CMD], topts[DEC_CMD_ARG], info, to=to, wait=wait,din=din,din_ext=din_ext)   
-    # verb, name, value, to=None, wait=None,din=None,din_ext=None):    
-    transaction = make_dec_transaction(signer,topts[DEC_CMD],topts[DEC_CMD_ARG],info,to,din,din_ext)          
-    batch = create_batch([transaction],signer)                                      
+async def do_xcert_op(request: Request,trans,query: QueryValidatorHandler):
+
+    batch = create_batch([trans],signer)                                      
     batch_id = batch.header_signature                                                                                                      
 
     if batch_id is not None:                                                                                                                   

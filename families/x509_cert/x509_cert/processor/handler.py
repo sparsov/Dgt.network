@@ -71,14 +71,29 @@ class XcertTransactionHandler(TransactionHandler):
         LOGGER.debug('_transaction signer={}'.format(self._trans_signer_key))             
 
     def _get_xcert_value(self,value):
-        try:                                                                  
-            sval = cbor.loads(value)                                          
-            LOGGER.debug('extract data - "{}"'.format(sval))                  
-            xvalue = bytes.fromhex(sval[XCERT_PAYLOAD][XCERT_ATTR])           
-        except Exception as ex:                                               
-            LOGGER.debug('set cant extract data - "{}"'.format(ex))           
-            xvalue = value 
-        return xvalue                                                   
+        if isinstance(value, bytes) :
+            LOGGER.debug('_get_xcert_value from BYTES')
+            try:                                                                  
+                sval = cbor.loads(value)                                          
+                LOGGER.debug('extract data - "{}"'.format(sval))                  
+                xvalue = bytes.fromhex(sval[XCERT_PAYLOAD][XCERT_ATTR])           
+            except Exception as ex:                                               
+                LOGGER.debug('set cant extract data - "{}"'.format(ex))           
+                xvalue = value 
+            
+        elif  isinstance(value, dict) :
+            LOGGER.debug('_get_xcert_value from dict={}'.format(value.keys()))
+            try:
+                payload = value[XCERT_PAYLOAD]
+                sval = cbor.loads(payload)
+                LOGGER.debug('_get_xcert_value xvalue={}'.format(sval))
+                xvalue = self._signer.context.create_x509_certificate(sval[XCERT_PAYLOAD], self._private_key,after=XCERT_AFTER_TM,before=XCERT_BEFORE_TM)#, after=after, before=before)
+            except Exception as ex:
+                LOGGER.debug('set cant extract dict data - "{}"'.format(ex)) 
+                xvalue = value
+        return xvalue
+
+
 
     def apply(self, transaction, context):
         """
@@ -264,8 +279,8 @@ def _validate_owner(name):
 
 def _validate_value(value):
 
-    if not isinstance(value, bytes):
-        raise InvalidTransaction('Value must be an bytes ')
+    if not isinstance(value, bytes) and not isinstance(value, dict):
+        raise InvalidTransaction('Value must be an bytes or dict ')
 
 
 def _get_state_data(name, context):
