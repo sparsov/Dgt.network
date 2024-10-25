@@ -64,11 +64,19 @@ async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "
   
 @router.get("/network/metrics/entropy",response_model=DgtMetricResponse)                                                                                                                                
 async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):                                       
-                                                                                                                                                 
+    LAT ="dgt_validator.interconnect.Interconnect.send_response_time"                                                                                                          
+    QUERY_LAT = 'select last(count) from "{}" where time >= now() - {} and time <= now() group by time({}),"host" fill(none)' 
+    squery  = QUERY_LAT.format(LAT,trange,tgroup) 
+    results = []                                                                                                        
+    try:                                                                                                                
+        result = client.query(squery)                                                                               
+        results = list(result.get_points())                                                                         
+    except Exception as ex:                                                                                             
+        LOGGER.debug("get get data {}".format(ex))                                                                                                                                              
                                                                                                                                                  
     return query._wrap_response(                                                                                                                 
         request,                                                                                                                                 
-        data={},                                                                                                                                 
+        data=DgtMetricItems(values=results),                                                                                                                                 
         metadata=query._get_metadata(request, None))  
                                                                                        
 @router.get("/network/metrics/node_activity",response_model=DgtMetricResponse)                                                                                                                                
