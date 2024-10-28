@@ -10,7 +10,7 @@ from app.schemas import DgtResponse,DgtMetricResponse,DgtMetricItems
 from app.utils.metrics import client
 from app.utils.logger import logger as LOGGER 
 router = APIRouter()
-
+QUERY_FMT = 'select last(count) from "{}" where time >= now() - {} and time <= now() group by time({}),"host" fill(none)'
 
 @router.get("/network/metrics/tps",response_model=DgtMetricResponse)
 async def get_metrics_tps(request: Request,trange:str = "24h",tgroup:str = "2m", query: QueryValidatorHandler = Depends(getQueryValidator)):
@@ -63,10 +63,14 @@ async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "
 
   
 @router.get("/network/metrics/entropy",response_model=DgtMetricResponse)                                                                                                                                
-async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):                                       
+async def get_metrics_entropy(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):
+    """
+    Evaluates the degree of randomness and distribution of activity across the network, 
+    which can serve as an indicator of the network's health and security.
+    """                                       
     LAT ="dgt_validator.interconnect.Interconnect.send_response_time"                                                                                                          
-    QUERY_LAT = 'select last(count) from "{}" where time >= now() - {} and time <= now() group by time({}),"host" fill(none)' 
-    squery  = QUERY_LAT.format(LAT,trange,tgroup) 
+    
+    squery  = QUERY_FMT.format(LAT,trange,tgroup) 
     results = []                                                                                                        
     try:                                                                                                                
         result = client.query(squery)                                                                               
@@ -80,30 +84,64 @@ async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "
         metadata=query._get_metadata(request, None))  
                                                                                        
 @router.get("/network/metrics/node_activity",response_model=DgtMetricResponse)                                                                                                                                
-async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):                                       
-
+async def get_metrics_node_activity(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):   
+    """
+    Analyzes the activity of individual nodes in the network,
+    including the number of transactions produced and processed, 
+    which helps to determine the degree of centralization of the network.
+    """                                    
+    NACT = "dgt_rest_api.post_batches_count"                  
+    QUERY_FMT_H = 'select last(count),host from "{}" where time >= now() - {} and time <= now() group by time({}),"host" fill(none)'                                                                        
+    squery  = QUERY_FMT_H.format(NACT,trange,tgroup)                          
+    results = []                                                            
+    try:       
+        LOGGER.debug("get squery {}".format(squery))                                                             
+        result = client.query(squery)                                       
+        results = list(result.get_points())                                 
+    except Exception as ex:                                                 
+        LOGGER.debug("get get data {}".format(ex))                          
 
     return query._wrap_response(                                                                                                                 
         request,                                                                                                                                 
-        data={},                                                                                                                                 
+        data=DgtMetricItems(values=results),                                                                                                                                 
         metadata=query._get_metadata(request, None)) 
 
 @router.get("/network/metrics/active_users",response_model=DgtMetricResponse)                                                                                                                                
-async def get_metrics_latency(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                                       
+async def get_metrics_active_users(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):  
+    """
+    Provides information about the number of active users in the system over a specific period,
+    which is an important indicator of the health of the ecosystem.
+    """                                     
+    AUSR = "dgt_validator.chain.ChainController.block_num"                                                                                
 
-
+    squery  = QUERY_FMT.format(AUSR,trange,tgroup)                                                                                        
+    results = []                                                                                                                         
+    try:                                                                                                                                 
+        result = client.query(squery)                                                                                                    
+        results = list(result.get_points())                                                                                              
+    except Exception as ex:                                                                                                              
+        LOGGER.debug("get get data {}".format(ex))  
+                                                                                            
     return query._wrap_response(                                                                                                                 
         request,                                                                                                                                 
-        data={},                                                                                                                                 
+        data=DgtMetricItems(values=results),                                                                                                                                 
         metadata=query._get_metadata(request, None))  
                                                                                        
-@router.get("/network/metrics/blockchain_size",response_model=DgtResponse)                                                                                                                                
-async def get_metrics_latency(request: Request,query: QueryValidatorHandler = Depends(getQueryValidator)):                                       
-
+@router.get("/network/metrics/blockchain_size",response_model=DgtMetricResponse)                                                                                                                                
+async def get_metrics_blockchain_size(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):                                       
+    BSZ = "dgt_validator.chain.ChainController.block_num"
+    
+    squery  = QUERY_FMT.format(BSZ,trange,tgroup) 
+    results = []                                                                                                        
+    try:                                                                                                                
+        result = client.query(squery)                                                                               
+        results = list(result.get_points())                                                                         
+    except Exception as ex:                                                                                             
+        LOGGER.debug("get get data {}".format(ex))
 
     return query._wrap_response(                                                                                                                 
         request,                                                                                                                                 
-        data={},                                                                                                                                 
+        data=DgtMetricItems(values=results),                                                                                                                                 
         metadata=query._get_metadata(request, None))                                                                                         
 
                                                                                        
