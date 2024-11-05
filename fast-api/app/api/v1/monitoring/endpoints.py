@@ -43,10 +43,11 @@ async def get_metrics_tps(request: Request,trange:str = "24h",tgroup:str = "2m",
 @router.get("/network/metrics/latency",response_model=DgtMetricResponse)                                                   
 async def get_metrics_latency(request: Request,trange:str = "24h",tgroup:str = "2m",query: QueryValidatorHandler = Depends(getQueryValidator)):             
     LAT ="dgt_validator.interconnect.Interconnect.send_response_time"                                                                                                          
-    QUERY_LAT = 'select last(count) from "{}" where time >= now() - {} and time <= now() group by time({}),"host" fill(none)' 
+    QUERY_LAT = 'select last(count),max(count),min(count),mean(count) as avg from "{}" where time >= now() - {} and time <= now() group by time({}),"host" fill(none)' 
     squery  = QUERY_LAT.format(LAT,trange,tgroup) 
     results = []                                                                                                        
-    try:                                                                                                                
+    try:     
+        LOGGER.debug("get get latency data {}".format(squery))                                                                                                           
         result = client.query(squery)                                                                               
         results = list(result.get_points())                                                                         
     except Exception as ex:                                                                                             
