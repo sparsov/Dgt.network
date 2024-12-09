@@ -444,7 +444,7 @@ class NotaryRouteHandler(RouteHandler):
             header=header,
             transactions=transactions,
             header_signature=signature,
-            timestamp=int(time.time())
+            timestamp=int(time.time()*1000)
             )
         return batch
         #return BatchList(batches=[batch])

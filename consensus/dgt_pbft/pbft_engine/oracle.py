@@ -1386,7 +1386,7 @@ class _BatchPublisherProxy:
         batch = Batch(
             header=header,
             transactions=transactions,
-            header_signature=signature,timestamp=int(time.time()))
+            header_signature=signature,timestamp=int(time.time()*1000))
 
         """
         if False:

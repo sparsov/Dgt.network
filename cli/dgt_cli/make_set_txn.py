@@ -69,7 +69,7 @@ def _create_batch(signer, transactions):
         header=batch_header,
         header_signature=signer.sign(batch_header),
         transactions=transactions,
-        timestamp=int(time.time()))
+        timestamp=int(time.time()*1000))
 
 
 def _create_propose_txn(signer, setting_key_value):

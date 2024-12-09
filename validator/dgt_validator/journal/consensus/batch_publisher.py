@@ -51,7 +51,7 @@ class BatchPublisher(object):
         batch = Batch(
             header=header,
             transactions=transactions,
-            header_signature=signature,timestamp=int(time.time()))
+            header_signature=signature,timestamp=int(time.time()*1000))
 
         self._batch_sender.send(batch)
 

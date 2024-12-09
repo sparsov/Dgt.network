@@ -600,7 +600,7 @@ def _create_batch(signer, transactions):
     return Batch(
         header=batch_header,
         header_signature=signer.sign(batch_header),
-        transactions=transactions,timestamp=int(time.time()))
+        transactions=transactions,timestamp=int(time.time()*1000))
 
 
 def _to_hash(value):

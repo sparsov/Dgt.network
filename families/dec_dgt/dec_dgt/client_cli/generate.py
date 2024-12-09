@@ -132,7 +132,7 @@ def create_batch(transactions, signer):
         header=header_bytes,
         transactions=transactions,
         header_signature=signature,
-        timestamp=int(time.time()))
+        timestamp=int(time.time()*1000))
 
     return batch
 
